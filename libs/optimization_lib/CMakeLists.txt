@@ -4,6 +4,8 @@ project(optimization_lib)
 
 option(OPTIMIZATION_USE_WORHP            "Use worhp"                    OFF)
 
+add_definitions(-D_USE_MATH_DEFINES)
+
 file(GLOB sources
 	src/solvers/*.cpp
 	src/objective_functions/*.cpp
