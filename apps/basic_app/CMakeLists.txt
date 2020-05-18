@@ -28,6 +28,6 @@ if(MKL_FOUND)
 	target_link_libraries(${PROJECT_NAME} PRIVATE ${MKL_LIBRARIES})
 endif()
 
-if(LIB_WITH_MATLAB)
+if(LIBIGL_WITH_MATLAB)
 	target_link_libraries(${PROJECT_NAME} PRIVATE igl::matlab)
 endif()

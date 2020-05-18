@@ -24,7 +24,7 @@ template <typename vectorTypeI, typename vectorTypeS>
 void EigenSparseSolver<vectorTypeI, vectorTypeS>::analyze_pattern()
 {
 	solver.analyzePattern(full_A);
-	//assert(solver.info() == Eigen::Success && "analyzePattern failed!");
+	assert(solver.info() == Eigen::Success && "analyzePattern failed!");
 }
 
 template <typename vectorTypeI, typename vectorTypeS>

@@ -11,9 +11,9 @@ find_package(MKL)
 option(LIBIGL_WITH_OPENGL            "Use OpenGL"                    ON)
 option(LIBIGL_WITH_OPENGL_GLFW       "Use GLFW"                      ON)
 option(LIBIGL_WITH_OPENGL_GLFW_IMGUI "Use ImGui"                     ON)
-option(LIBIGL_WITH_MATLAB 			 "Use MATLAB"             OFF)
+option(LIBIGL_WITH_MATLAB 			 "Use MATLAB"           ON)
 option(LIBIGL_USE_STATIC_LIBRARY "Use LibIGL as static library" ON)
-option(BUILD_TESTS 			 "Build tests"                    OFF)
+option(BUILD_TESTS 			 		"Build tests"          		 OFF)
 find_package(LIBIGL REQUIRED QUIET)
 
 # libraries and plugins

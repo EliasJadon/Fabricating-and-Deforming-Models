@@ -25,7 +25,8 @@ target_include_directories(${PROJECT_NAME}
 	)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE igl::core)
-if(LIB_WITH_MATLAB)
+if(LIBIGL_WITH_MATLAB)
+	message(matlab library)
 	target_link_libraries(${PROJECT_NAME} PRIVATE igl::matlab)
 endif()
 if(MKL_FOUND)

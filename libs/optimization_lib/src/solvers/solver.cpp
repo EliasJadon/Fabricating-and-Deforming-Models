@@ -1,7 +1,5 @@
 #include "solvers/solver.h"
 #include "solvers/NewtonSolver.h"
-//#define SAVE_DATA_IN_CSV
-//#define SAVE_DATA_IN_MATLAB
 
 #define HIGH 3
 #define LOW -3
@@ -145,11 +143,9 @@ void solver::prepareData() {
 	objective->updateX(X);
 }
 
-/*
-// TODO: Make this depend on a #define
+#ifdef SAVE_DATA_IN_MATLAB
 void solver::sendDataToMatlab(const bool show_graph) {
 	auto N = [&](std::string name) { return name + std::to_string(solverID); };
-
 	NewtonSolver* newtonSolver = dynamic_cast<NewtonSolver*>(this);
 
 	// Launch MATLAB
@@ -269,7 +265,8 @@ void solver::sendDataToMatlab(const bool show_graph) {
 	igl::matlab::mleval(&engine, "clear " + N("lineSearch_augmentedValue") + " " + N("lineSearch_gradientNorm"));
 	igl::matlab::mleval(&engine, "clear " + N("chosen_alfa")+" " + N("line_search_iter"));
 }
-*/
+#endif
+
 void solver::saveHessianInfo(int numIteration, std::ofstream& hessianInfo) {
 	//show only once the objective's function data
 	if (!numIteration) {

@@ -1196,10 +1196,12 @@ void deformation_plugin::start_solver_thread() {
 		if (step_by_step) {
 			static int step_counter = 0;
 			solver_thread = std::thread(&solver::run_one_iteration, Outputs[i].solver.get(), step_counter++,true);
+			solver_thread.join();
 		}
-		else
+		else {
 			solver_thread = std::thread(&solver::run, Outputs[i].solver.get());
-		solver_thread.detach();
+			solver_thread.detach();
+		}
 	}
 }
 

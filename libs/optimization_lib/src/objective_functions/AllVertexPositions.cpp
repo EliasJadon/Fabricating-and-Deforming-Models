@@ -3,7 +3,7 @@
 AllVertexPositions::AllVertexPositions()
 {
     name = "All Vertex Positions";
-	w = 10000;
+	w = 0;
 	std::cout << name << " constructor" << std::endl;
 }
 

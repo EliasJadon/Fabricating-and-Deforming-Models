@@ -18,7 +18,7 @@ public:
 	// TODO: Make this depend on a #define
 	// Matlab instance
 	// Engine *engine;
-	bool CheckPositiveDefinite = false;
+	bool CheckPositiveDefinite = true;
 
 	EigenSparseSolver();
 	~EigenSparseSolver();

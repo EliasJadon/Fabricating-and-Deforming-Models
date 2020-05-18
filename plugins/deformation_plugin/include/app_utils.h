@@ -31,6 +31,7 @@
 #define GREY_COLOR Eigen::Vector3f(0.75, 0.75, 0.75)
 #define WHITE_COLOR Eigen::Vector3f(1, 1, 1)
 #define BLACK_COLOR Eigen::Vector3f(0, 0, 0)
+#define M_PI 3.14159
 
 class app_utils : public igl::opengl::glfw::imgui::ImGuiMenu
 {

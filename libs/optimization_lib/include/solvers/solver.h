@@ -7,9 +7,14 @@
 #include <Eigen/SparseCholesky>
 #include <igl/matlab_format.h>
 #include <fstream>
-// TODO: Make this depend on a #define
-// #include <igl/matlab/MatlabWorkspace.h>
-// #include <igl/matlab/matlabinterface.h>
+
+//#define SAVE_DATA_IN_CSV
+//#define SAVE_DATA_IN_MATLAB
+
+#ifdef SAVE_DATA_IN_MATLAB
+	#include <igl/matlab/MatlabWorkspace.h>
+	#include <igl/matlab/matlabinterface.h>
+#endif
 
 class solver
 {
@@ -63,10 +68,10 @@ protected:
 	std::unique_ptr<std::shared_timed_mutex> data_mutex;
 	double currentEnergy;
 private:
-	// TODO: Make this depend on a #define
+#ifdef SAVE_DATA_IN_MATLAB
 	// Matlab instance
-	// Engine *engine;
-
+	Engine *engine;
+#endif
 	int solverID;
 	// energy output from the last step
 	
@@ -80,7 +85,9 @@ private:
 	void saveSearchDirInfo(int numIteration, std::ofstream& SearchDirInfo);
 	void saveSolverInfo(int numIteration, std::ofstream& solverInfo);
 	void saveHessianInfo(int numIteration, std::ofstream& hessianInfo);
+#ifdef SAVE_DATA_IN_MATLAB
 	void sendDataToMatlab(const bool show_graph);
+#endif
 	//CSV output
 	Eigen::SparseMatrix<double> CurrHessian;
 	Eigen::MatrixXd 
