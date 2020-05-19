@@ -16,6 +16,7 @@
 #include "../../libs/optimization_lib/include/solvers/solver.h"
 #include "../../libs/optimization_lib/include/solvers/NewtonSolver.h"
 #include "../../libs/optimization_lib/include/solvers/GradientDescentSolver.h"
+#include "../../libs/optimization_lib/include/solvers/AdamMinimizer.h"
 
 #include "../../libs/optimization_lib/include/objective_functions/STVK.h"
 #include "../../libs/optimization_lib/include/objective_functions/SymmetricDirichlet.h"
