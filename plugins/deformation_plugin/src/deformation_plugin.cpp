@@ -553,15 +553,18 @@ void deformation_plugin::Draw_menu_for_Solver() {
 
 		ImGui::Checkbox("Solver settings", &solver_settings);
 
-		if (ImGui::Combo("step", (int *)(&solver_type), "NEWTON\0Gradient Descent\0\0")) {
+		if (ImGui::Combo("step", (int *)(&solver_type), "NEWTON\0Gradient Descent\0Adam Minimizer\0\0")) {
 			stop_solver_thread();
 			for (int i = 0; i < Outputs.size(); i++) {
-				if (solver_type == app_utils::SolverType::NEWTON) {
+				switch (solver_type) {
+				case app_utils::SolverType::NEWTON:
 					Outputs[i].solver = Outputs[i].newton;
-				}
-				else {
+				case app_utils::SolverType::GRADIENT_DESCENT:
 					Outputs[i].solver = Outputs[i].gradient_descent;
+				case app_utils::SolverType::ADAM_MINIMIZER:
+					Outputs[i].solver = Outputs[i].adam_minimizer;
 				}
+				
 				Eigen::MatrixX3i F = OutputModel(i).F;
 				Eigen::VectorXd initialguess = Eigen::Map<const Eigen::VectorXd>(OutputModel(i).V.data(), OutputModel(i).V.size());
 				Outputs[i].solver->init(Outputs[i].totalObjective, initialguess, OutputModel(i).F, OutputModel(i).V);
@@ -1192,6 +1195,12 @@ void deformation_plugin::start_solver_thread() {
 			OutputModel(i).F, 
 			OutputModel(i).V
 		);
+		Outputs[i].adam_minimizer->init(
+			Outputs[i].totalObjective,
+			init,
+			OutputModel(i).F,
+			OutputModel(i).V
+		);
 		//start solver
 		if (step_by_step) {
 			static int step_counter = 0;
@@ -1257,6 +1266,7 @@ void deformation_plugin::initializeSolver(const int index)
 	Eigen::VectorXd init = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
 	Outputs[index].newton->init(Outputs[index].totalObjective, init, OutputModel(index).F, OutputModel(index).V);
 	Outputs[index].gradient_descent->init(Outputs[index].totalObjective, init, OutputModel(index).F, OutputModel(index).V);
+	Outputs[index].adam_minimizer->init(Outputs[index].totalObjective, init, OutputModel(index).F, OutputModel(index).V);
 	
 	std::cout << ">> Solver is initialized!" << std::endl;
 }

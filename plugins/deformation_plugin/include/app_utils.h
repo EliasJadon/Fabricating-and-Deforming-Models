@@ -62,8 +62,9 @@ public:
 		TOTAL_DISTORTION 
 	};
 	static enum class SolverType {
-		NEWTON,
-		GRADIENT_DESCENT
+		NEWTON = 0,
+		GRADIENT_DESCENT = 1,
+		ADAM_MINIMIZER = 2
 	};
 
 	static Eigen::Vector3f computeTranslation(
@@ -306,6 +307,7 @@ public:
 	// Solver thread
 	std::shared_ptr<NewtonSolver> newton;
 	std::shared_ptr<GradientDescentSolver> gradient_descent;
+	std::shared_ptr<AdamMinimizer> adam_minimizer;
 	std::shared_ptr<solver> solver;
 	std::shared_ptr<TotalObjective> totalObjective;
 
@@ -325,10 +327,18 @@ public:
 		std::cout << "CoreID = " << CoreID << std::endl;
 		newton = std::make_shared<NewtonSolver>(CoreID);
 		gradient_descent = std::make_shared<GradientDescentSolver>(CoreID);
-		if (solver_type == app_utils::SolverType::NEWTON) 
+		adam_minimizer = std::make_shared<AdamMinimizer>(CoreID);
+	
+		switch (solver_type) {
+		case app_utils::SolverType::NEWTON:
 			solver = newton;
-		else 
+		case app_utils::SolverType::GRADIENT_DESCENT:
 			solver = gradient_descent;
+		case app_utils::SolverType::ADAM_MINIMIZER:
+			solver = adam_minimizer;
+		}
+
+
 		solver->lineSearch_type = linesearchType;
 		totalObjective = std::make_shared<TotalObjective>();
 	}
