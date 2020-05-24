@@ -1,5 +1,6 @@
 #pragma once
 #include "libs/optimization_lib/include/OptimizationUtils.h"
+#include "plugins/deformation_plugin/include/console_color.h"
 
 class ObjectiveFunction
 {

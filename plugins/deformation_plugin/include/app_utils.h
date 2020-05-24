@@ -332,10 +332,13 @@ public:
 		switch (solver_type) {
 		case app_utils::SolverType::NEWTON:
 			solver = newton;
+			break;
 		case app_utils::SolverType::GRADIENT_DESCENT:
 			solver = gradient_descent;
+			break;
 		case app_utils::SolverType::ADAM_MINIMIZER:
 			solver = adam_minimizer;
+			break;
 		}
 
 

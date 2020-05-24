@@ -12,16 +12,16 @@ BendingEdge::BendingEdge(OptimizationUtils::FunctionType type) {
 	else if (functionType == OptimizationUtils::PlanarL)
 		name = "Planar Bending Edge";
 	w = 0;
-	std::cout << name << " constructor" << std::endl;
+	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
 BendingEdge::~BendingEdge() {
-	std::cout << name << " destructor" << std::endl;
+	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
 void BendingEdge::init()
 {
-	std::cout << name << " initialization" << std::endl;
+	std::cout << "\t" << name << " initialization" << std::endl;
 	if (restShapeV.size() == 0 || restShapeF.size() == 0)
 		throw name + " must define members V,F before init()!";
 

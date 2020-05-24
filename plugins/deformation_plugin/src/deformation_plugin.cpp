@@ -559,10 +559,13 @@ void deformation_plugin::Draw_menu_for_Solver() {
 				switch (solver_type) {
 				case app_utils::SolverType::NEWTON:
 					Outputs[i].solver = Outputs[i].newton;
+					break;
 				case app_utils::SolverType::GRADIENT_DESCENT:
 					Outputs[i].solver = Outputs[i].gradient_descent;
+					break;
 				case app_utils::SolverType::ADAM_MINIMIZER:
 					Outputs[i].solver = Outputs[i].adam_minimizer;
+					break;
 				}
 				
 				Eigen::MatrixX3i F = OutputModel(i).F;
