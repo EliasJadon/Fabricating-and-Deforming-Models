@@ -1228,6 +1228,7 @@ void deformation_plugin::initializeSolver(const int index)
 		return;
 
 	// initialize the energy
+	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
 	auto QbendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::Quadratic);
 	QbendingEdge->init_mesh(V, F);
 	QbendingEdge->init();
@@ -1265,6 +1266,8 @@ void deformation_plugin::initializeSolver(const int index)
 	Outputs[index].totalObjective->objectiveList.push_back(move(allVertexPositions));
 	Outputs[index].totalObjective->objectiveList.push_back(move(constraintsPositional));
 	Outputs[index].totalObjective->init();
+	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
+
 
 	// initialize the solver
 	Eigen::VectorXd init = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());

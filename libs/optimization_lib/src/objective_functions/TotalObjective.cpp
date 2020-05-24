@@ -3,17 +3,17 @@
 TotalObjective::TotalObjective()
 {
 	name = "Total objective";
-	std::cout << name << " constructor" << std::endl;
+	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
 TotalObjective::~TotalObjective()
 {
-	std::cout << name << " destructor" << std::endl;
+	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
 void TotalObjective::init()
 {
-	std::cout << name << " initialization" << std::endl;
+	std::cout << "\t" << name << " initialization" << std::endl;
 	//assume that each objective's member have been set outside
 	for (auto &objective : objectiveList) {
 		objective->init();
