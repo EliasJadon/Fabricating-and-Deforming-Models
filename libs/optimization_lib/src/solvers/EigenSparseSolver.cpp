@@ -1,8 +1,7 @@
 #include "solvers/EigenSparseSolver.h"
+#include "plugins/deformation_plugin/include/console_color.h"
 #include <vector>
 #include <iostream>
-
-using namespace std;
 
 template <typename vectorTypeI, typename vectorTypeS>
 EigenSparseSolver<vectorTypeI, vectorTypeS>::EigenSparseSolver()
@@ -31,6 +30,7 @@ template <typename vectorTypeI, typename vectorTypeS>
 void EigenSparseSolver<vectorTypeI, vectorTypeS>::factorize(const vectorTypeI &II, const vectorTypeI &JJ, const vectorTypeS &SS)
 {
 	perpareMatrix(II,JJ,SS);
+
 	solver.factorize(full_A);
 	//// Launch MATLAB
 	//igl::matlab::mlinit(&engine);
@@ -60,13 +60,18 @@ void EigenSparseSolver<vectorTypeI, vectorTypeS>::perpareMatrix(const vectorType
 
 	if (CheckPositiveDefinite) {
 		double min_eig_value = full_A.toDense().eigenvalues().real().minCoeff();
-		cout << "before: min_eig_value = " << min_eig_value << endl;
+		if (min_eig_value < epsilon)
+			std::cout << console_color::red;
+		else
+			std::cout << console_color::green;
+		std::cout << "before: min_eig_value = " << min_eig_value << std::endl;
 		if (min_eig_value < epsilon) {
 			for (int i = 0; i < full_A.rows(); i++) {
 				full_A.coeffRef(i, i) = full_A.coeff(i, i) + (-min_eig_value + epsilon);
 			}
 		}
-		cout << "after: full min_eig_value = " << full_A.toDense().eigenvalues().real().minCoeff() << endl;
+		std::cout << console_color::white;
+		std::cout << "after: full min_eig_value = " << full_A.toDense().eigenvalues().real().minCoeff() << std::endl;
 	}
 	
 	full_A.makeCompressed();
