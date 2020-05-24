@@ -1257,7 +1257,8 @@ void deformation_plugin::initializeSolver(const int index)
 	Outputs[index].totalObjective->objectiveList.push_back(move(EbendingEdge));
 	Outputs[index].totalObjective->objectiveList.push_back(move(PbendingEdge));
 	Outputs[index].totalObjective->objectiveList.push_back(move(SymmDirich));
-	Outputs[index].totalObjective->objectiveList.push_back(move(stvk));
+	if(app_utils::IsMesh2D(InputModel().V))
+		Outputs[index].totalObjective->objectiveList.push_back(move(stvk));
 	Outputs[index].totalObjective->objectiveList.push_back(move(allVertexPositions));
 	Outputs[index].totalObjective->objectiveList.push_back(move(constraintsPositional));
 	Outputs[index].totalObjective->init();

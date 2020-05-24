@@ -3,11 +3,10 @@ cmake_minimum_required(VERSION 3.1)
 project(plugins)
 
 # set variable value
-set(SOURCES
+file(GLOB SOURCES
 	deformation_plugin/src/deformation_plugin.cpp
-	deformation_plugin/include/deformation_plugin.h
-	deformation_plugin/include/app_utils.h)
-
+	deformation_plugin/include/*.h)
+	
 add_library(${PROJECT_NAME} ${SOURCES})
 add_library(rds::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
