@@ -45,8 +45,12 @@ public:
 		return linear_solver->MSE;
 	}
 
-	void SwitchPositiveDefiniteChecker() {
-		linear_solver->CheckPositiveDefinite = !(linear_solver->CheckPositiveDefinite);
+	bool getPositiveDefiniteChecker() {
+		return linear_solver->CheckPositiveDefinite;
+	}
+
+	void SwitchPositiveDefiniteChecker(const bool PD) {
+		linear_solver->CheckPositiveDefinite = PD;
 	}
 	
 private:

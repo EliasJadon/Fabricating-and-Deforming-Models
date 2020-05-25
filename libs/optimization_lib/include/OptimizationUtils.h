@@ -13,8 +13,8 @@ class OptimizationUtils
 public:
 	enum FunctionType {
 		Quadratic = 0,
-		Exponential,
-		PlanarL
+		Exponential = 1,
+		PlanarL = 2
 	};
 
 	static enum class LineSearch {

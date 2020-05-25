@@ -543,7 +543,6 @@ void deformation_plugin::Draw_menu_for_colors() {
 void deformation_plugin::Draw_menu_for_Solver() {
 	if (ImGui::CollapsingHeader("Solver", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-
 		if (ImGui::Checkbox("step_by_step", &step_by_step) && solver_on) {
 			start_solver_thread();
 		}
@@ -573,6 +572,15 @@ void deformation_plugin::Draw_menu_for_Solver() {
 				Outputs[i].solver->init(Outputs[i].totalObjective, initialguess, OutputModel(i).F, OutputModel(i).V);
 			}
 			start_solver_thread();
+		}
+
+		std::shared_ptr<NewtonSolver> newtonSolver = std::dynamic_pointer_cast<NewtonSolver>(Outputs[0].solver);
+		if (newtonSolver != NULL) {
+			bool PD = newtonSolver->getPositiveDefiniteChecker();
+			ImGui::Checkbox("Positive Definite check", &PD);
+			for (auto& o : Outputs) {
+				std::dynamic_pointer_cast<NewtonSolver>(o.solver)->SwitchPositiveDefiniteChecker(PD);
+			}
 		}
 
 		if (ImGui::Combo("line search", (int *)(&linesearch_type), "GradientNorm\0FunctionValue\0ConstantStep\0\0")) {
@@ -764,7 +772,11 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 				ImGui::PushID(id++);
 				ImGui::DragFloat("w", &(obj->w), 0.05f, 0.0f, 100000.0f);
 				
+				
 				std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
+				if (BE != NULL)
+					ImGui::Combo("Function", (int *)(&(BE->functionType)), "Quadratic\0Exponential\0Planar\0\0");
+						
 				if (BE != NULL && BE->functionType == OptimizationUtils::PlanarL) {
 					ImGui::Text((std::to_string(BE->planarParameter)).c_str());
 					ImGui::SameLine();
@@ -777,7 +789,6 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 					{
 						BE->planarParameter /= 2;
 					}
-
 				}
 				ImGui::NextColumn();
 				ImGui::PopID();
@@ -1229,15 +1240,9 @@ void deformation_plugin::initializeSolver(const int index)
 
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
-	auto QbendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::Quadratic);
-	QbendingEdge->init_mesh(V, F);
-	QbendingEdge->init();
-	auto EbendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::Exponential);
-	EbendingEdge->init_mesh(V, F);
-	EbendingEdge->init();
-	auto PbendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::PlanarL);
-	PbendingEdge->init_mesh(V, F);
-	PbendingEdge->init();
+	auto bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::PlanarL);
+	bendingEdge->init_mesh(V, F);
+	bendingEdge->init();
 	auto SymmDirich = std::make_unique<SymmetricDirichlet>();
 	SymmDirich->init_mesh(V, F);
 	SymmDirich->init();
@@ -1257,9 +1262,7 @@ void deformation_plugin::initializeSolver(const int index)
 
 	Outputs[index].totalObjective->objectiveList.clear();
 	Outputs[index].totalObjective->init_mesh(V, F);
-	Outputs[index].totalObjective->objectiveList.push_back(move(QbendingEdge));
-	Outputs[index].totalObjective->objectiveList.push_back(move(EbendingEdge));
-	Outputs[index].totalObjective->objectiveList.push_back(move(PbendingEdge));
+	Outputs[index].totalObjective->objectiveList.push_back(move(bendingEdge));
 	Outputs[index].totalObjective->objectiveList.push_back(move(SymmDirich));
 	if(app_utils::IsMesh2D(InputModel().V))
 		Outputs[index].totalObjective->objectiveList.push_back(move(stvk));

@@ -5,12 +5,7 @@
 
 BendingEdge::BendingEdge(OptimizationUtils::FunctionType type) {
 	functionType = type;
-	if (functionType == OptimizationUtils::Quadratic)
-		name = "Quadratic Bending Edge";
-	else if (functionType == OptimizationUtils::Exponential)
-		name = "Exponential Bending Edge";
-	else if (functionType == OptimizationUtils::PlanarL)
-		name = "Planar Bending Edge";
+	name = "Bending Edge";
 	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
