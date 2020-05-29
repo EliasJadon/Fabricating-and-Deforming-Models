@@ -166,18 +166,18 @@ void BendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 	g.conservativeResize(restShapeV.rows() * 3);
 	g.setZero();
 
-	// f = ||n1-n0||^2
+	// m = ||n1-n0||^2
 	// E = Phi( ||n1-n0||^2 )
 	// 
 	// dE/dx = dPhi/dx
 	// 
 	// using chain rule:
-	// dPhi/dx = dPhi/df * df/dn * dn/dx
+	// dPhi/dx = dPhi/dm * dm/dn * dn/dx
 
-	Eigen::VectorXd dphi_df = dPhi_df(d_normals);
+	Eigen::VectorXd dphi_dm = dPhi_dm(d_normals);
 
 	for (int hi = 0; hi < num_hinges; hi++) {
-		Eigen::Matrix<double, 4, 3> dE_dx = dphi_df(hi) * df_dN(hi) * dN_dx(hi);
+		Eigen::Matrix<double, 4, 3> dE_dx = dphi_dm(hi) * dm_dN(hi) * dN_dx(hi);
 
 		for(int i=0;i<4;i++)
 			for (int xyz = 0; xyz < 3; ++xyz)
@@ -187,6 +187,39 @@ void BendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 	if (update)
 		gradient_norm = g.norm();
 }
+
+
+Eigen::Matrix< double, 6, 1> BendingNormal::dm_dN(int hi) {
+	// m = ||n1 - n0||^2
+	// m = (n1.x - n0.x)^2 + (n1.y - n0.y)^2 + (n1.z - n0.z)^2
+	int f0 = hinges_faceIndex[hi](0);
+	int f1 = hinges_faceIndex[hi](1);
+	Eigen::Matrix< double, 6, 1> grad;
+	grad <<
+		-2 * (normals(f1, 0) - normals(f0, 0)),	//n0.x
+		2 * (normals(f1, 0) - normals(f0, 0)),	//n1.x
+		-2 * (normals(f1, 1) - normals(f0, 1)), //n0.y
+		2 * (normals(f1, 1) - normals(f0, 1)),	//n1.y
+		-2 * (normals(f1, 2) - normals(f0, 2)), //n0.z
+		2 * (normals(f1, 2) - normals(f0, 2));	//n1.z
+	return grad;
+}
+
+Eigen::Matrix< double, 6, 6> BendingNormal::d2m_dNdN(int hi) {
+	Eigen::Matrix< double, 6, 6> hess;
+	hess << 
+		2, -2, 0, 0, 0, 0,
+		-2, 2, 0, 0, 0, 0,
+		0, 0, 2, -2, 0, 0,
+		0, 0, -2, 2, 0, 0,
+		0, 0, 0, 0, 2, -2,
+		0, 0, 0, 0, -2, 2;
+	return hess;
+}
+
+
+
+
 
 Eigen::Matrix< Eigen::Matrix3d, 4, 4> BendingNormal::d2N_dxdx(int hi) {
 	//start copied code from gradient
