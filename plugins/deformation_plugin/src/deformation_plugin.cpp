@@ -1243,6 +1243,9 @@ void deformation_plugin::initializeSolver(const int index)
 	auto bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::PlanarL);
 	bendingEdge->init_mesh(V, F);
 	bendingEdge->init();
+	auto bendingNormal = std::make_unique<BendingNormal>(OptimizationUtils::PlanarL);
+	bendingNormal->init_mesh(V, F);
+	bendingNormal->init();
 	auto SymmDirich = std::make_unique<SymmetricDirichlet>();
 	SymmDirich->init_mesh(V, F);
 	SymmDirich->init();
@@ -1262,6 +1265,7 @@ void deformation_plugin::initializeSolver(const int index)
 
 	Outputs[index].totalObjective->objectiveList.clear();
 	Outputs[index].totalObjective->init_mesh(V, F);
+	Outputs[index].totalObjective->objectiveList.push_back(move(bendingNormal));
 	Outputs[index].totalObjective->objectiveList.push_back(move(bendingEdge));
 	Outputs[index].totalObjective->objectiveList.push_back(move(SymmDirich));
 	if(app_utils::IsMesh2D(InputModel().V))

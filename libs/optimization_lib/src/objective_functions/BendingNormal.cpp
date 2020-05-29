@@ -107,7 +107,7 @@ Eigen::VectorXd BendingNormal::Phi(Eigen::VectorXd x) {
 	}
 }
 
-Eigen::VectorXd BendingNormal::dPhi_df(Eigen::VectorXd x) {
+Eigen::VectorXd BendingNormal::dPhi_dm(Eigen::VectorXd x) {
 	if (functionType == OptimizationUtils::Quadratic)
 		return 2 * x;
 	else if (functionType == OptimizationUtils::Exponential) {
@@ -127,7 +127,7 @@ Eigen::VectorXd BendingNormal::dPhi_df(Eigen::VectorXd x) {
 	}
 }
 
-Eigen::VectorXd BendingNormal::d2Phi_dfdf(Eigen::VectorXd x) {
+Eigen::VectorXd BendingNormal::d2Phi_dmdm(Eigen::VectorXd x) {
 	if (functionType == OptimizationUtils::Quadratic)
 		return Eigen::VectorXd::Constant(x.rows(),2);
 	else if (functionType == OptimizationUtils::Exponential) {
@@ -150,8 +150,10 @@ Eigen::VectorXd BendingNormal::d2Phi_dfdf(Eigen::VectorXd x) {
 
 double BendingNormal::value(const bool update)
 {
-	Eigen::VectorXd Energy = Phi(d_normals);
-	double value = Energy.transpose()*restArea;
+	//Eigen::VectorXd Energy = Phi(d_normals);
+	//double value = Energy.transpose()*restArea;
+
+	double value = normals.sum();
 	
 	if (update) {
 		//TODO: calculate Efi (for coloring the faces)
@@ -176,13 +178,30 @@ void BendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 
 	Eigen::VectorXd dphi_dm = dPhi_dm(d_normals);
 
-	for (int hi = 0; hi < num_hinges; hi++) {
+	for (int fi = 0; fi < restShapeF.rows(); fi++) {
+		Eigen::Matrix<double, 3, 9> asd = dN_dx(fi);
+		int v0 = restShapeF(fi, 0);
+		int v1 = restShapeF(fi, 1);
+		int v2 = restShapeF(fi, 2);
+
+		for (int ddd = 0; ddd < 3; ddd++) {
+			for (int xyz = 0; xyz < 3; ++xyz) {
+				g[v0 + (xyz*restShapeV.rows())] += asd(ddd, 0 + 3 * xyz);
+				g[v1 + (xyz*restShapeV.rows())] += asd(ddd, 1 + 3 * xyz);
+				g[v2 + (xyz*restShapeV.rows())] += asd(ddd, 2 + 3 * xyz);
+			}
+		}
+		
+			
+	}
+
+	/*for (int hi = 0; hi < num_hinges; hi++) {
 		Eigen::Matrix<double, 4, 3> dE_dx = dphi_dm(hi) * dm_dN(hi) * dN_dx(hi);
 
 		for(int i=0;i<4;i++)
 			for (int xyz = 0; xyz < 3; ++xyz)
 				g[x_index(i,hi) + (xyz*restShapeV.rows())] += dE_dx(i, xyz);
-	}
+	}*/
 
 	if (update)
 		gradient_norm = g.norm();
@@ -217,174 +236,187 @@ Eigen::Matrix< double, 6, 6> BendingNormal::d2m_dNdN(int hi) {
 	return hess;
 }
 
+Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> BendingNormal::d2N_dxdx(int fi) {
+	// e1 = v1-v0
+	// e2 = v2-v0
+	//
+	// N = e1 x e2
+	// N.x = (y1-y0)*(z2-z0)-(z1-z0)*(y2-y0)
+	// N.y = (z1-z0)*(x2-x0)-(x1-x0)*(z2-z0)
+	// N.z = (x1-x0)*(y2-y0)-(y1-y0)*(x2-x0)
+	//
+	// NormalizedN = N / norm
 
+	Eigen::Vector3d e0 = CurrV.row(restShapeF(fi, 1)) - CurrV.row(restShapeF(fi, 0));
+	Eigen::Vector3d e1 = CurrV.row(restShapeF(fi, 2)) - CurrV.row(restShapeF(fi, 0));
+	Eigen::Vector3d N = e0.cross(e1);
+	double norm = N.norm();
+	Eigen::Matrix<double, 9, 3> jacobian_N;
+	Eigen::Matrix<double, 9, 1> grad_norm;
+	jacobian_N <<
+		0			, -e0(2) + e1(2), -e1(1) + e0(1),	//x0
+		0			, -e1(2)		, e1(1),	//x1
+		0			, e0(2)			, -e0(1),	//x2
+		-e1(2) + e0(2), 0				, -e0(0) + e1(0),	//y0
+		e1(2), 0				, -e1(0),	//y1
+		-e0(2), 0				, e0(0),	//y2
+		-e0(1) + e1(1), -e1(0) + e0(0), 0				,	//z0
+		-e1(1), e1(0), 0				,	//z1
+		e0(1), -e0(0), 0;				//z2
 
-
-
-Eigen::Matrix< Eigen::Matrix3d, 4, 4> BendingNormal::d2N_dxdx(int hi) {
-	//start copied code from gradient
-	Eigen::Vector3d e0 = x1.row(hi) - x0.row(hi);
-	Eigen::Vector3d e1 = x2.row(hi) - x0.row(hi);
-	Eigen::Vector3d e2 = x3.row(hi) - x0.row(hi);
-	Eigen::Vector3d e3 = x2.row(hi) - x1.row(hi);
-	Eigen::Vector3d e4 = x3.row(hi) - x1.row(hi);
-	Eigen::Vector3d n1 = e0.cross(e1);
-	Eigen::Vector3d n2 = e2.cross(e0);
-	double l_e0 = e0.norm(); e0 /= l_e0;
-	double l_e1 = e1.norm(); e1 /= l_e1;
-	double l_e2 = e2.norm(); e2 /= l_e2;
-	double l_e3 = e3.norm(); e3 /= l_e3;
-	double l_e4 = e4.norm(); e4 /= l_e4;
-	double l_n1 = n1.norm(); n1 /= l_n1;
-	double l_n2 = n2.norm(); n2 /= l_n2;
-	double angle_1 = acos(e0.dot(e1));
-	double angle_2 = acos(e2.dot(e0));
-	double angle_3 = acos(e3.dot(-e0));
-	double angle_4 = acos((-e0).dot(e4));
-	double h_1 = l_n1 / l_e1;
-	double h_2 = l_n2 / l_e2;
-	double h_3 = l_n1 / l_e3;
-	double h_4 = l_n2 / l_e4;
-	double h_01 = l_n1 / l_e0;
-	double h_02 = l_n2 / l_e0;
-	//end copied code from gradient
+	grad_norm = (N(0)*jacobian_N.col(0) + N(1)*jacobian_N.col(1) + N(2)*jacobian_N.col(2)) / norm;
 	
-	// vectors m
-	Eigen::Vector3d m1 = -e1.cross(n1);
-	Eigen::Vector3d m2 = e2.cross(n2);
-	Eigen::Vector3d m3 = e3.cross(n1);
-	Eigen::Vector3d m4 = -e4.cross(n2);
-	Eigen::Vector3d m01 = e0.cross(n1);
-	Eigen::Vector3d m02 = -e0.cross(n2);
+	Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> hess_N;
+	Eigen::Matrix<double, 9, 9> hess_norm;
+	hess_N[0] <<
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 1, -1,
+		0, 0, 0, 0, 0, 0, -1, 0, 1,
+		0, 0, 0, 0, 0, 0, 1, -1, 0,
+		0, 0, 0, 0, -1, 1, 0, 0, 0,
+		0, 0, 0, 1, 0, -1, 0, 0, 0,
+		0, 0, 0, -1, 1, 0, 0, 0, 0;
+	hess_N[1] <<
+		0, 0, 0, 0, 0, 0, 0, -1, 1,
+		0, 0, 0, 0, 0, 0, 1, 0, -1,
+		0, 0, 0, 0, 0, 0, -1, 1, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 1, -1, 0, 0, 0, 0, 0, 0,
+		-1, 0, 1, 0, 0, 0, 0, 0, 0,
+		1, -1, 0, 0, 0, 0, 0, 0, 0;
+	hess_N[2] <<
+		0, 0, 0, 0, 1, -1, 0, 0, 0,
+		0, 0, 0, -1, 0, 1, 0, 0, 0,
+		0, 0, 0, 1, -1, 0, 0, 0, 0,
+		0, -1, 1, 0, 0, 0, 0, 0, 0,
+		1, 0, -1, 0, 0, 0, 0, 0, 0,
+		-1, 1, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0, 0, 0, 0, 0;
 
-	//Hessian of angle
-	Eigen::Matrix< Eigen::Matrix3d, 4, 4> H_angle;
-	//Eigen is making v1 * v2.T harder than it should be
-	Eigen::RowVector3d n1_t = n1.transpose();
-	Eigen::RowVector3d n2_t = n2.transpose();
-	Eigen::RowVector3d m1_t = m1.transpose();
-	Eigen::RowVector3d m2_t = m2.transpose();
-	Eigen::RowVector3d m3_t = m3.transpose();
-	Eigen::RowVector3d m4_t = m4.transpose();
-	Eigen::RowVector3d m01_t = m01.transpose();
-	Eigen::RowVector3d m02_t = m02.transpose();
-	Eigen::Matrix3d B1 = n1 * m01_t / (l_e0*l_e0);
-	Eigen::Matrix3d B2 = n2 * m02_t / (l_e0*l_e0);
+	hess_norm =
+		((N(0)* hess_N[0] +
+			N(1)* hess_N[1] +
+			N(2)* hess_N[2] +
+			jacobian_N.col(0)*jacobian_N.col(0).transpose() +
+			jacobian_N.col(1)*jacobian_N.col(1).transpose() +
+			jacobian_N.col(2)*jacobian_N.col(2).transpose())
+			- (grad_norm* grad_norm.transpose())) / norm;
 
-	H_angle(0, 0) = cos(angle_3) / (h_3*h_3) * (m3 * n1_t + n1 * m3_t) - B1
-		+ cos(angle_4) / (h_4*h_4) * (m4 * n2_t + n2 * m4_t) - B2;
-	H_angle(0, 1) = cos(angle_3) / (h_1*h_3) * m1*n1_t + cos(angle_1) / (h_1*h_3)*n1*m3_t + B1
-		+ cos(angle_4) / (h_2*h_4)*m2*n2_t + cos(angle_2) / (h_2*h_4)*n2*m4_t + B2;
-	H_angle(0, 2) = cos(angle_3) / (h_3*h_01)*m01*n1_t - n1 * m3_t / (h_01*h_3);
-	H_angle(0, 3) = cos(angle_4) / (h_4*h_02)*m02*n2_t - n2 * m4_t / (h_02*h_4);
-	H_angle(1, 1) = cos(angle_1) / (h_1*h_1)*(m1*n1_t + n1 * m1_t) - B1
-		+ cos(angle_2) / (h_2*h_2)*(m2*n2_t + n2 * m2_t) - B2;
-	H_angle(1, 2) = cos(angle_1) / (h_1*h_01)*m01*n1_t - n1 * m1_t / (h_01*h_1);
-	H_angle(1, 3) = cos(angle_2) / (h_2*h_02)*m02*n2_t - n2 * m2_t / (h_02*h_2);
-	H_angle(2, 2) = -(n1*m01_t + m01 * n1_t) / (h_01*h_01);
-	H_angle(2, 3).setZero();
-	H_angle(3, 3) = -(n2*m02_t + m02 * n2_t) / (h_02*h_02);
-	for (int i = 1; i < 4; ++i)
-		for (int j = i - 1; j >= 0; --j)
-			H_angle(i, j) = H_angle(j, i).transpose();
-
-	return H_angle;
+	Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> hess_normalizedN;
+	for (int i = 0; i < 3; i++)
+		hess_normalizedN[i] =
+		(hess_N[i] / norm)
+		- (jacobian_N.col(i)*grad_norm.transpose()) / pow(norm, 2)
+		- (hess_norm*N(i) + grad_norm * jacobian_N.col(i).transpose()) / pow(norm, 2)
+		+ (2 * N(i)*grad_norm*grad_norm.transpose()) / pow(norm, 3);
+	
+	return hess_normalizedN;
 }
 
-Eigen::Matrix<double, 4, 3> BendingNormal::dN_dx(int hi) {
-	//start copied code from gradient
-	Eigen::Vector3d e0 = x1.row(hi) - x0.row(hi);
-	Eigen::Vector3d e1 = x2.row(hi) - x0.row(hi);
-	Eigen::Vector3d e2 = x3.row(hi) - x0.row(hi);
-	Eigen::Vector3d e3 = x2.row(hi) - x1.row(hi);
-	Eigen::Vector3d e4 = x3.row(hi) - x1.row(hi);
-	Eigen::Vector3d n1 = e0.cross(e1);
-	Eigen::Vector3d n2 = e2.cross(e0);
-	double l_e0 = e0.norm(); e0 /= l_e0;
-	double l_e1 = e1.norm(); e1 /= l_e1;
-	double l_e2 = e2.norm(); e2 /= l_e2;
-	double l_e3 = e3.norm(); e3 /= l_e3;
-	double l_e4 = e4.norm(); e4 /= l_e4;
-	double l_n1 = n1.norm(); n1 /= l_n1;
-	double l_n2 = n2.norm(); n2 /= l_n2;
-	double angle_1 = acos(e0.dot(e1));
-	double angle_2 = acos(e2.dot(e0));
-	double angle_3 = acos(e3.dot(-e0));
-	double angle_4 = acos((-e0).dot(e4));
-	double h_1 = l_n1 / l_e1;
-	double h_2 = l_n2 / l_e2;
-	double h_3 = l_n1 / l_e3;
-	double h_4 = l_n2 / l_e4;
-	double h_01 = l_n1 / l_e0;
-	double h_02 = l_n2 / l_e0;
-	//end copied code from gradient
+Eigen::Matrix<double, 3, 9> BendingNormal::dN_dx(int fi) {
+	// e1 = v1-v0
+	// e2 = v2-v0
+	//
+	// N = e1 x e2
+	// N.x = (y1-y0)*(z2-z0)-(z1-z0)*(y2-y0)
+	// N.y = (z1-z0)*(x2-x0)-(x1-x0)*(z2-z0)
+	// N.z = (x1-x0)*(y2-y0)-(y1-y0)*(x2-x0)
+	//
+	// NormalizedN = N / norm
 
-	//Gradient of angle
-	Eigen::Matrix<double, 4, 3> grad_angle;
-	grad_angle.row(0) = n1 * cos(angle_3) / h_3 + n2 * cos(angle_4) / h_4;
-	grad_angle.row(1) = n1 * cos(angle_1) / h_1 + n2 * cos(angle_2) / h_2;
-	grad_angle.row(2) = -n1 / h_01;
-	grad_angle.row(3) = -n2 / h_02;
-
-	return grad_angle;
+	Eigen::Vector3d e0 = CurrV.row(restShapeF(fi, 1)) - CurrV.row(restShapeF(fi, 0));
+	Eigen::Vector3d e1 = CurrV.row(restShapeF(fi, 2)) - CurrV.row(restShapeF(fi, 0));
+	Eigen::Vector3d N = e0.cross(e1);
+	double norm = N.norm();
+	Eigen::Matrix<double, 9, 3> jacobian_N;
+	Eigen::Matrix<double, 9, 1> grad_norm;
+	jacobian_N <<
+		0			, -e0(2) + e1(2), -e1(1) + e0(1),	//x0
+		0			, -e1(2), e1(1),	//x1
+		0			, e0(2), -e0(1),	//x2
+		-e1(2) + e0(2), 0				, -e0(0) + e1(0),	//y0
+		e1(2), 0				, -e1(0),	//y1
+		-e0(2), 0				, e0(0),	//y2
+		-e0(1) + e1(1), -e1(0) + e0(0), 0				,	//z0
+		-e1(1), e1(0), 0				,	//z1
+		e0(1), -e0(0), 0;				//z2
+	
+	grad_norm = (N(0)*jacobian_N.col(0) + N(1)*jacobian_N.col(1) + N(2)*jacobian_N.col(2))/norm;
+	
+	Eigen::Matrix<double, 3, 9> jacobian_normalizedN;
+	for (int i = 0; i < 3; i++)
+		jacobian_normalizedN.row(i) = (jacobian_N.col(i) / norm) - ((grad_norm*N(i)) / pow(norm, 2));
+	return jacobian_normalizedN;
 }
 
 void BendingNormal::hessian() {
-	// constant factors
-	int index = 0;
-	Eigen::VectorXd d_angle = angle - restAngle;
-	Eigen::VectorXd dE_df = k * restConst;
-	Eigen::VectorXd df_d0 = dF_d0(d_angle);
-	Eigen::VectorXd d2f_d0d0 = d2F_d0d0(d_angle);
+	II.clear();
+	JJ.clear();
+	SS.clear();
+	//// constant factors
+	//int index = 0;
+	//Eigen::VectorXd d_angle = angle - restAngle;
+	//Eigen::VectorXd dE_df = k * restConst;
+	//Eigen::VectorXd df_d0 = dF_d0(d_angle);
+	//Eigen::VectorXd d2f_d0d0 = d2F_d0d0(d_angle);
 
-	for (int hi = 0; hi < num_hinges; hi++) {
-		Eigen::Matrix< Eigen::Matrix3d, 4, 4> H_angle = d20_dxdx(hi);
-		Eigen::Matrix<double, 4, 3> grad_angle = d0_dx(hi);
-		//dE/dx =	dE/dF * dF/d0 * d20/dxdx + 
-		//			dE/dF * d2F/d0d0 * d0/dx * (d0/dx)^T
-		Eigen::Matrix3d H[4][4];
-		for (int i = 0; i < 4; ++i)
-			for (int j = 0; j < 4; ++j)
-				H[i][j] = 
-				dE_df(hi) * df_d0(hi) * H_angle(i,j) + 
-				dE_df(hi) * d2f_d0d0(hi) * grad_angle.row(i).transpose() * grad_angle.row(j);
-
-		//Finally, convert to triplets
-		for (int i = 0; i < 4; ++i)
-			for (int j = 0; j < 4; ++j)
-				for (int ii = 0; ii < 3; ++ii)
-					for (int jj = 0; jj < 3; ++jj) {
-						int global_j = x_index(i, hi) + (ii*restShapeV.rows());
-						int global_i = x_index(j, hi) + (jj*restShapeV.rows());
-
-						if (global_i <= global_j) {
-							//hesEntries.push_back(Eigen::Triplet<double>(global_i, global_j, H[i][j](ii, jj)));
-							SS[index++] = H[i][j](ii, jj);
-						}	
-					}
+	for (int fi = 0; fi < restShapeF.rows(); fi++) {
+		Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> asd = d2N_dxdx(fi);
+		int v0 = restShapeF(fi, 0);
+		int v1 = restShapeF(fi, 1);
+		int v2 = restShapeF(fi, 2);
+		
+		for (int ddd = 0; ddd < 3; ++ddd)
+			for (int i = 0; i < 3; ++i)
+				for (int j = 0; j < 3; ++j)
+					for (int ii = 0; ii < 3; ++ii)
+						for (int jj = 0; jj < 3; ++jj) {
+							int global_i = restShapeF(fi, i) + (ii*restShapeV.rows());
+							int global_j = restShapeF(fi, j) + (jj*restShapeV.rows());
+				
+							if (global_i <= global_j) {
+								II.push_back(global_i);
+								JJ.push_back(global_j);
+								SS.push_back(asd[ddd](i + 3 * ii, j + 3 * jj));
+							}	
+						}		
 	}
+
+	//for (int hi = 0; hi < num_hinges; hi++) {
+	//	Eigen::Matrix< Eigen::Matrix3d, 4, 4> H_angle = d20_dxdx(hi);
+	//	Eigen::Matrix<double, 4, 3> grad_angle = d0_dx(hi);
+	//	//dE/dx =	dE/dF * dF/d0 * d20/dxdx + 
+	//	//			dE/dF * d2F/d0d0 * d0/dx * (d0/dx)^T
+	//	Eigen::Matrix3d H[4][4];
+	//	for (int i = 0; i < 4; ++i)
+	//		for (int j = 0; j < 4; ++j)
+	//			H[i][j] = 
+	//			dE_df(hi) * df_d0(hi) * H_angle(i,j) + 
+	//			dE_df(hi) * d2f_d0d0(hi) * grad_angle.row(i).transpose() * grad_angle.row(j);
+
+	//	//Finally, convert to triplets
+	//	for (int i = 0; i < 4; ++i)
+	//		for (int j = 0; j < 4; ++j)
+	//			for (int ii = 0; ii < 3; ++ii)
+	//				for (int jj = 0; jj < 3; ++jj) {
+	//					int global_j = x_index(i, hi) + (ii*restShapeV.rows());
+	//					int global_i = x_index(j, hi) + (jj*restShapeV.rows());
+
+	//					if (global_i <= global_j) {
+	//						//hesEntries.push_back(Eigen::Triplet<double>(global_i, global_j, H[i][j](ii, jj)));
+	//						SS[index++] = H[i][j](ii, jj);
+	//					}	
+	//				}
+	//}
 }
 
 void BendingNormal::init_hessian()
 {
-	II.clear();
-	JJ.clear();
 	
-	for (int hi = 0; hi < num_hinges; hi++) {
-		//Finally, convert to triplets
-		for (int i = 0; i < 4; ++i)
-			for (int j = 0; j < 4; ++j)
-				for (int ii = 0; ii < 3; ++ii)
-					for (int jj = 0; jj < 3; ++jj) {
-						int global_j = x_index(i, hi) + (ii*restShapeV.rows());
-						int global_i = x_index(j, hi) + (jj*restShapeV.rows());
-
-						if (global_i <= global_j) {
-							II.push_back(global_i);
-							JJ.push_back(global_j);
-						}
-					}
-	}
-
-	SS = std::vector<double>(II.size(), 0.);
 }

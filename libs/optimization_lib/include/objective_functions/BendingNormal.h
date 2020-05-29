@@ -4,7 +4,7 @@
 class BendingNormal : public ObjectiveFunction
 {	
 private:
-	Eigen::MatrixXd normals;
+	Eigen::MatrixX3d normals;
 	Eigen::MatrixX3d CurrV;
 	Eigen::VectorXd restArea, d_normals;
 	int num_hinges = -1;
@@ -14,10 +14,12 @@ private:
 	virtual void init_hessian() override;
 
 	Eigen::VectorXd Phi(Eigen::VectorXd);
-	Eigen::VectorXd dPhi_df(Eigen::VectorXd);
-	Eigen::VectorXd d2Phi_dfdf(Eigen::VectorXd);
-	Eigen::Matrix< Eigen::Matrix3d, 4, 4> d2N_dxdx(int hi);
-	Eigen::Matrix<double, 4, 3> dN_dx(int hi);
+	Eigen::VectorXd dPhi_dm(Eigen::VectorXd);
+	Eigen::VectorXd d2Phi_dmdm(Eigen::VectorXd);
+	Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> d2N_dxdx(int hi);
+	Eigen::Matrix<double, 3, 9> dN_dx(int hi);
+	Eigen::Matrix< double, 6, 1> dm_dN(int hi);
+	Eigen::Matrix< double, 6, 6> d2m_dNdN(int hi);
 public:
 	OptimizationUtils::FunctionType functionType;
 	float planarParameter;
