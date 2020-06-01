@@ -774,9 +774,12 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 				
 				
 				std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
+				std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
 				if (BE != NULL)
 					ImGui::Combo("Function", (int *)(&(BE->functionType)), "Quadratic\0Exponential\0Planar\0\0");
-						
+				if (BN != NULL)
+					ImGui::Combo("Function", (int *)(&(BN->functionType)), "Quadratic\0Exponential\0Planar\0\0");
+
 				if (BE != NULL && BE->functionType == OptimizationUtils::PlanarL) {
 					ImGui::Text((std::to_string(BE->planarParameter)).c_str());
 					ImGui::SameLine();
@@ -788,6 +791,19 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 					if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 					{
 						BE->planarParameter /= 2;
+					}
+				}
+				if (BN != NULL && BN->functionType == OptimizationUtils::PlanarL) {
+					ImGui::Text((std::to_string(BN->planarParameter)).c_str());
+					ImGui::SameLine();
+					if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+					{
+						BN->planarParameter = (BN->planarParameter * 2) > 1 ? 1 : BN->planarParameter * 2;
+					}
+					ImGui::SameLine();
+					if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+					{
+						BN->planarParameter /= 2;
 					}
 				}
 				ImGui::NextColumn();
