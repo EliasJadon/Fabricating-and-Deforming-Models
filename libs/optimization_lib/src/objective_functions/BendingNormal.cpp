@@ -273,7 +273,6 @@ void BendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 {
 	g.conservativeResize(restShapeV.rows() * 3);
 	g.setZero();
-
 	// m = ||n1-n0||^2
 	// E = Phi( ||n1-n0||^2 )
 	// 
@@ -286,16 +285,12 @@ void BendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 
 	for (int hi = 0; hi < num_hinges; hi++) {
 		Eigen::Matrix<double, 6, 12> n_x = dN_dx_perhinge(hi);
-		
 		Eigen::Matrix<double, 1, 12> dE_dx = 
 			/*restArea(hi)* dphi_dm(hi) **/ dm_dN(hi).transpose() * n_x;
-			
-		for (int xyz = 0; xyz < 3; ++xyz) {
-			g[x0_GlobInd(hi) + (xyz*restShapeV.rows())] += dE_dx(0 + xyz);
-			g[x1_GlobInd(hi) + (xyz*restShapeV.rows())] += dE_dx(3 + xyz);
-			g[x2_GlobInd(hi) + (xyz*restShapeV.rows())] += dE_dx(6 + xyz);
-			g[x3_GlobInd(hi) + (xyz*restShapeV.rows())] += dE_dx(9 + xyz);
-		}
+		
+		for (int xi = 0; xi < 4; xi++)
+			for (int xyz = 0; xyz < 3; ++xyz)
+				g[x_GlobInd(xi,hi) + (xyz*restShapeV.rows())] += dE_dx(xi*3 + xyz);
 	}
 
 	if (update)
@@ -549,16 +544,7 @@ void BendingNormal::hessian() {
 	II.clear();
 	JJ.clear();
 	SS.clear();
-	//// constant factors
-	//int index = 0;
-	//Eigen::VectorXd d_angle = angle - restAngle;
-	//Eigen::VectorXd dE_df = k * restConst;
-	//Eigen::VectorXd df_d0 = dF_d0(d_angle);
-	//Eigen::VectorXd d2f_d0d0 = d2F_d0d0(d_angle);
 	
-		
-	
-
 	for (int hi = 0; hi < num_hinges; hi++) {
 		Eigen::Matrix<double, 6, 12> n_x = dN_dx_perhinge(hi);
 		Eigen::Matrix<Eigen::Matrix<double, 12, 12>, 1, 6> n2_xx = d2N_dxdx_perhinge(hi);
@@ -590,33 +576,6 @@ void BendingNormal::hessian() {
 			}
 		}	
 	}
-
-	//for (int hi = 0; hi < num_hinges; hi++) {
-	//	Eigen::Matrix< Eigen::Matrix3d, 4, 4> H_angle = d20_dxdx(hi);
-	//	Eigen::Matrix<double, 4, 3> grad_angle = d0_dx(hi);
-	//	//dE/dx =	dE/dF * dF/d0 * d20/dxdx + 
-	//	//			dE/dF * d2F/d0d0 * d0/dx * (d0/dx)^T
-	//	Eigen::Matrix3d H[4][4];
-	//	for (int i = 0; i < 4; ++i)
-	//		for (int j = 0; j < 4; ++j)
-	//			H[i][j] = 
-	//			dE_df(hi) * df_d0(hi) * H_angle(i,j) + 
-	//			dE_df(hi) * d2f_d0d0(hi) * grad_angle.row(i).transpose() * grad_angle.row(j);
-
-	//	//Finally, convert to triplets
-	//	for (int i = 0; i < 4; ++i)
-	//		for (int j = 0; j < 4; ++j)
-	//			for (int ii = 0; ii < 3; ++ii)
-	//				for (int jj = 0; jj < 3; ++jj) {
-	//					int global_j = x_index(i, hi) + (ii*restShapeV.rows());
-	//					int global_i = x_index(j, hi) + (jj*restShapeV.rows());
-
-	//					if (global_i <= global_j) {
-	//						//hesEntries.push_back(Eigen::Triplet<double>(global_i, global_j, H[i][j](ii, jj)));
-	//						SS[index++] = H[i][j](ii, jj);
-	//					}	
-	//				}
-	//}
 }
 
 int BendingNormal::x_GlobInd(int index, int hi) {
