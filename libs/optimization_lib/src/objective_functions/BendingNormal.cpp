@@ -256,11 +256,8 @@ Eigen::VectorXd BendingNormal::d2Phi_dmdm(Eigen::VectorXd x) {
 
 double BendingNormal::value(const bool update)
 {
-	Eigen::VectorXd Energy = d_normals/*Phi(d_normals)*/;
-	double value = Energy.sum();/*Energy.transpose()*restArea*/;
-
-	//double value = normals.col(0).sum();
-	
+	Eigen::VectorXd Energy = Phi(d_normals);
+	double value = Energy.transpose()*restArea;
 	if (update) {
 		//TODO: calculate Efi (for coloring the faces)
 		Efi.setZero();
@@ -286,7 +283,7 @@ void BendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 	for (int hi = 0; hi < num_hinges; hi++) {
 		Eigen::Matrix<double, 6, 12> n_x = dN_dx_perhinge(hi);
 		Eigen::Matrix<double, 1, 12> dE_dx = 
-			/*restArea(hi)* dphi_dm(hi) **/ dm_dN(hi).transpose() * n_x;
+			restArea(hi)* dphi_dm(hi) * dm_dN(hi).transpose() * n_x;
 		
 		for (int xi = 0; xi < 4; xi++)
 			for (int xyz = 0; xyz < 3; ++xyz)
@@ -545,6 +542,9 @@ void BendingNormal::hessian() {
 	JJ.clear();
 	SS.clear();
 	
+	Eigen::VectorXd phi_m = dPhi_dm(d_normals);
+	Eigen::VectorXd phi2_mm = d2Phi_dmdm(d_normals);
+
 	for (int hi = 0; hi < num_hinges; hi++) {
 		Eigen::Matrix<double, 6, 12> n_x = dN_dx_perhinge(hi);
 		Eigen::Matrix<Eigen::Matrix<double, 12, 12>, 1, 6> n2_xx = d2N_dxdx_perhinge(hi);
@@ -552,13 +552,15 @@ void BendingNormal::hessian() {
 		Eigen::Matrix<double, 6, 6> m2_nn = d2m_dNdN(hi);
 
 		Eigen::Matrix<double, 12, 12> dE_dx =
-			n_x.transpose() * m2_nn * n_x +
-			m_n[0] * n2_xx[0] +
-			m_n[1] * n2_xx[1] +
-			m_n[2] * n2_xx[2] +
-			m_n[3] * n2_xx[3] +
-			m_n[4] * n2_xx[4] +
-			m_n[5] * n2_xx[5];
+			phi_m(hi) * n_x.transpose() * m2_nn * n_x +
+			phi_m(hi) * m_n[0] * n2_xx[0] +
+			phi_m(hi) * m_n[1] * n2_xx[1] +
+			phi_m(hi) * m_n[2] * n2_xx[2] +
+			phi_m(hi) * m_n[3] * n2_xx[3] +
+			phi_m(hi) * m_n[4] * n2_xx[4] +
+			phi_m(hi) * m_n[5] * n2_xx[5] +
+			n_x.transpose() * m_n * phi2_mm(hi) * m_n.transpose() * n_x;
+		dE_dx *= restArea(hi);
 
 		for (int xi = 0; xi < 4; xi++) {
 			for (int xj = 0; xj < 4; xj++) {
