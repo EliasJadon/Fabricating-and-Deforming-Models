@@ -1250,8 +1250,10 @@ void deformation_plugin::initializeSolver(const int index)
 	SymmDirich->init_mesh(V, F);
 	SymmDirich->init();
 	auto stvk = std::make_unique<STVK>();
-	stvk->init_mesh(V, F);
-	stvk->init();
+	if (app_utils::IsMesh2D(InputModel().V)) {
+		stvk->init_mesh(V, F);
+		stvk->init();
+	}
 	auto allVertexPositions = std::make_unique<AllVertexPositions>();
 	allVertexPositions->init_mesh(V, F);
 	allVertexPositions->init();
