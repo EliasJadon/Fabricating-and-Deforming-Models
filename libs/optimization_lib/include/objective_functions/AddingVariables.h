@@ -21,7 +21,6 @@ private:
 	Eigen::Matrix< double, 6, 1> dm_dN(int hi);
 	Eigen::Matrix< double, 6, 6> d2m_dNdN(int hi);
 	
-	int x_GlobInd(int index, int hi);
 public:
 	OptimizationUtils::FunctionType functionType;
 	float planarParameter;
