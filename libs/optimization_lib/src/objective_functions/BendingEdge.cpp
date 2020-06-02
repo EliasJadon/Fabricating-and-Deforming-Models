@@ -38,7 +38,7 @@ void BendingEdge::init()
 
 void BendingEdge::updateX(const Eigen::VectorXd& X)
 {
-	assert(X.rows() == (3 * restShapeV.rows()));
+	assert(X.rows() == (restShapeV.size()+ restShapeF.size()));
 	for (int hi = 0; hi < num_hinges; hi++) {
 		//X = [x,x, ... ,x,y,y, ... ,y,z,z, ... ,z]
 		x0.row(hi) = Eigen::Vector3d(
@@ -283,7 +283,7 @@ double BendingEdge::value(const bool update)
 
 void BendingEdge::gradient(Eigen::VectorXd& g, const bool update)
 {
-	g.conservativeResize(restShapeV.rows() * 3);
+	g.conservativeResize(restShapeV.size() + restShapeF.size());
 	g.setZero();
 
 	Eigen::VectorXd d_angle = angle - restAngle;
@@ -457,6 +457,7 @@ void BendingEdge::hessian() {
 						}	
 					}
 	}
+	SS[index++] = 0;
 }
 
 void BendingEdge::init_hessian()
@@ -479,6 +480,7 @@ void BendingEdge::init_hessian()
 						}
 					}
 	}
-
+	II.push_back(restShapeV.size() + restShapeF.size() - 1);
+	JJ.push_back(restShapeV.size() + restShapeF.size() - 1);
 	SS = std::vector<double>(II.size(), 0.);
 }

@@ -22,8 +22,8 @@ void AllVertexPositions::init()
 
 void AllVertexPositions::updateX(const Eigen::VectorXd& X)
 {
-	assert(X.rows() == (3 * restShapeV.rows()));
-	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.data(), X.rows() / 3, 3);
+	assert(X.rows() == (restShapeV.size() + restShapeF.size()));
+	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0,restShapeV.size()).data(), restShapeV.rows(), 3);
 }
 
 double AllVertexPositions::value(const bool update)
@@ -37,7 +37,7 @@ double AllVertexPositions::value(const bool update)
 void AllVertexPositions::gradient(Eigen::VectorXd& g, const bool update)
 {
 	int n = restShapeV.rows();
-	g.conservativeResize(n*3);
+	g.conservativeResize(restShapeV.size()+ restShapeF.size());
 	g.setZero();
 
 	Eigen::MatrixX3d diff = CurrV - restShapeV;
@@ -66,4 +66,7 @@ void AllVertexPositions::init_hessian()
 		JJ.push_back(i);
 		SS.push_back(2);
 	}
+	II.push_back(restShapeV.size() + restShapeF.size() - 1);
+	JJ.push_back(restShapeV.size() + restShapeF.size() - 1);
+	SS.push_back(0);
 }

@@ -39,8 +39,8 @@ void SymmetricDirichlet::setRestShapeFromCurrentConfiguration() {
 
 void SymmetricDirichlet::updateX(const Eigen::VectorXd& X)
 {
-	assert(X.rows() == (3 * restShapeV.rows()));
-	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.data(), X.rows() / 3, 3);
+	assert(X.rows() == (restShapeV.size() + restShapeF.size()));
+	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, restShapeV.size()).data(), restShapeV.rows(), 3);
 	
 	OptimizationUtils::LocalBasis(CurrV, restShapeF, B1, B2);
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
@@ -95,7 +95,7 @@ Eigen::Matrix<double, 1, 4> SymmetricDirichlet::dE_dJ(int fi) {
 
 void SymmetricDirichlet::gradient(Eigen::VectorXd& g, const bool update)
 {
-	g.conservativeResize(restShapeV.rows() * 3);
+	g.conservativeResize(restShapeV.size() + restShapeF.size());
 	g.setZero();
 
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
@@ -200,6 +200,9 @@ void SymmetricDirichlet::hessian() {
 			}
 		}
 	}
+	II.push_back(restShapeV.size() + restShapeF.size() - 1);
+	JJ.push_back(restShapeV.size() + restShapeF.size() - 1);
+	SS.push_back(0);
 }
 
 Eigen::Matrix<double, 4, 9> SymmetricDirichlet::dJ_dX(int fi) {

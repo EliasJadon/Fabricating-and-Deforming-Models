@@ -38,8 +38,8 @@ void BendingNormal::init()
 
 void BendingNormal::updateX(const Eigen::VectorXd& X)
 {
-	assert(X.rows() == (3 * restShapeV.rows()));
-	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.data(), X.rows() / 3, 3);
+	assert(X.rows() == (restShapeV.size() + restShapeF.size()));
+	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, restShapeV.size()).data(), restShapeV.rows(), 3);
 	igl::per_face_normals(CurrV, restShapeF, normals);
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi](0);
@@ -268,7 +268,7 @@ double BendingNormal::value(const bool update)
 
 void BendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 {
-	g.conservativeResize(restShapeV.rows() * 3);
+	g.conservativeResize(restShapeV.size() + restShapeF.size());
 	g.setZero();
 	// m = ||n1-n0||^2
 	// E = Phi( ||n1-n0||^2 )
@@ -578,6 +578,9 @@ void BendingNormal::hessian() {
 			}
 		}	
 	}
+	II.push_back(restShapeV.size() + restShapeF.size() - 1);
+	JJ.push_back(restShapeV.size() + restShapeF.size() - 1);
+	SS.push_back(0);
 }
 
 int BendingNormal::x_GlobInd(int index, int hi) {

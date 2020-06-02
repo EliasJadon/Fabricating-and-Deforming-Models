@@ -47,7 +47,7 @@ double PenaltyPositionalConstraints::value(const bool update)
 
 void PenaltyPositionalConstraints::gradient(Eigen::VectorXd& g, const bool update)
 {
-	g.conservativeResize(numV * 3);
+	g.conservativeResize(numV * 3 + numF * 3);
 	g.setZero();
 
 	if (CurrConstrainedVerticesPos.rows() == ConstrainedVerticesPos.rows()) {
@@ -77,12 +77,14 @@ void PenaltyPositionalConstraints::hessian()
 
 void PenaltyPositionalConstraints::init_hessian()
 {
-	II.resize(3 * numV);
-	JJ.resize(3 * numV);
+	II.resize(3 * numV+1);
+	JJ.resize(3 * numV+1);
 	for (int i = 0; i < 3*numV; i++)
 	{
 		II[i] = i;
 		JJ[i] = i;
 	}
+	II[3 * numV] = 3 * numV + 3 * numF - 1;
+	JJ[3 * numV] = 3 * numV + 3 * numF - 1;
 	SS = std::vector<double>(II.size(), 0.);
 }

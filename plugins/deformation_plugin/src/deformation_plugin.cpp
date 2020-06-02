@@ -569,7 +569,11 @@ void deformation_plugin::Draw_menu_for_Solver() {
 				
 				Eigen::MatrixX3i F = OutputModel(i).F;
 				Eigen::VectorXd initialguess = Eigen::Map<const Eigen::VectorXd>(OutputModel(i).V.data(), OutputModel(i).V.size());
-				Outputs[i].solver->init(Outputs[i].totalObjective, initialguess, OutputModel(i).F, OutputModel(i).V);
+				Eigen::MatrixX3d normals;
+				igl::per_face_normals((Eigen::MatrixX3d)OutputModel(i).V, (Eigen::MatrixX3i)OutputModel(i).F, normals);
+				Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), OutputModel(i).F.size());
+
+				Outputs[i].solver->init(Outputs[i].totalObjective, initialguess, initNormals, OutputModel(i).F, OutputModel(i).V);
 			}
 			start_solver_thread();
 		}
@@ -1143,8 +1147,9 @@ void deformation_plugin::checkGradients()
 			solver_on = false;
 			return;
 		}
-		Eigen::VectorXd xx = Eigen::VectorXd::Random(InputModel().V.size()) * 10;
+		Eigen::VectorXd xx = Eigen::VectorXd::Random(InputModel().V.size() + InputModel().F.size());
 		//Eigen::VectorXd xx = Eigen::Map<const Eigen::VectorXd>(OutputModel(i).V.data(), OutputModel(i).V.size());
+
 		for (auto const &objective : Outputs[i].totalObjective->objectiveList) {
 			objective->checkGradient(xx);
 		}
@@ -1159,8 +1164,9 @@ void deformation_plugin::checkHessians()
 			solver_on = false;
 			return;
 		}
-		Eigen::VectorXd xx = Eigen::VectorXd::Random(InputModel().V.size()) * 10;
+		Eigen::VectorXd xx = Eigen::VectorXd::Random(InputModel().V.size() + InputModel().F.size());
 		//Eigen::VectorXd xx = Eigen::Map<const Eigen::VectorXd>(OutputModel(i).V.data(), OutputModel(i).V.size());
+
 		for (auto const &objective : Outputs[i].totalObjective->objectiveList) {
 			objective->checkHessian(xx);
 		}
@@ -1213,21 +1219,28 @@ void deformation_plugin::start_solver_thread() {
 		solver_on = true;
 		//update solver
 		Eigen::VectorXd init = Eigen::Map<const Eigen::VectorXd>(OutputModel(i).V.data(), OutputModel(i).V.size());
+		Eigen::MatrixX3d normals;
+		igl::per_face_normals((Eigen::MatrixX3d)OutputModel(i).V, (Eigen::MatrixX3i)OutputModel(i).F, normals);
+		Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), OutputModel(i).F.size());
+
 		Outputs[i].newton->init(
 			Outputs[i].totalObjective, 
 			init,
+			initNormals,
 			OutputModel(i).F, 
 			OutputModel(i).V
 		);
 		Outputs[i].gradient_descent->init(
 			Outputs[i].totalObjective, 
 			init, 
+			initNormals,
 			OutputModel(i).F, 
 			OutputModel(i).V
 		);
 		Outputs[i].adam_minimizer->init(
 			Outputs[i].totalObjective,
 			init,
+			initNormals,
 			OutputModel(i).F,
 			OutputModel(i).V
 		);
@@ -1259,6 +1272,9 @@ void deformation_plugin::initializeSolver(const int index)
 	auto bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::PlanarL);
 	bendingEdge->init_mesh(V, F);
 	bendingEdge->init();
+	auto addingVariables = std::make_unique<AddingVariables>(OptimizationUtils::PlanarL);
+	addingVariables->init_mesh(V, F);
+	addingVariables->init();
 	auto bendingNormal = std::make_unique<BendingNormal>(OptimizationUtils::PlanarL);
 	bendingNormal->init_mesh(V, F);
 	bendingNormal->init();
@@ -1283,6 +1299,7 @@ void deformation_plugin::initializeSolver(const int index)
 
 	Outputs[index].totalObjective->objectiveList.clear();
 	Outputs[index].totalObjective->init_mesh(V, F);
+	Outputs[index].totalObjective->objectiveList.push_back(move(addingVariables));
 	Outputs[index].totalObjective->objectiveList.push_back(move(bendingNormal));
 	Outputs[index].totalObjective->objectiveList.push_back(move(bendingEdge));
 	Outputs[index].totalObjective->objectiveList.push_back(move(SymmDirich));
@@ -1296,9 +1313,13 @@ void deformation_plugin::initializeSolver(const int index)
 
 	// initialize the solver
 	Eigen::VectorXd init = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
-	Outputs[index].newton->init(Outputs[index].totalObjective, init, OutputModel(index).F, OutputModel(index).V);
-	Outputs[index].gradient_descent->init(Outputs[index].totalObjective, init, OutputModel(index).F, OutputModel(index).V);
-	Outputs[index].adam_minimizer->init(Outputs[index].totalObjective, init, OutputModel(index).F, OutputModel(index).V);
+	Eigen::MatrixX3d normals;
+	igl::per_face_normals((Eigen::MatrixX3d)V, (Eigen::MatrixX3i)F, normals);
+	Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size());
+
+	Outputs[index].newton->init(Outputs[index].totalObjective, init, initNormals, OutputModel(index).F, OutputModel(index).V);
+	Outputs[index].gradient_descent->init(Outputs[index].totalObjective, init, initNormals, OutputModel(index).F, OutputModel(index).V);
+	Outputs[index].adam_minimizer->init(Outputs[index].totalObjective, init, initNormals, OutputModel(index).F, OutputModel(index).V);
 	
 	std::cout << ">> Solver is initialized!" << std::endl;
 }

@@ -268,10 +268,21 @@ double AddingVariables::value(const bool update)
 	Eigen::VectorXd Energy1 = Phi(d_normals);
 	
 	//per face
-	double Energy2 = CurrN.squaredNorm();
+	double Energy2 = CurrN.squaredNorm(); // ||N||^2
+	double Energy3 = 0; // (N^T x)^2
+	for (int fi = 0; fi < restShapeF.rows(); fi++) {
+		int x0 = restShapeF(fi, 0);
+		int x1 = restShapeF(fi, 1);
+		int x2 = restShapeF(fi, 2);
+		Energy3 += pow(CurrN.row(fi) * CurrV.row(x0).transpose(), 2);
+		Energy3 += pow(CurrN.row(fi) * CurrV.row(x1).transpose(), 2);
+		Energy3 += pow(CurrN.row(fi) * CurrV.row(x2).transpose(), 2);
+	}
 
-
-	double value = Energy1.transpose()*restAreaPerHinge;
+	double value =
+		w1 * Energy1.transpose()*restAreaPerHinge +
+		w2 * Energy2 + 
+		w3 * Energy3;
 	if (update) {
 		//TODO: calculate Efi (for coloring the faces)
 		Efi.setZero();
@@ -282,27 +293,27 @@ double AddingVariables::value(const bool update)
 
 void AddingVariables::gradient(Eigen::VectorXd& g, const bool update)
 {
-	g.conservativeResize(restShapeV.rows() * 3);
+	g.conservativeResize(restShapeV.size() + restShapeF.size());
 	g.setZero();
-	// m = ||n1-n0||^2
-	// E = Phi( ||n1-n0||^2 )
-	// 
-	// dE/dx = dPhi/dx
-	// 
-	// using chain rule:
-	// dPhi/dx = dPhi/dm * dm/dn * dn/dx
-
+	
+	//Energy 1: per hinge
 	Eigen::VectorXd dphi_dm = dPhi_dm(d_normals);
-
 	for (int hi = 0; hi < num_hinges; hi++) {
-		Eigen::Matrix<double, 6, 12> n_x = dN_dx_perhinge(hi);
-		Eigen::Matrix<double, 1, 12> dE_dx = 
-			restAreaPerHinge(hi)* dphi_dm(hi) * dm_dN(hi).transpose() * n_x;
-		
-		for (int xi = 0; xi < 4; xi++)
-			for (int xyz = 0; xyz < 3; ++xyz)
-				g[x_GlobInd(xi,hi) + (xyz*restShapeV.rows())] += dE_dx(xi*3 + xyz);
+		int f0 = hinges_faceIndex[hi](0);
+		int f1 = hinges_faceIndex[hi](1);
+		Eigen::Matrix<double, 1, 6> dE_dx = restAreaPerHinge(hi)* dphi_dm(hi) * dm_dN(hi).transpose();
+		for (int xyz = 0; xyz < 3; ++xyz) {
+			g[f0 + (3 * restShapeV.rows()) + (xyz * restShapeF.rows())] += dE_dx(xyz);
+			g[f1 + (3 * restShapeV.rows()) + (xyz * restShapeF.rows())] += dE_dx(3 + xyz);
+		}
 	}
+
+	//Energy 2: per face
+	for (int fi = 0; fi < restShapeF.rows(); fi++)
+		for (int xyz = 0; xyz < 3; ++xyz)
+			g[fi + (3 * restShapeV.rows()) + (xyz * restShapeF.rows())] += w2 * 2 * CurrN(fi, xyz);
+		
+	//Energy 3: per face
 
 	if (update)
 		gradient_norm = g.norm();
@@ -315,12 +326,12 @@ Eigen::Matrix< double, 6, 1> AddingVariables::dm_dN(int hi) {
 	int f1 = hinges_faceIndex[hi](1);
 	Eigen::Matrix< double, 6, 1> grad;
 	grad <<
-		-2 * (normals(f1, 0) - normals(f0, 0)),	//n0.x
-		-2 * (normals(f1, 1) - normals(f0, 1)), //n0.y
-		-2 * (normals(f1, 2) - normals(f0, 2)), //n0.z
-		2 *  (normals(f1, 0) - normals(f0, 0)),	//n1.x
-		2 *  (normals(f1, 1) - normals(f0, 1)),	//n1.y
-		2 *  (normals(f1, 2) - normals(f0, 2));	//n1.z
+		-2 * (CurrN(f1, 0) - CurrN(f0, 0)),	//n0.x
+		-2 * (CurrN(f1, 1) - CurrN(f0, 1)), //n0.y
+		-2 * (CurrN(f1, 2) - CurrN(f0, 2)), //n0.z
+		2 *  (CurrN(f1, 0) - CurrN(f0, 0)),	//n1.x
+		2 *  (CurrN(f1, 1) - CurrN(f0, 1)),	//n1.y
+		2 *  (CurrN(f1, 2) - CurrN(f0, 2));	//n1.z
 	return grad;
 }
 
@@ -336,220 +347,6 @@ Eigen::Matrix< double, 6, 6> AddingVariables::d2m_dNdN(int hi) {
 	return hess;
 }
 
-Eigen::Matrix<double, 6, 12> AddingVariables::dN_dx_perhinge(int hi) {
-	int f0 = hinges_faceIndex[hi](0);
-	int f1 = hinges_faceIndex[hi](1);
-	Eigen::Matrix<double, 3, 9> n0_x = dN_dx_perface(f0);
-	Eigen::Matrix<double, 3, 9> n1_x = dN_dx_perface(f1);
-	Eigen::Matrix<double, 6, 12> n_x;
-	n_x.setZero();
-
-	n_x.block<3, 3>(0, 0) = n0_x.block<3, 3>(0, x0_LocInd(hi, 0) * 3);
-	n_x.block<3, 3>(0, 3) = n0_x.block<3, 3>(0, x1_LocInd(hi, 0) * 3);
-	n_x.block<3, 3>(0, 6) = n0_x.block<3, 3>(0, x2_LocInd(hi, 0) * 3);
-	
-	n_x.block<3, 3>(3, 0) = n1_x.block<3, 3>(0, x0_LocInd(hi, 1) * 3);
-	n_x.block<3, 3>(3, 3) = n1_x.block<3, 3>(0, x1_LocInd(hi, 1) * 3);
-	n_x.block<3, 3>(3, 9) = n1_x.block<3, 3>(0, x3_LocInd(hi, 1) * 3);
-
-	return n_x;
-}
-
-Eigen::Matrix<double, 3, 9> AddingVariables::dN_dx_perface(int fi) {
-	// e1 = v1-v0
-	// e2 = v2-v0
-	//
-	// N = e1 x e2
-	// N.x = (y1-y0)*(z2-z0)-(z1-z0)*(y2-y0)
-	// N.y = (z1-z0)*(x2-x0)-(x1-x0)*(z2-z0)
-	// N.z = (x1-x0)*(y2-y0)-(y1-y0)*(x2-x0)
-	//
-	// NormalizedN = N / norm
-
-	Eigen::Vector3d e0 = CurrV.row(restShapeF(fi, 1)) - CurrV.row(restShapeF(fi, 0));
-	Eigen::Vector3d e1 = CurrV.row(restShapeF(fi, 2)) - CurrV.row(restShapeF(fi, 0));
-	Eigen::Vector3d N = e0.cross(e1);
-	double norm = N.norm();
-	Eigen::Matrix<double, 9, 3> jacobian_N;
-	Eigen::Matrix<double, 9, 1> grad_norm;
-	jacobian_N <<
-		0, -e0(2) + e1(2), -e1(1) + e0(1),	//x0
-		-e1(2) + e0(2), 0, -e0(0) + e1(0),	//y0
-		-e0(1) + e1(1), -e1(0) + e0(0), 0,	//z0
-		0, -e1(2), e1(1),	//x1
-		e1(2), 0, -e1(0),	//y1
-		-e1(1), e1(0), 0,	//z1
-		0, e0(2), -e0(1),	//x2
-		-e0(2), 0, e0(0),	//y2
-		e0(1), -e0(0), 0;			//z2
-	
-	grad_norm = (N(0)*jacobian_N.col(0) + N(1)*jacobian_N.col(1) + N(2)*jacobian_N.col(2))/norm;
-	
-	Eigen::Matrix<double, 3, 9> jacobian_normalizedN;
-	for (int i = 0; i < 3; i++)
-		jacobian_normalizedN.row(i) = (jacobian_N.col(i) / norm) - ((grad_norm*N(i)) / pow(norm, 2));
-	return jacobian_normalizedN;
-}
-
-Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> AddingVariables::d2N_dxdx_perface(int fi) {
-	// e1 = v1-v0
-	// e2 = v2-v0
-	//
-	// N = e1 x e2
-	// N.x = (y1-y0)*(z2-z0)-(z1-z0)*(y2-y0)
-	// N.y = (z1-z0)*(x2-x0)-(x1-x0)*(z2-z0)
-	// N.z = (x1-x0)*(y2-y0)-(y1-y0)*(x2-x0)
-	//
-	// NormalizedN = N / norm
-
-	Eigen::Vector3d e0 = CurrV.row(restShapeF(fi, 1)) - CurrV.row(restShapeF(fi, 0));
-	Eigen::Vector3d e1 = CurrV.row(restShapeF(fi, 2)) - CurrV.row(restShapeF(fi, 0));
-	Eigen::Vector3d N = e0.cross(e1);
-	double norm = N.norm();
-	Eigen::Matrix<double, 9, 3> jacobian_N;
-	Eigen::Matrix<double, 9, 1> grad_norm;
-	jacobian_N <<
-		0, -e0(2) + e1(2), -e1(1) + e0(1),	//x0
-		-e1(2) + e0(2), 0, -e0(0) + e1(0),	//y0
-		-e0(1) + e1(1), -e1(0) + e0(0), 0,	//z0
-		0, -e1(2), e1(1),	//x1
-		e1(2), 0, -e1(0),	//y1
-		-e1(1), e1(0), 0,	//z1
-		0, e0(2), -e0(1),	//x2
-		-e0(2), 0, e0(0),	//y2
-		e0(1), -e0(0), 0;	//z2
-
-
-	grad_norm = (N(0)*jacobian_N.col(0) + N(1)*jacobian_N.col(1) + N(2)*jacobian_N.col(2)) / norm;
-
-	Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> hess_N;
-	Eigen::Matrix<double, 9, 9> hess_norm;
-	//	0			//x0
-	//	-z2 + z1	//y0
-	//	-y1 + y2	//z0
-	//	0			//x1
-	//	z2 - z0		//y1
-	//	-y2 + y0	//z1
-	//	0			//x2
-	//	-z1 + z0	//y2
-	//	y1 - y0		//z2
-
-	hess_N[0] <<
-		// x0 y0 z0 x1 y1 z1 x2 y2 z2
-		0, 0, 0, 0, 0, 0, 0, 0, 0,	//x0
-		0, 0, 0, 0, 0, 1, 0, 0, -1, //y0
-		0, 0, 0, 0, -1, 0, 0, 1, 0,	//z0
-		0, 0, 0, 0, 0, 0, 0, 0, 0,	//x1
-		0, 0, -1, 0, 0, 0, 0, 0, 1,	//y1
-		0, 1, 0, 0, 0, 0, 0, -1, 0,	//z1
-		0, 0, 0, 0, 0, 0, 0, 0, 0,	//x2
-		0, 0, 1, 0, 0, -1, 0, 0, 0,	//y2
-		0, -1, 0, 0, 1, 0, 0, 0, 0;	//z2
-
-
-	//	-z1 + z2	//x0			
-	//	0			//y0			
-	//	-x2 + x1	//z0		
-	//	-z2 + z0	//x1		
-	//	0			//y1		
-	//	x2 - x0		//z1		
-	//	z1 - z0		//x2		
-	//	0			//y2		
-	//	-x1 + x0)	//z2		
-
-	hess_N[1] <<
-		// x0 y0 z0 x1 y1 z1 x2 y2 z2
-		0, 0, 0, 0, 0, -1, 0, 0, 1,	//x0
-		0, 0, 0, 0, 0, 0, 0, 0, 0,	//y0
-		0, 0, 0, 1, 0, 0, -1, 0, 0,	//z0
-		0, 0, 1, 0, 0, 0, 0, 0, -1,	//x1
-		0, 0, 0, 0, 0, 0, 0, 0, 0,	//y1
-		-1, 0, 0, 0, 0, 0, 1, 0, 0,	//z1
-		0, 0, -1, 0, 0, 1, 0, 0, 0,	//x2
-		0, 0, 0, 0, 0, 0, 0, 0, 0,	//y2
-		1, 0, 0, -1, 0, 0, 0, 0, 0;	//z2
-
-	//	-y2 + y1	//x0
-	//	-x1  + x2	//y0
-	//	0			//z0
-	//	y2 - y0		//x1
-	//	-x2 + x0	//y1
-	//	0			//z1
-	//	-y1 + y0	//x2
-	//	x1 - x0		//y2
-	//	0			//z2
-
-	hess_N[2] <<
-		// x0 y0 z0 x1 y1 z1 x2 y2 z2
-		0, 0, 0, 0, 1, 0, 0, -1, 0,	//x0
-		0, 0, 0, -1, 0, 0, 1, 0, 0,	//y0
-		0, 0, 0, 0, 0, 0, 0, 0, 0,	//z0
-		0, -1, 0, 0, 0, 0, 0, 1, 0,	//x1
-		1, 0, 0, 0, 0, 0, -1, 0, 0,	//y1
-		0, 0, 0, 0, 0, 0, 0, 0, 0,	//z1
-		0, 1, 0, 0, -1, 0, 0, 0, 0,	//x2
-		-1, 0, 0, 1, 0, 0, 0, 0, 0,	//y2
-		0, 0, 0, 0, 0, 0, 0, 0, 0;	//z2
-
-	hess_norm =
-		((N(0)* hess_N[0] +
-			N(1)* hess_N[1] +
-			N(2)* hess_N[2] +
-			jacobian_N.col(0)*jacobian_N.col(0).transpose() +
-			jacobian_N.col(1)*jacobian_N.col(1).transpose() +
-			jacobian_N.col(2)*jacobian_N.col(2).transpose())
-			- (grad_norm* grad_norm.transpose())) / norm;
-
-	Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> hess_normalizedN;
-	for (int i = 0; i < 3; i++)
-		hess_normalizedN[i] =
-		(hess_N[i] / norm)
-		- (jacobian_N.col(i)*grad_norm.transpose()) / pow(norm, 2)
-		- (hess_norm*N(i) + grad_norm * jacobian_N.col(i).transpose()) / pow(norm, 2)
-		+ (2 * N(i)*grad_norm*grad_norm.transpose()) / pow(norm, 3);
-
-	return hess_normalizedN;
-}
-
-Eigen::Matrix<Eigen::Matrix<double, 12, 12>, 1, 6> AddingVariables::d2N_dxdx_perhinge(int hi) {
-	int f0 = hinges_faceIndex[hi](0);
-	int f1 = hinges_faceIndex[hi](1);
-	Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> n0_x = d2N_dxdx_perface(f0);
-	Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> n1_x = d2N_dxdx_perface(f1);
-	Eigen::Matrix<Eigen::Matrix<double, 12, 12>, 1, 6> n_x;
-	
-	for (int i = 0; i < 3; i++) {
-		//first face
-		n_x[i].setZero();
-		n_x[i].block<3, 3>(0, 0) = n0_x[i].block<3, 3>(x0_LocInd(hi, 0) * 3, x0_LocInd(hi, 0) * 3);
-		n_x[i].block<3, 3>(0, 3) = n0_x[i].block<3, 3>(x0_LocInd(hi, 0) * 3, x1_LocInd(hi, 0) * 3);
-		n_x[i].block<3, 3>(0, 6) = n0_x[i].block<3, 3>(x0_LocInd(hi, 0) * 3, x2_LocInd(hi, 0) * 3);
-
-		n_x[i].block<3, 3>(3, 0) = n0_x[i].block<3, 3>(x1_LocInd(hi, 0) * 3, x0_LocInd(hi, 0) * 3);
-		n_x[i].block<3, 3>(3, 3) = n0_x[i].block<3, 3>(x1_LocInd(hi, 0) * 3, x1_LocInd(hi, 0) * 3);
-		n_x[i].block<3, 3>(3, 6) = n0_x[i].block<3, 3>(x1_LocInd(hi, 0) * 3, x2_LocInd(hi, 0) * 3);
-
-		n_x[i].block<3, 3>(6, 0) = n0_x[i].block<3, 3>(x2_LocInd(hi, 0) * 3, x0_LocInd(hi, 0) * 3);
-		n_x[i].block<3, 3>(6, 3) = n0_x[i].block<3, 3>(x2_LocInd(hi, 0) * 3, x1_LocInd(hi, 0) * 3);
-		n_x[i].block<3, 3>(6, 6) = n0_x[i].block<3, 3>(x2_LocInd(hi, 0) * 3, x2_LocInd(hi, 0) * 3);
-		
-		// second face
-		n_x[3 + i].setZero();
-		n_x[3 + i].block<3, 3>(0, 0) = n1_x[0 + i].block<3, 3>(x0_LocInd(hi, 1) * 3, x0_LocInd(hi, 1) * 3);
-		n_x[3 + i].block<3, 3>(0, 3) = n1_x[0 + i].block<3, 3>(x0_LocInd(hi, 1) * 3, x1_LocInd(hi, 1) * 3);
-		n_x[3 + i].block<3, 3>(0, 9) = n1_x[0 + i].block<3, 3>(x0_LocInd(hi, 1) * 3, x3_LocInd(hi, 1) * 3);
-
-		n_x[3 + i].block<3, 3>(3, 0) = n1_x[0 + i].block<3, 3>(x1_LocInd(hi, 1) * 3, x0_LocInd(hi, 1) * 3);
-		n_x[3 + i].block<3, 3>(3, 3) = n1_x[0 + i].block<3, 3>(x1_LocInd(hi, 1) * 3, x1_LocInd(hi, 1) * 3);
-		n_x[3 + i].block<3, 3>(3, 9) = n1_x[0 + i].block<3, 3>(x1_LocInd(hi, 1) * 3, x3_LocInd(hi, 1) * 3);
-
-		n_x[3 + i].block<3, 3>(9, 0) = n1_x[0 + i].block<3, 3>(x3_LocInd(hi, 1) * 3, x0_LocInd(hi, 1) * 3);
-		n_x[3 + i].block<3, 3>(9, 3) = n1_x[0 + i].block<3, 3>(x3_LocInd(hi, 1) * 3, x1_LocInd(hi, 1) * 3);
-		n_x[3 + i].block<3, 3>(9, 9) = n1_x[0 + i].block<3, 3>(x3_LocInd(hi, 1) * 3, x3_LocInd(hi, 1) * 3);
-	}
-	return n_x;
-}
-
 void AddingVariables::hessian() {
 	II.clear();
 	JJ.clear();
@@ -559,32 +356,26 @@ void AddingVariables::hessian() {
 	Eigen::VectorXd phi2_mm = d2Phi_dmdm(d_normals);
 
 	for (int hi = 0; hi < num_hinges; hi++) {
-		Eigen::Matrix<double, 6, 12> n_x = dN_dx_perhinge(hi);
-		Eigen::Matrix<Eigen::Matrix<double, 12, 12>, 1, 6> n2_xx = d2N_dxdx_perhinge(hi);
 		Eigen::Matrix<double, 6, 1> m_n = dm_dN(hi);
 		Eigen::Matrix<double, 6, 6> m2_nn = d2m_dNdN(hi);
 
-		Eigen::Matrix<double, 12, 12> dE_dx =
-			phi_m(hi) * n_x.transpose() * m2_nn * n_x +
-			phi_m(hi) * m_n[0] * n2_xx[0] +
-			phi_m(hi) * m_n[1] * n2_xx[1] +
-			phi_m(hi) * m_n[2] * n2_xx[2] +
-			phi_m(hi) * m_n[3] * n2_xx[3] +
-			phi_m(hi) * m_n[4] * n2_xx[4] +
-			phi_m(hi) * m_n[5] * n2_xx[5] +
-			n_x.transpose() * m_n * phi2_mm(hi) * m_n.transpose() * n_x;
+		Eigen::Matrix<double, 6, 6> dE_dx =
+			phi_m(hi) * m2_nn +
+			m_n * phi2_mm(hi) * m_n.transpose();
 		dE_dx *= restAreaPerHinge(hi);
 
-		for (int xi = 0; xi < 4; xi++) {
-			for (int xj = 0; xj < 4; xj++) {
+		for (int fk = 0; fk < 2; fk++) {
+			for (int fj = 0; fj < 2; fj++) {
 				for (int xyz1 = 0; xyz1 < 3; ++xyz1) {
 					for (int xyz2 = 0; xyz2 < 3; ++xyz2) {
-						int Grow = x_GlobInd(xi, hi) + (xyz1*restShapeV.rows());
-						int Gcol = x_GlobInd(xj, hi) + (xyz2*restShapeV.rows());
+						int f0 = hinges_faceIndex[hi](fk);
+						int f1 = hinges_faceIndex[hi](fj);
+						int Grow = f0 + (3 * restShapeV.rows()) + (xyz1 * restShapeF.rows());
+						int Gcol = f1 + (3 * restShapeV.rows()) + (xyz2 * restShapeF.rows());
 						if (Grow <= Gcol) {
 							II.push_back(Grow);
 							JJ.push_back(Gcol);
-							SS.push_back(dE_dx(3 * xi + xyz1, 3 * xj + xyz2));
+							SS.push_back(dE_dx(3 * fk + xyz1, 3 * fj + xyz2));
 						}
 					}
 				}

@@ -44,10 +44,10 @@ solver::~solver() {
 #endif
 }
 
-
 void solver::init(
 	std::shared_ptr<ObjectiveFunction> objective, 
-	const Eigen::VectorXd& X0, 
+	const Eigen::VectorXd& X0,
+	const Eigen::VectorXd& norm0,
 	const Eigen::MatrixXi& F, 
 	const Eigen::MatrixXd& V
 ) {
@@ -58,8 +58,11 @@ void solver::init(
 	std::cout << "F.rows() = " << F.rows() << std::endl;
 	std::cout << "V.rows() = " << V.rows() << std::endl;
 	assert(X0.rows() == (3*V.rows()) && "X0 should contain the (x,y,z) coordinates for each vertice");
-	X = X0;
-	ext_x = X;
+	assert(norm0.rows() == (3*F.rows()) && "norm0 should contain the (x,y,z) coordinates for each face");
+	X.resize(3 * V.rows() + 3 * F.rows());
+	X.middleRows(0, 3 * V.rows()) = X0;
+	X.bottomRows(3 * F.rows()) = norm0;
+	ext_x = X0;
 	internal_init();
 }
 
@@ -383,7 +386,7 @@ void solver::update_external_data()
 {
 	give_parameter_update_slot();
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
-	ext_x = X;
+	ext_x = X.middleRows(0, 3 * V.rows());
 	progressed = true;
 }
 
