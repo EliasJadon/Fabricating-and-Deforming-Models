@@ -4,7 +4,7 @@
 class AddingVariables : public ObjectiveFunction
 {	
 private:
-	double w1 = 1, w2 = 100, w3 = 100;
+	
 	Eigen::MatrixX3d CurrV, CurrN;
 	Eigen::VectorXd restAreaPerFace, restAreaPerHinge, d_normals;
 	int num_hinges = -1;
@@ -22,6 +22,7 @@ private:
 	Eigen::Matrix< double, 6, 6> d2m_dNdN(int hi);
 	
 public:
+	float w1 = 1, w2 = 100, w3 = 100;
 	OptimizationUtils::FunctionType functionType;
 	float planarParameter;
 
