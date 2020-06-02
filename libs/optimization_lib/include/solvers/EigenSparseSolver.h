@@ -29,8 +29,8 @@ public:
 	Eigen::VectorXd solve(Eigen::VectorXd &rhs);
     //Eigen::SparseLU<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
 
-	//Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
-	Eigen::PardisoLU<Eigen::SparseMatrix<double>> solver;
+	Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
+	//Eigen::PardisoLU<Eigen::SparseMatrix<double>> solver;
 	//Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Upper> solver;
 	/*Eigen::SparseLU<Eigen::SparseMatrix<double>> solver;
 	Eigen::SimplicialLLT<Eigen::SparseMatrix<double>> solver;
