@@ -272,7 +272,7 @@ Eigen::VectorXd AuxSpherePerHinge::d2Phi_dmdm(Eigen::VectorXd x) {
 double AuxSpherePerHinge::value(const bool update)
 {
 	//per hinge
-	Eigen::VectorXd Energy1 = /*Phi(*/d_center + d_radius;//);
+	Eigen::VectorXd Energy1 = Phi(d_center + d_radius);
 	
 	////per face
 	//double Energy2 = 0; 
@@ -302,11 +302,11 @@ void AuxSpherePerHinge::gradient(Eigen::VectorXd& g, const bool update)
 	g.setZero();
 	
 	//Energy 1: per hinge
-	//Eigen::VectorXd dphi_dm = dPhi_dm(d_normals);
+	Eigen::VectorXd dphi_dm = dPhi_dm(d_center + d_radius);
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi](0);
 		int f1 = hinges_faceIndex[hi](1);
-		Eigen::Matrix<double, 1, 8> dE_dx = w1*restAreaPerHinge(hi)* /*dphi_dm(hi) **/ dm_dN(hi).transpose();
+		Eigen::Matrix<double, 1, 8> dE_dx = w1*restAreaPerHinge(hi)*dphi_dm(hi) * dm_dN(hi).transpose();
 		for (int xyz = 0; xyz < 3; ++xyz) {
 			int start = 3 * restShapeV.rows() + 3 * restShapeF.rows();
 			g[f0 + start + (xyz * restShapeF.rows())] += dE_dx(xyz);
@@ -395,16 +395,16 @@ void AuxSpherePerHinge::hessian() {
 	JJ.clear();
 	SS.clear();
 	
-	//Eigen::VectorXd phi_m = dPhi_dm(d_normals);
-	//Eigen::VectorXd phi2_mm = d2Phi_dmdm(d_normals);
+	Eigen::VectorXd phi_m = dPhi_dm(d_center + d_radius);
+	Eigen::VectorXd phi2_mm = d2Phi_dmdm(d_center + d_radius);
 
 	//Energy 1: per hinge
 	for (int hi = 0; hi < num_hinges; hi++) {
 		Eigen::Matrix<double, 8, 1> m_n = dm_dN(hi);
 		Eigen::Matrix<double, 8, 8> m2_nn = d2m_dNdN(hi);
 		Eigen::Matrix<double, 8, 8> dE_dx =
-			/*phi_m(hi) **/ m2_nn;// +
-			/*m_n * phi2_mm(hi) * m_n.transpose();*/
+			phi_m(hi) * m2_nn +
+			m_n * phi2_mm(hi) * m_n.transpose();
 		dE_dx *= restAreaPerHinge(hi);
 		dE_dx *= w1;
 
@@ -421,6 +421,16 @@ void AuxSpherePerHinge::hessian() {
 					SS.push_back(dE_dx(fk + 6, fj + 6));
 				}
 				for (int xyz1 = 0; xyz1 < 3; ++xyz1) {
+					int startc = 3 * restShapeV.rows() + 6 * restShapeF.rows();
+					int startr = 3 * restShapeV.rows() + 3 * restShapeF.rows();
+
+					int Grow = f0 + startr + (xyz1 * restShapeF.rows());
+					int Gcol = f1 + startc;
+					if (Grow <= Gcol) {
+						II.push_back(Grow);
+						JJ.push_back(Gcol);
+						SS.push_back(dE_dx(3 * fk + xyz1, fj + 6));
+					}
 					for (int xyz2 = 0; xyz2 < 3; ++xyz2) {
 						int start = 3 * restShapeV.rows() + 3 * restShapeF.rows();
 						int Grow = f0 + start + (xyz1 * restShapeF.rows());
