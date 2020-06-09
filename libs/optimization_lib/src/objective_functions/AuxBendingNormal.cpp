@@ -1,19 +1,19 @@
-﻿#include "objective_functions/AddingVariables.h"
+﻿#include "objective_functions/AuxBendingNormal.h"
 #include <unsupported/Eigen/MatrixFunctions>
 #include <igl/triangle_triangle_adjacency.h>
 
-AddingVariables::AddingVariables(OptimizationUtils::FunctionType type) {
+AuxBendingNormal::AuxBendingNormal(OptimizationUtils::FunctionType type) {
 	functionType = type;
-	name = "Adding Variables";
+	name = "Aux Bending Normal";
 	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
-AddingVariables::~AddingVariables() {
+AuxBendingNormal::~AuxBendingNormal() {
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void AddingVariables::init()
+void AuxBendingNormal::init()
 {
 	std::cout << "\t" << name << " initialization" << std::endl;
 	if (restShapeV.size() == 0 || restShapeF.size() == 0)
@@ -35,7 +35,7 @@ void AddingVariables::init()
 	init_hessian();
 }
 
-void AddingVariables::updateX(const Eigen::VectorXd& X)
+void AuxBendingNormal::updateX(const Eigen::VectorXd& X)
 {
 	//X = [
 	//		x(0), ... ,x(#V-1), 
@@ -56,7 +56,7 @@ void AddingVariables::updateX(const Eigen::VectorXd& X)
 	}
 }
 
-void AddingVariables::calculateHinges() {
+void AuxBendingNormal::calculateHinges() {
 	std::vector<std::vector<std::vector<int>>> TT;
 	igl::triangle_triangle_adjacency(restShapeF, TT);
 	assert(TT.size() == restShapeF.rows());
@@ -201,7 +201,7 @@ void AddingVariables::calculateHinges() {
 	}*/
 }
 
-Eigen::VectorXd AddingVariables::Phi(Eigen::VectorXd x) {
+Eigen::VectorXd AuxBendingNormal::Phi(Eigen::VectorXd x) {
 	if(functionType == OptimizationUtils::Quadratic)
 		return x.cwiseAbs2();
 	else if (functionType == OptimizationUtils::Exponential) {
@@ -221,7 +221,7 @@ Eigen::VectorXd AddingVariables::Phi(Eigen::VectorXd x) {
 	}
 }
 
-Eigen::VectorXd AddingVariables::dPhi_dm(Eigen::VectorXd x) {
+Eigen::VectorXd AuxBendingNormal::dPhi_dm(Eigen::VectorXd x) {
 	if (functionType == OptimizationUtils::Quadratic)
 		return 2 * x;
 	else if (functionType == OptimizationUtils::Exponential) {
@@ -241,7 +241,7 @@ Eigen::VectorXd AddingVariables::dPhi_dm(Eigen::VectorXd x) {
 	}
 }
 
-Eigen::VectorXd AddingVariables::d2Phi_dmdm(Eigen::VectorXd x) {
+Eigen::VectorXd AuxBendingNormal::d2Phi_dmdm(Eigen::VectorXd x) {
 	if (functionType == OptimizationUtils::Quadratic)
 		return Eigen::VectorXd::Constant(x.rows(),2);
 	else if (functionType == OptimizationUtils::Exponential) {
@@ -262,7 +262,7 @@ Eigen::VectorXd AddingVariables::d2Phi_dmdm(Eigen::VectorXd x) {
 	}
 }
 
-double AddingVariables::value(const bool update)
+double AuxBendingNormal::value(const bool update)
 {
 	//per hinge
 	Eigen::VectorXd Energy1 = Phi(d_normals);
@@ -299,7 +299,7 @@ double AddingVariables::value(const bool update)
 	return value;
 }
 
-void AddingVariables::gradient(Eigen::VectorXd& g, const bool update)
+void AuxBendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 {
 	g.conservativeResize(restShapeV.size() + restShapeF.size());
 	g.setZero();
@@ -359,7 +359,7 @@ void AddingVariables::gradient(Eigen::VectorXd& g, const bool update)
 		gradient_norm = g.norm();
 }
 
-Eigen::Matrix< double, 6, 1> AddingVariables::dm_dN(int hi) {
+Eigen::Matrix< double, 6, 1> AuxBendingNormal::dm_dN(int hi) {
 	// m = ||n1 - n0||^2
 	// m = (n1.x - n0.x)^2 + (n1.y - n0.y)^2 + (n1.z - n0.z)^2
 	int f0 = hinges_faceIndex[hi](0);
@@ -375,7 +375,7 @@ Eigen::Matrix< double, 6, 1> AddingVariables::dm_dN(int hi) {
 	return grad;
 }
 
-Eigen::Matrix< double, 6, 6> AddingVariables::d2m_dNdN(int hi) {
+Eigen::Matrix< double, 6, 6> AuxBendingNormal::d2m_dNdN(int hi) {
 	Eigen::Matrix< double, 6, 6> hess;
 	hess <<
 		2, 0, 0, -2, 0, 0, //n0.x
@@ -387,7 +387,7 @@ Eigen::Matrix< double, 6, 6> AddingVariables::d2m_dNdN(int hi) {
 	return hess;
 }
 
-void AddingVariables::hessian() {
+void AuxBendingNormal::hessian() {
 	II.clear();
 	JJ.clear();
 	SS.clear();
@@ -571,7 +571,7 @@ void AddingVariables::hessian() {
 
 }
 
-void AddingVariables::init_hessian()
+void AuxBendingNormal::init_hessian()
 {
 	
 }

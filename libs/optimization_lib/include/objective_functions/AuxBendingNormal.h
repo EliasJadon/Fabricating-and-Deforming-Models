@@ -1,7 +1,7 @@
 #pragma once
 #include "libs/optimization_lib/include/objective_functions/ObjectiveFunction.h"
 
-class AddingVariables : public ObjectiveFunction
+class AuxBendingNormal : public ObjectiveFunction
 {	
 private:
 	
@@ -26,8 +26,8 @@ public:
 	OptimizationUtils::FunctionType functionType;
 	float planarParameter;
 
-	AddingVariables(OptimizationUtils::FunctionType type);
-	~AddingVariables();
+	AuxBendingNormal(OptimizationUtils::FunctionType type);
+	~AuxBendingNormal();
 	virtual void init() override;
 	virtual void updateX(const Eigen::VectorXd& X) override;
 	virtual double value(const bool update) override;

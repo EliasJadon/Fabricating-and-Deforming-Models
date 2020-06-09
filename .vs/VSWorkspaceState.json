@@ -1,0 +1,16 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\libs",
+    "\\libs\\optimization_lib",
+    "\\libs\\optimization_lib\\include",
+    "\\libs\\optimization_lib\\include\\objective_functions",
+    "\\libs\\optimization_lib\\src",
+    "\\libs\\optimization_lib\\src\\objective_functions",
+    "\\plugins",
+    "\\plugins\\deformation_plugin",
+    "\\plugins\\deformation_plugin\\include"
+  ],
+  "SelectedNode": "\\libs\\optimization_lib\\src\\objective_functions\\AuxSpherePerHinge.cpp",
+  "PreviewInSolutionExplorer": false
+}
