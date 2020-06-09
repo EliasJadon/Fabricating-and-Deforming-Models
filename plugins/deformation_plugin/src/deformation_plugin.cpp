@@ -577,7 +577,7 @@ void deformation_plugin::Draw_menu_for_Solver() {
 					Outputs[i].totalObjective, 
 					initialguess, 
 					initNormals, 
-					(OutputModel(i).V.col(0) + OutputModel(i).V.col(1) + OutputModel(i).V.col(2)) / 3,
+					Eigen::VectorXd::Ones(OutputModel(i).F.size()), 
 					Eigen::VectorXd::Ones(OutputModel(i).F.rows()),
 					OutputModel(i).F,
 					OutputModel(i).V);
@@ -1251,7 +1251,7 @@ void deformation_plugin::start_solver_thread() {
 			Outputs[i].totalObjective, 
 			init,
 			initNormals,
-			(OutputModel(i).V.col(0) + OutputModel(i).V.col(1) + OutputModel(i).V.col(2))/3,
+			Eigen::VectorXd::Ones(OutputModel(i).F.size()), 
 			Eigen::VectorXd::Ones(OutputModel(i).F.rows()),
 			OutputModel(i).F, 
 			OutputModel(i).V
@@ -1260,7 +1260,7 @@ void deformation_plugin::start_solver_thread() {
 			Outputs[i].totalObjective, 
 			init, 
 			initNormals,
-			(OutputModel(i).V.col(0) + OutputModel(i).V.col(1) + OutputModel(i).V.col(2)) / 3,
+			Eigen::VectorXd::Ones(OutputModel(i).F.size()), 
 			Eigen::VectorXd::Ones(OutputModel(i).F.rows()),
 			OutputModel(i).F, 
 			OutputModel(i).V
@@ -1269,7 +1269,7 @@ void deformation_plugin::start_solver_thread() {
 			Outputs[i].totalObjective,
 			init,
 			initNormals,
-			(OutputModel(i).V.col(0) + OutputModel(i).V.col(1) + OutputModel(i).V.col(2)) / 3,
+			Eigen::VectorXd::Ones(OutputModel(i).F.size()), 
 			Eigen::VectorXd::Ones(OutputModel(i).F.rows()),
 			OutputModel(i).F,
 			OutputModel(i).V
@@ -1355,7 +1355,7 @@ void deformation_plugin::initializeSolver(const int index)
 		Outputs[index].totalObjective, 
 		init, 
 		initNormals, 
-		(OutputModel(index).V.col(0) + OutputModel(index).V.col(1) + OutputModel(index).V.col(2)) / 3,
+		Eigen::VectorXd::Ones(OutputModel(index).F.size()),
 		Eigen::VectorXd::Ones(OutputModel(index).F.rows()),
 		OutputModel(index).F, 
 		OutputModel(index).V);
@@ -1363,7 +1363,7 @@ void deformation_plugin::initializeSolver(const int index)
 		Outputs[index].totalObjective, 
 		init, 
 		initNormals, 
-		(OutputModel(index).V.col(0) + OutputModel(index).V.col(1) + OutputModel(index).V.col(2)) / 3,
+		Eigen::VectorXd::Ones(OutputModel(index).F.size()), 
 		Eigen::VectorXd::Ones(OutputModel(index).F.rows()),
 		OutputModel(index).F, 
 		OutputModel(index).V);
@@ -1371,7 +1371,7 @@ void deformation_plugin::initializeSolver(const int index)
 		Outputs[index].totalObjective, 
 		init, 
 		initNormals, 
-		(OutputModel(index).V.col(0) + OutputModel(index).V.col(1) + OutputModel(index).V.col(2)) / 3,
+		Eigen::VectorXd::Ones(OutputModel(index).F.size()), 
 		Eigen::VectorXd::Ones(OutputModel(index).F.rows()),
 		OutputModel(index).F, 
 		OutputModel(index).V);
