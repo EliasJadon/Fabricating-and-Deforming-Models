@@ -5,8 +5,9 @@ class AuxSpherePerHinge : public ObjectiveFunction
 {	
 private:
 	
-	Eigen::MatrixX3d CurrV, CurrN;
-	Eigen::VectorXd restAreaPerFace, restAreaPerHinge, d_normals;
+	Eigen::MatrixX3d CurrV, CurrCenter;
+	Eigen::VectorXd  d_center,d_radius, CurrRadius;
+		Eigen::VectorXd restAreaPerFace, restAreaPerHinge;
 	int num_hinges = -1;
 	std::vector<Eigen::Vector2d> hinges_faceIndex;
 	Eigen::VectorXi x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd;
@@ -18,11 +19,11 @@ private:
 	Eigen::VectorXd Phi(Eigen::VectorXd);
 	Eigen::VectorXd dPhi_dm(Eigen::VectorXd);
 	Eigen::VectorXd d2Phi_dmdm(Eigen::VectorXd);
-	Eigen::Matrix< double, 6, 1> dm_dN(int hi);
-	Eigen::Matrix< double, 6, 6> d2m_dNdN(int hi);
+	Eigen::Matrix< double, 8, 1> dm_dN(int hi);
+	Eigen::Matrix< double, 8, 8> d2m_dNdN(int hi);
 	
 public:
-	float w1 = 1, w2 = 100, w3 = 100;
+	float w1 = 1, w2 = 100;
 	OptimizationUtils::FunctionType functionType;
 	float planarParameter;
 
