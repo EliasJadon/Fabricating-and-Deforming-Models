@@ -48,6 +48,8 @@ void solver::init(
 	std::shared_ptr<ObjectiveFunction> objective, 
 	const Eigen::VectorXd& X0,
 	const Eigen::VectorXd& norm0,
+	const Eigen::VectorXd& center0,
+	const Eigen::VectorXd& radius0,
 	const Eigen::MatrixXi& F, 
 	const Eigen::MatrixXd& V
 ) {
@@ -59,9 +61,14 @@ void solver::init(
 	std::cout << "V.rows() = " << V.rows() << std::endl;
 	assert(X0.rows() == (3*V.rows()) && "X0 should contain the (x,y,z) coordinates for each vertice");
 	assert(norm0.rows() == (3*F.rows()) && "norm0 should contain the (x,y,z) coordinates for each face");
-	X.resize(3 * V.rows() + 3 * F.rows());
-	X.middleRows(0, 3 * V.rows()) = X0;
-	X.bottomRows(3 * F.rows()) = norm0;
+	assert(center0.rows() == (3*F.rows()) && "center0 should contain the (x,y,z) coordinates for each face");
+	assert(radius0.rows() == F.rows());
+	
+	X.resize(3 * V.rows() + 7 * F.rows());
+	X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows()) = X0;
+	X.middleRows(3 * V.rows() + 0 * F.rows(), 3 * F.rows()) = norm0;
+	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows()) = center0;
+	X.middleRows(3 * V.rows() + 6 * F.rows(), 1 * F.rows()) = radius0;
 	ext_x = X0;
 	internal_init();
 }

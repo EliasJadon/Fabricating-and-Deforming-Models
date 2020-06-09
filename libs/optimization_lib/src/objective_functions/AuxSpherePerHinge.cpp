@@ -45,9 +45,9 @@ void AuxSpherePerHinge::updateX(const Eigen::VectorXd& X)
 	//		Ny(0), ... ,Ny(#F-1),
 	//		Nz(0), ... ,Nz(#F-1)
 	//	  ]
-	assert(X.rows() == (restShapeV.size() + restShapeF.size()));
+	assert(X.rows() == (restShapeV.size() + 7 * restShapeF.rows()));
 	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0,3 * restShapeV.rows()).data(), restShapeV.rows(), 3);
-	CurrN = Eigen::Map<const Eigen::MatrixX3d>(X.bottomRows(3 * restShapeF.rows()).data(), restShapeF.rows(), 3);
+	CurrN = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(3 * restShapeV.rows(),3 * restShapeF.rows()).data(), restShapeF.rows(), 3);
 	
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi](0);
@@ -301,7 +301,7 @@ double AuxSpherePerHinge::value(const bool update)
 
 void AuxSpherePerHinge::gradient(Eigen::VectorXd& g, const bool update)
 {
-	g.conservativeResize(restShapeV.size() + restShapeF.size());
+	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
 	g.setZero();
 	
 	//Energy 1: per hinge
@@ -568,7 +568,9 @@ void AuxSpherePerHinge::hessian() {
 		}
 	}
 		
-
+	II.push_back(restShapeV.size() + 7 * restShapeF.rows() - 1);
+	JJ.push_back(restShapeV.size() + 7 * restShapeF.rows() - 1);
+	SS.push_back(0);
 }
 
 void AuxSpherePerHinge::init_hessian()
