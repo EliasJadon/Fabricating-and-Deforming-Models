@@ -19,7 +19,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		Highlighted_face = false;
 		IsTranslate = false;
 		model_loaded = false;
-		ZoomAll = true;
+		UpdateAll = true;
 		solver_settings = true;
 		show_text = true;
 		step_by_step = false;
@@ -150,7 +150,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		UpdateHandles();
 		mouse_mode = app_utils::MouseMode::VERTEX_SELECT;
 	}
-	ImGui::Checkbox("Zoom All", &ZoomAll);
+	ImGui::Checkbox("Update all scene", &UpdateAll);
 
 	if(model_loaded)
 		Draw_menu_for_Solver();
@@ -164,8 +164,8 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	follow_and_mark_selected_faces();
 	Update_view();
 
-	if (ZoomAll)
-		update_zoom_parameter_for_all_cores();
+	if (UpdateAll)
+		update_parameters_for_all_cores();
 
 	IsMouseHoveringAnyWindow = false;
 	if (ImGui::IsAnyWindowHovered() |
@@ -176,7 +176,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		IsMouseHoveringAnyWindow = true;
 }
 
-void deformation_plugin::update_zoom_parameter_for_all_cores() {
+void deformation_plugin::update_parameters_for_all_cores() {
 	for (auto& core : viewer->core_list) {
 		int output_index = -1;
 		for (int i = 0; i < Outputs.size(); i++) {
@@ -185,21 +185,43 @@ void deformation_plugin::update_zoom_parameter_for_all_cores() {
 			}
 		}
 		if (output_index == -1) {
-			if (this->prev_camera_zoom != core.camera_zoom) {
-				for (auto& c : viewer->core_list)
+			if (this->prev_camera_zoom != core.camera_zoom ||
+				this->prev_camera_translation != core.camera_translation ||
+				this->prev_trackball_angle.coeffs() != core.trackball_angle.coeffs()
+				) {
+				for (auto& c : viewer->core_list) {
 					c.camera_zoom = core.camera_zoom;
+					c.camera_translation = core.camera_translation;
+					c.trackball_angle = core.trackball_angle;
+				}	
 				this->prev_camera_zoom = core.camera_zoom;
-				for (auto&o : Outputs)
+				this->prev_camera_translation = core.camera_translation;
+				this->prev_trackball_angle = core.trackball_angle;
+				for (auto&o : Outputs){
 					o.prev_camera_zoom = core.camera_zoom;
+					o.prev_camera_translation = core.camera_translation;
+					o.prev_trackball_angle = core.trackball_angle;
+				}
 			}
 		}
 		else {
-			if (Outputs[output_index].prev_camera_zoom != core.camera_zoom) {
-				for (auto& c : viewer->core_list)
+			if (Outputs[output_index].prev_camera_zoom != core.camera_zoom ||
+				Outputs[output_index].prev_camera_translation != core.camera_translation ||
+				Outputs[output_index].prev_trackball_angle.coeffs() != core.trackball_angle.coeffs()
+				) {
+				for (auto& c : viewer->core_list) {
 					c.camera_zoom = core.camera_zoom;
+					c.camera_translation = core.camera_translation;
+					c.trackball_angle = core.trackball_angle;
+				}	
 				this->prev_camera_zoom = core.camera_zoom;
-				for (auto&o : Outputs)
+				this->prev_camera_translation = core.camera_translation;
+				this->prev_trackball_angle = core.trackball_angle;
+				for (auto&o : Outputs) {
 					o.prev_camera_zoom = core.camera_zoom;
+					o.prev_camera_translation = core.camera_translation;
+					o.prev_trackball_angle = core.trackball_angle;
+				}	
 			}
 		}
 	}
@@ -577,8 +599,6 @@ void deformation_plugin::Draw_menu_for_Solver() {
 					Outputs[i].totalObjective, 
 					initialguess, 
 					initNormals, 
-					Eigen::VectorXd::Ones(OutputModel(i).F.size()), 
-					Eigen::VectorXd::Ones(OutputModel(i).F.rows()),
 					OutputModel(i).F,
 					OutputModel(i).V);
 			}
@@ -787,12 +807,15 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 				std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
 				std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				if (BE != NULL)
 					ImGui::Combo("Function", (int *)(&(BE->functionType)), "Quadratic\0Exponential\0Planar\0\0");
 				if (BN != NULL)
 					ImGui::Combo("Function", (int *)(&(BN->functionType)), "Quadratic\0Exponential\0Planar\0\0");
 				if (ABN != NULL)
 					ImGui::Combo("Function", (int *)(&(ABN->functionType)), "Quadratic\0Exponential\0Planar\0\0");
+				if (AS != NULL)
+					ImGui::Combo("Function", (int *)(&(AS->functionType)), "Quadratic\0Exponential\0Planar\0\0");
 
 				if (BE != NULL && BE->functionType == OptimizationUtils::PlanarL) {
 					ImGui::Text((std::to_string(BE->planarParameter)).c_str());
@@ -835,6 +858,21 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 					ImGui::DragFloat("w1", &(ABN->w1), 0.05f, 0.0f, 100000.0f);
 					ImGui::DragFloat("w2", &(ABN->w2), 0.05f, 0.0f, 100000.0f);
 					ImGui::DragFloat("w3", &(ABN->w3), 0.05f, 0.0f, 100000.0f);
+				}
+				if (AS != NULL && AS->functionType == OptimizationUtils::PlanarL) {
+					ImGui::Text((std::to_string(AS->planarParameter)).c_str());
+					ImGui::SameLine();
+					if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+					{
+						AS->planarParameter = (AS->planarParameter * 2) > 1 ? 1 : AS->planarParameter * 2;
+					}
+					ImGui::SameLine();
+					if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+					{
+						AS->planarParameter /= 2;
+					}
+					ImGui::DragFloat("w1", &(AS->w1), 0.05f, 0.0f, 100000.0f);
+					ImGui::DragFloat("w2", &(AS->w2), 0.05f, 0.0f, 100000.0f);
 				}
 				ImGui::NextColumn();
 				ImGui::PopID();
@@ -994,10 +1032,13 @@ void deformation_plugin::UpdateHandles() {
 }
 
 void deformation_plugin::Update_view() {
+	
 	for (auto& data : viewer->data_list)
-		for (auto& out : Outputs)
+		for (auto& out : Outputs) {
 			data.copy_options(viewer->core(inputCoreID), viewer->core(out.CoreID));
-
+			
+		}
+	
 	for (auto& core : viewer->core_list)
 		for (auto& data : viewer->data_list)
 			viewer->data(data.id).set_visible(false, core.id);
@@ -1246,13 +1287,10 @@ void deformation_plugin::start_solver_thread() {
 		Eigen::MatrixX3d normals;
 		igl::per_face_normals((Eigen::MatrixX3d)OutputModel(i).V, (Eigen::MatrixX3i)OutputModel(i).F, normals);
 		Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), OutputModel(i).F.size());
-		
 		Outputs[i].newton->init(
 			Outputs[i].totalObjective, 
 			init,
 			initNormals,
-			Eigen::VectorXd::Ones(OutputModel(i).F.size()), 
-			Eigen::VectorXd::Ones(OutputModel(i).F.rows()),
 			OutputModel(i).F, 
 			OutputModel(i).V
 		);
@@ -1260,8 +1298,6 @@ void deformation_plugin::start_solver_thread() {
 			Outputs[i].totalObjective, 
 			init, 
 			initNormals,
-			Eigen::VectorXd::Ones(OutputModel(i).F.size()), 
-			Eigen::VectorXd::Ones(OutputModel(i).F.rows()),
 			OutputModel(i).F, 
 			OutputModel(i).V
 		);
@@ -1269,8 +1305,6 @@ void deformation_plugin::start_solver_thread() {
 			Outputs[i].totalObjective,
 			init,
 			initNormals,
-			Eigen::VectorXd::Ones(OutputModel(i).F.size()), 
-			Eigen::VectorXd::Ones(OutputModel(i).F.rows()),
 			OutputModel(i).F,
 			OutputModel(i).V
 		);
@@ -1355,24 +1389,18 @@ void deformation_plugin::initializeSolver(const int index)
 		Outputs[index].totalObjective, 
 		init, 
 		initNormals, 
-		Eigen::VectorXd::Ones(OutputModel(index).F.size()),
-		Eigen::VectorXd::Ones(OutputModel(index).F.rows()),
 		OutputModel(index).F, 
 		OutputModel(index).V);
 	Outputs[index].gradient_descent->init(
 		Outputs[index].totalObjective, 
 		init, 
 		initNormals, 
-		Eigen::VectorXd::Ones(OutputModel(index).F.size()), 
-		Eigen::VectorXd::Ones(OutputModel(index).F.rows()),
 		OutputModel(index).F, 
 		OutputModel(index).V);
 	Outputs[index].adam_minimizer->init(
 		Outputs[index].totalObjective, 
 		init, 
 		initNormals, 
-		Eigen::VectorXd::Ones(OutputModel(index).F.size()), 
-		Eigen::VectorXd::Ones(OutputModel(index).F.rows()),
 		OutputModel(index).F, 
 		OutputModel(index).V);
 	

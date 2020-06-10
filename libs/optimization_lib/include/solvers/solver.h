@@ -30,8 +30,6 @@ public:
 		std::shared_ptr<ObjectiveFunction> objective, 
 		const Eigen::VectorXd& X0, 
 		const Eigen::VectorXd& norm0, 
-		const Eigen::VectorXd& center0,
-		const Eigen::VectorXd& radius0,
 		const Eigen::MatrixXi& F, 
 		const Eigen::MatrixXd& V);
 	

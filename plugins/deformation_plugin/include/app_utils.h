@@ -301,6 +301,8 @@ class OptimizationOutput
 {
 public:
 	float prev_camera_zoom;
+	Eigen::Vector3f prev_camera_translation;
+	Eigen::Quaternionf prev_trackball_angle;
 	std::vector<int> *HandlesInd; //pointer to indices in constraitPositional
 	Eigen::MatrixX3d *HandlesPosDeformed; //pointer to positions in constraitPositional
 	Eigen::MatrixXd color_per_face, Vertices_output;

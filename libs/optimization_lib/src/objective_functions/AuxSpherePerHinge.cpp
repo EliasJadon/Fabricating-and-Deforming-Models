@@ -274,19 +274,21 @@ double AuxSpherePerHinge::value(const bool update)
 	//per hinge
 	Eigen::VectorXd Energy1 = Phi(d_center + d_radius);
 	
-	////per face
-	//double Energy2 = 0; 
-	//for (int fi = 0; fi < restShapeF.rows(); fi++) {
-	//	int x0 = restShapeF(fi, 0);
-	//	int x1 = restShapeF(fi, 1);
-	//	int x2 = restShapeF(fi, 2);
-	//	Eigen::VectorXd x = (CurrV.row(x0) + CurrV.row(x1) + CurrV.row(x2)) / 3;
-	//	Energy2 += pow((x - CurrCenter.row(fi)).squaredNorm() - pow(CurrRadius(fi), 2), 2);
-	//}
+	//per face
+	double Energy2 = 0; 
+	for (int fi = 0; fi < restShapeF.rows(); fi++) {
+		int x0 = restShapeF(fi, 0);
+		int x1 = restShapeF(fi, 1);
+		int x2 = restShapeF(fi, 2);
+		Eigen::RowVector3d x = ((CurrV.row(x0) + CurrV.row(x1) + CurrV.row(x2)) / 3);
+		Eigen::RowVector3d c = CurrCenter.row(fi);
+		double r = CurrRadius(fi);
+		Energy2 += pow((x - c).squaredNorm() - pow(r, 2), 2);
+	}
 
 	double value =
-		w1 * Energy1.transpose()*restAreaPerHinge;// +
-		//w2 * Energy2;
+		w1 * Energy1.transpose()*restAreaPerHinge +
+		w2 * Energy2;
 
 	if (update) {
 		//TODO: calculate Efi (for coloring the faces)
@@ -317,45 +319,45 @@ void AuxSpherePerHinge::gradient(Eigen::VectorXd& g, const bool update)
 		g[f1 + start] += dE_dx(7);
 	}
 
-	////Energy 2: per face
-	//for (int fi = 0; fi < restShapeF.rows(); fi++)
-	//	for (int xyz = 0; xyz < 3; ++xyz)
-	//		g[fi + (3 * restShapeV.rows()) + (xyz * restShapeF.rows())] += 
-	//		w2 * 4 * (CurrN.row(fi).squaredNorm() - 1)*CurrN(fi, xyz);
-	//	
-	////Energy 3: per face
-	//for (int fi = 0; fi < restShapeF.rows(); fi++) {
-	//	int x0 = restShapeF(fi, 0);
-	//	int x1 = restShapeF(fi, 1);
-	//	int x2 = restShapeF(fi, 2);
-	//	Eigen::VectorXd e21 = CurrV.row(x2) - CurrV.row(x1);
-	//	Eigen::VectorXd e10 = CurrV.row(x1) - CurrV.row(x0);
-	//	Eigen::VectorXd e02 = CurrV.row(x0) - CurrV.row(x2);
-	//	
-	//	Eigen::Matrix<double, 12, 1> dE_dx;
-	//	dE_dx <<
-	//		2 * CurrN(fi, 0) * (CurrN.row(fi) * e02 - CurrN.row(fi) * e10),//x0
-	//		2 * CurrN(fi, 1) * (CurrN.row(fi) * e02 - CurrN.row(fi) * e10),//y0
-	//		2 * CurrN(fi, 2) * (CurrN.row(fi) * e02 - CurrN.row(fi) * e10),//z0
-	//		2 * CurrN(fi, 0) * (CurrN.row(fi) * e10 - CurrN.row(fi) * e21),//x1
-	//		2 * CurrN(fi, 1) * (CurrN.row(fi) * e10 - CurrN.row(fi) * e21),//y1
-	//		2 * CurrN(fi, 2) * (CurrN.row(fi) * e10 - CurrN.row(fi) * e21),//z1
-	//		2 * CurrN(fi, 0) * (CurrN.row(fi) * e21 - CurrN.row(fi) * e02),//x2
-	//		2 * CurrN(fi, 1) * (CurrN.row(fi) * e21 - CurrN.row(fi) * e02),//y2
-	//		2 * CurrN(fi, 2) * (CurrN.row(fi) * e21 - CurrN.row(fi) * e02),//z2
-	//		2 * CurrN.row(fi) * e10*e10(0) + 2 * CurrN.row(fi) * e21*e21(0) + 2 * CurrN.row(fi) * e02*e02(0),//Nx
-	//		2 * CurrN.row(fi) * e10*e10(1) + 2 * CurrN.row(fi) * e21*e21(1) + 2 * CurrN.row(fi) * e02*e02(1),//Ny
-	//		2 * CurrN.row(fi) * e10*e10(2) + 2 * CurrN.row(fi) * e21*e21(2) + 2 * CurrN.row(fi) * e02*e02(2);//Nz
-	//	dE_dx *= w3;
 
-	//	for (int xyz = 0; xyz < 3; ++xyz) {
-	//		g[x0 + (xyz * restShapeV.rows())] += dE_dx(xyz);
-	//		g[x1 + (xyz * restShapeV.rows())] += dE_dx(3 + xyz);
-	//		g[x2 + (xyz * restShapeV.rows())] += dE_dx(6 + xyz);
-	//		g[fi + (3 * restShapeV.rows()) + (xyz * restShapeF.rows())] += dE_dx(9 + xyz);
-	//	}
-	//}
-
+	//Energy 2: per face
+	for (int fi = 0; fi < restShapeF.rows(); fi++) {
+		int x0 = restShapeF(fi, 0);
+		int x1 = restShapeF(fi, 1);
+		int x2 = restShapeF(fi, 2);
+		Eigen::RowVector3d x = ((CurrV.row(x0) + CurrV.row(x1) + CurrV.row(x2)) / 3);
+		Eigen::RowVector3d c = CurrCenter.row(fi);
+		double r = CurrRadius(fi);
+		double sqrtE = (x - c).squaredNorm() - pow(r, 2);
+		
+		Eigen::Matrix<double, 1, 13> dE_dx;
+		dE_dx <<
+			(4 / 3.0f)*sqrtE*(x(0) - c(0)), // V0x
+			(4 / 3.0f)*sqrtE*(x(1) - c(1)), // V0y
+			(4 / 3.0f)*sqrtE*(x(2) - c(2)), // V0z
+			(4 / 3.0f)*sqrtE*(x(0) - c(0)), // V1x
+			(4 / 3.0f)*sqrtE*(x(1) - c(1)), // V1y
+			(4 / 3.0f)*sqrtE*(x(2) - c(2)), // V1z
+			(4 / 3.0f)*sqrtE*(x(0) - c(0)), // V2x
+			(4 / 3.0f)*sqrtE*(x(1) - c(1)), // V2y
+			(4 / 3.0f)*sqrtE*(x(2) - c(2)), // V2z
+			-4 * sqrtE*(x(0) - c(0)), // Cx
+			-4 * sqrtE*(x(1) - c(1)), // Cy
+			-4 * sqrtE*(x(2) - c(2)), // Cz
+			-4 * sqrtE*r; //r
+		dE_dx *= w2;
+		
+		int startC = 3 * restShapeV.rows() + 3 * restShapeF.rows();
+		int startR = 3 * restShapeV.rows() + 6 * restShapeF.rows();
+		for (int xyz = 0; xyz < 3; ++xyz) {
+			g[x0 + (xyz * restShapeV.rows())] += dE_dx(0+xyz);
+			g[x1 + (xyz * restShapeV.rows())] += dE_dx(3+xyz);
+			g[x2 + (xyz * restShapeV.rows())] += dE_dx(6+xyz);
+			g[fi + startC + (xyz * restShapeF.rows())] += dE_dx(9+xyz);
+		}
+		g[fi + startR] += dE_dx(12);
+	}
+		
 	if (update)
 		gradient_norm = g.norm();
 }
