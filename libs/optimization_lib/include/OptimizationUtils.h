@@ -8,6 +8,8 @@
 #include <igl/per_face_normals.h>
 #include <windows.h>
 #include <Eigen/sparse>
+#include <igl/vertex_triangle_adjacency.h>
+
 class OptimizationUtils
 {
 public:
@@ -152,4 +154,139 @@ public:
 		std::string::size_type pos = std::string(buffer).find("\\RDS\\");
 		return std::string(buffer).substr(0, pos + 5);
 	}
+
+	static void center_of_mesh(
+		const Eigen::MatrixXd& V,
+		const Eigen::MatrixXi& F,
+		Eigen::MatrixXd& center0,
+		Eigen::VectorXd& radius0) 
+	{
+		center0.resize(F.rows(), 3);
+		radius0.resize(F.rows(), 1);
+		Eigen::Vector3d avg;
+		avg.setZero();
+		for (int vi = 0; vi < V.rows(); vi++)
+			avg += V.row(vi);
+		avg /= V.rows();
+
+		//update center0
+		center0.col(0) = Eigen::VectorXd::Constant(F.rows(), avg(0));
+		center0.col(1) = Eigen::VectorXd::Constant(F.rows(), avg(1));
+		center0.col(2) = Eigen::VectorXd::Constant(F.rows(), avg(2));
+
+		//update radius0
+		for (int fi = 0; fi < F.rows(); fi++) {
+			int x0 = F(fi, 0);
+			int x1 = F(fi, 1);
+			int x2 = F(fi, 2);
+			Eigen::VectorXd x = (V.row(x0) + V.row(x1) + V.row(x2)) / 3;
+			radius0(fi) = (x - avg).norm();
+		}
+	}
+
+	static void Least_Squares_Sphere_Fit(
+		const Eigen::MatrixXd& V, 
+		const Eigen::MatrixXi& F, 
+		Eigen::MatrixXd& center0,
+		Eigen::VectorXd& radius0) 
+	{
+		//for more info:
+		//https://jekel.me/2015/Least-Squares-Sphere-Fit/
+		center0.resize(F.rows(), 3);
+		radius0.resize(F.rows(), 1);
+		std::vector<std::vector<int>> adjacency = get_adjacency_vertices_per_face(V, F);
+		for (int fi = 0; fi < F.rows(); fi++) {
+			std::vector<int> f_adj = adjacency[fi];
+			int n = f_adj.size();
+			Eigen::MatrixXd A(n, 4);
+			Eigen::VectorXd c(4), f(n);
+			for (int ni = 0; ni < n; ni++) {
+				double xi = V(f_adj[ni], 0);
+				double yi = V(f_adj[ni], 1);
+				double zi = V(f_adj[ni], 2);
+				A.row(ni) << 2 * xi, 2 * yi, 2 * zi, 1;
+				f(ni) = pow(xi, 2) + pow(yi, 2) + pow(zi, 2);
+			}
+			//solve Ac = f and get c!
+			c = (A.transpose()*A).colPivHouseholderQr().solve(A.transpose()*f);
+			
+			//for debugging
+			/*std::cout << "A:\n" << A << std::endl;
+			std::cout << "f:\n" << f << std::endl;
+			std::cout << "c:\n" << c << std::endl;
+			std::cout << "MSE:\n" << (A*c-f).squaredNorm() << std::endl;*/
+
+			//after we got the solution c we pick from c: radius & center=(X,Y,Z)
+			center0.row(fi) << c(0), c(1), c(2);
+			radius0(fi) = sqrt(c(3) + pow(c(0), 2) + pow(c(1), 2) + pow(c(2), 2));
+		}
+	}
+
+	static std::vector<std::vector<int>> get_adjacency_vertices_per_face(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F) {
+		std::vector<std::vector<int>> OneRingVertices = get_one_ring_vertices(V, F);
+		std::vector<std::vector<int>> adjacency;
+		adjacency.resize(F.rows());
+		for (int fi = 0; fi < F.rows(); fi++) {
+			adjacency[fi].clear();
+			for (int vi = 0; vi < 3; vi++) {
+				int Vi = F(fi, vi);
+				std::vector<int> vi_oneRing = OneRingVertices[Vi];
+				for (int v_index : vi_oneRing)
+					if (!(find(adjacency[fi].begin(), adjacency[fi].end(), v_index) != adjacency[fi].end()))
+						adjacency[fi].push_back(v_index);
+			}
+		}
+
+		////for debugging
+		//for (int fi = 0; fi < adjacency.size(); fi++) {
+		//	std::cout << console_color::blue << "----------face " << fi << ":\n";
+		//	for (int v : adjacency[fi]) {
+		//		std::cout << v << " ";
+		//	}
+		//	std::cout << std::endl;
+		//}
+		//std::cout << console_color::white;
+
+		return adjacency;
+	}
+
+	static std::vector<std::vector<int>> get_one_ring_vertices(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F) {
+		// adjacency matrix (vertex to face)
+		std::vector<std::vector<int> > VF, VFi;
+		std::vector<std::vector<int>> OneRingVertices;
+		OneRingVertices.resize(V.rows());
+
+		igl::vertex_triangle_adjacency(V, F, VF, VFi);
+
+
+		for (int vi = 0; vi < V.rows(); vi++) {
+			std::vector<int> OneRingFaces = VF[vi];
+			OneRingVertices[vi] = temp_get_one_ring_vertices_per_vertex(F, OneRingFaces);
+		}
+		return OneRingVertices;
+	}
+
+	static std::vector<int> temp_get_one_ring_vertices_per_vertex(const Eigen::MatrixXi& F, const std::vector<int>& OneRingFaces) {
+		std::vector<int> vertices;
+		vertices.clear();
+		for (int i = 0; i < OneRingFaces.size(); i++) {
+			int fi = OneRingFaces[i];
+			int P0 = F(fi, 0);
+			int P1 = F(fi, 1);
+			int P2 = F(fi, 2);
+
+			//check if the vertex already exist
+			if (!(find(vertices.begin(), vertices.end(), P0) != vertices.end())) {
+				vertices.push_back(P0);
+			}
+			if (!(find(vertices.begin(), vertices.end(), P1) != vertices.end())) {
+				vertices.push_back(P1);
+			}
+			if (!(find(vertices.begin(), vertices.end(), P2) != vertices.end())) {
+				vertices.push_back(P2);
+			}
+		}
+		return vertices;
+	}
+
 };

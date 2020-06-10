@@ -11,7 +11,7 @@ file(GLOB sources
 	src/objective_functions/*.cpp
 	include/solvers/*.h
 	include/objective_functions/*.h
-	include/utils.h
+	include/OptimizationUtils.h
 	)
 
 

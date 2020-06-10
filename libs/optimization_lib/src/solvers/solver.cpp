@@ -60,23 +60,15 @@ void solver::init(
 	assert(X0.rows() == (3*V.rows()) && "X0 should contain the (x,y,z) coordinates for each vertice");
 	assert(norm0.rows() == (3*F.rows()) && "norm0 should contain the (x,y,z) coordinates for each face");
 	
-	Eigen::VectorXd center0(3 * F.rows());
-	Eigen::VectorXd Radius0(F.rows());
-	double sumX = 0, sumY = 0, sumZ = 0;
-	for (int vi = 0; vi < V.rows(); vi++) {
-		sumX += X0(vi + (0 * V.rows()));
-		sumY += X0(vi + (1 * V.rows()));
-		sumZ += X0(vi + (2 * V.rows()));
-	}
-	sumX /= V.rows();	sumY /= V.rows();	sumZ /= V.rows();
-	center0.middleRows(0 * F.rows(), F.rows()) = Eigen::VectorXd::Constant(F.rows(), sumX);
-	center0.middleRows(1 * F.rows(), F.rows()) = Eigen::VectorXd::Constant(F.rows(), sumY);
-	center0.middleRows(2 * F.rows(), F.rows()) = Eigen::VectorXd::Constant(F.rows(), sumZ);
-	Radius0.setOnes();
+	Eigen::MatrixXd center0;
+	Eigen::VectorXd Radius0;
+	OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
+	//OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
+	
 	X.resize(3 * V.rows() + 7 * F.rows());
 	X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows()) = X0;
 	X.middleRows(3 * V.rows() + 0 * F.rows(), 3 * F.rows()) = norm0;
-	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows()) = center0;
+	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows()) = Eigen::Map<Eigen::VectorXd>(center0.data(), F.size());
 	X.middleRows(3 * V.rows() + 6 * F.rows(), 1 * F.rows()) = Radius0;
 	ext_x = X0;
 	internal_init();

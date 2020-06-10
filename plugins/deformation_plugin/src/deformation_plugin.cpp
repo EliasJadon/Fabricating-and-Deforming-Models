@@ -150,7 +150,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		UpdateHandles();
 		mouse_mode = app_utils::MouseMode::VERTEX_SELECT;
 	}
-	ImGui::Checkbox("Update all scene", &UpdateAll);
+	ImGui::Checkbox("Update all cores together", &UpdateAll);
 
 	if(model_loaded)
 		Draw_menu_for_Solver();
