@@ -49,7 +49,8 @@ void solver::init(
 	const Eigen::VectorXd& X0,
 	const Eigen::VectorXd& norm0,
 	const Eigen::MatrixXi& F, 
-	const Eigen::MatrixXd& V
+	const Eigen::MatrixXd& V,
+	const OptimizationUtils::InitAuxVariables initAuxType
 ) {
 	this->F = F;
 	this->V = V;
@@ -62,8 +63,10 @@ void solver::init(
 	
 	Eigen::MatrixXd center0;
 	Eigen::VectorXd Radius0;
-	OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
-	//OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
+	if(initAuxType == OptimizationUtils::Sphere)
+		OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
+	else if (initAuxType == OptimizationUtils::MeshCenter)
+		OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
 	
 	X.resize(3 * V.rows() + 7 * F.rows());
 	X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows()) = X0;

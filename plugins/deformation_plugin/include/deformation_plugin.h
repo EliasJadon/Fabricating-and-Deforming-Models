@@ -8,6 +8,7 @@
 class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
+	OptimizationUtils::InitAuxVariables typeAuxVar;
 	bool step_by_step;
 	bool isLoadNeeded;
 	bool model_loaded;

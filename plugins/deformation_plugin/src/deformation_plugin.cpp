@@ -10,6 +10,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	ImGuiMenu::init(_viewer);
 	if (_viewer)
 	{
+		typeAuxVar = OptimizationUtils::Sphere;
 		isLoadNeeded = false;
 		IsMouseDraggingAnyWindow = false;
 		IsMouseHoveringAnyWindow = false;
@@ -600,10 +601,15 @@ void deformation_plugin::Draw_menu_for_Solver() {
 					initialguess, 
 					initNormals, 
 					OutputModel(i).F,
-					OutputModel(i).V);
+					OutputModel(i).V,
+					typeAuxVar);
 			}
 			start_solver_thread();
 		}
+
+
+		ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0\0");
+
 
 		std::shared_ptr<NewtonSolver> newtonSolver = std::dynamic_pointer_cast<NewtonSolver>(Outputs[0].solver);
 		if (newtonSolver != NULL) {
@@ -1292,21 +1298,24 @@ void deformation_plugin::start_solver_thread() {
 			init,
 			initNormals,
 			OutputModel(i).F, 
-			OutputModel(i).V
+			OutputModel(i).V,
+			typeAuxVar
 		);
 		Outputs[i].gradient_descent->init(
 			Outputs[i].totalObjective, 
 			init, 
 			initNormals,
 			OutputModel(i).F, 
-			OutputModel(i).V
+			OutputModel(i).V,
+			typeAuxVar
 		);
 		Outputs[i].adam_minimizer->init(
 			Outputs[i].totalObjective,
 			init,
 			initNormals,
 			OutputModel(i).F,
-			OutputModel(i).V
+			OutputModel(i).V,
+			typeAuxVar
 		);
 		//start solver
 		if (step_by_step) {
@@ -1390,19 +1399,22 @@ void deformation_plugin::initializeSolver(const int index)
 		init, 
 		initNormals, 
 		OutputModel(index).F, 
-		OutputModel(index).V);
+		OutputModel(index).V,
+		typeAuxVar);
 	Outputs[index].gradient_descent->init(
 		Outputs[index].totalObjective, 
 		init, 
 		initNormals, 
 		OutputModel(index).F, 
-		OutputModel(index).V);
+		OutputModel(index).V,
+		typeAuxVar);
 	Outputs[index].adam_minimizer->init(
 		Outputs[index].totalObjective, 
 		init, 
 		initNormals, 
 		OutputModel(index).F, 
-		OutputModel(index).V);
+		OutputModel(index).V,
+		typeAuxVar);
 	
 	std::cout << ">> Solver is initialized!" << std::endl;
 }

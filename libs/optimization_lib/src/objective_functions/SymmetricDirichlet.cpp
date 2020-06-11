@@ -2,7 +2,7 @@
 
 SymmetricDirichlet::SymmetricDirichlet() {
 	name = "Symmetric Dirichlet";
-	w = 0;
+	w = 0.6;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 

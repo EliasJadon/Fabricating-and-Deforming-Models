@@ -13,6 +13,11 @@
 class OptimizationUtils
 {
 public:
+	enum InitAuxVariables {
+		Sphere = 0,
+		MeshCenter = 1
+	};
+
 	enum FunctionType {
 		Quadratic = 0,
 		Exponential = 1,

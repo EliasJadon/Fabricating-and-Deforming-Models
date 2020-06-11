@@ -31,7 +31,8 @@ public:
 		const Eigen::VectorXd& X0, 
 		const Eigen::VectorXd& norm0, 
 		const Eigen::MatrixXi& F, 
-		const Eigen::MatrixXd& V);
+		const Eigen::MatrixXd& V,
+		const OptimizationUtils::InitAuxVariables initAuxType);
 	
 	// Pointer to the energy class
 	std::shared_ptr<ObjectiveFunction> objective;
