@@ -330,22 +330,22 @@ void AuxSpherePerHinge::gradient(Eigen::VectorXd& g, const bool update)
 		double r = CurrRadius(fi);
 		double sqrtE = (x - c).squaredNorm() - pow(r, 2);
 		
-		Eigen::Matrix<double, 1, 13> dE_dx;
-		dE_dx <<
-			(4 / 3.0f)*sqrtE*(x(0) - c(0)), // V0x
-			(4 / 3.0f)*sqrtE*(x(1) - c(1)), // V0y
-			(4 / 3.0f)*sqrtE*(x(2) - c(2)), // V0z
-			(4 / 3.0f)*sqrtE*(x(0) - c(0)), // V1x
-			(4 / 3.0f)*sqrtE*(x(1) - c(1)), // V1y
-			(4 / 3.0f)*sqrtE*(x(2) - c(2)), // V1z
-			(4 / 3.0f)*sqrtE*(x(0) - c(0)), // V2x
-			(4 / 3.0f)*sqrtE*(x(1) - c(1)), // V2y
-			(4 / 3.0f)*sqrtE*(x(2) - c(2)), // V2z
-			-4 * sqrtE*(x(0) - c(0)), // Cx
-			-4 * sqrtE*(x(1) - c(1)), // Cy
-			-4 * sqrtE*(x(2) - c(2)), // Cz
-			-4 * sqrtE*r; //r
-		dE_dx *= w2;
+		Eigen::Matrix<double, 1, 13> g_sqrtE;
+		g_sqrtE <<
+			(2 / 3.0f)*(x(0) - c(0)), // V0x
+			(2 / 3.0f)*(x(1) - c(1)), // V0y
+			(2 / 3.0f)*(x(2) - c(2)), // V0z
+			(2 / 3.0f)*(x(0) - c(0)), // V1x
+			(2 / 3.0f)*(x(1) - c(1)), // V1y
+			(2 / 3.0f)*(x(2) - c(2)), // V1z
+			(2 / 3.0f)*(x(0) - c(0)), // V2x
+			(2 / 3.0f)*(x(1) - c(1)), // V2y
+			(2 / 3.0f)*(x(2) - c(2)), // V2z
+			-2 * (x(0) - c(0)), // Cx
+			-2 * (x(1) - c(1)), // Cy
+			-2 * (x(2) - c(2)), // Cz
+			-2 * r; //r
+		Eigen::Matrix<double, 1, 13> dE_dx = w2 * 2 * sqrtE*g_sqrtE;
 		
 		int startC = 3 * restShapeV.rows() + 3 * restShapeF.rows();
 		int startR = 3 * restShapeV.rows() + 6 * restShapeF.rows();
