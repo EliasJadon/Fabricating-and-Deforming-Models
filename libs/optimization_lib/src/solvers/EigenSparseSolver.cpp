@@ -58,6 +58,26 @@ void EigenSparseSolver<vectorTypeI, vectorTypeS>::perpareMatrix(const vectorType
 	Eigen::SparseMatrix<double> UpperTriangular_A = OptimizationUtils::BuildMatrix(II,JJ,SS);
 	full_A = UpperTriangular_A.selfadjointView<Eigen::Upper>();
 
+	if (GerschgorinBound) {
+		double matrixSum = 0;
+		for (int row = 0; row < full_A.rows(); row++) {
+			for (int col = 0; col < full_A.cols(); col++) {
+				if (row != col) {
+					double val = full_A.coeff(row, col);
+					matrixSum += (val < 0) ? -val : val;
+				}
+			}
+		}
+		double minLowBound = full_A.coeff(0, 0) - matrixSum;
+		for (int i = 0; i < full_A.rows(); i++) {
+			double currLowBound = full_A.coeff(i, i) - matrixSum;
+			minLowBound = (currLowBound < minLowBound) ? currLowBound : minLowBound;
+		}
+		std::cout << "Gerschgorin Bound = " << minLowBound << std::endl;
+		
+	}
+
+
 	if (CheckPositiveDefinite) {
 		double min_eig_value = full_A.toDense().eigenvalues().real().minCoeff();
 		if (min_eig_value < epsilon)
