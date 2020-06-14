@@ -545,6 +545,26 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 		OutputModel(i).point_size = 10;
 		OutputModel(i).set_points(Outputs[i].Vertices_output, color_per_vertex);
 	}
+
+	Eigen::MatrixXi E(InputModel().F.rows(), 2);
+	
+	Eigen::MatrixXd greenColor(1, 3);
+	Eigen::MatrixXd redColor(1, 3);
+	greenColor << 0, 1, 0;
+	redColor << 1, 0, 0;
+	for (int fi = 0; fi < InputModel().F.rows(); fi++) {
+		E.row(fi) << fi, InputModel().F.rows() + fi;
+	}
+
+	if (p_edges.size() != 0) {
+		for (int i = 0; i < Outputs.size(); i++) {
+			OutputModel(i).point_size = 10;
+			OutputModel(i).add_points(p_edges[i].middleRows(0, InputModel().F.rows()), greenColor);
+			OutputModel(i).add_points(p_edges[i].middleRows(InputModel().F.rows(), InputModel().F.rows()), redColor);
+			OutputModel(i).set_edges(p_edges[i], E, greenColor);
+		}
+	}
+	
 	return false;
 }
 
@@ -1246,18 +1266,18 @@ void deformation_plugin::checkHessians()
 
 void deformation_plugin::update_mesh()
 {
-	std::vector<Eigen::MatrixXd> V;
-	std::vector<Eigen::VectorXd> X; X.resize(Outputs.size());
-	
-	for (int i = 0; i < Outputs.size(); i++){
-		Outputs[i].solver->get_data(X[i]);
-		
-		V.push_back(Eigen::Map<Eigen::MatrixXd>(
-			X[i].data(), 
-			InputModel().V.rows(), 
-			InputModel().V.cols())
-		);
+	std::vector<Eigen::MatrixXd> V,center; 
+	center.resize(Outputs.size());
+	V.resize(Outputs.size());
+	p_edges.resize(Outputs.size());
 
+	for (int i = 0; i < Outputs.size(); i++){
+		Outputs[i].solver->get_data(V[i], center[i]);
+		///////////////////////////////////////////
+		p_edges[i].resize(2 * InputModel().F.rows(),3);
+		p_edges[i].middleRows(0, InputModel().F.rows()) = OptimizationUtils::center_per_triangle(V[i], InputModel().F);
+		p_edges[i].middleRows(InputModel().F.rows(), InputModel().F.rows()) = center[i];
+		///////////////////////////////////////////
 		if (IsTranslate && mouse_mode == app_utils::MouseMode::VERTEX_SELECT)
 			V[i].row(Translate_Index) = OutputModel(i).V.row(Translate_Index);
 		else if(IsTranslate && mouse_mode == app_utils::MouseMode::FACE_SELECT) {

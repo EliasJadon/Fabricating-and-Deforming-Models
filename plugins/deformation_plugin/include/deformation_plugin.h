@@ -8,6 +8,7 @@
 class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
+	std::vector<Eigen::MatrixXd> p_edges;
 	OptimizationUtils::InitAuxVariables typeAuxVar;
 	bool step_by_step;
 	bool isLoadNeeded;

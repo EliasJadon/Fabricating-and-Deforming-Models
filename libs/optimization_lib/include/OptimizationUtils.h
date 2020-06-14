@@ -292,4 +292,17 @@ namespace OptimizationUtils
 			radius0(fi) = sqrt(c(3) + pow(c(0), 2) + pow(c(1), 2) + pow(c(2), 2));
 		}
 	}
+
+	
+	static Eigen::MatrixXd center_per_triangle(const Eigen::MatrixXd& V,const Eigen::MatrixXi& F)
+	{
+		Eigen::MatrixXd centers(F.rows(), 3);
+		for (int fi = 0; fi < F.rows(); fi++) {
+			int x0 = F(fi, 0);
+			int x1 = F(fi, 1);
+			int x2 = F(fi, 2);
+			centers.row(fi) = (V.row(x0) + V.row(x1) + V.row(x2)) / 3;
+		}
+		return centers;
+	}
 }

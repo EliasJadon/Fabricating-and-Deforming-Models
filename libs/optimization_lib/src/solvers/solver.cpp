@@ -398,13 +398,15 @@ void solver::update_external_data()
 	give_parameter_update_slot();
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
 	ext_x = X.middleRows(0, 3 * V.rows());
+	ext_center = X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows());
 	progressed = true;
 }
 
-void solver::get_data(Eigen::VectorXd& X)
+void solver::get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center)
 {
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
-	X = ext_x;
+	X = Eigen::Map<Eigen::MatrixXd>(ext_x.data(), ext_x.rows() / 3, 3);
+	center = Eigen::Map<Eigen::MatrixXd>(ext_center.data(), ext_center.rows() / 3, 3);
 	progressed = false;
 }
 

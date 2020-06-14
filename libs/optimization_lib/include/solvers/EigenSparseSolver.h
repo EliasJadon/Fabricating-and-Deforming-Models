@@ -19,7 +19,7 @@ public:
 	// Matlab instance
 	// Engine *engine;
 	bool CheckPositiveDefinite = false;
-	bool GerschgorinBound = true;
+	bool GerschgorinBound = false;
 
 	EigenSparseSolver();
 	~EigenSparseSolver();

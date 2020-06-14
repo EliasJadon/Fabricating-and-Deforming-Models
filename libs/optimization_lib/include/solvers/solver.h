@@ -25,7 +25,7 @@ public:
 	
 	void run_one_iteration(const int steps, const bool showGraph);
 	void stop();
-	void get_data(Eigen::VectorXd& X);
+	void get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center);
 	void init(
 		std::shared_ptr<ObjectiveFunction> objective, 
 		const Eigen::VectorXd& X0, 
@@ -47,6 +47,7 @@ public:
 
 	// External (interface) and internal working mesh
 	Eigen::VectorXd ext_x;
+	Eigen::VectorXd ext_center;
 	Eigen::VectorXd X;
 	Eigen::MatrixX3i F;
 	Eigen::MatrixXd V;
