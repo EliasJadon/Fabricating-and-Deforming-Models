@@ -37,34 +37,32 @@
 #define BLACK_COLOR Eigen::Vector3f(0, 0, 0)
 #define M_PI 3.14159
 
-class app_utils : public igl::opengl::glfw::imgui::ImGuiMenu
+namespace app_utils
 {
-public:
-	// Expose an enumeration type
-	static enum class View {
+	enum View {
 		Horizontal = 0,
 		Vertical = 1,
 		InputOnly = 2,
 		OutputOnly0 = 3
 	};
-	static enum class MouseMode { 
+	enum MouseMode { 
 		NONE = 0, 
 		FACE_SELECT, 
 		VERTEX_SELECT, 
 		CLEAR 
 	};
-	static enum class Parametrization { 
+	enum Parametrization { 
 		RANDOM = 0,  
 		None 
 	};
-	static enum class Distortion { 
+	enum Distortion { 
 		NO_DISTORTION, 
 		AREA_DISTORTION, 
 		LENGTH_DISTORTION, 
 		ANGLE_DISTORTION, 
 		TOTAL_DISTORTION 
 	};
-	static enum class SolverType {
+	enum SolverType {
 		NEWTON = 0,
 		GRADIENT_DESCENT = 1,
 		ADAM_MINIMIZER = 2
@@ -136,101 +134,15 @@ public:
 			sts = "OutputOnly " + std::to_string(i);
 			cStr += sts.c_str();
 			cStr += '\0';
-			
 		}
 		cStr += '\0';
-
 		int listLength = cStr.length();
 		char* comboList = new char[listLength];
-
-		if (listLength == 1)
-			comboList[0] = cStr.at(0);
-
 		for (unsigned int i = 0; i < listLength; i++)
 			comboList[i] = cStr.at(i);
-
 		return comboList;
 	}
 
-	//Parametrizations
-	static void lscm_param(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, Eigen::MatrixXd& initialguess)
-	{
-		// Fix two points on the boundary
-		Eigen::VectorXi bnd, b(2, 1);
-		igl::boundary_loop(F, bnd);
-		b(0) = bnd(0);
-		b(1) = bnd(round(bnd.size() / 2));
-		Eigen::MatrixXd bc(2, 2);
-		bc << 0, 0, 1, 0;
-
-		igl::lscm(V, F, b, bc, initialguess);
-	}
-
-	static void harmonic_param(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, Eigen::MatrixXd& initialguess) {
-		// Find the open boundary
-		Eigen::VectorXi bnd;
-		igl::boundary_loop(F, bnd);
-
-		// Map the boundary to a circle, preserving edge proportions
-		Eigen::MatrixXd bnd_uv;
-		igl::map_vertices_to_circle(V, bnd, bnd_uv);
-
-		igl::harmonic(V, F, bnd, bnd_uv, 1, initialguess);
-	}
-
-	static void ARAP_param(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, Eigen::MatrixXd& initialguess) {
-		// Compute the initial solution for ARAP (harmonic parametrization)
-		Eigen::VectorXi bnd;
-		Eigen::MatrixXd init;
-
-		igl::boundary_loop(F, bnd);
-		Eigen::MatrixXd bnd_uv;
-		igl::map_vertices_to_circle(V, bnd, bnd_uv);
-
-		igl::harmonic(V, F, bnd, bnd_uv, 1, init);
-
-		// Add dynamic regularization to avoid to specify boundary conditions
-		igl::ARAPData arap_data;
-		arap_data.with_dynamics = true;
-		Eigen::VectorXi b = Eigen::VectorXi::Zero(0);
-		Eigen::MatrixXd bc = Eigen::MatrixXd::Zero(0, 0);
-
-		// Initialize ARAP
-		arap_data.max_iter = 100;
-		// 2 means that we're going to *solve* in 2d
-		igl::arap_precomputation(V, F, 2, b, arap_data);
-
-		// Solve arap using the harmonic map as initial guess
-		initialguess = init;
-
-		arap_solve(bc, arap_data, initialguess);
-	}
-
-	static void random_param(const Eigen::MatrixXd& V, Eigen::MatrixXd& initialguess) {
-		int nvs = V.rows();
-		initialguess = Eigen::MatrixX2d::Random(nvs, 2) * 2.0;
-		//MenuUtils::FixFlippedFaces(viewer->data(InputModelID()).F, V_uv);
-	}
-
-	static void FixFlippedFaces(Eigen::MatrixXi& Fs, Eigen::MatrixXd& Vs) {
-		Eigen::Matrix<double, 3, 2> face_vertices;
-		for (Eigen::MatrixXi::Index i = 0; i < Fs.rows(); ++i)
-		{
-			igl::slice(Vs, Fs.row(i), 1, face_vertices);
-			Eigen::Vector2d v1_2d = face_vertices.row(1) - face_vertices.row(0);
-			Eigen::Vector2d v2_2d = face_vertices.row(2) - face_vertices.row(0);
-			Eigen::Vector3d v1_3d = Eigen::Vector3d(v1_2d.x(), v1_2d.y(), 0);
-			Eigen::Vector3d v2_3d = Eigen::Vector3d(v2_2d.x(), v2_2d.y(), 0);
-			Eigen::Vector3d face_normal = v1_3d.cross(v2_3d);
-
-			// If face is flipped (that is, cross-product do not obey the right-hand rule)
-			if (face_normal(2) < 0)
-			{
-				Fs.row(i) << Fs(i, 0), Fs(i, 2), Fs(i, 1);
-			}
-		}
-	}
-	
 	static void angle_degree(Eigen::MatrixXd& V, Eigen::MatrixXi& F, Eigen::MatrixXd& angle) {
 		int numF = F.rows();
 		Eigen::VectorXd Area;
@@ -295,8 +207,6 @@ public:
 		//}
 	}
 
-
-
 	static Eigen::RowVector3d get_face_avg(const igl::opengl::glfw::Viewer *viewer, const int Model_Translate_ID,const int Translate_Index){
 		Eigen::RowVector3d avg; avg << 0, 0, 0;
 		Eigen::RowVector3i face = viewer->data(Model_Translate_ID).F.row(Translate_Index);
@@ -308,7 +218,7 @@ public:
 
 		return avg;
 	}
-};
+}
 
 class OptimizationOutput
 {

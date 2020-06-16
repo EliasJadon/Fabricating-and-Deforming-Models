@@ -60,40 +60,27 @@ void deformation_plugin::load_new_model(const std::string modelpath) {
 	if (modelPath.length() != 0)
 	{
 		modelName = app_utils::ExtractModelName(modelPath);
-
 		stop_solver_thread();
-		
 		if (model_loaded) {
 			//remove previous data
 			while (Outputs.size() > 0)
 				remove_output(0);
-
 			viewer->load_mesh_from_file(modelPath.c_str());
 			viewer->erase_mesh(0);
 		}
-		else {
-			viewer->load_mesh_from_file(modelPath.c_str());
-		}
-
+		else viewer->load_mesh_from_file(modelPath.c_str());
 		inputModelID = viewer->data_list[0].id;
-
-		for (int i = 0; i < Outputs.size(); i++)
-		{
+		for (int i = 0; i < Outputs.size(); i++){
 			viewer->load_mesh_from_file(modelPath.c_str());
 			Outputs[i].ModelID = viewer->data_list[i + 1].id;
 			initializeSolver(i);
 		}
-
-		if (model_loaded) {
-			//add new data
+		if (model_loaded)
 			add_output();
-		}
-
 		viewer->core(inputCoreID).align_camera_center(InputModel().V, InputModel().F);
 		for (int i = 0; i < Outputs.size(); i++)
 			viewer->core(Outputs[i].CoreID).align_camera_center(OutputModel(i).V, OutputModel(i).F);
 		model_loaded = true;
-
 		//set rotation type to 3D mode
 		viewer->core(inputCoreID).trackball_angle = Eigen::Quaternionf::Identity();
 		viewer->core(inputCoreID).orthographic = false;
@@ -105,9 +92,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 {
 	float w = ImGui::GetContentRegionAvailWidth();
 	float p = ImGui::GetStyle().FramePadding.x;
-	if (ImGui::Button("Load##Mesh", ImVec2((w - p) / 2.f, 0)))
-	{
-		//Load new model that has two copies
+	if (ImGui::Button("Load##Mesh", ImVec2((w - p) / 2.f, 0))){
 		modelPath = igl::file_dialog_open();
 		isLoadNeeded = true;
 	}
@@ -117,10 +102,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	}
 	ImGui::SameLine(0, p);
 	if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0)))
-	{
 		viewer->open_dialog_save_mesh();
-	}
-			
 	if (ImGui::Checkbox("Outputs settings", &Outputs_Settings))
 		if(Outputs_Settings)
 			show_text = !Outputs_Settings;
@@ -128,7 +110,6 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		if(show_text)
 			Outputs_Settings = !show_text;
 	ImGui::Checkbox("Highlight faces", &Highlighted_face);
-
 	if ((view == app_utils::View::Horizontal) || (view == app_utils::View::Vertical)) {
 		if(ImGui::SliderFloat("Core Size", &core_size, 0, 1.0/ Outputs.size(), std::to_string(core_size).c_str(), 1)){
 			int frameBufferWidth, frameBufferHeight;
@@ -136,14 +117,12 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 			post_resize(frameBufferWidth, frameBufferHeight);
 		}
 	}
-	
 	if (ImGui::Combo("View", (int *)(&view), app_utils::build_view_names_list(Outputs.size()))) {
 		// That's how you get the current width/height of the frame buffer (for example, after the window was resized)
 		int frameBufferWidth, frameBufferHeight;
 		glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
 		post_resize(frameBufferWidth, frameBufferHeight);
 	}
-
 	ImGui::Combo("Mouse Mode", (int *)(&mouse_mode), "NONE\0FACE_SELECT\0VERTEX_SELECT\0CLEAR\0\0");
 	if (mouse_mode == app_utils::MouseMode::CLEAR) {
 		selected_faces.clear();
@@ -152,7 +131,6 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		mouse_mode = app_utils::MouseMode::VERTEX_SELECT;
 	}
 	ImGui::Checkbox("Update all cores together", &UpdateAll);
-
 	if(model_loaded)
 		Draw_menu_for_Solver();
 	Draw_menu_for_cores(viewer->core(inputCoreID));
@@ -161,13 +139,10 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	Draw_menu_for_text_results();
 	if (model_loaded && solver_settings)
 		Draw_menu_for_solver_settings();
-
 	follow_and_mark_selected_faces();
 	Update_view();
-
 	if (UpdateAll)
 		update_parameters_for_all_cores();
-
 	IsMouseHoveringAnyWindow = false;
 	if (ImGui::IsAnyWindowHovered() |
 		ImGui::IsRootWindowOrAnyChildHovered() |
@@ -180,11 +155,9 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 void deformation_plugin::update_parameters_for_all_cores() {
 	for (auto& core : viewer->core_list) {
 		int output_index = -1;
-		for (int i = 0; i < Outputs.size(); i++) {
-			if (core.id == Outputs[i].CoreID) {
+		for (int i = 0; i < Outputs.size(); i++)
+			if (core.id == Outputs[i].CoreID)
 				output_index = i;
-			}
-		}
 		if (output_index == -1) {
 			if (this->prev_camera_zoom != core.camera_zoom ||
 				this->prev_camera_translation != core.camera_translation ||
@@ -230,16 +203,13 @@ void deformation_plugin::update_parameters_for_all_cores() {
 
 void deformation_plugin::remove_output(const int output_index) {
 	stop_solver_thread();
-	
 	viewer->erase_core(1 + output_index);
 	viewer->erase_mesh(1 + output_index);
 	Outputs.erase(Outputs.begin() + output_index);
-
 	//Update the scene
 	viewer->core(inputCoreID).align_camera_center(InputModel().V, InputModel().F);
 	for (int i = 0; i < Outputs.size(); i++)
 		viewer->core(Outputs[i].CoreID).align_camera_center(OutputModel(i).V, OutputModel(i).F);
-
 	core_size = 1.0 / (Outputs.size() + 1.0);
 	int frameBufferWidth, frameBufferHeight;
 	glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
@@ -252,12 +222,10 @@ void deformation_plugin::add_output() {
 	viewer->load_mesh_from_file(modelPath.c_str());
 	Outputs[Outputs.size() - 1].ModelID = viewer->data_list[Outputs.size()].id;
 	initializeSolver(Outputs.size() - 1);
-
 	//Update the scene
 	viewer->core(inputCoreID).align_camera_center(InputModel().V, InputModel().F);
 	for (int i = 0; i < Outputs.size(); i++)
 		viewer->core(Outputs[i].CoreID).align_camera_center(OutputModel(i).V, OutputModel(i).F);
-
 	core_size = 1.0 / (Outputs.size() + 1.0);
 	int frameBufferWidth, frameBufferHeight;
 	glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
@@ -292,18 +260,18 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 				o.text_position = o.window_position;
 			}
 		}
-// 		if (view >= app_utils::View::OutputOnly0) {
-// 			viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, 0, 0);
-// 			for (auto&o : Outputs) {
-// 				o.window_position = ImVec2(w, h);
-// 				o.window_size = ImVec2(0, 0);
-// 				o.text_position = o.window_position;
-// 			}
-// 			// what does this means?
-// 			Outputs[view - 3/*app_utils::View::OutputOnly0*/].window_position = ImVec2(0, 0);
-// 			Outputs[view - 3/*app_utils::View::OutputOnly0*/].window_size = ImVec2(w, h);
-// 			Outputs[view - 3/*app_utils::View::OutputOnly0*/].text_position = ImVec2(w*0.8, 0);
-// 		}		
+ 		if (view >= app_utils::View::OutputOnly0) {
+ 			viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, 0, 0);
+ 			for (auto&o : Outputs) {
+ 				o.window_position = ImVec2(w, h);
+ 				o.window_size = ImVec2(0, 0);
+ 				o.text_position = o.window_position;
+ 			}
+ 			// what does this means?
+ 			Outputs[view - app_utils::View::OutputOnly0].window_position = ImVec2(0, 0);
+ 			Outputs[view - app_utils::View::OutputOnly0].window_size = ImVec2(w, h);
+ 			Outputs[view - app_utils::View::OutputOnly0].text_position = ImVec2(w*0.8, 0);
+ 		}		
 		for (auto& o : Outputs)
 			viewer->core(o.CoreID).viewport = Eigen::Vector4f(o.window_position[0], o.window_position[1], o.window_size[0]+1, o.window_size[1]+1);
 	}
