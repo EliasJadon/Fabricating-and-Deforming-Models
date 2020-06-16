@@ -498,14 +498,16 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 	for (int fi = 0; fi < InputModel().F.rows(); fi++) {
 		E.row(fi) << fi, InputModel().F.rows() + fi;
 	}
-	if (p_edges.size() != 0 && Outputs.size() == p_edges.size()) {
-		for (int i = 0; i < p_edges.size(); i++) {
+	
+	for (int i = 0; i < Outputs.size(); i++) {
+		if(Outputs[i].p_edges.size() != 0){
 			OutputModel(i).point_size = 10;
-			OutputModel(i).add_points(p_edges[i].middleRows(0, InputModel().F.rows()), greenColor);
-			OutputModel(i).add_points(p_edges[i].middleRows(InputModel().F.rows(), InputModel().F.rows()), redColor);
-			OutputModel(i).set_edges(p_edges[i], E, greenColor);
+			OutputModel(i).add_points(Outputs[i].p_edges.middleRows(0, InputModel().F.rows()), greenColor);
+			OutputModel(i).add_points(Outputs[i].p_edges.middleRows(InputModel().F.rows(), InputModel().F.rows()), redColor);
+			OutputModel(i).set_edges(Outputs[i].p_edges, E, greenColor);
 		}
 	}
+	
 	return false;
 }
 
@@ -1072,13 +1074,12 @@ void deformation_plugin::update_data_from_minimizer()
 	std::vector<Eigen::MatrixXd> V,center; 
 	center.resize(Outputs.size());
 	V.resize(Outputs.size());
-	p_edges.resize(Outputs.size());
 	for (int i = 0; i < Outputs.size(); i++){
 		Outputs[i].activeMinimizer->get_data(V[i], center[i]);
 		///////////////////////////////////////////
-		p_edges[i].resize(2 * InputModel().F.rows(),3);
-		p_edges[i].middleRows(0, InputModel().F.rows()) = OptimizationUtils::center_per_triangle(V[i], InputModel().F);
-		p_edges[i].middleRows(InputModel().F.rows(), InputModel().F.rows()) = center[i];
+		Outputs[i].p_edges.resize(2 * InputModel().F.rows(),3);
+		Outputs[i].p_edges.middleRows(0, InputModel().F.rows()) = OptimizationUtils::center_per_triangle(V[i], InputModel().F);
+		Outputs[i].p_edges.middleRows(InputModel().F.rows(), InputModel().F.rows()) = center[i];
 		///////////////////////////////////////////
 		if (IsTranslate && mouse_mode == app_utils::MouseMode::VERTEX_SELECT)
 			V[i].row(Translate_Index) = OutputModel(i).V.row(Translate_Index);

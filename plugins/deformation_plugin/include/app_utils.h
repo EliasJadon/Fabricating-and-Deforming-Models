@@ -75,10 +75,8 @@ namespace app_utils
 			core.proj,
 			core.viewport);
 		float depth = proj[2];
-
 		double x, y;
 		Eigen::Vector3f pos1, pos0;
-
 		//unproject from- and to- points
 		x = mouse_x;
 		y = core.viewport(3) - mouse_y;
@@ -86,19 +84,15 @@ namespace app_utils
 			modelview,
 			core.proj,
 			core.viewport);
-
-
 		x = from_x;
 		y = core.viewport(3) - from_y;
 		pos0 = igl::unproject(Eigen::Vector3f(x, y, depth),
 			modelview,
 			core.proj,
 			core.viewport);
-
 		//translation is the vector connecting the two
 		Eigen::Vector3f translation;
 		translation = pos1 - pos0;
-
 		return translation;
 	}
 	
@@ -151,7 +145,14 @@ namespace app_utils
 
 class OptimizationOutput
 {
+private:
+	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
+	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
+	std::shared_ptr<AdamMinimizer> adamMinimizer;
 public:
+	std::shared_ptr<TotalObjective> totalObjective;
+	std::shared_ptr<Minimizer> activeMinimizer;
+
 	float prev_camera_zoom;
 	Eigen::Vector3f prev_camera_translation;
 	Eigen::Quaternionf prev_trackball_angle;
@@ -160,14 +161,8 @@ public:
 	Eigen::MatrixXd color_per_face, Vertices_output;
 	int ModelID, CoreID;
 	ImVec2 window_position, window_size, text_position;
+	Eigen::MatrixXd p_edges;
 	
-	// Minimizer thread
-	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
-	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
-	std::shared_ptr<AdamMinimizer> adamMinimizer;
-	std::shared_ptr<Minimizer> activeMinimizer;
-	std::shared_ptr<TotalObjective> totalObjective;
-
 	//Constructor & initialization
 	OptimizationOutput(
 		igl::opengl::glfw::Viewer* viewer, 
@@ -180,7 +175,6 @@ public:
 		viewer->core(CoreID).is_animating = true;
 		viewer->core(CoreID).lighting_factor = 0.5;
 		// Initialize minimizer thread
-		std::cout << "CoreID = " << CoreID << std::endl;
 		newtonMinimizer = std::make_shared<NewtonMinimizer>(CoreID);
 		gradientDescentMinimizer = std::make_shared<GradientDescentMinimizer>(CoreID);
 		adamMinimizer = std::make_shared<AdamMinimizer>(CoreID);
