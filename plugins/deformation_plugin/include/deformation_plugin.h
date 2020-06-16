@@ -15,7 +15,7 @@ private:
 	float Max_Distortion;
 	bool isUpdateAll;
 	bool isMinimizerRunning, minimizer_settings, IsMouseHoveringAnyWindow, IsMouseDraggingAnyWindow;
-	app_utils::FaceColoring faceColoring_type;
+	int faceColoring_type;
 	app_utils::MinimizerType minimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
 	float constantStep_LineSearch;

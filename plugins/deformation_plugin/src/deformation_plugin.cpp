@@ -23,7 +23,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		minimizer_settings = true;
 		show_text = true;
 		runOneIteration = false;
-		faceColoring_type = app_utils::FaceColoring::ENERGY_VALUE;
+		faceColoring_type = 1;
 		minimizer_type = app_utils::MinimizerType::NEWTON;
 		linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 		mouse_mode = app_utils::MouseMode::VERTEX_SELECT;
@@ -558,7 +558,7 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 			for (auto& o : Outputs)
 				o.activeMinimizer->constantStep_LineSearch = constantStep_LineSearch;
 		}
-		ImGui::Combo("Face coloring", (int *)(&faceColoring_type), "No colors\0Energy value\0\0");
+		ImGui::Combo("Face coloring", (int *)(&faceColoring_type), app_utils::build_color_energies_list(Outputs[0].totalObjective));
 		float w = ImGui::GetContentRegionAvailWidth(), p = ImGui::GetStyle().FramePadding.x;
 		if (ImGui::Button("Check gradients", ImVec2((w - p) / 2.f, 0)))
 			checkGradients();
@@ -1189,11 +1189,20 @@ void deformation_plugin::UpdateEnergyColors(const int index) {
 	int numF = OutputModel(index).F.rows();
 	Eigen::VectorXd DistortionPerFace(numF);
 	DistortionPerFace.setZero();
-	if (faceColoring_type == app_utils::FaceColoring::ENERGY_VALUE) {
-		// calculate the distortion over all the energies
-		for (auto& obj : Outputs[index].totalObjective->objectiveList)
-			if ((obj->Efi.size() != 0) && (obj->w != 0)) 
+	if (faceColoring_type == 0) { // No colors
+		DistortionPerFace.setZero();
+	}
+	else if (faceColoring_type == 1) { // total energy
+		for (auto& obj: Outputs[index].totalObjective->objectiveList) {
+			// calculate the distortion over all the energies
+			if ((obj->Efi.size() != 0) && (obj->w != 0))
 				DistortionPerFace += obj->Efi * obj->w;
+		}
+	}
+	else {
+		auto& obj = Outputs[index].totalObjective->objectiveList[faceColoring_type - 2];
+		if ((obj->Efi.size() != 0) && (obj->w != 0))
+			DistortionPerFace = obj->Efi * obj->w;
 	}
 	Eigen::VectorXd alpha_vec = DistortionPerFace / (Max_Distortion+1e-8);
 	Eigen::VectorXd beta_vec = Eigen::VectorXd::Ones(numF) - alpha_vec;

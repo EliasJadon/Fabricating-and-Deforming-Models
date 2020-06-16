@@ -51,10 +51,6 @@ namespace app_utils
 		VERTEX_SELECT, 
 		CLEAR 
 	};
-	enum FaceColoring { 
-		NO_COLOR, 
-		ENERGY_VALUE 
-	};
 	enum MinimizerType {
 		NEWTON = 0,
 		GRADIENT_DESCENT = 1,
@@ -120,6 +116,24 @@ namespace app_utils
 			std::string sts;
 			sts = "OutputOnly " + std::to_string(i);
 			cStr += sts.c_str();
+			cStr += '\0';
+		}
+		cStr += '\0';
+		int listLength = cStr.length();
+		char* comboList = new char[listLength];
+		for (unsigned int i = 0; i < listLength; i++)
+			comboList[i] = cStr.at(i);
+		return comboList;
+	}
+
+	static char* build_color_energies_list(const std::shared_ptr<TotalObjective>& totalObjective) {
+		std::string cStr("");
+		cStr += "No colors";
+		cStr += '\0';
+		cStr += "Total energy";
+		cStr += '\0';
+		for (auto& obj : totalObjective->objectiveList) {
+			cStr += (obj->name).c_str();
 			cStr += '\0';
 		}
 		cStr += '\0';
