@@ -10,7 +10,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	ImGuiMenu::init(_viewer);
 	if (_viewer)
 	{
-		
+		showEdges = showTriangleCenters = showSphereCeneters = true;
 		typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
 		isLoadNeeded = false;
 		IsMouseDraggingAnyWindow = false;
@@ -502,9 +502,14 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 	
 	for (int i = 0; i < Outputs.size(); i++) {
 		OutputModel(i).point_size = 10;
-		OutputModel(i).add_points(Outputs[i].getCenterOfTriangle(), greenColor);
-		OutputModel(i).add_points(Outputs[i].getCenterOfSphere(), redColor);
-		OutputModel(i).set_edges(Outputs[i].getAllCenters(), E, greenColor);
+		if (showTriangleCenters)
+			OutputModel(i).add_points(Outputs[i].getCenterOfTriangle(), greenColor);
+		if (showSphereCeneters)
+			OutputModel(i).add_points(Outputs[i].getCenterOfSphere(), redColor);
+		if (showEdges)
+			OutputModel(i).set_edges(Outputs[i].getAllCenters(), E, greenColor);
+		else
+			OutputModel(i).clear_edges();
 	}
 	
 	return false;
@@ -533,6 +538,10 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 		if (ImGui::Checkbox(isMinimizerRunning ? "On" : "Off", &isMinimizerRunning))
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
 		ImGui::Checkbox("Minimizer settings", &minimizer_settings);
+
+		ImGui::Checkbox("show edges", &showEdges);
+		ImGui::Checkbox("show triangle centers", &showTriangleCenters);
+		ImGui::Checkbox("show sphere ceneters", &showSphereCeneters);
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
 			stop_minimizer_thread();
 			init_minimizer_thread();

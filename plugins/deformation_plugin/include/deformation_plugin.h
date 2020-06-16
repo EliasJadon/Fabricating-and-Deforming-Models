@@ -12,6 +12,7 @@ private:
 	bool runOneIteration;
 	bool isLoadNeeded;
 	bool isModelLoaded;
+	bool showEdges, showTriangleCenters, showSphereCeneters;
 	float Max_Distortion;
 	bool isUpdateAll;
 	bool isMinimizerRunning, minimizer_settings, IsMouseHoveringAnyWindow, IsMouseDraggingAnyWindow;
