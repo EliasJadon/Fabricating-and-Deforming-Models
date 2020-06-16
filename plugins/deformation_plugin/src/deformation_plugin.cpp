@@ -15,20 +15,20 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		IsMouseDraggingAnyWindow = false;
 		IsMouseHoveringAnyWindow = false;
 		worhp_on = false;
-		solver_on = false;
+		minimizer_on = false;
 		Outputs_Settings = false;
 		Highlighted_face = false;
 		IsTranslate = false;
 		model_loaded = false;
 		UpdateAll = true;
-		solver_settings = true;
+		minimizer_settings = true;
 		show_text = true;
 		step_by_step = false;
-		distortion_type = app_utils::Distortion::TOTAL_DISTORTION;
-		solver_type = app_utils::SolverType::NEWTON;
+		faceColoring_type = app_utils::FaceColoring::ENERGY_VALUE;
+		minimizer_type = app_utils::MinimizerType::NEWTON;
 		linesearch_type = OptimizationUtils::LineSearch::FunctionValue;
 		mouse_mode = app_utils::MouseMode::VERTEX_SELECT;
-		view = app_utils::View::Horizontal;
+		view = app_utils::View::HORIZONTAL;
 
 		Max_Distortion = 5;
 		texture_scaling_input = texture_scaling_output = 1;
@@ -47,7 +47,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		viewer->core(inputCoreID).lighting_factor = 0.5;
 
 		//Load multiple views
-		Outputs.push_back(OptimizationOutput(viewer, solver_type,linesearch_type));
+		Outputs.push_back(OptimizationOutput(viewer, minimizer_type,linesearch_type));
 		core_size = 1.0 / (Outputs.size() + 1.0);
 		
 		//maximize window
@@ -60,7 +60,7 @@ void deformation_plugin::load_new_model(const std::string modelpath) {
 	if (modelPath.length() != 0)
 	{
 		modelName = app_utils::ExtractModelName(modelPath);
-		stop_solver_thread();
+		stop_minimizer_thread();
 		if (model_loaded) {
 			//remove previous data
 			while (Outputs.size() > 0)
@@ -73,7 +73,7 @@ void deformation_plugin::load_new_model(const std::string modelpath) {
 		for (int i = 0; i < Outputs.size(); i++){
 			viewer->load_mesh_from_file(modelPath.c_str());
 			Outputs[i].ModelID = viewer->data_list[i + 1].id;
-			initializeSolver(i);
+			initializeMinimizer(i);
 		}
 		if (model_loaded)
 			add_output();
@@ -110,7 +110,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		if(show_text)
 			Outputs_Settings = !show_text;
 	ImGui::Checkbox("Highlight faces", &Highlighted_face);
-	if ((view == app_utils::View::Horizontal) || (view == app_utils::View::Vertical)) {
+	if ((view == app_utils::View::HORIZONTAL) || (view == app_utils::View::VERTICAL)) {
 		if(ImGui::SliderFloat("Core Size", &core_size, 0, 1.0/ Outputs.size(), std::to_string(core_size).c_str(), 1)){
 			int frameBufferWidth, frameBufferHeight;
 			glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
@@ -132,13 +132,13 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	}
 	ImGui::Checkbox("Update all cores together", &UpdateAll);
 	if(model_loaded)
-		Draw_menu_for_Solver();
+		Draw_menu_for_Minimizer();
 	Draw_menu_for_cores(viewer->core(inputCoreID));
 	Draw_menu_for_models(viewer->data(inputModelID));
 	Draw_menu_for_output_settings();
 	Draw_menu_for_text_results();
-	if (model_loaded && solver_settings)
-		Draw_menu_for_solver_settings();
+	if (model_loaded && minimizer_settings)
+		Draw_menu_for_minimizer_settings();
 	follow_and_mark_selected_faces();
 	Update_view();
 	if (UpdateAll)
@@ -202,7 +202,7 @@ void deformation_plugin::update_parameters_for_all_cores() {
 }
 
 void deformation_plugin::remove_output(const int output_index) {
-	stop_solver_thread();
+	stop_minimizer_thread();
 	viewer->erase_core(1 + output_index);
 	viewer->erase_mesh(1 + output_index);
 	Outputs.erase(Outputs.begin() + output_index);
@@ -217,11 +217,11 @@ void deformation_plugin::remove_output(const int output_index) {
 }
 
 void deformation_plugin::add_output() {
-	stop_solver_thread();
-	Outputs.push_back(OptimizationOutput(viewer, solver_type,linesearch_type));
+	stop_minimizer_thread();
+	Outputs.push_back(OptimizationOutput(viewer, minimizer_type,linesearch_type));
 	viewer->load_mesh_from_file(modelPath.c_str());
 	Outputs[Outputs.size() - 1].ModelID = viewer->data_list[Outputs.size()].id;
-	initializeSolver(Outputs.size() - 1);
+	initializeMinimizer(Outputs.size() - 1);
 	//Update the scene
 	viewer->core(inputCoreID).align_camera_center(InputModel().V, InputModel().F);
 	for (int i = 0; i < Outputs.size(); i++)
@@ -236,7 +236,7 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 {
 	if (viewer)
 	{
-		if (view == app_utils::View::Horizontal) {
+		if (view == app_utils::View::HORIZONTAL) {
 			viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, w - w * Outputs.size() * core_size, h);
 			for (int i = 0; i < Outputs.size(); i++) {
 				Outputs[i].window_position = ImVec2(w - w * (Outputs.size() - i) * core_size, 0);
@@ -244,7 +244,7 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 				Outputs[i].text_position = Outputs[i].window_position;
 			}
 		}
-		if (view == app_utils::View::Vertical) {
+		if (view == app_utils::View::VERTICAL) {
 			viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, Outputs.size() * h * core_size, w, h - Outputs.size() * h * core_size);
 			for (int i = 0; i < Outputs.size(); i++) {
 				Outputs[i].window_position = ImVec2(0, (Outputs.size() - i - 1) * h * core_size);
@@ -252,7 +252,7 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 				Outputs[i].text_position = ImVec2(w*0.8, h - Outputs[i].window_position[1] - Outputs[i].window_size[1]);
 			}
 		}
-		if (view == app_utils::View::InputOnly) {
+		if (view == app_utils::View::INPUT_ONLY) {
 			viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, w, h);
 			for (auto&o : Outputs) {
 				o.window_position = ImVec2(w, h);
@@ -260,7 +260,7 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 				o.text_position = o.window_position;
 			}
 		}
- 		if (view >= app_utils::View::OutputOnly0) {
+ 		if (view >= app_utils::View::OUTPUT_ONLY_0) {
  			viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, 0, 0);
  			for (auto&o : Outputs) {
  				o.window_position = ImVec2(w, h);
@@ -268,9 +268,9 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
  				o.text_position = o.window_position;
  			}
  			// what does this means?
- 			Outputs[view - app_utils::View::OutputOnly0].window_position = ImVec2(0, 0);
- 			Outputs[view - app_utils::View::OutputOnly0].window_size = ImVec2(w, h);
- 			Outputs[view - app_utils::View::OutputOnly0].text_position = ImVec2(w*0.8, 0);
+ 			Outputs[view - app_utils::View::OUTPUT_ONLY_0].window_position = ImVec2(0, 0);
+ 			Outputs[view - app_utils::View::OUTPUT_ONLY_0].window_size = ImVec2(w, h);
+ 			Outputs[view - app_utils::View::OUTPUT_ONLY_0].text_position = ImVec2(w*0.8, 0);
  		}		
 		for (auto& o : Outputs)
 			viewer->core(o.CoreID).viewport = Eigen::Vector4f(o.window_position[0], o.window_position[1], o.window_size[0]+1, o.window_size[1]+1);
@@ -348,18 +348,15 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier) {
 IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	if (IsMouseHoveringAnyWindow)
 		IsMouseDraggingAnyWindow = true;
-
 	down_mouse_x = viewer->current_mouse_x;
 	down_mouse_y = viewer->current_mouse_y;
-			
 	if (mouse_mode == app_utils::MouseMode::FACE_SELECT && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
 		//check if there faces which is selected on the left screen
-		int f = pick_face(InputModel().V, InputModel().F, (int)app_utils::View::InputOnly);
+		int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
 		for(int i=0;i<Outputs.size();i++)
 			if (f == -1)
-				f = pick_face(OutputModel(i).V, OutputModel(i).F, 3/*app_utils::View::OutputOnly0*/+i);
-		
+				f = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 +i);
 		if (f != -1)
 		{
 			if (find(selected_faces.begin(), selected_faces.end(), f) != selected_faces.end())
@@ -377,23 +374,17 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	else if (mouse_mode == app_utils::MouseMode::VERTEX_SELECT && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
 		//check if there faces which is selected on the left screen
-		int v = pick_vertex(InputModel().V, InputModel().F, (int)app_utils::View::InputOnly);
+		int v = pick_vertex(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
 		for(int i=0;i<Outputs.size();i++)
 			if(v == -1) 
-				v = pick_vertex(OutputModel(i).V, OutputModel(i).F, 3/*app_utils::OutputOnly0*/+i);
-		
+				v = pick_vertex(OutputModel(i).V, OutputModel(i).F, app_utils::OUTPUT_ONLY_0 +i);
 		if (v != -1)
 		{
 			if (find(selected_vertices.begin(), selected_vertices.end(), v) != selected_vertices.end())
-			{
 				selected_vertices.erase(v);
-				UpdateHandles();
-			}
-			else {
+			else
 				selected_vertices.insert(v);
-				UpdateHandles();
-			}
-					
+			UpdateHandles();
 		}
 	}
 	else if (mouse_mode == app_utils::MouseMode::FACE_SELECT && button == GLFW_MOUSE_BUTTON_MIDDLE)
@@ -401,19 +392,17 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 		if (!selected_faces.empty())
 		{
 			//check if there faces which is selected on the left screen
-			int f = pick_face(InputModel().V, InputModel().F, (int)app_utils::View::InputOnly);
+			int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
 			Model_Translate_ID = inputModelID;
 			Core_Translate_ID = inputCoreID;
 			for (int i = 0; i < Outputs.size(); i++) {
 				if (f == -1) {
-					f = pick_face(OutputModel(i).V, OutputModel(i).F, (int)app_utils::View::OutputOnly0 + i);
+					f = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i);
 					Model_Translate_ID = Outputs[i].ModelID;
 					Core_Translate_ID = Outputs[i].CoreID;
 				}
 			}
-
-			if (find(selected_faces.begin(), selected_faces.end(), f) != selected_faces.end())
-			{
+			if (find(selected_faces.begin(), selected_faces.end(), f) != selected_faces.end()) {
 				IsTranslate = true;
 				Translate_Index = f;
 			}
@@ -424,19 +413,17 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 		if (!selected_vertices.empty())
 		{
 			//check if there faces which is selected on the left screen
-			int v = pick_vertex(InputModel().V, InputModel().F, (int)app_utils::View::InputOnly);
+			int v = pick_vertex(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
 			Model_Translate_ID = inputModelID;
 			Core_Translate_ID = inputCoreID;
 			for (int i = 0; i < Outputs.size(); i++) {
 				if (v == -1) {
-					v = pick_vertex(OutputModel(i).V, OutputModel(i).F, (int)app_utils::View::OutputOnly0 + i);
+					v = pick_vertex(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i);
 					Model_Translate_ID = Outputs[i].ModelID;
 					Core_Translate_ID = Outputs[i].CoreID;
 				}
 			}
-
-			if (find(selected_vertices.begin(), selected_vertices.end(), v) != selected_vertices.end())
-			{
+			if (find(selected_vertices.begin(), selected_vertices.end(), v) != selected_vertices.end()) {
 				IsTranslate = true;
 				Translate_Index = v;
 			}
@@ -453,7 +440,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if ((key == 'C' || key == 'c') && modifiers == 1)
 		mouse_mode = app_utils::MouseMode::CLEAR;
 	if ((key == ' ') && modifiers == 1)
-		solver_on ? stop_solver_thread() : start_solver_thread();
+		minimizer_on ? stop_minimizer_thread() : start_minimizer_thread();
 	if ((key == '!') && modifiers == 1) {
 		isLoadNeeded = true;
 		modelPath = OptimizationUtils::RDSPath() + "\\models\\Face_1\\Triangle306090degree.obj";
@@ -480,18 +467,16 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 
 IGL_INLINE void deformation_plugin::shutdown()
 {
-	stop_solver_thread();
+	stop_minimizer_thread();
 	ImGuiMenu::shutdown();
 }
 
 IGL_INLINE bool deformation_plugin::pre_draw() {
 	//call parent function
 	ImGuiMenu::pre_draw();
-
 	for (auto& out : Outputs)
-		if (out.solver->progressed)
-			update_data_from_solver();
-
+		if (out.activeMinimizer->progressed)
+			update_data_from_minimizer();
 	//Update the model's faces colors in the screens
 	for (int i = 0; i < Outputs.size(); i++) {
 		if (Outputs[i].color_per_face.size()) {
@@ -499,7 +484,6 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 			OutputModel(i).set_colors(Outputs[i].color_per_face);
 		}
 	}
-
 	//Update the model's vertex colors in screens
 	InputModel().point_size = 10;
 	InputModel().set_points(Vertices_Input, color_per_vertex);
@@ -507,9 +491,7 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 		OutputModel(i).point_size = 10;
 		OutputModel(i).set_points(Outputs[i].Vertices_output, color_per_vertex);
 	}
-
 	Eigen::MatrixXi E(InputModel().F.rows(), 2);
-	
 	Eigen::MatrixXd greenColor(1, 3);
 	Eigen::MatrixXd redColor(1, 3);
 	greenColor << 0, 1, 0;
@@ -517,7 +499,6 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 	for (int fi = 0; fi < InputModel().F.rows(); fi++) {
 		E.row(fi) << fi, InputModel().F.rows() + fi;
 	}
-
 	if (p_edges.size() != 0 && Outputs.size() == p_edges.size()) {
 		for (int i = 0; i < p_edges.size(); i++) {
 			OutputModel(i).point_size = 10;
@@ -526,7 +507,6 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 			OutputModel(i).set_edges(p_edges[i], E, greenColor);
 		}
 	}
-	
 	return false;
 }
 
@@ -545,92 +525,51 @@ void deformation_plugin::Draw_menu_for_colors() {
 	}
 }
 
-void deformation_plugin::Draw_menu_for_Solver() {
-	if (ImGui::CollapsingHeader("Solver", ImGuiTreeNodeFlags_DefaultOpen))
+void deformation_plugin::Draw_menu_for_Minimizer() {
+	if (ImGui::CollapsingHeader("Minimizer", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		if (ImGui::Checkbox("step_by_step", &step_by_step) && solver_on) {
-			start_solver_thread();
+		if (ImGui::Checkbox("step_by_step", &step_by_step) && minimizer_on)
+			start_minimizer_thread();
+		if (ImGui::Checkbox(minimizer_on ? "On" : "Off", &minimizer_on))
+			minimizer_on ? start_minimizer_thread() : stop_minimizer_thread();
+		ImGui::Checkbox("Minimizer settings", &minimizer_settings);
+		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
+			stop_minimizer_thread();
+			init_minimizer_thread();
+			for (int i = 0; i < Outputs.size(); i++)
+				Outputs[i].updateActiveMinimizer(minimizer_type);
 		}
-		if (ImGui::Checkbox(solver_on ? "On" : "Off", &solver_on)) {
-			solver_on ? start_solver_thread() : stop_solver_thread();
-		}
-
-		ImGui::Checkbox("Solver settings", &solver_settings);
-
-		if (ImGui::Combo("step", (int *)(&solver_type), "NEWTON\0Gradient Descent\0Adam Minimizer\0\0")) {
-			stop_solver_thread();
-			for (int i = 0; i < Outputs.size(); i++) {
-				switch (solver_type) {
-				case app_utils::SolverType::NEWTON:
-					Outputs[i].solver = Outputs[i].newton;
-					break;
-				case app_utils::SolverType::GRADIENT_DESCENT:
-					Outputs[i].solver = Outputs[i].gradient_descent;
-					break;
-				case app_utils::SolverType::ADAM_MINIMIZER:
-					Outputs[i].solver = Outputs[i].adam_minimizer;
-					break;
-				}
-				
-				Eigen::MatrixX3i F = OutputModel(i).F;
-				Eigen::VectorXd initialguess = Eigen::Map<const Eigen::VectorXd>(OutputModel(i).V.data(), OutputModel(i).V.size());
-				Eigen::MatrixX3d normals;
-				igl::per_face_normals((Eigen::MatrixX3d)OutputModel(i).V, (Eigen::MatrixX3i)OutputModel(i).F, normals);
-				Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), OutputModel(i).F.size());
-
-				Outputs[i].solver->init(
-					Outputs[i].totalObjective, 
-					initialguess, 
-					initNormals, 
-					OutputModel(i).F,
-					OutputModel(i).V,
-					typeAuxVar);
-			}
-			start_solver_thread();
-		}
-
-
-		ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0\0");
-
-
-		std::shared_ptr<NewtonSolver> newtonSolver = std::dynamic_pointer_cast<NewtonSolver>(Outputs[0].solver);
+		if (ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0\0"))
+			init_minimizer_thread();
+		std::shared_ptr<NewtonSolver> newtonSolver = std::dynamic_pointer_cast<NewtonSolver>(Outputs[0].activeMinimizer);
 		if (newtonSolver != NULL) {
 			bool PD = newtonSolver->getPositiveDefiniteChecker();
 			ImGui::Checkbox("Positive Definite check", &PD);
 			for (auto& o : Outputs) {
-				std::dynamic_pointer_cast<NewtonSolver>(o.solver)->SwitchPositiveDefiniteChecker(PD);
+				std::dynamic_pointer_cast<NewtonSolver>(o.activeMinimizer)->SwitchPositiveDefiniteChecker(PD);
 			}
 		}
-
 		if (ImGui::Combo("line search", (int *)(&linesearch_type), "GradientNorm\0FunctionValue\0ConstantStep\0\0")) {
 			for (auto& o:Outputs)
-				o.solver->lineSearch_type = linesearch_type;
+				o.activeMinimizer->lineSearch_type = linesearch_type;
 		}
 		if (linesearch_type == OptimizationUtils::LineSearch::ConstantStep && ImGui::DragFloat("Step value", &constant_step, 0.0001f, 0.0f, 1.0f)) {
 			for (auto& o : Outputs)
-				o.solver->constant_step = constant_step;
+				o.activeMinimizer->constant_step = constant_step;
 		}
-
-		ImGui::Combo("Dist check", (int *)(&distortion_type), "NO_DISTORTION\0AREA_DISTORTION\0LENGTH_DISTORTION\0ANGLE_DISTORTION\0TOTAL_DISTORTION\0\0");
-		
-		
+		ImGui::Combo("Face coloring", (int *)(&faceColoring_type), "No colors\0Energy value\0\0");
 		float w = ImGui::GetContentRegionAvailWidth(), p = ImGui::GetStyle().FramePadding.x;
 		if (ImGui::Button("Check gradients", ImVec2((w - p) / 2.f, 0)))
-		{
 			checkGradients();
-		}
 		ImGui::SameLine(0, p);
 		if (ImGui::Button("Check Hessians", ImVec2((w - p) / 2.f, 0)))
-		{
 			checkHessians();
-		}
 	}
 }
 
 void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core) {
 	if (!Outputs_Settings)
 		return;
-
 	ImGui::PushID(core.id);
 	std::stringstream ss;
 	std::string name = (core.id == inputCoreID) ? "Input Core" : "Output Core " + std::to_string(core.id);
@@ -643,21 +582,14 @@ void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core) {
 				data_id = Outputs[i].ModelID;
 		if (core.id == inputCoreID)
 			data_id = inputModelID;
-
 		if (ImGui::Button("Center object", ImVec2(-1, 0)))
-		{
 			core.align_camera_center(viewer->data_list[data_id].V, viewer->data_list[data_id].F);
-		}
 		if (ImGui::Button("Snap canonical view", ImVec2(-1, 0)))
-		{
 			viewer->snap_to_canonical_quaternion();
-		}
-
 		// Zoom & Lightining factor
 		ImGui::PushItemWidth(80 * menu_scaling());
 		ImGui::DragFloat("Zoom", &(core.camera_zoom), 0.05f, 0.1f, 100000.0f);
 		ImGui::DragFloat("Lighting factor", &(core.lighting_factor), 0.05f, 0.1f, 20.0f);
-
 		// Select rotation type
 		int rotation_type = static_cast<int>(core.rotation_type);
 		static Eigen::Quaternionf trackball_angle = Eigen::Quaternionf::Identity();
@@ -683,7 +615,6 @@ void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core) {
 				core.set_rotation_type(new_type);
 			}
 		}
-
 		// Orthographic view
 		ImGui::Checkbox("Orthographic view", &(core.orthographic));
 		ImGui::PopItemWidth();
@@ -695,55 +626,39 @@ void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core) {
 void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data) {
 	if (!Outputs_Settings)
 		return;
-
 	// Helper for setting viewport specific mesh options
-	auto make_checkbox = [&](const char *label, unsigned int &option)
-	{
+	auto make_checkbox = [&](const char *label, unsigned int &option) {
 		bool temp = option;
 		bool res = ImGui::Checkbox(label, &temp);
 		option = temp;
 		return res;
 	};
-
 	ImGui::PushID(data.id);
 	std::stringstream ss;
-	if (data.id == inputModelID) {
+	if (data.id == inputModelID)
 		ss << modelName;
-	}
-	else {
+	else
 		ss << modelName + " " + std::to_string(data.id) + " (Param.)";
-	}
 			
 	if (!ImGui::CollapsingHeader(ss.str().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		float w = ImGui::GetContentRegionAvailWidth();
 		float p = ImGui::GetStyle().FramePadding.x;
-
-		if (data.id == inputModelID) {
+		if (data.id == inputModelID)
 			ImGui::SliderFloat("texture", &texture_scaling_input, 0.01, 100, std::to_string(texture_scaling_input).c_str(), 1);
-		}
-		else {
-			ImGui::SliderFloat("texture", &texture_scaling_output, 0.01, 100, std::to_string(texture_scaling_output).c_str(), 1);
-		}
-			
-
+		else
+			ImGui::SliderFloat("texture", &texture_scaling_output, 0.01, 100, std::to_string(texture_scaling_output).c_str(), 1);	
 		if (ImGui::Checkbox("Face-based", &(data.face_based)))
-		{
 			data.dirty = igl::opengl::MeshGL::DIRTY_ALL;
-		}
-
 		make_checkbox("Show texture", data.show_texture);
 		if (ImGui::Checkbox("Invert normals", &(data.invert_normals)))
-		{
 			data.dirty |= igl::opengl::MeshGL::DIRTY_NORMAL;
-		}
 		make_checkbox("Show overlay", data.show_overlay);
 		make_checkbox("Show overlay depth", data.show_overlay_depth);
 		ImGui::ColorEdit4("Line color", data.line_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.3f);
 		ImGui::DragFloat("Shininess", &(data.shininess), 0.05f, 0.0f, 100.0f);
 		ImGui::PopItemWidth();
-
 		make_checkbox("Wireframe", data.show_lines);
 		make_checkbox("Fill", data.show_faces);
 		ImGui::Checkbox("Show vertex labels", &(data.show_vertid));
@@ -752,17 +667,15 @@ void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data) {
 	ImGui::PopID();
 }
 
-void deformation_plugin::Draw_menu_for_solver_settings() {
+void deformation_plugin::Draw_menu_for_minimizer_settings() {
 	ImGui::SetNextWindowSize(ImVec2(800, 150), ImGuiSetCond_FirstUseEver);
-	ImGui::Begin("solver settings", NULL);
+	ImGui::Begin("minimizer settings", NULL);
 	ImGui::SetWindowPos(ImVec2(800, 150), ImGuiSetCond_FirstUseEver);
-
 	//add outputs buttons
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
 	if (ImGui::Button("Add Output"))
 		add_output();
 	ImGui::PopStyleColor();
-
 	int id = 0;
 	if (Outputs.size() != 0) {
 		// prepare the first column
@@ -778,7 +691,6 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 		ImGui::Text("Remove output");
 		ImGui::NextColumn();
 		ImGui::Separator();
-
 		// fill the table
 		for (int i = 0; i < Outputs.size();i++) {
 			ImGui::Text(("Output " + std::to_string(Outputs[i].CoreID)).c_str());
@@ -901,7 +813,8 @@ void deformation_plugin::Draw_menu_for_output_settings() {
 				NULL, 
 				ImGuiWindowFlags_NoTitleBar |
 				ImGuiWindowFlags_NoResize |
-				ImGuiWindowFlags_NoMove);
+				ImGuiWindowFlags_NoMove
+			);
 			ImGui::SetWindowPos(out.text_position);
 			Draw_menu_for_cores(viewer->core(out.CoreID));
 			Draw_menu_for_models(viewer->data(out.ModelID));
@@ -928,7 +841,6 @@ void deformation_plugin::Draw_menu_for_text_results() {
 				ImGuiWindowFlags_NoInputs |
 				ImGuiWindowFlags_NoFocusOnAppearing |
 				ImGuiWindowFlags_NoBringToFrontOnFocus);
-
 			ImGui::SetWindowPos(out.text_position);
 			ImGui::SetWindowSize(out.window_size);
 			ImGui::SetWindowCollapsed(false);
@@ -989,17 +901,12 @@ void deformation_plugin::UpdateHandles() {
 }
 
 void deformation_plugin::Update_view() {
-	
 	for (auto& data : viewer->data_list)
-		for (auto& out : Outputs) {
+		for (auto& out : Outputs)
 			data.copy_options(viewer->core(inputCoreID), viewer->core(out.CoreID));
-			
-		}
-	
 	for (auto& core : viewer->core_list)
 		for (auto& data : viewer->data_list)
 			viewer->data(data.id).set_visible(false, core.id);
-
 	InputModel().set_visible(true, inputCoreID);
 	for (int i = 0; i < Outputs.size(); i++)
 		OutputModel(i).set_visible(true, Outputs[i].CoreID);
@@ -1007,18 +914,15 @@ void deformation_plugin::Update_view() {
 
 void deformation_plugin::follow_and_mark_selected_faces() {
 	//check if there faces which is selected on the left screen
-	int f = pick_face(InputModel().V, InputModel().F, (int) app_utils::View::InputOnly);
+	int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
 	for(int i=0;i<Outputs.size();i++)
 		if (f == -1) 
-			f = pick_face(OutputModel(i).V, OutputModel(i).F, (int) app_utils::View::OutputOnly0+i);
-	
-	
+			f = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 +i);
 	if(InputModel().F.size()){
 		//Mark the faces
 		for (int i = 0; i < Outputs.size(); i++) {
 			Outputs[i].color_per_face.resize(InputModel().F.rows(), 3);
 			UpdateEnergyColors(i);
-
 			//Mark the highlighted face
 			if (f != -1 && Highlighted_face)
 				Outputs[i].color_per_face.row(f) = Highlighted_face_color.cast<double>();
@@ -1038,7 +942,6 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 				Vertices_Input.resize(selected_vertices.size() + 1, 3);
 				Outputs[i].Vertices_output.resize(selected_vertices.size() + 1, 3);
 				color_per_vertex.resize(selected_vertices.size() + 1, 3);
-
 				Vertices_Input.row(idx) = InputModel().V.row(Translate_Index);
 				color_per_vertex.row(idx) = Dragged_vertex_color.cast<double>();
 				Outputs[i].Vertices_output.row(idx) = OutputModel(i).V.row(Translate_Index);
@@ -1065,13 +968,13 @@ igl::opengl::ViewerData& deformation_plugin::OutputModel(const int index) {
 int deformation_plugin::pick_face(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int CoreIndex) {
 	// Cast a ray in the view direction starting from the mouse position
 	int CoreID;
-	if (CoreIndex == (int)app_utils::View::InputOnly)
+	if (CoreIndex == app_utils::View::INPUT_ONLY)
 		CoreID = inputCoreID;
 	else
-		CoreID = Outputs[CoreIndex - (int)app_utils::View::OutputOnly0].CoreID;
+		CoreID = Outputs[CoreIndex - app_utils::View::OUTPUT_ONLY_0].CoreID;
 	double x = viewer->current_mouse_x;
 	double y = viewer->core(CoreID).viewport(3) - viewer->current_mouse_y;
-	if (view == app_utils::View::Vertical) {
+	if (view == app_utils::View::VERTICAL) {
 		y = (viewer->core(inputCoreID).viewport(3) / core_size) - viewer->current_mouse_y;
 	}
 	//Eigen::RowVector3d pt;
@@ -1091,13 +994,13 @@ int deformation_plugin::pick_face(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int Co
 int deformation_plugin::pick_vertex(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int CoreIndex) {
 	// Cast a ray in the view direction starting from the mouse position
 	int CoreID;
-	if (CoreIndex == (int)app_utils::View::InputOnly)
+	if (CoreIndex == app_utils::View::INPUT_ONLY)
 		CoreID = inputCoreID;
 	else
-		CoreID = Outputs[CoreIndex - (int)app_utils::View::OutputOnly0].CoreID;
+		CoreID = Outputs[CoreIndex - app_utils::View::OUTPUT_ONLY_0].CoreID;
 	double x = viewer->current_mouse_x;
 	double y = viewer->core(CoreID).viewport(3) - viewer->current_mouse_y;
-	if (view == app_utils::View::Vertical) {
+	if (view == app_utils::View::VERTICAL) {
 		y = (viewer->core(inputCoreID).viewport(3) / core_size) - viewer->current_mouse_y;
 	}
 	Eigen::Matrix<double, 3, 1, 0, 3, 1> pt;
@@ -1139,44 +1042,40 @@ void deformation_plugin::set_vertices_for_mesh(Eigen::MatrixXd& V_uv, const int 
 	
 void deformation_plugin::checkGradients()
 {
-	stop_solver_thread();
-	for (int i = 0; i < Outputs.size(); i++) {
+	stop_minimizer_thread();
+	for (auto& o: Outputs) {
 		if (!model_loaded) {
-			solver_on = false;
+			minimizer_on = false;
 			return;
 		}
 		Eigen::VectorXd xx = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
-		
-		for (auto const &objective : Outputs[i].totalObjective->objectiveList) {
+		for (auto const &objective : o.totalObjective->objectiveList)
 			objective->checkGradient(xx);
-		}
 	}
 }
 
 void deformation_plugin::checkHessians()
 {
-	stop_solver_thread();
-	for (int i = 0; i < Outputs.size(); i++) {
+	stop_minimizer_thread();
+	for (auto& o : Outputs) {
 		if (!model_loaded) {
-			solver_on = false;
+			minimizer_on = false;
 			return;
 		}
 		Eigen::VectorXd xx = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
-		
-		for (auto const &objective : Outputs[i].totalObjective->objectiveList) {
+		for (auto const &objective : o.totalObjective->objectiveList)
 			objective->checkHessian(xx);
-		}
 	}
 }
 
-void deformation_plugin::update_data_from_solver()
+void deformation_plugin::update_data_from_minimizer()
 {
 	std::vector<Eigen::MatrixXd> V,center; 
 	center.resize(Outputs.size());
 	V.resize(Outputs.size());
 	p_edges.resize(Outputs.size());
 	for (int i = 0; i < Outputs.size(); i++){
-		Outputs[i].solver->get_data(V[i], center[i]);
+		Outputs[i].activeMinimizer->get_data(V[i], center[i]);
 		///////////////////////////////////////////
 		p_edges[i].resize(2 * InputModel().F.rows(),3);
 		p_edges[i].middleRows(0, InputModel().F.rows()) = OptimizationUtils::center_per_triangle(V[i], InputModel().F);
@@ -1193,77 +1092,52 @@ void deformation_plugin::update_data_from_solver()
 	}
 }
 
-void deformation_plugin::stop_solver_thread() {
-	solver_on = false;
+void deformation_plugin::stop_minimizer_thread() {
+	minimizer_on = false;
 	for (auto&o : Outputs) {
-		if (o.solver->is_running) {
-			o.solver->stop();
+		if (o.activeMinimizer->is_running) {
+			o.activeMinimizer->stop();
 		}
-		while (o.solver->is_running);
+		while (o.activeMinimizer->is_running);
 	}
 }
 
-void deformation_plugin::start_solver_thread() {
+void deformation_plugin::init_minimizer_thread() {
+	stop_minimizer_thread();
+	for (int i = 0; i < Outputs.size(); i++)
+		Outputs[i].init(OutputModel(i).V, OutputModel(i).F, typeAuxVar);
+}
+
+void deformation_plugin::start_minimizer_thread() {
 	if (!model_loaded) {
-		solver_on = false;
+		minimizer_on = false;
 		return;
 	}
-	stop_solver_thread();
+	stop_minimizer_thread();
+	init_minimizer_thread();
 	for (int i = 0; i < Outputs.size();i++) {
-		std::cout << ">> A new solver has been started" << std::endl;
-		solver_on = true;
-		//update solver
-		Eigen::VectorXd init = Eigen::Map<const Eigen::VectorXd>(OutputModel(i).V.data(), OutputModel(i).V.size());
-		Eigen::MatrixX3d normals;
-		igl::per_face_normals((Eigen::MatrixX3d)OutputModel(i).V, (Eigen::MatrixX3i)OutputModel(i).F, normals);
-		Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), OutputModel(i).F.size());
-		Outputs[i].newton->init(
-			Outputs[i].totalObjective, 
-			init,
-			initNormals,
-			OutputModel(i).F, 
-			OutputModel(i).V,
-			typeAuxVar
-		);
-		Outputs[i].gradient_descent->init(
-			Outputs[i].totalObjective, 
-			init, 
-			initNormals,
-			OutputModel(i).F, 
-			OutputModel(i).V,
-			typeAuxVar
-		);
-		Outputs[i].adam_minimizer->init(
-			Outputs[i].totalObjective,
-			init,
-			initNormals,
-			OutputModel(i).F,
-			OutputModel(i).V,
-			typeAuxVar
-		);
-		//start solver
+		std::cout << ">> A new minimizer has been started" << std::endl;
+		minimizer_on = true;
+		//start minimizer
 		if (step_by_step) {
 			static int step_counter = 0;
-			solver_thread = std::thread(&solver::run_one_iteration, Outputs[i].solver.get(), step_counter++,true);
-			solver_thread.join();
+			minimizer_thread = std::thread(&solver::run_one_iteration, Outputs[i].activeMinimizer.get(), step_counter++,true);
+			minimizer_thread.join();
 		}
 		else {
-			solver_thread = std::thread(&solver::run, Outputs[i].solver.get());
-			solver_thread.detach();
+			minimizer_thread = std::thread(&solver::run, Outputs[i].activeMinimizer.get());
+			minimizer_thread.detach();
 		}
 	}
 }
 
-void deformation_plugin::initializeSolver(const int index)
+void deformation_plugin::initializeMinimizer(const int index)
 {
 	Eigen::MatrixXd V = OutputModel(index).V;
 	Eigen::MatrixX3i F = OutputModel(index).F;
-	
-	stop_solver_thread();
-
+	stop_minimizer_thread();
 	if (V.rows() == 0 || F.rows() == 0)
 		return;
-
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
 	auto bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::PlanarL);
@@ -1293,10 +1167,8 @@ void deformation_plugin::initializeSolver(const int index)
 	constraintsPositional->numV = V.rows();
 	constraintsPositional->numF = F.rows();
 	constraintsPositional->init();
-
 	Outputs[index].HandlesInd = &constraintsPositional->ConstrainedVerticesInd;
 	Outputs[index].HandlesPosDeformed = &constraintsPositional->ConstrainedVerticesPos;
-
 	Outputs[index].totalObjective->objectiveList.clear();
 	Outputs[index].totalObjective->init_mesh(V, F);
 	Outputs[index].totalObjective->objectiveList.push_back(move(auxSpherePerHinge));
@@ -1310,93 +1182,27 @@ void deformation_plugin::initializeSolver(const int index)
 	Outputs[index].totalObjective->objectiveList.push_back(move(constraintsPositional));
 	Outputs[index].totalObjective->init();
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
-
-
-	// initialize the solver
-	Eigen::VectorXd init = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
-	Eigen::MatrixX3d normals;
-	igl::per_face_normals((Eigen::MatrixX3d)V, (Eigen::MatrixX3i)F, normals);
-	Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size());
-
-	Outputs[index].newton->init(
-		Outputs[index].totalObjective, 
-		init, 
-		initNormals, 
-		OutputModel(index).F, 
-		OutputModel(index).V,
-		typeAuxVar);
-	Outputs[index].gradient_descent->init(
-		Outputs[index].totalObjective, 
-		init, 
-		initNormals, 
-		OutputModel(index).F, 
-		OutputModel(index).V,
-		typeAuxVar);
-	Outputs[index].adam_minimizer->init(
-		Outputs[index].totalObjective, 
-		init, 
-		initNormals, 
-		OutputModel(index).F, 
-		OutputModel(index).V,
-		typeAuxVar);
-	
-	std::cout << ">> Solver is initialized!" << std::endl;
+	init_minimizer_thread();
 }
 
 void deformation_plugin::UpdateEnergyColors(const int index) {
 	int numF = OutputModel(index).F.rows();
 	Eigen::VectorXd DistortionPerFace(numF);
 	DistortionPerFace.setZero();
-	
-	if (distortion_type == app_utils::Distortion::ANGLE_DISTORTION) {	//distortion according to area preserving
-		Eigen::MatrixXd angle_input, angle_output, angle_ratio;
-		app_utils::angle_degree(OutputModel(index).V, OutputModel(index).F, angle_output);
-		app_utils::angle_degree(InputModel().V, InputModel().F, angle_input);
-		// DistortionPerFace = angle_output / angle_input
-		angle_ratio = angle_input.cwiseInverse().cwiseProduct(angle_output);
-		// Becuase we want  DistortionPerFace to be as colse as possible to zero instead of one!
-		angle_ratio = (angle_ratio - Eigen::MatrixXd::Ones(numF, 3)).cwiseAbs2();
-		//sum over the vertices on each face
-		DistortionPerFace = angle_ratio.rowwise().sum();
-	}
-	else if (distortion_type == app_utils::Distortion::LENGTH_DISTORTION) {	//distortion according to area preserving
-		Eigen::MatrixXd Length_output, Length_input, Length_ratio;
-		igl::edge_lengths(OutputModel(index).V, OutputModel(index).F, Length_output);
-		igl::edge_lengths(InputModel().V, InputModel().F, Length_input);
-		// DistortionPerFace = Length_output / Length_input
-		Length_ratio = Length_input.cwiseInverse().cwiseProduct(Length_output);
-		// Becuase we want  DistortionPerFace to be as colse as possible to zero instead of one!
-		Length_ratio = (Length_ratio - Eigen::MatrixXd::Ones(numF,3)).cwiseAbs2();
-		//sum over the vertices on each face
-		DistortionPerFace = Length_ratio.rowwise().sum();
-	}
-	else if (distortion_type == app_utils::Distortion::AREA_DISTORTION) {
-		//distortion according to area preserving
-		Eigen::VectorXd Area_output, Area_input;
-		igl::doublearea(OutputModel(index).V, OutputModel(index).F, Area_output);
-		igl::doublearea(InputModel().V, InputModel().F, Area_input);
-		// DistortionPerFace = Area_output / Area_input
-		DistortionPerFace = Area_input.cwiseInverse().cwiseProduct(Area_output);
-		// Because we want  DistortionPerFace to be as close as possible to zero instead of one!
-		DistortionPerFace = (DistortionPerFace - Eigen::VectorXd::Ones(numF)).cwiseAbs2();
-	}
-	else if (distortion_type == app_utils::Distortion::TOTAL_DISTORTION) {
+	if (faceColoring_type == app_utils::FaceColoring::ENERGY_VALUE) {
 		// calculate the distortion over all the energies
 		for (auto& obj : Outputs[index].totalObjective->objectiveList)
 			if ((obj->Efi.size() != 0) && (obj->w != 0)) 
 				DistortionPerFace += obj->Efi * obj->w;
 	}
-
 	Eigen::VectorXd alpha_vec = DistortionPerFace / (Max_Distortion+1e-8);
 	Eigen::VectorXd beta_vec = Eigen::VectorXd::Ones(numF) - alpha_vec;
 	Eigen::MatrixXd alpha(numF, 3), beta(numF, 3);
 	alpha = alpha_vec.replicate(1, 3);
 	beta = beta_vec.replicate(1, 3);
-
 	//calculate low distortion color matrix
 	Eigen::MatrixXd LowDistCol = model_color.cast <double>().replicate(1, numF).transpose();
 	//calculate high distortion color matrix
 	Eigen::MatrixXd HighDistCol = Vertex_Energy_color.cast <double>().replicate(1, numF).transpose();
-	
 	Outputs[index].color_per_face = beta.cwiseProduct(LowDistCol) + alpha.cwiseProduct(HighDistCol);
 }

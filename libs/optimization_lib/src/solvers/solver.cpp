@@ -75,6 +75,7 @@ void solver::init(
 	X.middleRows(3 * V.rows() + 6 * F.rows(), 1 * F.rows()) = Radius0;
 	ext_x = X0;
 	ext_center = Eigen::Map<Eigen::VectorXd>(center0.data(), F.size());
+	std::cout << "hello :)\n";
 	internal_init();
 }
 

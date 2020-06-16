@@ -40,10 +40,10 @@
 namespace app_utils
 {
 	enum View {
-		Horizontal = 0,
-		Vertical = 1,
-		InputOnly = 2,
-		OutputOnly0 = 3
+		HORIZONTAL = 0,
+		VERTICAL = 1,
+		INPUT_ONLY = 2,
+		OUTPUT_ONLY_0 = 3
 	};
 	enum MouseMode { 
 		NONE = 0, 
@@ -51,18 +51,11 @@ namespace app_utils
 		VERTEX_SELECT, 
 		CLEAR 
 	};
-	enum Parametrization { 
-		RANDOM = 0,  
-		None 
+	enum FaceColoring { 
+		NO_COLOR, 
+		ENERGY_VALUE 
 	};
-	enum Distortion { 
-		NO_DISTORTION, 
-		AREA_DISTORTION, 
-		LENGTH_DISTORTION, 
-		ANGLE_DISTORTION, 
-		TOTAL_DISTORTION 
-	};
-	enum SolverType {
+	enum MinimizerType {
 		NEWTON = 0,
 		GRADIENT_DESCENT = 1,
 		ADAM_MINIMIZER = 2
@@ -143,70 +136,6 @@ namespace app_utils
 		return comboList;
 	}
 
-	static void angle_degree(Eigen::MatrixXd& V, Eigen::MatrixXi& F, Eigen::MatrixXd& angle) {
-		int numF = F.rows();
-		Eigen::VectorXd Area;
-		Eigen::MatrixXd Length, alfa, sum;
-		Eigen::ArrayXXd sin_alfa(numF, 3);
-
-		igl::doublearea(V, F, Area);
-		igl::edge_lengths(V, F, Length);
-
-		// double_area = a*b*sin(alfa)
-		// sin(alfa) = (double_area / a) / b
-		sin_alfa.col(0) = Length.col(1).cwiseInverse().cwiseProduct(Length.col(2).cwiseInverse().cwiseProduct(Area));
-		sin_alfa.col(1) = Length.col(0).cwiseInverse().cwiseProduct(Length.col(2).cwiseInverse().cwiseProduct(Area));
-		sin_alfa.col(2) = Length.col(0).cwiseInverse().cwiseProduct(Length.col(1).cwiseInverse().cwiseProduct(Area));
-
-		// alfa = arcsin ((double_area / a) / b)
-		alfa = ((sin_alfa - Eigen::ArrayXXd::Constant(numF, 3, 1e-10)).asin())*(180 / M_PI);
-
-
-		//here we deal with errors with sin function
-		//especially when the sum of the angles isn't equal to 180!
-		sum = alfa.rowwise().sum();
-		for (int i = 0; i < alfa.rows(); i++) {
-			double diff = 180 - sum(i, 0);
-			double c0 = 2 * (90 - alfa(i, 0));
-			double c1 = 2 * (90 - alfa(i, 1));
-			double c2 = 2 * (90 - alfa(i, 2));
-
-			if ((c0 > (diff - 1)) && (c0 < (diff + 1)))
-				alfa(i, 0) += c0;
-			else if ((c1 > (diff - 1)) && (c1 < (diff + 1)))
-				alfa(i, 1) += c1;
-			else if ((c2 > (diff - 1)) && (c2 < (diff + 1)))
-				alfa(i, 2) += c2;
-
-			/////////////////////////////////
-			//sorting - you can remove this part if the order of angles is important!
-			if (alfa(i, 0) > alfa(i, 1)) {
-				double temp = alfa(i, 0);
-				alfa(i, 0) = alfa(i, 1);
-				alfa(i, 1) = temp;
-			}
-			if (alfa(i, 0) > alfa(i, 2)) {
-				double temp = alfa(i, 0);
-				alfa(i, 0) = alfa(i, 2);
-				alfa(i, 2) = alfa(i, 1);
-				alfa(i, 1) = temp;
-			}
-			else if (alfa(i, 1) > alfa(i, 2)) {
-				double temp = alfa(i, 1);
-				alfa(i, 1) = alfa(i, 2);
-				alfa(i, 2) = temp;
-			}
-			/////////////////////////////////
-		}
-		angle = alfa;
-
-		////Checkpoint
-		//sum = alfa.rowwise().sum();
-		//for (int i = 0; i < alfa.rows(); i++) {
-		//	cout << i << ": " << alfa(i, 0) << " " << alfa(i, 1) << " " << alfa(i, 2) << " " << sum.row(i) << endl;
-		//}
-	}
-
 	static Eigen::RowVector3d get_face_avg(const igl::opengl::glfw::Viewer *viewer, const int Model_Translate_ID,const int Translate_Index){
 		Eigen::RowVector3d avg; avg << 0, 0, 0;
 		Eigen::RowVector3i face = viewer->data(Model_Translate_ID).F.row(Translate_Index);
@@ -236,13 +165,13 @@ public:
 	std::shared_ptr<NewtonSolver> newton;
 	std::shared_ptr<GradientDescentSolver> gradient_descent;
 	std::shared_ptr<AdamMinimizer> adam_minimizer;
-	std::shared_ptr<solver> solver;
+	std::shared_ptr<solver> activeMinimizer;
 	std::shared_ptr<TotalObjective> totalObjective;
 
 	//Constructor & initialization
 	OptimizationOutput(
 		igl::opengl::glfw::Viewer* viewer, 
-		const app_utils::SolverType solver_type,
+		const app_utils::MinimizerType minimizer_type,
 		const OptimizationUtils::LineSearch linesearchType) 
 	{
 		//update viewer
@@ -250,28 +179,60 @@ public:
 		viewer->core(CoreID).background_color = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
 		viewer->core(CoreID).is_animating = true;
 		viewer->core(CoreID).lighting_factor = 0.5;
-		
 		// Initialize solver thread
 		std::cout << "CoreID = " << CoreID << std::endl;
 		newton = std::make_shared<NewtonSolver>(CoreID);
 		gradient_descent = std::make_shared<GradientDescentSolver>(CoreID);
 		adam_minimizer = std::make_shared<AdamMinimizer>(CoreID);
-	
-		switch (solver_type) {
-		case app_utils::SolverType::NEWTON:
-			solver = newton;
-			break;
-		case app_utils::SolverType::GRADIENT_DESCENT:
-			solver = gradient_descent;
-			break;
-		case app_utils::SolverType::ADAM_MINIMIZER:
-			solver = adam_minimizer;
-			break;
-		}
-
-
-		solver->lineSearch_type = linesearchType;
+		updateActiveMinimizer(minimizer_type);
+		activeMinimizer->lineSearch_type = linesearchType;
 		totalObjective = std::make_shared<TotalObjective>();
 	}
+
 	~OptimizationOutput() {}
+
+	void init(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,const OptimizationUtils::InitAuxVariables& typeAuxVar){
+		Eigen::VectorXd init = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
+		Eigen::MatrixX3d normals;
+		igl::per_face_normals((Eigen::MatrixX3d)V, (Eigen::MatrixX3i)F, normals);
+		Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size());
+		newton->init(
+			totalObjective,
+			init,
+			initNormals,
+			F,
+			V,
+			typeAuxVar
+		);
+		gradient_descent->init(
+			totalObjective,
+			init,
+			initNormals,
+			F,
+			V,
+			typeAuxVar
+		);
+		adam_minimizer->init(
+			totalObjective,
+			init,
+			initNormals,
+			F,
+			V,
+			typeAuxVar
+		);
+	}
+
+	void updateActiveMinimizer(const app_utils::MinimizerType minimizer_type) {
+		switch (minimizer_type) {
+		case app_utils::MinimizerType::NEWTON:
+			activeMinimizer = newton;
+			break;
+		case app_utils::MinimizerType::GRADIENT_DESCENT:
+			activeMinimizer = gradient_descent;
+			break;
+		case app_utils::MinimizerType::ADAM_MINIMIZER:
+			activeMinimizer = adam_minimizer;
+			break;
+		}
+	}
 };

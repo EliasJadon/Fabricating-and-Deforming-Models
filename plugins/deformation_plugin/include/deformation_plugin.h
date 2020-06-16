@@ -15,9 +15,9 @@ private:
 	bool model_loaded;
 	float Max_Distortion;
 	bool UpdateAll;
-	bool worhp_on, solver_on, solver_settings, IsMouseHoveringAnyWindow, IsMouseDraggingAnyWindow;
-	app_utils::Distortion distortion_type;
-	app_utils::SolverType solver_type;
+	bool worhp_on, minimizer_on, minimizer_settings, IsMouseHoveringAnyWindow, IsMouseDraggingAnyWindow;
+	app_utils::FaceColoring faceColoring_type;
+	app_utils::MinimizerType minimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
 	float constant_step;
 	Eigen::MatrixXd Vertices_Input, color_per_vertex;
@@ -51,8 +51,8 @@ private:
 	int Translate_Index, Model_Translate_ID, Core_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
 
-	// Solver thread
-	std::thread solver_thread;
+	// Minimizer thread
+	std::thread minimizer_thread;
 
 public:
 	//Constructor & initialization
@@ -73,8 +73,8 @@ public:
 	//Draw menu methods
 	void Draw_menu_for_cores(igl::opengl::ViewerCore& core);
 	void Draw_menu_for_models(igl::opengl::ViewerData& data);
-	void Draw_menu_for_Solver();
-	void Draw_menu_for_solver_settings();
+	void Draw_menu_for_Minimizer();
+	void Draw_menu_for_minimizer_settings();
 	void Draw_menu_for_output_settings();
 	void Draw_menu_for_colors();
 	void Draw_menu_for_text_results();
@@ -93,13 +93,14 @@ public:
 
 	void load_new_model(const std::string modelpath);
 	void Update_view();
-	void update_data_from_solver();
+	void update_data_from_minimizer();
 	void set_vertices_for_mesh(Eigen::MatrixXd& V, const int index);
 
-	//Start/Stop the solver Thread
-	void initializeSolver(const int index);
-	void stop_solver_thread();
-	void start_solver_thread();
+	//Start/Stop the minimizer Thread
+	void initializeMinimizer(const int index);
+	void stop_minimizer_thread();
+	void start_minimizer_thread();
+	void init_minimizer_thread();
 
 	//FD check
 	void checkGradients();
