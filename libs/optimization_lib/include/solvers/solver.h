@@ -53,7 +53,7 @@ public:
 	Eigen::MatrixXd V;
 	int num_steps;
 	OptimizationUtils::LineSearch lineSearch_type = OptimizationUtils::LineSearch::GradientNorm;
-	double constant_step;
+	double constantStep_LineSearch;
 protected:
 	// Give the wrapper a chance to intersect gracefully
 	void give_parameter_update_slot();

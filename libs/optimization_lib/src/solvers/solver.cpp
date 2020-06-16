@@ -54,7 +54,7 @@ void solver::init(
 ) {
 	this->F = F;
 	this->V = V;
-	this->constant_step = 0.01;
+	this->constantStep_LineSearch = 0.01;
 	this->objective = objective;
 	std::cout << "F.rows() = " << F.rows() << std::endl;
 	std::cout << "V.rows() = " << V.rows() << std::endl;
@@ -355,7 +355,7 @@ void solver::value_linesearch()
 
 void solver::constant_linesearch()
 {
-	step_size = constant_step;
+	step_size = constantStep_LineSearch;
 	cur_iter = 0;
 	X = X + step_size * p;
 }

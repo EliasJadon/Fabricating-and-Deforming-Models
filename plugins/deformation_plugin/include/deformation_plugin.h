@@ -10,16 +10,16 @@ class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 private:
 	std::vector<Eigen::MatrixXd> p_edges;
 	OptimizationUtils::InitAuxVariables typeAuxVar;
-	bool step_by_step;
+	bool runOneIteration;
 	bool isLoadNeeded;
-	bool model_loaded;
+	bool isModelLoaded;
 	float Max_Distortion;
-	bool UpdateAll;
-	bool worhp_on, minimizer_on, minimizer_settings, IsMouseHoveringAnyWindow, IsMouseDraggingAnyWindow;
+	bool isUpdateAll;
+	bool isMinimizerRunning, minimizer_settings, IsMouseHoveringAnyWindow, IsMouseDraggingAnyWindow;
 	app_utils::FaceColoring faceColoring_type;
 	app_utils::MinimizerType minimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
-	float constant_step;
+	float constantStep_LineSearch;
 	Eigen::MatrixXd Vertices_Input, color_per_vertex;
 	Eigen::Vector3f
 		Highlighted_face_color,

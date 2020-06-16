@@ -14,16 +14,15 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		isLoadNeeded = false;
 		IsMouseDraggingAnyWindow = false;
 		IsMouseHoveringAnyWindow = false;
-		worhp_on = false;
-		minimizer_on = false;
+		isMinimizerRunning = false;
 		Outputs_Settings = false;
 		Highlighted_face = false;
 		IsTranslate = false;
-		model_loaded = false;
-		UpdateAll = true;
+		isModelLoaded = false;
+		isUpdateAll = true;
 		minimizer_settings = true;
 		show_text = true;
-		step_by_step = false;
+		runOneIteration = false;
 		faceColoring_type = app_utils::FaceColoring::ENERGY_VALUE;
 		minimizer_type = app_utils::MinimizerType::NEWTON;
 		linesearch_type = OptimizationUtils::LineSearch::FunctionValue;
@@ -61,7 +60,7 @@ void deformation_plugin::load_new_model(const std::string modelpath) {
 	{
 		modelName = app_utils::ExtractModelName(modelPath);
 		stop_minimizer_thread();
-		if (model_loaded) {
+		if (isModelLoaded) {
 			//remove previous data
 			while (Outputs.size() > 0)
 				remove_output(0);
@@ -75,12 +74,12 @@ void deformation_plugin::load_new_model(const std::string modelpath) {
 			Outputs[i].ModelID = viewer->data_list[i + 1].id;
 			initializeMinimizer(i);
 		}
-		if (model_loaded)
+		if (isModelLoaded)
 			add_output();
 		viewer->core(inputCoreID).align_camera_center(InputModel().V, InputModel().F);
 		for (int i = 0; i < Outputs.size(); i++)
 			viewer->core(Outputs[i].CoreID).align_camera_center(OutputModel(i).V, OutputModel(i).F);
-		model_loaded = true;
+		isModelLoaded = true;
 		//set rotation type to 3D mode
 		viewer->core(inputCoreID).trackball_angle = Eigen::Quaternionf::Identity();
 		viewer->core(inputCoreID).orthographic = false;
@@ -117,7 +116,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 			post_resize(frameBufferWidth, frameBufferHeight);
 		}
 	}
-	if (ImGui::Combo("View", (int *)(&view), app_utils::build_view_names_list(Outputs.size()))) {
+	if (ImGui::Combo("View cores", (int *)(&view), app_utils::build_view_names_list(Outputs.size()))) {
 		// That's how you get the current width/height of the frame buffer (for example, after the window was resized)
 		int frameBufferWidth, frameBufferHeight;
 		glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
@@ -130,18 +129,18 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		UpdateHandles();
 		mouse_mode = app_utils::MouseMode::VERTEX_SELECT;
 	}
-	ImGui::Checkbox("Update all cores together", &UpdateAll);
-	if(model_loaded)
+	ImGui::Checkbox("Update all cores together", &isUpdateAll);
+	if(isModelLoaded)
 		Draw_menu_for_Minimizer();
 	Draw_menu_for_cores(viewer->core(inputCoreID));
 	Draw_menu_for_models(viewer->data(inputModelID));
 	Draw_menu_for_output_settings();
 	Draw_menu_for_text_results();
-	if (model_loaded && minimizer_settings)
+	if (isModelLoaded && minimizer_settings)
 		Draw_menu_for_minimizer_settings();
 	follow_and_mark_selected_faces();
 	Update_view();
-	if (UpdateAll)
+	if (isUpdateAll)
 		update_parameters_for_all_cores();
 	IsMouseHoveringAnyWindow = false;
 	if (ImGui::IsAnyWindowHovered() |
@@ -440,7 +439,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if ((key == 'C' || key == 'c') && modifiers == 1)
 		mouse_mode = app_utils::MouseMode::CLEAR;
 	if ((key == ' ') && modifiers == 1)
-		minimizer_on ? stop_minimizer_thread() : start_minimizer_thread();
+		isMinimizerRunning ? stop_minimizer_thread() : start_minimizer_thread();
 	if ((key == '!') && modifiers == 1) {
 		isLoadNeeded = true;
 		modelPath = OptimizationUtils::RDSPath() + "\\models\\Face_1\\Triangle306090degree.obj";
@@ -528,10 +527,10 @@ void deformation_plugin::Draw_menu_for_colors() {
 void deformation_plugin::Draw_menu_for_Minimizer() {
 	if (ImGui::CollapsingHeader("Minimizer", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		if (ImGui::Checkbox("step_by_step", &step_by_step) && minimizer_on)
+		if (ImGui::Checkbox("Only one iteration", &runOneIteration) && isMinimizerRunning)
 			start_minimizer_thread();
-		if (ImGui::Checkbox(minimizer_on ? "On" : "Off", &minimizer_on))
-			minimizer_on ? start_minimizer_thread() : stop_minimizer_thread();
+		if (ImGui::Checkbox(isMinimizerRunning ? "On" : "Off", &isMinimizerRunning))
+			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
 		ImGui::Checkbox("Minimizer settings", &minimizer_settings);
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
 			stop_minimizer_thread();
@@ -549,13 +548,13 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 				std::dynamic_pointer_cast<NewtonSolver>(o.activeMinimizer)->SwitchPositiveDefiniteChecker(PD);
 			}
 		}
-		if (ImGui::Combo("line search", (int *)(&linesearch_type), "GradientNorm\0FunctionValue\0ConstantStep\0\0")) {
+		if (ImGui::Combo("line search", (int *)(&linesearch_type), "Gradient Norm\0Function Value\0Constant Step\0\0")) {
 			for (auto& o:Outputs)
 				o.activeMinimizer->lineSearch_type = linesearch_type;
 		}
-		if (linesearch_type == OptimizationUtils::LineSearch::ConstantStep && ImGui::DragFloat("Step value", &constant_step, 0.0001f, 0.0f, 1.0f)) {
+		if (linesearch_type == OptimizationUtils::LineSearch::ConstantStep && ImGui::DragFloat("Step value", &constantStep_LineSearch, 0.0001f, 0.0f, 1.0f)) {
 			for (auto& o : Outputs)
-				o.activeMinimizer->constant_step = constant_step;
+				o.activeMinimizer->constantStep_LineSearch = constantStep_LineSearch;
 		}
 		ImGui::Combo("Face coloring", (int *)(&faceColoring_type), "No colors\0Energy value\0\0");
 		float w = ImGui::GetContentRegionAvailWidth(), p = ImGui::GetStyle().FramePadding.x;
@@ -893,7 +892,7 @@ void deformation_plugin::UpdateHandles() {
 	}
 	//Finally, we update the handles in the constraints positional object
 	for (int i = 0; i < Outputs.size();i++) {
-		if (model_loaded) {
+		if (isModelLoaded) {
 			(*Outputs[i].HandlesInd) = CurrHandlesInd;
 			(*Outputs[i].HandlesPosDeformed) = CurrHandlesPosDeformed[i];
 		}
@@ -1044,8 +1043,8 @@ void deformation_plugin::checkGradients()
 {
 	stop_minimizer_thread();
 	for (auto& o: Outputs) {
-		if (!model_loaded) {
-			minimizer_on = false;
+		if (!isModelLoaded) {
+			isMinimizerRunning = false;
 			return;
 		}
 		Eigen::VectorXd xx = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
@@ -1058,8 +1057,8 @@ void deformation_plugin::checkHessians()
 {
 	stop_minimizer_thread();
 	for (auto& o : Outputs) {
-		if (!model_loaded) {
-			minimizer_on = false;
+		if (!isModelLoaded) {
+			isMinimizerRunning = false;
 			return;
 		}
 		Eigen::VectorXd xx = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
@@ -1093,7 +1092,7 @@ void deformation_plugin::update_data_from_minimizer()
 }
 
 void deformation_plugin::stop_minimizer_thread() {
-	minimizer_on = false;
+	isMinimizerRunning = false;
 	for (auto&o : Outputs) {
 		if (o.activeMinimizer->is_running) {
 			o.activeMinimizer->stop();
@@ -1109,19 +1108,19 @@ void deformation_plugin::init_minimizer_thread() {
 }
 
 void deformation_plugin::start_minimizer_thread() {
-	if (!model_loaded) {
-		minimizer_on = false;
+	if (!isModelLoaded) {
+		isMinimizerRunning = false;
 		return;
 	}
 	stop_minimizer_thread();
 	init_minimizer_thread();
 	for (int i = 0; i < Outputs.size();i++) {
 		std::cout << ">> A new minimizer has been started" << std::endl;
-		minimizer_on = true;
+		isMinimizerRunning = true;
 		//start minimizer
-		if (step_by_step) {
-			static int step_counter = 0;
-			minimizer_thread = std::thread(&solver::run_one_iteration, Outputs[i].activeMinimizer.get(), step_counter++,true);
+		if (runOneIteration) {
+			static int iteration_counter = 0;
+			minimizer_thread = std::thread(&solver::run_one_iteration, Outputs[i].activeMinimizer.get(), iteration_counter++,true);
 			minimizer_thread.join();
 		}
 		else {
