@@ -36,7 +36,6 @@ private:
 	bool Highlighted_face, Outputs_Settings;
 	std::set<int> selected_faces, selected_vertices;
 	std::vector<OptimizationOutput> Outputs;
-	Eigen::MatrixXd copy_vertices;
 	//Basic (necessary) parameteres
 	float prev_camera_zoom;
 	Eigen::Vector3f prev_camera_translation;
@@ -84,7 +83,6 @@ public:
 	int pick_face(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
 	int pick_vertex(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
 	void follow_and_mark_selected_faces();
-	Eigen::RowVector3d get_face_avg();
 	void UpdateHandles();
 	void UpdateEnergyColors(const int index);
 	void update_parameters_for_all_cores();
@@ -95,8 +93,8 @@ public:
 
 	void load_new_model(const std::string modelpath);
 	void Update_view();
-	void update_mesh();
-	void update_texture(Eigen::MatrixXd& V_uv, const int index);
+	void update_data_from_solver();
+	void set_vertices_for_mesh(Eigen::MatrixXd& V, const int index);
 
 	//Start/Stop the solver Thread
 	void initializeSolver(const int index);

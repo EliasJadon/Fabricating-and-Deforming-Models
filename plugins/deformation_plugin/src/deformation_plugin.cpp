@@ -249,7 +249,6 @@ void deformation_plugin::remove_output(const int output_index) {
 void deformation_plugin::add_output() {
 	stop_solver_thread();
 	Outputs.push_back(OptimizationOutput(viewer, solver_type,linesearch_type));
-	
 	viewer->load_mesh_from_file(modelPath.c_str());
 	Outputs[Outputs.size() - 1].ModelID = viewer->data_list[Outputs.size()].id;
 	initializeSolver(Outputs.size() - 1);
@@ -322,7 +321,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 	{
 		if (!selected_faces.empty())
 		{
-			Eigen::RowVector3d face_avg_pt = get_face_avg();
+			Eigen::RowVector3d face_avg_pt = app_utils::get_face_avg(viewer, Model_Translate_ID, Translate_Index);
 			Eigen::RowVector3i face = viewer->data(Model_Translate_ID).F.row(Translate_Index);
 			Eigen::Vector3f translation = app_utils::computeTranslation(mouse_x, down_mouse_x, mouse_y, down_mouse_y, face_avg_pt, viewer->core(Core_Translate_ID));
 			if (Core_Translate_ID == inputCoreID) {
@@ -454,28 +453,27 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	}
 	else if (mouse_mode == app_utils::MouseMode::VERTEX_SELECT && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
-	if (!selected_vertices.empty())
-	{
-		//check if there faces which is selected on the left screen
-int v = pick_vertex(InputModel().V, InputModel().F, (int)app_utils::View::InputOnly);
-Model_Translate_ID = inputModelID;
-Core_Translate_ID = inputCoreID;
-for (int i = 0; i < Outputs.size(); i++) {
-	if (v == -1) {
-		v = pick_vertex(OutputModel(i).V, OutputModel(i).F, (int)app_utils::View::OutputOnly0 + i);
-		Model_Translate_ID = Outputs[i].ModelID;
-		Core_Translate_ID = Outputs[i].CoreID;
-	}
-}
+		if (!selected_vertices.empty())
+		{
+			//check if there faces which is selected on the left screen
+			int v = pick_vertex(InputModel().V, InputModel().F, (int)app_utils::View::InputOnly);
+			Model_Translate_ID = inputModelID;
+			Core_Translate_ID = inputCoreID;
+			for (int i = 0; i < Outputs.size(); i++) {
+				if (v == -1) {
+					v = pick_vertex(OutputModel(i).V, OutputModel(i).F, (int)app_utils::View::OutputOnly0 + i);
+					Model_Translate_ID = Outputs[i].ModelID;
+					Core_Translate_ID = Outputs[i].CoreID;
+				}
+			}
 
-if (find(selected_vertices.begin(), selected_vertices.end(), v) != selected_vertices.end())
-{
-	IsTranslate = true;
-	Translate_Index = v;
-}
+			if (find(selected_vertices.begin(), selected_vertices.end(), v) != selected_vertices.end())
+			{
+				IsTranslate = true;
+				Translate_Index = v;
+			}
+		}
 	}
-	}
-
 	return false;
 }
 
@@ -509,10 +507,6 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		modelPath = OptimizationUtils::RDSPath() + "\\models\\cube.off";
 	}
 
-	if ((key == 'w' || key == 'W') && modifiers == 1) {
-
-	}
-	
 	return ImGuiMenu::key_pressed(key, modifiers);
 }
 
@@ -528,7 +522,7 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 
 	for (auto& out : Outputs)
 		if (out.solver->progressed)
-			update_mesh();
+			update_data_from_solver();
 
 	//Update the model's faces colors in the screens
 	for (int i = 0; i < Outputs.size(); i++) {
@@ -556,8 +550,8 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 		E.row(fi) << fi, InputModel().F.rows() + fi;
 	}
 
-	if (p_edges.size() != 0) {
-		for (int i = 0; i < Outputs.size(); i++) {
+	if (p_edges.size() != 0 && Outputs.size() == p_edges.size()) {
+		for (int i = 0; i < p_edges.size(); i++) {
 			OutputModel(i).point_size = 10;
 			OutputModel(i).add_points(p_edges[i].middleRows(0, InputModel().F.rows()), greenColor);
 			OutputModel(i).add_points(p_edges[i].middleRows(InputModel().F.rows(), InputModel().F.rows()), redColor);
@@ -804,7 +798,7 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 	int id = 0;
 	if (Outputs.size() != 0) {
 		// prepare the first column
-		ImGui::Columns(Outputs[0].totalObjective->objectiveList.size() + 5, "Unconstrained weights table", true);
+		ImGui::Columns(Outputs[0].totalObjective->objectiveList.size() + 3, "Unconstrained weights table", true);
 		ImGui::Separator();
 		ImGui::NextColumn();
 		for (auto & obj : Outputs[0].totalObjective->objectiveList) {
@@ -815,10 +809,6 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 		ImGui::NextColumn();
 		ImGui::Text("Remove output");
 		ImGui::NextColumn();
-		ImGui::Text("copy/paste mesh");
-		ImGui::NextColumn();
-		ImGui::Text("load param");
-		ImGui::NextColumn();
 		ImGui::Separator();
 
 		// fill the table
@@ -828,7 +818,6 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 			for (auto& obj : Outputs[i].totalObjective->objectiveList) {
 				ImGui::PushID(id++);
 				ImGui::DragFloat("w", &(obj->w), 0.05f, 0.0f, 100000.0f);
-				
 				
 				std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
 				std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
@@ -906,34 +895,12 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 			ImGui::PushID(id++);
 			ImGui::DragFloat("", &(Outputs[i].totalObjective->Shift_eigen_values), 0.05f, 0.0f, 100000.0f);
 			ImGui::NextColumn();
-			if (Outputs.size() > 1)
-			{
+			if (Outputs.size() > 1) {
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
 				if (ImGui::Button("Remove"))
 					remove_output(i);
 				ImGui::PopStyleColor();
-				ImGui::NextColumn();
-				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
-				if (!copy_vertices.size() && ImGui::Button("Copy")) 
-					copy_vertices = OutputModel(i).V;
-				if (copy_vertices.size() && ImGui::Button("Paste")) {
-					OutputModel(i).set_vertices(copy_vertices);
-					copy_vertices.resize(0,0);
-				}
-				ImGui::PopStyleColor();
 			}
-			else
-				ImGui::NextColumn();
-			ImGui::NextColumn();
-			ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
-			if (ImGui::Button("load param")) {
-				viewer->load_mesh_from_file(igl::file_dialog_open().c_str());
-				Eigen::MatrixXd V = viewer->data_list[viewer->data_list.size() - 1].V;
-				viewer->erase_mesh(viewer->data_list.size() - 1);
-				OutputModel(i).set_vertices(V);
-			}
-			ImGui::PopStyleColor();
-
 			ImGui::NextColumn();
 			ImGui::PopID();
 			ImGui::Separator();
@@ -954,8 +921,6 @@ void deformation_plugin::Draw_menu_for_solver_settings() {
 		ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
 		ImGui::PopItemWidth();
 	}
-	
-
 	//close the window
 	ImGui::End();
 }
@@ -970,7 +935,6 @@ void deformation_plugin::Draw_menu_for_output_settings() {
 				ImGuiWindowFlags_NoResize |
 				ImGuiWindowFlags_NoMove);
 			ImGui::SetWindowPos(out.text_position);
-			
 			Draw_menu_for_cores(viewer->core(out.CoreID));
 			Draw_menu_for_models(viewer->data(out.ModelID));
 			ImGui::End();
@@ -1045,8 +1009,7 @@ void deformation_plugin::UpdateHandles() {
 		int idx = 0;
 		for (auto hi : CurrHandlesInd)
 			CurrHandlesPosDeformed[i].row(idx++) << OutputModel(i).V(hi, 0), OutputModel(i).V(hi, 1), OutputModel(i).V(hi, 2);
-		//Update texture
-		update_texture(OutputModel(i).V, i);
+		set_vertices_for_mesh(OutputModel(i).V, i);
 	}
 	//Finally, we update the handles in the constraints positional object
 	for (int i = 0; i < Outputs.size();i++) {
@@ -1131,18 +1094,6 @@ igl::opengl::ViewerData& deformation_plugin::OutputModel(const int index) {
 	return viewer->data(Outputs[index].ModelID);
 }
 
-Eigen::RowVector3d deformation_plugin::get_face_avg() {
-	Eigen::RowVector3d avg; avg << 0, 0, 0;
-	Eigen::RowVector3i face = viewer->data(Model_Translate_ID).F.row(Translate_Index);
-
-	avg += viewer->data(Model_Translate_ID).V.row(face[0]);
-	avg += viewer->data(Model_Translate_ID).V.row(face[1]);
-	avg += viewer->data(Model_Translate_ID).V.row(face[2]);
-	avg /= 3;
-
-	return avg;
-}
-
 int deformation_plugin::pick_face(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int CoreIndex) {
 	// Cast a ray in the view direction starting from the mouse position
 	int CoreID;
@@ -1150,24 +1101,18 @@ int deformation_plugin::pick_face(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int Co
 		CoreID = inputCoreID;
 	else
 		CoreID = Outputs[CoreIndex - (int)app_utils::View::OutputOnly0].CoreID;
-	 
 	double x = viewer->current_mouse_x;
 	double y = viewer->core(CoreID).viewport(3) - viewer->current_mouse_y;
 	if (view == app_utils::View::Vertical) {
 		y = (viewer->core(inputCoreID).viewport(3) / core_size) - viewer->current_mouse_y;
 	}
-
 	//Eigen::RowVector3d pt;
 	Eigen::Matrix<double, 3, 1, 0, 3, 1> pt;
-
 	Eigen::Matrix4f modelview = viewer->core(CoreID).view;
 	int vi = -1;
-
 	std::vector<igl::Hit> hits;
-
 	igl::unproject_in_mesh(Eigen::Vector2f(x, y), viewer->core(CoreID).view,
 		viewer->core(CoreID).proj, viewer->core(CoreID).viewport, V, F, pt, hits);
-
 	int fi = -1;
 	if (hits.size() > 0) {
 		fi = hits[0].id;
@@ -1182,25 +1127,25 @@ int deformation_plugin::pick_vertex(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int 
 		CoreID = inputCoreID;
 	else
 		CoreID = Outputs[CoreIndex - (int)app_utils::View::OutputOnly0].CoreID;
-	
-
 	double x = viewer->current_mouse_x;
 	double y = viewer->core(CoreID).viewport(3) - viewer->current_mouse_y;
 	if (view == app_utils::View::Vertical) {
 		y = (viewer->core(inputCoreID).viewport(3) / core_size) - viewer->current_mouse_y;
 	}
-
-	//Eigen::RowVector3d pt;
 	Eigen::Matrix<double, 3, 1, 0, 3, 1> pt;
-
 	Eigen::Matrix4f modelview = viewer->core(CoreID).view;
 	int vi = -1;
-
 	std::vector<igl::Hit> hits;
-			
-	unproject_in_mesh(Eigen::Vector2f(x, y), viewer->core(CoreID).view,
-		viewer->core(CoreID).proj, viewer->core(CoreID).viewport, V, F, pt, hits);
-
+	unproject_in_mesh(
+		Eigen::Vector2f(x, y), 
+		viewer->core(CoreID).view,
+		viewer->core(CoreID).proj, 
+		viewer->core(CoreID).viewport, 
+		V, 
+		F, 
+		pt, 
+		hits
+	);
 	if (hits.size() > 0) {
 		int fi = hits[0].id;
 		Eigen::RowVector3d bc;
@@ -1211,24 +1156,16 @@ int deformation_plugin::pick_vertex(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int 
 	return vi;
 }
 
-void deformation_plugin::update_texture(Eigen::MatrixXd& V_uv, const int index) {
-	Eigen::MatrixXd V_uv_2D(V_uv.rows(),2);
+void deformation_plugin::set_vertices_for_mesh(Eigen::MatrixXd& V_uv, const int index) {
 	Eigen::MatrixXd V_uv_3D(V_uv.rows(),3);
 	if (V_uv.cols() == 2) {
-		V_uv_2D = V_uv;
 		V_uv_3D.leftCols(2) = V_uv.leftCols(2);
 		V_uv_3D.rightCols(1).setZero();
 	}
 	else if (V_uv.cols() == 3) {
 		V_uv_3D = V_uv;
-		V_uv_2D = V_uv.leftCols(2);
 	}
-
-	// Plot the mesh
-	if(index == 0)
-		InputModel().set_uv(V_uv_2D * texture_scaling_input);
 	OutputModel(index).set_vertices(V_uv_3D);
-	OutputModel(index).set_uv(V_uv_2D * texture_scaling_output);
 	OutputModel(index).compute_normals();
 }
 	
@@ -1264,13 +1201,12 @@ void deformation_plugin::checkHessians()
 	}
 }
 
-void deformation_plugin::update_mesh()
+void deformation_plugin::update_data_from_solver()
 {
 	std::vector<Eigen::MatrixXd> V,center; 
 	center.resize(Outputs.size());
 	V.resize(Outputs.size());
 	p_edges.resize(Outputs.size());
-
 	for (int i = 0; i < Outputs.size(); i++){
 		Outputs[i].solver->get_data(V[i], center[i]);
 		///////////////////////////////////////////
@@ -1285,7 +1221,7 @@ void deformation_plugin::update_mesh()
 			for (int vi = 0; vi < 3; vi++)
 				V[i].row(F[vi]) = OutputModel(i).V.row(F[vi]);
 		}
-		update_texture(V[i],i);
+		set_vertices_for_mesh(V[i],i);
 	}
 }
 

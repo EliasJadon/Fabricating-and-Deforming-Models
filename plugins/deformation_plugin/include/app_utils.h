@@ -295,6 +295,19 @@ public:
 		//}
 	}
 
+
+
+	static Eigen::RowVector3d get_face_avg(const igl::opengl::glfw::Viewer *viewer, const int Model_Translate_ID,const int Translate_Index){
+		Eigen::RowVector3d avg; avg << 0, 0, 0;
+		Eigen::RowVector3i face = viewer->data(Model_Translate_ID).F.row(Translate_Index);
+
+		avg += viewer->data(Model_Translate_ID).V.row(face[0]);
+		avg += viewer->data(Model_Translate_ID).V.row(face[1]);
+		avg += viewer->data(Model_Translate_ID).V.row(face[2]);
+		avg /= 3;
+
+		return avg;
+	}
 };
 
 class OptimizationOutput
