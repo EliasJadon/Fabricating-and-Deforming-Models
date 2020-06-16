@@ -27,12 +27,13 @@ public:
 	void stop();
 	void get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center);
 	void init(
-		std::shared_ptr<ObjectiveFunction> objective, 
-		const Eigen::VectorXd& X0, 
-		const Eigen::VectorXd& norm0, 
-		const Eigen::MatrixXi& F, 
-		const Eigen::MatrixXd& V,
-		const OptimizationUtils::InitAuxVariables initAuxType);
+		std::shared_ptr<ObjectiveFunction> objective,
+		const Eigen::VectorXd& X0,
+		const Eigen::VectorXd& norm0,
+		const Eigen::VectorXd& center0,
+		const Eigen::VectorXd& Radius0,
+		const Eigen::MatrixXi& F,
+		const Eigen::MatrixXd& V);
 	
 	// Pointer to the energy class
 	std::shared_ptr<ObjectiveFunction> objective;

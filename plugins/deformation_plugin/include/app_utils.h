@@ -163,10 +163,12 @@ private:
 	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
 	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
 	std::shared_ptr<AdamMinimizer> adamMinimizer;
+	Eigen::MatrixXd center_of_triangle;
+	Eigen::MatrixXd center_of_sphere;
+
 public:
 	std::shared_ptr<TotalObjective> totalObjective;
 	std::shared_ptr<Minimizer> activeMinimizer;
-
 	float prev_camera_zoom;
 	Eigen::Vector3f prev_camera_translation;
 	Eigen::Quaternionf prev_trackball_angle;
@@ -175,7 +177,6 @@ public:
 	Eigen::MatrixXd color_per_face, Vertices_output;
 	int ModelID, CoreID;
 	ImVec2 window_position, window_size, text_position;
-	Eigen::MatrixXd p_edges;
 	
 	//Constructor & initialization
 	OptimizationOutput(
@@ -199,34 +200,69 @@ public:
 
 	~OptimizationOutput() {}
 
+	void setCenters(
+		const Eigen::MatrixXd& V, 
+		const Eigen::MatrixXi& F, 
+		const Eigen::MatrixXd& center_of_sphere
+	) {
+		this->center_of_triangle = OptimizationUtils::center_per_triangle(V, F);;
+		this->center_of_sphere = center_of_sphere;
+	}
+
+	Eigen::MatrixXd getCenterOfTriangle() {
+		return center_of_triangle;
+	}
+
+	Eigen::MatrixXd getCenterOfSphere() {
+		return center_of_sphere;
+	}
+
+	Eigen::MatrixXd getAllCenters() {
+		int numF = center_of_sphere.rows();
+		Eigen::MatrixXd c(2 * numF, 3);
+		c.middleRows(0, numF) = getCenterOfTriangle();
+		c.middleRows(numF, numF) = getCenterOfSphere();
+		return c;
+	}
+
 	void init(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,const OptimizationUtils::InitAuxVariables& typeAuxVar){
 		Eigen::VectorXd init = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
 		Eigen::MatrixX3d normals;
 		igl::per_face_normals((Eigen::MatrixX3d)V, (Eigen::MatrixX3i)F, normals);
 		Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size());
+		Eigen::MatrixXd center0;
+		Eigen::VectorXd Radius0;
+		if (typeAuxVar == OptimizationUtils::InitAuxVariables::SPHERE)
+			OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
+		else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MESH_CENTER)
+			OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
+		setCenters(V,F, center0);
 		newtonMinimizer->init(
 			totalObjective,
 			init,
 			initNormals,
+			Eigen::Map<Eigen::VectorXd>(center0.data(), F.size()),
+			Radius0,
 			F,
-			V,
-			typeAuxVar
+			V
 		);
 		gradientDescentMinimizer->init(
 			totalObjective,
 			init,
 			initNormals,
+			Eigen::Map<Eigen::VectorXd>(center0.data(), F.size()),
+			Radius0,
 			F,
-			V,
-			typeAuxVar
+			V
 		);
 		adamMinimizer->init(
 			totalObjective,
 			init,
 			initNormals,
+			Eigen::Map<Eigen::VectorXd>(center0.data(), F.size()),
+			Radius0,
 			F,
-			V,
-			typeAuxVar
+			V
 		);
 	}
 

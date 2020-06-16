@@ -10,6 +10,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	ImGuiMenu::init(_viewer);
 	if (_viewer)
 	{
+		
 		typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
 		isLoadNeeded = false;
 		IsMouseDraggingAnyWindow = false;
@@ -500,12 +501,10 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 	}
 	
 	for (int i = 0; i < Outputs.size(); i++) {
-		if(Outputs[i].p_edges.size() != 0){
-			OutputModel(i).point_size = 10;
-			OutputModel(i).add_points(Outputs[i].p_edges.middleRows(0, InputModel().F.rows()), greenColor);
-			OutputModel(i).add_points(Outputs[i].p_edges.middleRows(InputModel().F.rows(), InputModel().F.rows()), redColor);
-			OutputModel(i).set_edges(Outputs[i].p_edges, E, greenColor);
-		}
+		OutputModel(i).point_size = 10;
+		OutputModel(i).add_points(Outputs[i].getCenterOfTriangle(), greenColor);
+		OutputModel(i).add_points(Outputs[i].getCenterOfSphere(), redColor);
+		OutputModel(i).set_edges(Outputs[i].getAllCenters(), E, greenColor);
 	}
 	
 	return false;
@@ -1076,11 +1075,7 @@ void deformation_plugin::update_data_from_minimizer()
 	V.resize(Outputs.size());
 	for (int i = 0; i < Outputs.size(); i++){
 		Outputs[i].activeMinimizer->get_data(V[i], center[i]);
-		///////////////////////////////////////////
-		Outputs[i].p_edges.resize(2 * InputModel().F.rows(),3);
-		Outputs[i].p_edges.middleRows(0, InputModel().F.rows()) = OptimizationUtils::center_per_triangle(V[i], InputModel().F);
-		Outputs[i].p_edges.middleRows(InputModel().F.rows(), InputModel().F.rows()) = center[i];
-		///////////////////////////////////////////
+		Outputs[i].setCenters(V[i], InputModel().F, center[i]);
 		if (IsTranslate && mouse_mode == app_utils::MouseMode::VERTEX_SELECT)
 			V[i].row(Translate_Index) = OutputModel(i).V.row(Translate_Index);
 		else if(IsTranslate && mouse_mode == app_utils::MouseMode::FACE_SELECT) {

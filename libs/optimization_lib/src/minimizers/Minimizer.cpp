@@ -48,9 +48,10 @@ void Minimizer::init(
 	std::shared_ptr<ObjectiveFunction> objective, 
 	const Eigen::VectorXd& X0,
 	const Eigen::VectorXd& norm0,
+	const Eigen::VectorXd& center0,
+	const Eigen::VectorXd& Radius0,
 	const Eigen::MatrixXi& F, 
-	const Eigen::MatrixXd& V,
-	const OptimizationUtils::InitAuxVariables initAuxType
+	const Eigen::MatrixXd& V
 ) {
 	this->F = F;
 	this->V = V;
@@ -60,22 +61,13 @@ void Minimizer::init(
 	std::cout << "V.rows() = " << V.rows() << std::endl;
 	assert(X0.rows() == (3*V.rows()) && "X0 should contain the (x,y,z) coordinates for each vertice");
 	assert(norm0.rows() == (3*F.rows()) && "norm0 should contain the (x,y,z) coordinates for each face");
-	
-	Eigen::MatrixXd center0;
-	Eigen::VectorXd Radius0;
-	if(initAuxType == OptimizationUtils::InitAuxVariables::SPHERE)
-		OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
-	else if (initAuxType == OptimizationUtils::InitAuxVariables::MESH_CENTER)
-		OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
-	
 	X.resize(3 * V.rows() + 7 * F.rows());
 	X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows()) = X0;
 	X.middleRows(3 * V.rows() + 0 * F.rows(), 3 * F.rows()) = norm0;
-	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows()) = Eigen::Map<Eigen::VectorXd>(center0.data(), F.size());
+	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows()) = center0;
 	X.middleRows(3 * V.rows() + 6 * F.rows(), 1 * F.rows()) = Radius0;
 	ext_x = X0;
-	ext_center = Eigen::Map<Eigen::VectorXd>(center0.data(), F.size());
-	std::cout << "hello :)\n";
+	ext_center = center0;
 	internal_init();
 }
 
