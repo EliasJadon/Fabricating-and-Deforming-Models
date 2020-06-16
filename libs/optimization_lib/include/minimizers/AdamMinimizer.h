@@ -1,8 +1,8 @@
 #pragma once
 
-#include "libs/optimization_lib/include/solvers/solver.h"
+#include "libs/optimization_lib/include/minimizers/Minimizer.h"
 
-class AdamMinimizer : public solver
+class AdamMinimizer : public Minimizer
 {
 private:
 	Eigen::VectorXd v_adam;
@@ -14,7 +14,7 @@ public:
 		double alpha_adam = 1,
 		double beta1_adam = 0.90,
 		double beta2_adam = 0.9990) :
-		solver(solverID),
+		Minimizer(solverID),
 		alpha_adam(alpha_adam),
 		beta1_adam(beta1_adam),
 		beta2_adam(beta2_adam) {}

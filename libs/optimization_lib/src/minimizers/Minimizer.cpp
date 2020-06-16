@@ -1,12 +1,12 @@
-#include "solvers/solver.h"
-#include "solvers/NewtonSolver.h"
+#include "minimizers/Minimizer.h"
+#include "minimizers/NewtonMinimizer.h"
 
 #define HIGH 3
 #define LOW -3
 #define JUMP 0.01f
 #define ARRAY_OUTPUT_SIZE (int)((HIGH - LOW) / JUMP) + 1
 
-solver::solver(const int solverID)
+Minimizer::Minimizer(const int solverID)
 	:
 	solverID(solverID),
 	parameters_mutex(std::make_unique<std::mutex>()),
@@ -34,7 +34,7 @@ solver::solver(const int solverID)
 #endif
 }
 
-solver::~solver() {
+Minimizer::~Minimizer() {
 #ifdef SAVE_DATA_IN_CSV
 	//close csv files
 	SearchDirInfo.close();
@@ -44,7 +44,7 @@ solver::~solver() {
 #endif
 }
 
-void solver::init(
+void Minimizer::init(
 	std::shared_ptr<ObjectiveFunction> objective, 
 	const Eigen::VectorXd& X0,
 	const Eigen::VectorXd& norm0,
@@ -79,7 +79,7 @@ void solver::init(
 	internal_init();
 }
 
-int solver::run()
+int Minimizer::run()
 {
 	is_running = true;
 	halt = false;
@@ -94,7 +94,7 @@ int solver::run()
 	return 0;
 }
 
-void solver::run_one_iteration(const int steps,const bool showGraph) {
+void Minimizer::run_one_iteration(const int steps,const bool showGraph) {
 	step();
 #if defined SAVE_DATA_IN_CSV || defined SAVE_DATA_IN_MATLAB
 	prepareData();
@@ -117,7 +117,7 @@ void solver::run_one_iteration(const int steps,const bool showGraph) {
 #endif 
 }
 
-void solver::saveSolverInfo(int numIteration, std::ofstream& solverInfo) {
+void Minimizer::saveSolverInfo(int numIteration, std::ofstream& solverInfo) {
 	//show only once the objective's function data
 	std::shared_ptr<TotalObjective> totalObj = std::dynamic_pointer_cast<TotalObjective>(objective);
 	if (!numIteration) {
@@ -138,10 +138,10 @@ void solver::saveSolverInfo(int numIteration, std::ofstream& solverInfo) {
 	solverInfo << std::endl;
 }
 
-void solver::prepareData() {
-	NewtonSolver* newtonSolver = dynamic_cast<NewtonSolver*>(this);
-	assert(newtonSolver != NULL && "could not calculate matrix with gradient descent mode");
-	CurrHessian = newtonSolver->get_Hessian();
+void Minimizer::prepareData() {
+	NewtonMinimizer* newtonMinimizer = dynamic_cast<NewtonMinimizer*>(this);
+	assert(newtonMinimizer != NULL && "could not calculate matrix with gradient descent mode");
+	CurrHessian = newtonMinimizer->get_Hessian();
 	
 	X_before = X;
 	//calculate values in the search direction vector
@@ -160,7 +160,7 @@ void solver::prepareData() {
 }
 
 #ifdef SAVE_DATA_IN_MATLAB
-void solver::sendDataToMatlab(const bool show_graph) {
+void Minimizer::sendDataToMatlab(const bool show_graph) {
 	auto N = [&](std::string name) { return name + std::to_string(solverID); };
 	NewtonSolver* newtonSolver = dynamic_cast<NewtonSolver*>(this);
 
@@ -283,7 +283,7 @@ void solver::sendDataToMatlab(const bool show_graph) {
 }
 #endif
 
-void solver::saveHessianInfo(int numIteration, std::ofstream& hessianInfo) {
+void Minimizer::saveHessianInfo(int numIteration, std::ofstream& hessianInfo) {
 	//show only once the objective's function data
 	if (!numIteration) {
 		std::shared_ptr<TotalObjective> t = std::dynamic_pointer_cast<TotalObjective>(objective);
@@ -303,7 +303,7 @@ void solver::saveHessianInfo(int numIteration, std::ofstream& hessianInfo) {
 	hessianInfo << std::endl;
 }
 
-void solver::saveSearchDirInfo(int numIteration, std::ofstream& SearchDirInfo) {
+void Minimizer::saveSearchDirInfo(int numIteration, std::ofstream& SearchDirInfo) {
 	//show only once the objective's function data
 	if (!numIteration) {
 		std::shared_ptr<TotalObjective> t = std::dynamic_pointer_cast<TotalObjective>(objective);
@@ -335,7 +335,7 @@ void solver::saveSearchDirInfo(int numIteration, std::ofstream& SearchDirInfo) {
 	SearchDirInfo << ",LineSearch iter," << cur_iter << "," << std::endl;
 }
 
-void solver::value_linesearch()
+void Minimizer::value_linesearch()
 {
 	step_size = 1;
 	double new_energy = currentEnergy;
@@ -353,14 +353,14 @@ void solver::value_linesearch()
 	}
 }
 
-void solver::constant_linesearch()
+void Minimizer::constant_linesearch()
 {
 	step_size = constantStep_LineSearch;
 	cur_iter = 0;
 	X = X + step_size * p;
 }
 
-void solver::gradNorm_linesearch()
+void Minimizer::gradNorm_linesearch()
 {
 	step_size = 1;
 	Eigen::VectorXd grad;
@@ -388,14 +388,14 @@ void solver::gradNorm_linesearch()
 	}
 }
 
-void solver::stop()
+void Minimizer::stop()
 {
 	wait_for_parameter_update_slot();
 	halt = true;
 	release_parameter_update_slot();
 }
 
-void solver::update_external_data()
+void Minimizer::update_external_data()
 {
 	give_parameter_update_slot();
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
@@ -404,7 +404,7 @@ void solver::update_external_data()
 	progressed = true;
 }
 
-void solver::get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center)
+void Minimizer::get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center)
 {
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
 	X = Eigen::Map<Eigen::MatrixXd>(ext_x.data(), ext_x.rows() / 3, 3);
@@ -412,7 +412,7 @@ void solver::get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center)
 	progressed = false;
 }
 
-void solver::give_parameter_update_slot()
+void Minimizer::give_parameter_update_slot()
 {
 	a_parameter_was_updated = false;
 	std::unique_lock<std::mutex> lock(*parameters_mutex);
@@ -426,7 +426,7 @@ void solver::give_parameter_update_slot()
 	params_ready_to_update = false;
 }
 
-void solver::wait_for_parameter_update_slot()
+void Minimizer::wait_for_parameter_update_slot()
 {
 	std::unique_lock<std::mutex> lock(*parameters_mutex);
 	wait_for_param_update = true;
@@ -434,7 +434,7 @@ void solver::wait_for_parameter_update_slot()
 		param_cv->wait_for(lock, std::chrono::milliseconds(50));
 }
 
-void solver::release_parameter_update_slot()
+void Minimizer::release_parameter_update_slot()
 {
 	wait_for_param_update = false;
 	param_cv->notify_one();

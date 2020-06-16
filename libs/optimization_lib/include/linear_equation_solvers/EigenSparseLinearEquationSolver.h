@@ -12,7 +12,7 @@
 // #include <igl/matlab/matlabinterface.h>
 
 template <typename vectorTypeI, typename vectorTypeS>
-class EigenSparseSolver
+class EigenSparseLinearEquationSolver
 {
 public:
 	// TODO: Make this depend on a #define
@@ -21,8 +21,8 @@ public:
 	bool CheckPositiveDefinite = false;
 	bool GerschgorinBound = false;
 
-	EigenSparseSolver();
-	~EigenSparseSolver();
+	EigenSparseLinearEquationSolver();
+	~EigenSparseLinearEquationSolver();
 	void set_pattern(const vectorTypeI &II, const vectorTypeI &JJ, const vectorTypeS &SS);
 	void analyze_pattern();
 	void factorize(const vectorTypeI &II, const vectorTypeI &JJ, const vectorTypeS &SS);

@@ -7,10 +7,12 @@ option(OPTIMIZATION_USE_WORHP            "Use worhp"                    OFF)
 add_definitions(-D_USE_MATH_DEFINES)
 
 file(GLOB sources
-	src/solvers/*.cpp
+	src/minimizers/*.cpp
 	src/objective_functions/*.cpp
-	include/solvers/*.h
+	src/linear_equation_solvers/*.cpp
+	include/minimizers/*.h
 	include/objective_functions/*.h
+	include/linear_equation_solvers/*.h
 	include/OptimizationUtils.h
 	)
 

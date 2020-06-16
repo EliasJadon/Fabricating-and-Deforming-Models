@@ -1,11 +1,11 @@
 #pragma once
 
-#include "libs/optimization_lib/include/solvers/solver.h"
+#include "libs/optimization_lib/include/minimizers/Minimizer.h"
 
-class GradientDescentSolver : public solver
+class GradientDescentMinimizer : public Minimizer
 {
 public:
-	GradientDescentSolver(const int solverID) : solver(solverID) {}
+	GradientDescentMinimizer(const int solverID) : Minimizer(solverID) {}
 	virtual void step() override {
 		objective->updateX(X);
 		currentEnergy = objective->value(true);

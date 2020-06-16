@@ -1,13 +1,13 @@
 #pragma once
 
-#include "libs/optimization_lib/include/solvers/solver.h"
-#include "libs/optimization_lib/include/solvers/EigenSparseSolver.h"
-//#include "libs/optimization_lib/include/solvers/PardisoSolver.h"
+#include "libs/optimization_lib/include/minimizers/Minimizer.h"
+#include "libs/optimization_lib/include/linear_equation_solvers/EigenSparseLinearEquationSolver.h"
+//#include "libs/optimization_lib/include/linear_equation_solvers/PardisoLinearEquationSolver.h"
 
-class NewtonSolver : public solver
+class NewtonMinimizer : public Minimizer
 {
 public:
-	NewtonSolver(const int solverID): solver(solverID) {}
+	NewtonMinimizer(const int solverID): Minimizer(solverID) {}
 
 	virtual void step() override {
 		objective->updateX(X);
@@ -26,7 +26,7 @@ public:
 	virtual void internal_init() override {
 		bool needs_init = linear_solver == nullptr;
 		if (needs_init) {
-			linear_solver = std::make_unique<EigenSparseSolver<std::vector<int>, std::vector<double>>>();
+			linear_solver = std::make_unique<EigenSparseLinearEquationSolver<std::vector<int>, std::vector<double>>>();
 		}
 		objective->updateX(X);
 		g.resize(X.size());
@@ -54,6 +54,6 @@ public:
 	}
 	
 private:
-	std::unique_ptr< EigenSparseSolver<std::vector<int>, std::vector<double>>> linear_solver = nullptr;
-	//std::unique_ptr<PardisoSolver<std::vector<int>, std::vector<double>>> linear_solver = nullptr;
+	std::unique_ptr< EigenSparseLinearEquationSolver<std::vector<int>, std::vector<double>>> linear_solver = nullptr;
+	//std::unique_ptr<PardisoLinearEquationSolver<std::vector<int>, std::vector<double>>> linear_solver = nullptr;
 };

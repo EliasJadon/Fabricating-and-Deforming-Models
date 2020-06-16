@@ -540,12 +540,12 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 		}
 		if (ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0\0"))
 			init_minimizer_thread();
-		std::shared_ptr<NewtonSolver> newtonSolver = std::dynamic_pointer_cast<NewtonSolver>(Outputs[0].activeMinimizer);
-		if (newtonSolver != NULL) {
-			bool PD = newtonSolver->getPositiveDefiniteChecker();
+		std::shared_ptr<NewtonMinimizer> newtonMinimizer = std::dynamic_pointer_cast<NewtonMinimizer>(Outputs[0].activeMinimizer);
+		if (newtonMinimizer != NULL) {
+			bool PD = newtonMinimizer->getPositiveDefiniteChecker();
 			ImGui::Checkbox("Positive Definite check", &PD);
 			for (auto& o : Outputs) {
-				std::dynamic_pointer_cast<NewtonSolver>(o.activeMinimizer)->SwitchPositiveDefiniteChecker(PD);
+				std::dynamic_pointer_cast<NewtonMinimizer>(o.activeMinimizer)->SwitchPositiveDefiniteChecker(PD);
 			}
 		}
 		if (ImGui::Combo("line search", (int *)(&linesearch_type), "Gradient Norm\0Function Value\0Constant Step\0\0")) {
@@ -1120,11 +1120,11 @@ void deformation_plugin::start_minimizer_thread() {
 		//start minimizer
 		if (runOneIteration) {
 			static int iteration_counter = 0;
-			minimizer_thread = std::thread(&solver::run_one_iteration, Outputs[i].activeMinimizer.get(), iteration_counter++,true);
+			minimizer_thread = std::thread(&Minimizer::run_one_iteration, Outputs[i].activeMinimizer.get(), iteration_counter++,true);
 			minimizer_thread.join();
 		}
 		else {
-			minimizer_thread = std::thread(&solver::run, Outputs[i].activeMinimizer.get());
+			minimizer_thread = std::thread(&Minimizer::run, Outputs[i].activeMinimizer.get());
 			minimizer_thread.detach();
 		}
 	}

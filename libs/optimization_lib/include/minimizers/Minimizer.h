@@ -16,11 +16,11 @@
 	#include <igl/matlab/matlabinterface.h>
 #endif
 
-class solver
+class Minimizer
 {
 public:
-	solver(const int solverID);
-	~solver();
+	Minimizer(const int solverID);
+	~Minimizer();
 	int run();
 	
 	void run_one_iteration(const int steps, const bool showGraph);

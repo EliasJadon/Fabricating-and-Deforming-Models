@@ -1,33 +1,33 @@
-#include "solvers/EigenSparseSolver.h"
+#include "linear_equation_solvers/EigenSparseLinearEquationSolver.h"
 #include "plugins/deformation_plugin/include/console_color.h"
 #include <vector>
 #include <iostream>
 
 template <typename vectorTypeI, typename vectorTypeS>
-EigenSparseSolver<vectorTypeI, vectorTypeS>::EigenSparseSolver()
+EigenSparseLinearEquationSolver<vectorTypeI, vectorTypeS>::EigenSparseLinearEquationSolver()
 {
 }
 
 template <typename vectorTypeI, typename vectorTypeS>
-EigenSparseSolver<vectorTypeI, vectorTypeS>::~EigenSparseSolver()
+EigenSparseLinearEquationSolver<vectorTypeI, vectorTypeS>::~EigenSparseLinearEquationSolver()
 {
 }
 
 template <typename vectorTypeI, typename vectorTypeS>
-void EigenSparseSolver<vectorTypeI, vectorTypeS>::set_pattern(const vectorTypeI &II, const vectorTypeI &JJ, const vectorTypeS &SS)
+void EigenSparseLinearEquationSolver<vectorTypeI, vectorTypeS>::set_pattern(const vectorTypeI &II, const vectorTypeI &JJ, const vectorTypeS &SS)
 {
 	perpareMatrix(II, JJ, SS);
 }
 
 template <typename vectorTypeI, typename vectorTypeS>
-void EigenSparseSolver<vectorTypeI, vectorTypeS>::analyze_pattern()
+void EigenSparseLinearEquationSolver<vectorTypeI, vectorTypeS>::analyze_pattern()
 {
 	solver.analyzePattern(full_A);
 	//assert(solver.info() == Eigen::Success && "analyzePattern failed!");
 }
 
 template <typename vectorTypeI, typename vectorTypeS>
-void EigenSparseSolver<vectorTypeI, vectorTypeS>::factorize(const vectorTypeI &II, const vectorTypeI &JJ, const vectorTypeS &SS)
+void EigenSparseLinearEquationSolver<vectorTypeI, vectorTypeS>::factorize(const vectorTypeI &II, const vectorTypeI &JJ, const vectorTypeS &SS)
 {
 	perpareMatrix(II,JJ,SS);
 
@@ -43,7 +43,7 @@ void EigenSparseSolver<vectorTypeI, vectorTypeS>::factorize(const vectorTypeI &I
 }
 
 template <typename vectorTypeI, typename vectorTypeS>
-Eigen::VectorXd EigenSparseSolver<vectorTypeI, vectorTypeS>::solve(Eigen::VectorXd &rhs)
+Eigen::VectorXd EigenSparseLinearEquationSolver<vectorTypeI, vectorTypeS>::solve(Eigen::VectorXd &rhs)
 {
 	Eigen::VectorXd x;
 	x = solver.solve(rhs);
@@ -52,7 +52,7 @@ Eigen::VectorXd EigenSparseSolver<vectorTypeI, vectorTypeS>::solve(Eigen::Vector
 }
 
 template <typename vectorTypeI, typename vectorTypeS>
-void EigenSparseSolver<vectorTypeI, vectorTypeS>::perpareMatrix(const vectorTypeI &II, const vectorTypeI &JJ, const vectorTypeS &SS)
+void EigenSparseLinearEquationSolver<vectorTypeI, vectorTypeS>::perpareMatrix(const vectorTypeI &II, const vectorTypeI &JJ, const vectorTypeS &SS)
 {
 	double epsilon = 1e-2;
 	Eigen::SparseMatrix<double> UpperTriangular_A = OptimizationUtils::BuildMatrix(II,JJ,SS);
@@ -97,4 +97,4 @@ void EigenSparseSolver<vectorTypeI, vectorTypeS>::perpareMatrix(const vectorType
 	full_A.makeCompressed();
 }
 
-template class EigenSparseSolver<std::vector<int, std::allocator<int> >, std::vector<double, std::allocator<double> > >;
+template class EigenSparseLinearEquationSolver<std::vector<int, std::allocator<int> >, std::vector<double, std::allocator<double> > >;

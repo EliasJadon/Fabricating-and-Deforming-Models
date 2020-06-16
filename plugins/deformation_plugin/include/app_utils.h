@@ -13,10 +13,10 @@
 #include <igl/edge_lengths.h>
 #include <imgui/imgui.h>
 
-#include "../../libs/optimization_lib/include/solvers/solver.h"
-#include "../../libs/optimization_lib/include/solvers/NewtonSolver.h"
-#include "../../libs/optimization_lib/include/solvers/GradientDescentSolver.h"
-#include "../../libs/optimization_lib/include/solvers/AdamMinimizer.h"
+#include "../../libs/optimization_lib/include/minimizers/Minimizer.h"
+#include "../../libs/optimization_lib/include/minimizers/NewtonMinimizer.h"
+#include "../../libs/optimization_lib/include/minimizers/GradientDescentMinimizer.h"
+#include "../../libs/optimization_lib/include/minimizers/AdamMinimizer.h"
 
 #include "../../libs/optimization_lib/include/objective_functions/STVK.h"
 #include "../../libs/optimization_lib/include/objective_functions/SymmetricDirichlet.h"
@@ -161,11 +161,11 @@ public:
 	int ModelID, CoreID;
 	ImVec2 window_position, window_size, text_position;
 	
-	// Solver thread
-	std::shared_ptr<NewtonSolver> newton;
-	std::shared_ptr<GradientDescentSolver> gradient_descent;
-	std::shared_ptr<AdamMinimizer> adam_minimizer;
-	std::shared_ptr<solver> activeMinimizer;
+	// Minimizer thread
+	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
+	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
+	std::shared_ptr<AdamMinimizer> adamMinimizer;
+	std::shared_ptr<Minimizer> activeMinimizer;
 	std::shared_ptr<TotalObjective> totalObjective;
 
 	//Constructor & initialization
@@ -179,11 +179,11 @@ public:
 		viewer->core(CoreID).background_color = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
 		viewer->core(CoreID).is_animating = true;
 		viewer->core(CoreID).lighting_factor = 0.5;
-		// Initialize solver thread
+		// Initialize minimizer thread
 		std::cout << "CoreID = " << CoreID << std::endl;
-		newton = std::make_shared<NewtonSolver>(CoreID);
-		gradient_descent = std::make_shared<GradientDescentSolver>(CoreID);
-		adam_minimizer = std::make_shared<AdamMinimizer>(CoreID);
+		newtonMinimizer = std::make_shared<NewtonMinimizer>(CoreID);
+		gradientDescentMinimizer = std::make_shared<GradientDescentMinimizer>(CoreID);
+		adamMinimizer = std::make_shared<AdamMinimizer>(CoreID);
 		updateActiveMinimizer(minimizer_type);
 		activeMinimizer->lineSearch_type = linesearchType;
 		totalObjective = std::make_shared<TotalObjective>();
@@ -196,7 +196,7 @@ public:
 		Eigen::MatrixX3d normals;
 		igl::per_face_normals((Eigen::MatrixX3d)V, (Eigen::MatrixX3i)F, normals);
 		Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size());
-		newton->init(
+		newtonMinimizer->init(
 			totalObjective,
 			init,
 			initNormals,
@@ -204,7 +204,7 @@ public:
 			V,
 			typeAuxVar
 		);
-		gradient_descent->init(
+		gradientDescentMinimizer->init(
 			totalObjective,
 			init,
 			initNormals,
@@ -212,7 +212,7 @@ public:
 			V,
 			typeAuxVar
 		);
-		adam_minimizer->init(
+		adamMinimizer->init(
 			totalObjective,
 			init,
 			initNormals,
@@ -225,13 +225,13 @@ public:
 	void updateActiveMinimizer(const app_utils::MinimizerType minimizer_type) {
 		switch (minimizer_type) {
 		case app_utils::MinimizerType::NEWTON:
-			activeMinimizer = newton;
+			activeMinimizer = newtonMinimizer;
 			break;
 		case app_utils::MinimizerType::GRADIENT_DESCENT:
-			activeMinimizer = gradient_descent;
+			activeMinimizer = gradientDescentMinimizer;
 			break;
 		case app_utils::MinimizerType::ADAM_MINIMIZER:
-			activeMinimizer = adam_minimizer;
+			activeMinimizer = adamMinimizer;
 			break;
 		}
 	}
