@@ -10,7 +10,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	ImGuiMenu::init(_viewer);
 	if (_viewer)
 	{
-		typeAuxVar = OptimizationUtils::Sphere;
+		typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
 		isLoadNeeded = false;
 		IsMouseDraggingAnyWindow = false;
 		IsMouseHoveringAnyWindow = false;
@@ -25,7 +25,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		runOneIteration = false;
 		faceColoring_type = app_utils::FaceColoring::ENERGY_VALUE;
 		minimizer_type = app_utils::MinimizerType::NEWTON;
-		linesearch_type = OptimizationUtils::LineSearch::FunctionValue;
+		linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 		mouse_mode = app_utils::MouseMode::VERTEX_SELECT;
 		view = app_utils::View::HORIZONTAL;
 
@@ -554,7 +554,7 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 			for (auto& o:Outputs)
 				o.activeMinimizer->lineSearch_type = linesearch_type;
 		}
-		if (linesearch_type == OptimizationUtils::LineSearch::ConstantStep && ImGui::DragFloat("Step value", &constantStep_LineSearch, 0.0001f, 0.0f, 1.0f)) {
+		if (linesearch_type == OptimizationUtils::LineSearch::CONSTANT_STEP && ImGui::DragFloat("Step value", &constantStep_LineSearch, 0.0001f, 0.0f, 1.0f)) {
 			for (auto& o : Outputs)
 				o.activeMinimizer->constantStep_LineSearch = constantStep_LineSearch;
 		}
@@ -705,15 +705,15 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				if (BE != NULL)
-					ImGui::Combo("Function", (int *)(&(BE->functionType)), "Quadratic\0Exponential\0Planar\0\0");
+					ImGui::Combo("Function", (int *)(&(BE->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 				if (BN != NULL)
-					ImGui::Combo("Function", (int *)(&(BN->functionType)), "Quadratic\0Exponential\0Planar\0\0");
+					ImGui::Combo("Function", (int *)(&(BN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 				if (ABN != NULL)
-					ImGui::Combo("Function", (int *)(&(ABN->functionType)), "Quadratic\0Exponential\0Planar\0\0");
+					ImGui::Combo("Function", (int *)(&(ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 				if (AS != NULL)
-					ImGui::Combo("Function", (int *)(&(AS->functionType)), "Quadratic\0Exponential\0Planar\0\0");
+					ImGui::Combo("Function", (int *)(&(AS->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 
-				if (BE != NULL && BE->functionType == OptimizationUtils::PlanarL) {
+				if (BE != NULL && BE->functionType == OptimizationUtils::FunctionType::SIGMOID) {
 					ImGui::Text((std::to_string(BE->planarParameter)).c_str());
 					ImGui::SameLine();
 					if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -726,7 +726,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 						BE->planarParameter /= 2;
 					}
 				}
-				if (BN != NULL && BN->functionType == OptimizationUtils::PlanarL) {
+				if (BN != NULL && BN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
 					ImGui::Text((std::to_string(BN->planarParameter)).c_str());
 					ImGui::SameLine();
 					if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -739,7 +739,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 						BN->planarParameter /= 2;
 					}
 				}
-				if (ABN != NULL && ABN->functionType == OptimizationUtils::PlanarL) {
+				if (ABN != NULL && ABN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
 					ImGui::Text((std::to_string(ABN->planarParameter)).c_str());
 					ImGui::SameLine();
 					if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -755,7 +755,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 					ImGui::DragFloat("w2", &(ABN->w2), 0.05f, 0.0f, 100000.0f);
 					ImGui::DragFloat("w3", &(ABN->w3), 0.05f, 0.0f, 100000.0f);
 				}
-				if (AS != NULL && AS->functionType == OptimizationUtils::PlanarL) {
+				if (AS != NULL && AS->functionType == OptimizationUtils::FunctionType::SIGMOID) {
 					ImGui::Text((std::to_string(AS->planarParameter)).c_str());
 					ImGui::SameLine();
 					if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -1140,16 +1140,16 @@ void deformation_plugin::initializeMinimizer(const int index)
 		return;
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
-	auto bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::PlanarL);
+	auto bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::FunctionType::SIGMOID);
 	bendingEdge->init_mesh(V, F);
 	bendingEdge->init();
-	auto auxBendingNormal = std::make_unique<AuxBendingNormal>(OptimizationUtils::PlanarL);
+	auto auxBendingNormal = std::make_unique<AuxBendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
 	auxBendingNormal->init_mesh(V, F);
 	auxBendingNormal->init();
-	auto auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(OptimizationUtils::PlanarL);
+	auto auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(OptimizationUtils::FunctionType::SIGMOID);
 	auxSpherePerHinge->init_mesh(V, F);
 	auxSpherePerHinge->init();
-	auto bendingNormal = std::make_unique<BendingNormal>(OptimizationUtils::PlanarL);
+	auto bendingNormal = std::make_unique<BendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
 	bendingNormal->init_mesh(V, F);
 	bendingNormal->init();
 	auto SymmDirich = std::make_unique<SymmetricDirichlet>();

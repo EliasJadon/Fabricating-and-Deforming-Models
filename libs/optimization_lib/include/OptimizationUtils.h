@@ -14,20 +14,20 @@
 namespace OptimizationUtils
 {
 	enum InitAuxVariables {
-		Sphere = 0,
-		MeshCenter = 1
+		SPHERE = 0,
+		MESH_CENTER = 1
 	};
 
 	enum FunctionType {
-		Quadratic = 0,
-		Exponential = 1,
-		PlanarL = 2
+		QUADRATIC = 0,
+		EXPONENTIAL = 1,
+		SIGMOID = 2
 	};
 
 	enum LineSearch {
-		GradientNorm,
-		FunctionValue,
-		ConstantStep
+		GRADIENT_NORM,
+		FUNCTION_VALUE,
+		CONSTANT_STEP
 	};
 
 	static Eigen::SparseMatrix<double> BuildMatrix(const std::vector<int>& I, const std::vector<int>& J, const std::vector<double>& S) {

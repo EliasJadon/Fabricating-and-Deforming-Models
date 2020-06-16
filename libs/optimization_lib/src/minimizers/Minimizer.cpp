@@ -63,9 +63,9 @@ void Minimizer::init(
 	
 	Eigen::MatrixXd center0;
 	Eigen::VectorXd Radius0;
-	if(initAuxType == OptimizationUtils::Sphere)
+	if(initAuxType == OptimizationUtils::InitAuxVariables::SPHERE)
 		OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
-	else if (initAuxType == OptimizationUtils::MeshCenter)
+	else if (initAuxType == OptimizationUtils::InitAuxVariables::MESH_CENTER)
 		OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
 	
 	X.resize(3 * V.rows() + 7 * F.rows());
@@ -99,11 +99,11 @@ void Minimizer::run_one_iteration(const int steps,const bool showGraph) {
 #if defined SAVE_DATA_IN_CSV || defined SAVE_DATA_IN_MATLAB
 	prepareData();
 #endif
-	if (lineSearch_type == OptimizationUtils::LineSearch::GradientNorm)
+	if (lineSearch_type == OptimizationUtils::LineSearch::GRADIENT_NORM)
 		gradNorm_linesearch();
-	else if (lineSearch_type == OptimizationUtils::LineSearch::FunctionValue)
+	else if (lineSearch_type == OptimizationUtils::LineSearch::FUNCTION_VALUE)
 		value_linesearch();
-	else if (lineSearch_type == OptimizationUtils::LineSearch::ConstantStep)
+	else if (lineSearch_type == OptimizationUtils::LineSearch::CONSTANT_STEP)
 		constant_linesearch();
 	update_external_data();
 
@@ -327,7 +327,7 @@ void Minimizer::saveSearchDirInfo(int numIteration, std::ofstream& SearchDirInfo
 	SearchDirInfo << std::endl;
 
 	//add the solver's choice of alfa
-	if (lineSearch_type == OptimizationUtils::LineSearch::GradientNorm)
+	if (lineSearch_type == OptimizationUtils::LineSearch::GRADIENT_NORM)
 		SearchDirInfo << ",line search type,Gradient norm," << std::endl;
 	else
 		SearchDirInfo << ",line search type,Function value," << std::endl;

@@ -209,16 +209,16 @@ void AuxSpherePerHinge::calculateHinges() {
 }
 
 Eigen::VectorXd AuxSpherePerHinge::Phi(Eigen::VectorXd x) {
-	if(functionType == OptimizationUtils::Quadratic)
+	if(functionType == OptimizationUtils::FunctionType::QUADRATIC)
 		return x.cwiseAbs2();
-	else if (functionType == OptimizationUtils::Exponential) {
+	else if (functionType == OptimizationUtils::FunctionType::EXPONENTIAL) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			res(i) = std::exp(x(i)*x(i));
 		}
 		return res;
 	}
-	else if (functionType == OptimizationUtils::PlanarL) {
+	else if (functionType == OptimizationUtils::FunctionType::SIGMOID) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			double x2 = pow(x(i), 2);
@@ -229,16 +229,16 @@ Eigen::VectorXd AuxSpherePerHinge::Phi(Eigen::VectorXd x) {
 }
 
 Eigen::VectorXd AuxSpherePerHinge::dPhi_dm(Eigen::VectorXd x) {
-	if (functionType == OptimizationUtils::Quadratic)
+	if (functionType == OptimizationUtils::FunctionType::QUADRATIC)
 		return 2 * x;
-	else if (functionType == OptimizationUtils::Exponential) {
+	else if (functionType == OptimizationUtils::FunctionType::EXPONENTIAL) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			res(i) = 2 * x(i) * std::exp(x(i)*x(i));
 		}
 		return res;
 	}
-	else if (functionType == OptimizationUtils::PlanarL) {
+	else if (functionType == OptimizationUtils::FunctionType::SIGMOID) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			res(i) = (2*x(i)*planarParameter) / 
@@ -249,16 +249,16 @@ Eigen::VectorXd AuxSpherePerHinge::dPhi_dm(Eigen::VectorXd x) {
 }
 
 Eigen::VectorXd AuxSpherePerHinge::d2Phi_dmdm(Eigen::VectorXd x) {
-	if (functionType == OptimizationUtils::Quadratic)
+	if (functionType == OptimizationUtils::FunctionType::QUADRATIC)
 		return Eigen::VectorXd::Constant(x.rows(),2);
-	else if (functionType == OptimizationUtils::Exponential) {
+	else if (functionType == OptimizationUtils::FunctionType::EXPONENTIAL) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			res(i) = (4 * x(i)*x(i) + 2) * std::exp(x(i)*x(i));
 		}
 		return res;
 	}
-	else if (functionType == OptimizationUtils::PlanarL) {
+	else if (functionType == OptimizationUtils::FunctionType::SIGMOID) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			double x2 = pow(x(i), 2);
