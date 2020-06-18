@@ -19,16 +19,16 @@
 #include "../../libs/optimization_lib/include/minimizers/AdamMinimizer.h"
 
 #include "../../libs/optimization_lib/include/objective_functions/ClusterCenters.h"
-#include "../../libs/optimization_lib/include/objective_functions/FixCenters.h"
+#include "../../libs/optimization_lib/include/objective_functions/FixChosenCenters.h"
 #include "../../libs/optimization_lib/include/objective_functions/STVK.h"
 #include "../../libs/optimization_lib/include/objective_functions/SymmetricDirichlet.h"
-#include "../../libs/optimization_lib/include/objective_functions/AllVertexPositions.h"
+#include "../../libs/optimization_lib/include/objective_functions/FixAllVertices.h"
 #include "../../libs/optimization_lib/include/objective_functions/BendingEdge.h"
 #include "../../libs/optimization_lib/include/objective_functions/AuxBendingNormal.h"
 #include "../../libs/optimization_lib/include/objective_functions/AuxSpherePerHinge.h"
 #include "../../libs/optimization_lib/include/objective_functions/BendingNormal.h"
 #include "../../libs/optimization_lib/include/objective_functions/MembraneConstraints.h"
-#include "../../libs/optimization_lib/include/objective_functions/PenaltyPositionalConstraints.h"
+#include "../../libs/optimization_lib/include/objective_functions/FixChosenVertices.h"
 
 #define RED_COLOR Eigen::Vector3f(1, 0, 0)
 #define BLUE_COLOR Eigen::Vector3f(0, 0, 1)

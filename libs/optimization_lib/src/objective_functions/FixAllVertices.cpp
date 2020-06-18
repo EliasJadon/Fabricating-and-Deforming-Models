@@ -1,18 +1,18 @@
-#include "objective_functions/AllVertexPositions.h"
+#include "objective_functions/FixAllVertices.h"
 
-AllVertexPositions::AllVertexPositions()
+FixAllVertices::FixAllVertices()
 {
-    name = "All Vertex Positions";
+    name = "Fix All Vertices";
 	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
-AllVertexPositions::~AllVertexPositions()
+FixAllVertices::~FixAllVertices()
 {
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void AllVertexPositions::init()
+void FixAllVertices::init()
 {
 	std::cout << "\t" << name << " initialization" << std::endl;
 	if (restShapeV.size() == 0 || restShapeF.size() == 0)
@@ -20,13 +20,13 @@ void AllVertexPositions::init()
 	init_hessian();
 }
 
-void AllVertexPositions::updateX(const Eigen::VectorXd& X)
+void FixAllVertices::updateX(const Eigen::VectorXd& X)
 {
 	assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
 	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0,restShapeV.size()).data(), restShapeV.rows(), 3);
 }
 
-double AllVertexPositions::value(const bool update)
+double FixAllVertices::value(const bool update)
 {
 	double E = (CurrV - restShapeV).squaredNorm();
 	if (update)
@@ -34,7 +34,7 @@ double AllVertexPositions::value(const bool update)
 	return E;
 }
 
-void AllVertexPositions::gradient(Eigen::VectorXd& g, const bool update)
+void FixAllVertices::gradient(Eigen::VectorXd& g, const bool update)
 {
 	int n = restShapeV.rows();
 	g.conservativeResize(restShapeV.size()+ 7*restShapeF.rows());
@@ -50,13 +50,13 @@ void AllVertexPositions::gradient(Eigen::VectorXd& g, const bool update)
 		gradient_norm = g.norm();
 }
 
-void AllVertexPositions::hessian()
+void FixAllVertices::hessian()
 {
 	// The hessian is constant!
 	// Empty on purpose
 }
 
-void AllVertexPositions::init_hessian()
+void FixAllVertices::init_hessian()
 {
 	II.clear(); JJ.clear(); SS.clear();
 	int n = restShapeV.rows();

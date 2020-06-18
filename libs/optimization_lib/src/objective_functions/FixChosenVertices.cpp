@@ -1,18 +1,18 @@
-#include "objective_functions/PenaltyPositionalConstraints.h"
+#include "objective_functions/FixChosenVertices.h"
 
-PenaltyPositionalConstraints::PenaltyPositionalConstraints()
+FixChosenVertices::FixChosenVertices()
 {
-    name = "Positional Constraints";
+    name = "Fix Chosen Vertices";
 	w = 10000;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
-PenaltyPositionalConstraints::~PenaltyPositionalConstraints() 
+FixChosenVertices::~FixChosenVertices() 
 {
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void PenaltyPositionalConstraints::init()
+void FixChosenVertices::init()
 {
 	std::cout << "\t" << name << " initialization" << std::endl;
 	if(numV==0 || numF == 0)
@@ -20,7 +20,7 @@ void PenaltyPositionalConstraints::init()
 	init_hessian();
 }
 
-void PenaltyPositionalConstraints::updateX(const Eigen::VectorXd& X)
+void FixChosenVertices::updateX(const Eigen::VectorXd& X)
 {
 	CurrConstrainedVerticesPos.resizeLike(ConstrainedVerticesPos);
 	for (int i = 0; i < ConstrainedVerticesInd.size(); i++)
@@ -32,7 +32,7 @@ void PenaltyPositionalConstraints::updateX(const Eigen::VectorXd& X)
 	}
 }
 
-double PenaltyPositionalConstraints::value(const bool update)
+double FixChosenVertices::value(const bool update)
 {
 	if (CurrConstrainedVerticesPos.rows() != ConstrainedVerticesPos.rows()) {
 		return 0;
@@ -45,7 +45,7 @@ double PenaltyPositionalConstraints::value(const bool update)
 	return E;
 }
 
-void PenaltyPositionalConstraints::gradient(Eigen::VectorXd& g, const bool update)
+void FixChosenVertices::gradient(Eigen::VectorXd& g, const bool update)
 {
 	g.conservativeResize(numV * 3 + numF * 7);
 	g.setZero();
@@ -64,7 +64,7 @@ void PenaltyPositionalConstraints::gradient(Eigen::VectorXd& g, const bool updat
 		gradient_norm = g.norm();
 }
 
-void PenaltyPositionalConstraints::hessian()
+void FixChosenVertices::hessian()
 {
 	fill(SS.begin(), SS.end(), 0);
 	for (int i = 0; i < ConstrainedVerticesInd.size(); i++)
@@ -75,7 +75,7 @@ void PenaltyPositionalConstraints::hessian()
 	}
 }
 
-void PenaltyPositionalConstraints::init_hessian()
+void FixChosenVertices::init_hessian()
 {
 	II.resize(3 * numV+1);
 	JJ.resize(3 * numV+1);

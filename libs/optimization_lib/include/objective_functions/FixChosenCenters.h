@@ -1,22 +1,22 @@
 #pragma once
 #include "libs/optimization_lib/include/objective_functions/ObjectiveFunction.h"
 
-class PenaltyPositionalConstraints : public ObjectiveFunction
+class FixChosenCenters : public ObjectiveFunction
 {
 private:
 	virtual void init_hessian() override;
 public:
-	PenaltyPositionalConstraints();
-	~PenaltyPositionalConstraints();
+	FixChosenCenters();
+	~FixChosenCenters();
 	virtual void init() override;
 	virtual void updateX(const Eigen::VectorXd& X) override;
 	virtual double value(const bool update) override;
 	virtual void gradient(Eigen::VectorXd& g, const bool update) override;
 	virtual void hessian() override;
 	
-	std::vector<int> ConstrainedVerticesInd;
-	Eigen::MatrixX3d ConstrainedVerticesPos;
-	Eigen::MatrixX3d CurrConstrainedVerticesPos;
+	std::vector<int> ConstrainedCentersInd;
+	Eigen::MatrixX3d ConstrainedCentersPos;
+	Eigen::MatrixX3d CurrConstrainedCentersPos;
 	int numV=0;
 	int numF=0;
 };
