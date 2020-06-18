@@ -34,7 +34,8 @@ private:
 	float core_size;
 	float texture_scaling_output;
 	bool Highlighted_face, Outputs_Settings;
-	std::set<int> selected_faces, selected_vertices;
+	std::set<int> selected_fixed_faces, selected_vertices;
+	std::vector<FaceClusters> faceClusters;
 	std::vector<OptimizationOutput> Outputs;
 	//Basic (necessary) parameteres
 	float prev_camera_zoom;
@@ -83,9 +84,11 @@ public:
 	int pick_face(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
 	int pick_vertex(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
 	void follow_and_mark_selected_faces();
-	void UpdateHandles();
+	void UpdateVerticesHandles();
+	void UpdateCentersHandles();
 	void UpdateEnergyColors(const int index);
 	void update_parameters_for_all_cores();
+	void clear_sellected_faces_and_vertices();
 
 	//Basic Methods
 	igl::opengl::ViewerData& InputModel();

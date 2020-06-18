@@ -1,20 +1,22 @@
 #pragma once
 #include "libs/optimization_lib/include/objective_functions/ObjectiveFunction.h"
 
-class TotalObjective : public ObjectiveFunction
+class ClusterCenters : public ObjectiveFunction
 {
 private:
 	virtual void init_hessian() override;
 public:
-	TotalObjective();
-	~TotalObjective();
+	ClusterCenters();
+	~ClusterCenters();
 	virtual void init() override;
 	virtual void updateX(const Eigen::VectorXd& X) override;
 	virtual double value(const bool update) override;
 	virtual void gradient(Eigen::VectorXd& g, const bool update) override;
 	virtual void hessian() override;
 	
-	// sub objectives
-	float Shift_eigen_values = 1000;
-	std::vector<std::shared_ptr<ObjectiveFunction>> objectiveList;
+	std::vector<int> ConstrainedVerticesInd;
+	Eigen::MatrixX3d ConstrainedVerticesPos;
+	Eigen::MatrixX3d CurrConstrainedVerticesPos;
+	int numV=0;
+	int numF=0;
 };

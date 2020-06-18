@@ -27,7 +27,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		faceColoring_type = 1;
 		minimizer_type = app_utils::MinimizerType::NEWTON;
 		linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
-		mouse_mode = app_utils::MouseMode::VERTEX_SELECT;
+		mouse_mode = app_utils::MouseMode::FIX_VERTEX;
 		view = app_utils::View::HORIZONTAL;
 
 		Max_Distortion = 5;
@@ -56,6 +56,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 }
 
 void deformation_plugin::load_new_model(const std::string modelpath) {
+	clear_sellected_faces_and_vertices();
 	modelPath = modelpath;
 	if (modelPath.length() != 0)
 	{
@@ -123,13 +124,15 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
 		post_resize(frameBufferWidth, frameBufferHeight);
 	}
-	ImGui::Combo("Mouse Mode", (int *)(&mouse_mode), "NONE\0FACE_SELECT\0VERTEX_SELECT\0CLEAR\0\0");
+	
+	ImGui::Combo("Mouse Mode", (int *)(&mouse_mode), app_utils::build_clusters_names_list(faceClusters.size()));
 	if (mouse_mode == app_utils::MouseMode::CLEAR) {
-		selected_faces.clear();
-		selected_vertices.clear();
-		UpdateHandles();
-		mouse_mode = app_utils::MouseMode::VERTEX_SELECT;
+		clear_sellected_faces_and_vertices();
+		mouse_mode = app_utils::MouseMode::FIX_VERTEX;
 	}
+	if (ImGui::Button("Add Cluster"))
+		faceClusters.push_back(FaceClusters(faceClusters.size()));
+
 	ImGui::Checkbox("Update all cores together", &isUpdateAll);
 	if(isModelLoaded)
 		Draw_menu_for_Minimizer();
@@ -150,6 +153,16 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		ImGui::IsMouseHoveringAnyWindow() |
 		ImGui::IsMouseHoveringWindow())
 		IsMouseHoveringAnyWindow = true;
+}
+
+void deformation_plugin::clear_sellected_faces_and_vertices() {
+	selected_fixed_faces.clear();
+	for (auto& c : faceClusters)
+		c.faces.clear();
+	selected_vertices.clear();
+	UpdateVerticesHandles();
+	UpdateCentersHandles();
+	////updteclusters...
 }
 
 void deformation_plugin::update_parameters_for_all_cores() {
@@ -285,34 +298,23 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 	if (!IsTranslate)
 		return false;
 	
-	if (mouse_mode == app_utils::MouseMode::FACE_SELECT)
+	if (mouse_mode == app_utils::MouseMode::FIX_FACES)
 	{
-		if (!selected_faces.empty())
+		if (!selected_fixed_faces.empty())
 		{
 			Eigen::RowVector3d face_avg_pt = app_utils::get_face_avg(viewer, Model_Translate_ID, Translate_Index);
 			Eigen::RowVector3i face = viewer->data(Model_Translate_ID).F.row(Translate_Index);
 			Eigen::Vector3f translation = app_utils::computeTranslation(mouse_x, down_mouse_x, mouse_y, down_mouse_y, face_avg_pt, viewer->core(Core_Translate_ID));
-			if (Core_Translate_ID == inputCoreID) {
-				viewer->data(Model_Translate_ID).V.row(face[0]) += translation.cast<double>();
-				viewer->data(Model_Translate_ID).V.row(face[1]) += translation.cast<double>();
-				viewer->data(Model_Translate_ID).V.row(face[2]) += translation.cast<double>();
-				viewer->data(Model_Translate_ID).set_mesh(viewer->data(Model_Translate_ID).V, viewer->data(Model_Translate_ID).F);
-			}
-			else {
-				for (auto& out : Outputs) {
-					viewer->data(out.ModelID).V.row(face[0]) += translation.cast<double>();
-					viewer->data(out.ModelID).V.row(face[1]) += translation.cast<double>();
-					viewer->data(out.ModelID).V.row(face[2]) += translation.cast<double>();
-					viewer->data(out.ModelID).set_mesh(viewer->data(out.ModelID).V, viewer->data(out.ModelID).F);
-				}
+			for (auto& out : Outputs) {
+				out.translateCenterOfSphere(Translate_Index, translation.cast<double>());
 			}
 			down_mouse_x = mouse_x;
 			down_mouse_y = mouse_y;
-			UpdateHandles();
+			UpdateCentersHandles();
 			return true;
 		}
 	}
-	else if (mouse_mode == app_utils::MouseMode::VERTEX_SELECT)
+	else if (mouse_mode == app_utils::MouseMode::FIX_VERTEX)
 	{
 		if (!selected_vertices.empty())
 		{
@@ -331,11 +333,11 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			
 			down_mouse_x = mouse_x;
 			down_mouse_y = mouse_y;
-			UpdateHandles();
+			UpdateVerticesHandles();
 			return true;
 		}
 	}
-	UpdateHandles();
+	UpdateVerticesHandles();
 	return false;
 }
 
@@ -350,28 +352,35 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 		IsMouseDraggingAnyWindow = true;
 	down_mouse_x = viewer->current_mouse_x;
 	down_mouse_y = viewer->current_mouse_y;
-	if (mouse_mode == app_utils::MouseMode::FACE_SELECT && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
-	{
-		//check if there faces which is selected on the left screen
-		int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
-		for(int i=0;i<Outputs.size();i++)
-			if (f == -1)
-				f = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 +i);
-		if (f != -1)
-		{
-			if (find(selected_faces.begin(), selected_faces.end(), f) != selected_faces.end())
-			{
-				selected_faces.erase(f);
-				UpdateHandles();
-			}
-			else {
-				selected_faces.insert(f);
-				UpdateHandles();
-			}
-		}
 
+	//check if there faces which is selected on the left screen
+	int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
+	for (int i = 0; i < Outputs.size(); i++)
+		if (f == -1)
+			f = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i);
+
+	if (mouse_mode == app_utils::MouseMode::FIX_FACES && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
+	{
+		if (f != -1) {
+			if (find(selected_fixed_faces.begin(), selected_fixed_faces.end(), f) != selected_fixed_faces.end())
+				selected_fixed_faces.erase(f);
+			else
+				selected_fixed_faces.insert(f);
+			UpdateCentersHandles();
+		}
 	}
-	else if (mouse_mode == app_utils::MouseMode::VERTEX_SELECT && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
+	if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0 && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
+	{
+		if (f != -1) {
+			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
+			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end())
+				faceClusters[clusterIndex].faces.erase(f);
+			else
+				faceClusters[clusterIndex].faces.insert(f);
+			////justupdatethesolverenergy;
+		}
+	}
+	else if (mouse_mode == app_utils::MouseMode::FIX_VERTEX && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
 		//check if there faces which is selected on the left screen
 		int v = pick_vertex(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
@@ -384,12 +393,12 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 				selected_vertices.erase(v);
 			else
 				selected_vertices.insert(v);
-			UpdateHandles();
+			UpdateVerticesHandles();
 		}
 	}
-	else if (mouse_mode == app_utils::MouseMode::FACE_SELECT && button == GLFW_MOUSE_BUTTON_MIDDLE)
+	else if (mouse_mode == app_utils::MouseMode::FIX_FACES && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
-		if (!selected_faces.empty())
+		if (!selected_fixed_faces.empty())
 		{
 			//check if there faces which is selected on the left screen
 			int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
@@ -402,13 +411,13 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 					Core_Translate_ID = Outputs[i].CoreID;
 				}
 			}
-			if (find(selected_faces.begin(), selected_faces.end(), f) != selected_faces.end()) {
+			if (find(selected_fixed_faces.begin(), selected_fixed_faces.end(), f) != selected_fixed_faces.end()) {
 				IsTranslate = true;
 				Translate_Index = f;
 			}
 		}
 	}
-	else if (mouse_mode == app_utils::MouseMode::VERTEX_SELECT && button == GLFW_MOUSE_BUTTON_MIDDLE)
+	else if (mouse_mode == app_utils::MouseMode::FIX_VERTEX && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
 		if (!selected_vertices.empty())
 		{
@@ -433,10 +442,8 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 }
 
 IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers) {
-	if ((key == 'F' || key == 'f') && modifiers == 1)
-		mouse_mode = app_utils::MouseMode::FACE_SELECT;
 	if ((key == 'V' || key == 'v') && modifiers == 1)
-		mouse_mode = app_utils::MouseMode::VERTEX_SELECT;
+		mouse_mode = app_utils::MouseMode::FIX_VERTEX;
 	if ((key == 'C' || key == 'c') && modifiers == 1)
 		mouse_mode = app_utils::MouseMode::CLEAR;
 	if ((key == ' ') && modifiers == 1)
@@ -502,11 +509,11 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 	
 	for (int i = 0; i < Outputs.size(); i++) {
 		OutputModel(i).point_size = 10;
-		if (showTriangleCenters)
+		if (showTriangleCenters && Outputs[i].getCenterOfTriangle().size() != 0)
 			OutputModel(i).add_points(Outputs[i].getCenterOfTriangle(), greenColor);
-		if (showSphereCeneters)
+		if (showSphereCeneters && Outputs[i].getCenterOfSphere().size() != 0)
 			OutputModel(i).add_points(Outputs[i].getCenterOfSphere(), redColor);
-		if (showEdges)
+		if (showEdges && Outputs[i].getAllCenters().size() != 0)
 			OutputModel(i).set_edges(Outputs[i].getAllCenters(), E, greenColor);
 		else
 			OutputModel(i).clear_edges();
@@ -866,34 +873,45 @@ void deformation_plugin::Draw_menu_for_text_results() {
 	}
 }
 
-void deformation_plugin::UpdateHandles() {
+void deformation_plugin::UpdateCentersHandles() {
+	std::vector<int> CurrCentersInd;
+	std::vector<Eigen::MatrixX3d> CurrCentersPos;
+	CurrCentersInd.clear();
+	for (auto fi : selected_fixed_faces)
+		CurrCentersInd.push_back(fi);
+	for (auto& out : Outputs)
+		CurrCentersPos.push_back(Eigen::MatrixX3d::Zero(CurrCentersInd.size(), 3));
+
+	for (int i = 0; i < Outputs.size(); i++) {
+		int idx = 0;
+		for (auto ci : CurrCentersInd) {
+			if (Outputs[i].getCenterOfSphere().size() != 0)
+				CurrCentersPos[i].row(idx) = Outputs[i].getCenterOfSphere().row(ci);
+			idx++;
+		}
+			
+		////???
+	}
+	//Finally, we update the handles in the constraints positional object
+	for (int i = 0; i < Outputs.size(); i++) {
+		if (isModelLoaded) {
+			(*Outputs[i].CentersInd) = CurrCentersInd;
+			(*Outputs[i].CentersPosDeformed) = CurrCentersPos[i];
+		}
+	}
+}
+
+void deformation_plugin::UpdateVerticesHandles() {
 	std::vector<int> CurrHandlesInd;
 	std::vector<Eigen::MatrixX3d> CurrHandlesPosDeformed;
 	CurrHandlesInd.clear();
 
 	//First, we push each vertices index to the handles
-	for (auto vi : selected_vertices) {
+	for (auto vi : selected_vertices)
 		CurrHandlesInd.push_back(vi);
-	}
-	//Then, we push each face vertices index to the handle (3 vertices)
-	for (auto fi : selected_faces) {
-		//Here we get the 3 vertice's index that build each face
-		int v0 = InputModel().F(fi,0);
-		int v1 = InputModel().F(fi,1);
-		int v2 = InputModel().F(fi,2);
-
-		//check whether the handle already exist
-		if (!(find(CurrHandlesInd.begin(), CurrHandlesInd.end(), v0) != CurrHandlesInd.end()))
-			CurrHandlesInd.push_back(v0);
-		if (!(find(CurrHandlesInd.begin(), CurrHandlesInd.end(), v1) != CurrHandlesInd.end())) 
-			CurrHandlesInd.push_back(v1);
-		if (!(find(CurrHandlesInd.begin(), CurrHandlesInd.end(), v2) != CurrHandlesInd.end())) 
-			CurrHandlesInd.push_back(v2);	
-	}	
 	//Here we update the positions for each handle
 	for (auto& out :Outputs)
 		CurrHandlesPosDeformed.push_back(Eigen::MatrixX3d::Zero(CurrHandlesInd.size(),3));
-	
 	for (int i = 0; i < Outputs.size(); i++){
 		int idx = 0;
 		for (auto hi : CurrHandlesInd)
@@ -932,14 +950,19 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 		for (int i = 0; i < Outputs.size(); i++) {
 			Outputs[i].color_per_face.resize(InputModel().F.rows(), 3);
 			UpdateEnergyColors(i);
+			//Mark the cluster faces
+			for(FaceClusters cluster: faceClusters)
+				for (int fi : cluster.faces)
+					Outputs[i].color_per_face.row(fi) = cluster.color.cast<double>();
+			//Mark the fixed faces
+			for (int fi : selected_fixed_faces)
+				Outputs[i].color_per_face.row(fi) = Fixed_face_color.cast<double>();
+
 			//Mark the highlighted face
 			if (f != -1 && Highlighted_face)
 				Outputs[i].color_per_face.row(f) = Highlighted_face_color.cast<double>();
-			//Mark the fixed faces
-			for (auto fi : selected_faces)
-				Outputs[i].color_per_face.row(fi) = Fixed_face_color.cast<double>(); 
 			//Mark the Dragged face
-			if (IsTranslate && (mouse_mode == app_utils::MouseMode::FACE_SELECT))
+			if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_FACES))
 				Outputs[i].color_per_face.row(Translate_Index) = Dragged_face_color.cast<double>();
 			//Mark the vertices
 			int idx = 0;
@@ -947,7 +970,7 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 			Outputs[i].Vertices_output.resize(selected_vertices.size(), 3);
 			color_per_vertex.resize(selected_vertices.size(), 3);
 			//Mark the dragged vertex
-			if (IsTranslate && (mouse_mode == app_utils::MouseMode::VERTEX_SELECT)) {
+			if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_VERTEX)) {
 				Vertices_Input.resize(selected_vertices.size() + 1, 3);
 				Outputs[i].Vertices_output.resize(selected_vertices.size() + 1, 3);
 				color_per_vertex.resize(selected_vertices.size() + 1, 3);
@@ -1084,14 +1107,12 @@ void deformation_plugin::update_data_from_minimizer()
 	V.resize(Outputs.size());
 	for (int i = 0; i < Outputs.size(); i++){
 		Outputs[i].activeMinimizer->get_data(V[i], center[i]);
-		Outputs[i].setCenters(V[i], InputModel().F, center[i]);
-		if (IsTranslate && mouse_mode == app_utils::MouseMode::VERTEX_SELECT)
+		if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_VERTEX)
 			V[i].row(Translate_Index) = OutputModel(i).V.row(Translate_Index);
-		else if(IsTranslate && mouse_mode == app_utils::MouseMode::FACE_SELECT) {
-			Eigen::Vector3i F = OutputModel(i).F.row(Translate_Index);
-			for (int vi = 0; vi < 3; vi++)
-				V[i].row(F[vi]) = OutputModel(i).V.row(F[vi]);
-		}
+		else if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_FACES)
+			if (Outputs[i].getCenterOfSphere().size() != 0)
+				center[i].row(Translate_Index) = Outputs[i].getCenterOfSphere().row(Translate_Index);
+		Outputs[i].setCenters(V[i], InputModel().F, center[i]);
 		set_vertices_for_mesh(V[i],i);
 	}
 }
@@ -1173,6 +1194,12 @@ void deformation_plugin::initializeMinimizer(const int index)
 	constraintsPositional->init();
 	Outputs[index].HandlesInd = &constraintsPositional->ConstrainedVerticesInd;
 	Outputs[index].HandlesPosDeformed = &constraintsPositional->ConstrainedVerticesPos;
+	auto fixCenter = std::make_shared<FixCenters>();
+	fixCenter->numV = V.rows();
+	fixCenter->numF = F.rows();
+	fixCenter->init();
+	Outputs[index].CentersInd = &fixCenter->ConstrainedCentersInd;
+	Outputs[index].CentersPosDeformed = &fixCenter->ConstrainedCentersPos;
 	Outputs[index].totalObjective->objectiveList.clear();
 	Outputs[index].totalObjective->init_mesh(V, F);
 	Outputs[index].totalObjective->objectiveList.push_back(move(auxSpherePerHinge));
@@ -1184,6 +1211,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 		Outputs[index].totalObjective->objectiveList.push_back(move(stvk));
 	Outputs[index].totalObjective->objectiveList.push_back(move(allVertexPositions));
 	Outputs[index].totalObjective->objectiveList.push_back(move(constraintsPositional));
+	Outputs[index].totalObjective->objectiveList.push_back(move(fixCenter));
 	Outputs[index].totalObjective->init();
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
 	init_minimizer_thread();

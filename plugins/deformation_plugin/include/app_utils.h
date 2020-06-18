@@ -18,6 +18,8 @@
 #include "../../libs/optimization_lib/include/minimizers/GradientDescentMinimizer.h"
 #include "../../libs/optimization_lib/include/minimizers/AdamMinimizer.h"
 
+#include "../../libs/optimization_lib/include/objective_functions/ClusterCenters.h"
+#include "../../libs/optimization_lib/include/objective_functions/FixCenters.h"
 #include "../../libs/optimization_lib/include/objective_functions/STVK.h"
 #include "../../libs/optimization_lib/include/objective_functions/SymmetricDirichlet.h"
 #include "../../libs/optimization_lib/include/objective_functions/AllVertexPositions.h"
@@ -46,10 +48,11 @@ namespace app_utils
 		OUTPUT_ONLY_0 = 3
 	};
 	enum MouseMode { 
-		NONE = 0, 
-		FACE_SELECT, 
-		VERTEX_SELECT, 
-		CLEAR 
+		NONE = 0,
+		CLEAR,
+		FIX_VERTEX,
+		FIX_FACES,
+		FACE_CLUSTERING_0
 	};
 	enum MinimizerType {
 		NEWTON = 0,
@@ -126,6 +129,30 @@ namespace app_utils
 		return comboList;
 	}
 
+	static char* build_clusters_names_list(const int size) {
+		std::string cStr("");
+		cStr += "None";
+		cStr += '\0';
+		cStr += "Clear";
+		cStr += '\0';
+		cStr += "Fix Vertex";
+		cStr += '\0';
+		cStr += "Fix Face";
+		cStr += '\0';
+		for (int i = 0; i < size; i++) {
+			std::string sts;
+			sts = "Cluster " + std::to_string(i);
+			cStr += sts.c_str();
+			cStr += '\0';
+		}
+		cStr += '\0';
+		int listLength = cStr.length();
+		char* comboList = new char[listLength];
+		for (unsigned int i = 0; i < listLength; i++)
+			comboList[i] = cStr.at(i);
+		return comboList;
+	}
+
 	static char* build_color_energies_list(const std::shared_ptr<TotalObjective>& totalObjective) {
 		std::string cStr("");
 		cStr += "No colors";
@@ -157,8 +184,28 @@ namespace app_utils
 	}
 }
 
-class OptimizationOutput
-{
+class FaceClusters { 
+public:
+	Eigen::Vector3f color;
+	std::string name;
+	std::set<int> faces;
+
+	FaceClusters(const int index) {
+		name = "Cluster " + std::to_string(index);
+		faces.clear();
+		if (index == 0)
+			this->color << 1, 1, 0;
+		else if (index == 1)
+			this->color << 0.5, 0.5, 0;
+		else if (index == 2)
+			this->color << 240 / 255.0f, 230 / 255.0f, 140 / 255.0f;
+		else if (index == 3)
+			this->color << 255 / 255.0f, 218 / 255.0f, 185 / 255.0f;
+		
+	}
+};
+
+class OptimizationOutput {
 private:
 	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
 	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
@@ -174,6 +221,8 @@ public:
 	Eigen::Quaternionf prev_trackball_angle;
 	std::vector<int> *HandlesInd; //pointer to indices in constraitPositional
 	Eigen::MatrixX3d *HandlesPosDeformed; //pointer to positions in constraitPositional
+	std::vector<int> *CentersInd; //pointer to indices in constraitPositional
+	Eigen::MatrixX3d *CentersPosDeformed; //pointer to positions in constraitPositional
 	Eigen::MatrixXd color_per_face, Vertices_output;
 	int ModelID, CoreID;
 	ImVec2 window_position, window_size, text_position;
@@ -209,6 +258,10 @@ public:
 		this->center_of_sphere = center_of_sphere;
 	}
 
+	void translateCenterOfSphere(const int fi, const Eigen::Vector3d translateValue) {
+		this->center_of_sphere.row(fi) += translateValue;
+	}
+
 	Eigen::MatrixXd getCenterOfTriangle() {
 		return center_of_triangle;
 	}
@@ -220,6 +273,9 @@ public:
 	Eigen::MatrixXd getAllCenters() {
 		int numF = center_of_sphere.rows();
 		Eigen::MatrixXd c(2 * numF, 3);
+		Eigen::MatrixXd empty;
+		if (getCenterOfTriangle().size() == 0 || getCenterOfSphere().size() == 0)
+			return empty;
 		c.middleRows(0, numF) = getCenterOfTriangle();
 		c.middleRows(numF, numF) = getCenterOfSphere();
 		return c;
