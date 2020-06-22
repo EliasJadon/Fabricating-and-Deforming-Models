@@ -162,7 +162,7 @@ void deformation_plugin::clear_sellected_faces_and_vertices() {
 	selected_vertices.clear();
 	UpdateVerticesHandles();
 	UpdateCentersHandles();
-	////updteclusters...
+	UpdateClustersHandles();
 }
 
 void deformation_plugin::update_parameters_for_all_cores() {
@@ -377,7 +377,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 				faceClusters[clusterIndex].faces.erase(f);
 			else
 				faceClusters[clusterIndex].faces.insert(f);
-			////justupdatethesolverenergy;
+			UpdateClustersHandles();
 		}
 	}
 	else if (mouse_mode == app_utils::MouseMode::FIX_VERTEX && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
@@ -889,14 +889,39 @@ void deformation_plugin::UpdateCentersHandles() {
 				CurrCentersPos[i].row(idx) = Outputs[i].getCenterOfSphere().row(ci);
 			idx++;
 		}
-			
-		////???
 	}
 	//Finally, we update the handles in the constraints positional object
 	for (int i = 0; i < Outputs.size(); i++) {
 		if (isModelLoaded) {
-			(*Outputs[i].CentersInd) = CurrCentersInd;
-			(*Outputs[i].CentersPosDeformed) = CurrCentersPos[i];
+			*(Outputs[i].CentersInd) = CurrCentersInd;
+			*(Outputs[i].CentersPosDeformed) = CurrCentersPos[i];
+		}
+	}
+}
+
+void deformation_plugin::UpdateClustersHandles() {
+	std::vector < std::vector<int>> ind(faceClusters.size());
+	std::vector < std::vector < Eigen::MatrixX3d>> currPos;
+	for (int ci = 0; ci < faceClusters.size(); ci++)
+		for (int fi : faceClusters[ci].faces)
+			ind[ci].push_back(fi);
+	for (int oi = 0; oi < Outputs.size(); oi++) {
+		std::vector <Eigen::MatrixX3d> currPos_oi;
+		for (int ci = 0; ci < faceClusters.size(); ci++) {
+			Eigen::MatrixX3d currPos_oi_ci;
+			currPos_oi_ci = Eigen::MatrixX3d::Zero(ind[ci].size(), 3);
+			if (Outputs[oi].getCenterOfSphere().size() != 0) 
+				for (int fi = 0; fi < ind[ci].size(); fi++) 
+					currPos_oi_ci.row(fi) = Outputs[oi].getCenterOfSphere().row(ind[ci][fi]);
+			currPos_oi.push_back(currPos_oi_ci);
+		}
+		currPos.push_back(currPos_oi);
+	}
+	//Finally, we update the handles in the constraints positional object
+	for (int i = 0; i < Outputs.size(); i++) {
+		if (isModelLoaded) {
+			*(Outputs[i].ClustersInd) = ind;
+			*(Outputs[i].CurrClustersPos) = currPos[i];
 		}
 	}
 }
@@ -921,8 +946,8 @@ void deformation_plugin::UpdateVerticesHandles() {
 	//Finally, we update the handles in the constraints positional object
 	for (int i = 0; i < Outputs.size();i++) {
 		if (isModelLoaded) {
-			(*Outputs[i].HandlesInd) = CurrHandlesInd;
-			(*Outputs[i].HandlesPosDeformed) = CurrHandlesPosDeformed[i];
+			*(Outputs[i].HandlesInd) = CurrHandlesInd;
+			*(Outputs[i].HandlesPosDeformed) = CurrHandlesPosDeformed[i];
 		}
 	}
 }
@@ -1165,53 +1190,64 @@ void deformation_plugin::initializeMinimizer(const int index)
 		return;
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
-	auto bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::FunctionType::SIGMOID);
+	std::shared_ptr <BendingEdge> bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::FunctionType::SIGMOID);
 	bendingEdge->init_mesh(V, F);
 	bendingEdge->init();
-	auto auxBendingNormal = std::make_unique<AuxBendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
+	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
 	auxBendingNormal->init_mesh(V, F);
 	auxBendingNormal->init();
-	auto auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(OptimizationUtils::FunctionType::SIGMOID);
+	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(OptimizationUtils::FunctionType::SIGMOID);
 	auxSpherePerHinge->init_mesh(V, F);
 	auxSpherePerHinge->init();
-	auto bendingNormal = std::make_unique<BendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
+	std::shared_ptr <BendingNormal> bendingNormal = std::make_unique<BendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
 	bendingNormal->init_mesh(V, F);
 	bendingNormal->init();
-	auto SymmDirich = std::make_unique<SymmetricDirichlet>();
+	std::shared_ptr <SymmetricDirichlet> SymmDirich = std::make_unique<SymmetricDirichlet>();
 	SymmDirich->init_mesh(V, F);
 	SymmDirich->init();
-	auto stvk = std::make_unique<STVK>();
+	std::shared_ptr <STVK> stvk = std::make_unique<STVK>();
 	if (app_utils::IsMesh2D(InputModel().V)) {
 		stvk->init_mesh(V, F);
 		stvk->init();
 	}
-	auto fixAllVertices = std::make_unique<FixAllVertices>();
+	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>();
 	fixAllVertices->init_mesh(V, F);
 	fixAllVertices->init();
-	auto fixChosenVertices = std::make_shared<FixChosenVertices>();
+	std::shared_ptr <FixChosenVertices> fixChosenVertices = std::make_shared<FixChosenVertices>();
 	fixChosenVertices->numV = V.rows();
 	fixChosenVertices->numF = F.rows();
 	fixChosenVertices->init();
-	Outputs[index].HandlesInd = &fixChosenVertices->ConstrainedVerticesInd;
-	Outputs[index].HandlesPosDeformed = &fixChosenVertices->ConstrainedVerticesPos;
-	auto fixChosenCenters = std::make_shared<FixChosenCenters>();
+	Outputs[index].HandlesInd = &(fixChosenVertices->ConstrainedVerticesInd);
+	Outputs[index].HandlesPosDeformed = &(fixChosenVertices->ConstrainedVerticesPos);
+	std::shared_ptr< FixChosenCenters> fixChosenCenters = std::make_shared<FixChosenCenters>();
 	fixChosenCenters->numV = V.rows();
 	fixChosenCenters->numF = F.rows();
 	fixChosenCenters->init();
-	Outputs[index].CentersInd = &fixChosenCenters->ConstrainedCentersInd;
-	Outputs[index].CentersPosDeformed = &fixChosenCenters->ConstrainedCentersPos;
+	Outputs[index].CentersInd = &(fixChosenCenters->ConstrainedCentersInd);
+	Outputs[index].CentersPosDeformed = &(fixChosenCenters->ConstrainedCentersPos);
+	std::shared_ptr< ClusterCenters> clusterCenters = std::make_shared<ClusterCenters>();
+	clusterCenters->numV = V.rows();
+	clusterCenters->numF = F.rows();
+	clusterCenters->init();
+	Outputs[index].ClustersInd = &(clusterCenters->ClustersInd);
+	Outputs[index].CurrClustersPos = &(clusterCenters->CurrClustersPos);
+	//init total objective
 	Outputs[index].totalObjective->objectiveList.clear();
 	Outputs[index].totalObjective->init_mesh(V, F);
-	Outputs[index].totalObjective->objectiveList.push_back(move(auxSpherePerHinge));
-	Outputs[index].totalObjective->objectiveList.push_back(move(auxBendingNormal));
-	Outputs[index].totalObjective->objectiveList.push_back(move(bendingNormal));
-	Outputs[index].totalObjective->objectiveList.push_back(move(bendingEdge));
-	Outputs[index].totalObjective->objectiveList.push_back(move(SymmDirich));
+	auto add_obj = [&](std::shared_ptr< ObjectiveFunction> obj) {
+		Outputs[index].totalObjective->objectiveList.push_back(move(obj));
+	};
+	add_obj(auxSpherePerHinge);
+	add_obj(auxBendingNormal);
+	add_obj(bendingNormal);
+	add_obj(bendingEdge);
+	add_obj(SymmDirich);
 	if(app_utils::IsMesh2D(InputModel().V))
-		Outputs[index].totalObjective->objectiveList.push_back(move(stvk));
-	Outputs[index].totalObjective->objectiveList.push_back(move(fixAllVertices));
-	Outputs[index].totalObjective->objectiveList.push_back(move(fixChosenVertices));
-	Outputs[index].totalObjective->objectiveList.push_back(move(fixChosenCenters));
+		add_obj(stvk);
+	add_obj(fixAllVertices);
+	add_obj(fixChosenVertices);
+	add_obj(fixChosenCenters);
+	add_obj(clusterCenters);
 	Outputs[index].totalObjective->init();
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
 	init_minimizer_thread();

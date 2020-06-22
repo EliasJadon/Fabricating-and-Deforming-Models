@@ -86,6 +86,7 @@ public:
 	void follow_and_mark_selected_faces();
 	void UpdateVerticesHandles();
 	void UpdateCentersHandles();
+	void UpdateClustersHandles();
 	void UpdateEnergyColors(const int index);
 	void update_parameters_for_all_cores();
 	void clear_sellected_faces_and_vertices();

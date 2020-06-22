@@ -2,7 +2,7 @@
 
 ClusterCenters::ClusterCenters()
 {
-    name = "Positional Constraints";
+    name = "Cluster Centers";
 	w = 10000;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
@@ -22,26 +22,36 @@ void ClusterCenters::init()
 
 void ClusterCenters::updateX(const Eigen::VectorXd& X)
 {
-	CurrConstrainedVerticesPos.resizeLike(ConstrainedVerticesPos);
-	for (int i = 0; i < ConstrainedVerticesInd.size(); i++)
-	{
-		CurrConstrainedVerticesPos.row(i) <<
-			X(ConstrainedVerticesInd[i] + (0 * numV)),	//X-coordinate
-			X(ConstrainedVerticesInd[i] + (1 * numV)),	//Y-coordinate
-			X(ConstrainedVerticesInd[i] + (2 * numV));	//Z-coordinate
+	for (int ci = 0; ci < getNumberOfClusters(); ci++) {
+		//for each cluster
+		CurrClustersPos[ci].resize(ClustersInd[ci].size(),3);
+		for (int fi = 0; fi < ClustersInd[ci].size(); fi++) {
+			int startC = 3 * numV + 3 * numF;
+			CurrClustersPos[ci].row(fi) <<
+				X(ClustersInd[ci][fi] + (0 * numF) + startC),	//X-coordinate
+				X(ClustersInd[ci][fi] + (1 * numF) + startC),	//Y-coordinate
+				X(ClustersInd[ci][fi] + (2 * numF) + startC);	//Z-coordinate
+		}
 	}
+}
+
+int ClusterCenters::getNumberOfClusters() {
+	return ClustersInd.size();
 }
 
 double ClusterCenters::value(const bool update)
 {
-	if (CurrConstrainedVerticesPos.rows() != ConstrainedVerticesPos.rows()) {
-		return 0;
+	double E = 0;
+	for (int ci = 0; ci < getNumberOfClusters(); ci++) {
+		//for each cluster
+		if (CurrClustersPos[ci].rows() != ClustersInd[ci].size()) 
+			return 0;
+		for (int f1 = 0; f1 < CurrClustersPos[ci].rows(); f1++) 
+			for (int f2 = f1+1; f2 < CurrClustersPos[ci].rows(); f2++) 
+				E += (CurrClustersPos[ci].row(f1) - CurrClustersPos[ci].row(f2)).squaredNorm();
 	}
-	double E = (ConstrainedVerticesPos - CurrConstrainedVerticesPos).squaredNorm();
-	if (update) {
+	if (update)
 		energy_value = E;
-	}
-	
 	return E;
 }
 
@@ -50,41 +60,96 @@ void ClusterCenters::gradient(Eigen::VectorXd& g, const bool update)
 	g.conservativeResize(numV * 3 + numF * 7);
 	g.setZero();
 
-	if (/*clusterCenters.rows() ==*/ ConstrainedVerticesPos.rows()) {
-		Eigen::MatrixX3d diff = (CurrConstrainedVerticesPos - ConstrainedVerticesPos);
-		for (int i = 0; i < ConstrainedVerticesInd.size(); i++)
-		{
-			g(ConstrainedVerticesInd[i] + (0 * numV)) = 2 * diff(i, 0); //X-coordinate
-			g(ConstrainedVerticesInd[i] + (1 * numV)) = 2 * diff(i, 1); //Y-coordinate
-			g(ConstrainedVerticesInd[i] + (2 * numV)) = 2 * diff(i, 2); //Z-coordinate
+	for (int ci = 0; ci < getNumberOfClusters(); ci++) {
+		//for each cluster
+		if (CurrClustersPos[ci].rows() != ClustersInd[ci].size()) {
+			g.setZero(); 
+			return;
+		}
+		int startC = 3 * numV + 3 * numF;
+		for (int f1 = 0; f1 < CurrClustersPos[ci].rows(); f1++) {
+			for (int f2 = f1 + 1; f2 < CurrClustersPos[ci].rows(); f2++) {
+				Eigen::RowVector3d diff = CurrClustersPos[ci].row(f1) - CurrClustersPos[ci].row(f2);
+				for (int xyz = 0; xyz < 3; xyz++) {
+					//f1 derivative
+					g(ClustersInd[ci][f1] + (xyz * numF) + startC) += 2 * diff(xyz);
+					//f2 derivative
+					g(ClustersInd[ci][f2] + (xyz * numF) + startC) += -2 * diff(xyz); 
+				}
+			}
 		}
 	}
-
 	if(update)
 		gradient_norm = g.norm();
 }
 
 void ClusterCenters::hessian()
 {
-	fill(SS.begin(), SS.end(), 0);
-	for (int i = 0; i < ConstrainedVerticesInd.size(); i++)
-	{
-		SS[ConstrainedVerticesInd[i] + (0 * numV)] = 2;
-		SS[ConstrainedVerticesInd[i] + (1 * numV)] = 2;
-		SS[ConstrainedVerticesInd[i] + (2 * numV)] = 2;
+	auto PushTriple = [&](const int row, const int col, const double val) {
+		if (col >= row) {
+			II.push_back(row);
+			JJ.push_back(col);
+			SS.push_back(val);
+		}
+	};
+	
+	II.clear();
+	JJ.clear();
+	SS.clear();
+
+	for (int ci = 0; ci < getNumberOfClusters(); ci++) {
+		//for each cluster
+		if (CurrClustersPos[ci].rows() != ClustersInd[ci].size()) {
+			II.clear();
+			JJ.clear();
+			SS.clear();
+			PushTriple(
+				3 * numV + 7 * numF - 1,
+				3 * numV + 7 * numF - 1,
+				0
+			);
+			return;
+		}
+		int startC = 3 * numV + 3 * numF;
+		for (int f1 = 0; f1 < CurrClustersPos[ci].rows(); f1++) {
+			for (int f2 = f1 + 1; f2 < CurrClustersPos[ci].rows(); f2++) {
+				for (int xyz = 0; xyz < 3; xyz++) {
+					// d2E/df1df1
+					PushTriple(
+						ClustersInd[ci][f1] + (xyz * numF) + startC,
+						ClustersInd[ci][f1] + (xyz * numF) + startC,
+						2
+					);
+					// d2E/df1df2
+					PushTriple(
+						ClustersInd[ci][f1] + (xyz * numF) + startC,
+						ClustersInd[ci][f2] + (xyz * numF) + startC,
+						-2
+					);
+					// d2E/df2df1
+					PushTriple(
+						ClustersInd[ci][f2] + (xyz * numF) + startC,
+						ClustersInd[ci][f1] + (xyz * numF) + startC,
+						-2
+					);
+					// d2E/df2df2
+					PushTriple(
+						ClustersInd[ci][f2] + (xyz * numF) + startC,
+						ClustersInd[ci][f2] + (xyz * numF) + startC,
+						2
+					);
+				}
+			}
+		}
 	}
+	PushTriple(
+		3 * numV + 7 * numF - 1,
+		3 * numV + 7 * numF - 1,
+		0
+	);
 }
 
 void ClusterCenters::init_hessian()
 {
-	II.resize(3 * numV+1);
-	JJ.resize(3 * numV+1);
-	for (int i = 0; i < 3*numV; i++)
-	{
-		II[i] = i;
-		JJ[i] = i;
-	}
-	II[3 * numV] = 3 * numV + 7 * numF - 1;
-	JJ[3 * numV] = 3 * numV + 7 * numF - 1;
-	SS = std::vector<double>(II.size(), 0.);
+	
 }

@@ -223,6 +223,8 @@ public:
 	Eigen::MatrixX3d *HandlesPosDeformed; //pointer to positions in constraitPositional
 	std::vector<int> *CentersInd; //pointer to indices in constraitPositional
 	Eigen::MatrixX3d *CentersPosDeformed; //pointer to positions in constraitPositional
+	std::vector < std::vector<int>> *ClustersInd;
+	std::vector < Eigen::MatrixX3d> *CurrClustersPos;
 	Eigen::MatrixXd color_per_face, Vertices_output;
 	int ModelID, CoreID;
 	ImVec2 window_position, window_size, text_position;

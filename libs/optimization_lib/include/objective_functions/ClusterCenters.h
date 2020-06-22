@@ -5,6 +5,7 @@ class ClusterCenters : public ObjectiveFunction
 {
 private:
 	virtual void init_hessian() override;
+	int getNumberOfClusters();
 public:
 	ClusterCenters();
 	~ClusterCenters();
@@ -14,9 +15,8 @@ public:
 	virtual void gradient(Eigen::VectorXd& g, const bool update) override;
 	virtual void hessian() override;
 	
-	std::vector<int> ConstrainedVerticesInd;
-	Eigen::MatrixX3d ConstrainedVerticesPos;
-	Eigen::MatrixX3d CurrConstrainedVerticesPos;
+	std::vector < std::vector<int>> ClustersInd;
+	std::vector < Eigen::MatrixX3d> CurrClustersPos;
 	int numV=0;
 	int numF=0;
 };
