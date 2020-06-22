@@ -14,6 +14,7 @@ private:
 	bool isModelLoaded;
 	bool showEdges, showTriangleCenters, showSphereCeneters;
 	float Max_Distortion;
+	float neighbor_distance;
 	bool isUpdateAll;
 	bool isMinimizerRunning, minimizer_settings, IsMouseHoveringAnyWindow, IsMouseDraggingAnyWindow;
 	int faceColoring_type;
@@ -21,8 +22,13 @@ private:
 	OptimizationUtils::LineSearch linesearch_type;
 	float constantStep_LineSearch;
 	Eigen::MatrixXd Vertices_Input, color_per_vertex;
+	int curr_highlighted_face;
 	Eigen::Vector3f
 		Highlighted_face_color,
+		center_sphere_color,
+		center_vertex_color,
+		centers_edge_color,
+		Neighbors_Highlighted_face_color,
 		Fixed_face_color,
 		Fixed_vertex_color,
 		model_color,

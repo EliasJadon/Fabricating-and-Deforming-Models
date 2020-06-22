@@ -268,6 +268,14 @@ public:
 		return center_of_triangle;
 	}
 
+	std::vector<int> getNeighborsSphereCenters(const int fi,const float max_distance) {
+		std::vector<int> Neighbors; Neighbors.clear();
+		for (int i = 0; i < center_of_sphere.rows(); i++)
+			if ((center_of_sphere.row(fi) - center_of_sphere.row(i)).norm() < max_distance)
+				Neighbors.push_back(i);
+		return Neighbors;
+	}
+
 	Eigen::MatrixXd getCenterOfSphere() {
 		return center_of_sphere;
 	}

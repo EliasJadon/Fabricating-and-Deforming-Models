@@ -31,10 +31,16 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		view = app_utils::View::HORIZONTAL;
 
 		Max_Distortion = 5;
+		neighbor_distance = 0.15;
 		texture_scaling_input = texture_scaling_output = 1;
 		down_mouse_x = down_mouse_y = -1;
 
-		Vertex_Energy_color = Highlighted_face_color = RED_COLOR;
+		Vertex_Energy_color = RED_COLOR;
+		Highlighted_face_color = Eigen::Vector3f(153 / 255.0f, 0, 153 / 255.0f);
+		Neighbors_Highlighted_face_color = Eigen::Vector3f(1, 102 / 255.0f, 1);
+		center_sphere_color = Eigen::Vector3f(0, 1, 1);
+		center_vertex_color = Eigen::Vector3f(128 / 255.0f, 128 / 255.0f, 128 / 255.0f);
+		centers_edge_color = Eigen::Vector3f(128 / 255.0f, 128 / 255.0f, 128 / 255.0f);
 		Fixed_vertex_color = Fixed_face_color = BLUE_COLOR;
 		Dragged_vertex_color = Dragged_face_color = GREEN_COLOR;
 		model_color = GREY_COLOR;
@@ -499,26 +505,41 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 		OutputModel(i).set_points(Outputs[i].Vertices_output, color_per_vertex);
 	}
 	Eigen::MatrixXi E(InputModel().F.rows(), 2);
-	Eigen::MatrixXd greenColor(1, 3);
-	Eigen::MatrixXd redColor(1, 3);
-	greenColor << 0, 1, 0;
-	redColor << 1, 0, 0;
 	for (int fi = 0; fi < InputModel().F.rows(); fi++) {
 		E.row(fi) << fi, InputModel().F.rows() + fi;
 	}
+
+	Eigen::MatrixXd sphere(InputModel().F.rows(), 3);
+	Eigen::MatrixXd vertex(InputModel().F.rows(), 3);
+	Eigen::MatrixXd edge(InputModel().F.rows(), 3);
+	for (int fi = 0; fi < InputModel().F.rows(); fi++) {
+		sphere.row(fi) = center_sphere_color.cast<double>();
+		vertex.row(fi) = center_vertex_color.cast<double>();
+		edge.row(fi) = centers_edge_color.cast<double>();
+	}
 	
 	for (int i = 0; i < Outputs.size(); i++) {
+		//Mark the highlighted face & neighbors
+		if (curr_highlighted_face != -1 && Highlighted_face) {
+			for (int fi : Outputs[i].getNeighborsSphereCenters(curr_highlighted_face, neighbor_distance)) {
+				sphere.row(fi) = Neighbors_Highlighted_face_color.cast<double>();
+				vertex.row(fi) = Neighbors_Highlighted_face_color.cast<double>();
+				edge.row(fi) = Neighbors_Highlighted_face_color.cast<double>();
+			}
+			sphere.row(curr_highlighted_face) = Highlighted_face_color.cast<double>();
+			vertex.row(curr_highlighted_face) = Highlighted_face_color.cast<double>();
+			edge.row(curr_highlighted_face) = Highlighted_face_color.cast<double>();
+		}
 		OutputModel(i).point_size = 10;
 		if (showTriangleCenters && Outputs[i].getCenterOfTriangle().size() != 0)
-			OutputModel(i).add_points(Outputs[i].getCenterOfTriangle(), greenColor);
+			OutputModel(i).add_points(Outputs[i].getCenterOfTriangle(), vertex);
 		if (showSphereCeneters && Outputs[i].getCenterOfSphere().size() != 0)
-			OutputModel(i).add_points(Outputs[i].getCenterOfSphere(), redColor);
+			OutputModel(i).add_points(Outputs[i].getCenterOfSphere(), sphere);
 		if (showEdges && Outputs[i].getAllCenters().size() != 0)
-			OutputModel(i).set_edges(Outputs[i].getAllCenters(), E, greenColor);
+			OutputModel(i).set_edges(Outputs[i].getAllCenters(), E, edge);
 		else
 			OutputModel(i).clear_edges();
 	}
-	
 	return false;
 }
 
@@ -527,6 +548,10 @@ void deformation_plugin::Draw_menu_for_colors() {
 	if (!ImGui::CollapsingHeader("colors", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		ImGui::ColorEdit3("Highlighted face color", Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Center sphere color", center_sphere_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Center vertex color", center_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Centers edge color", centers_edge_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Neighbors Highlighted face color", Neighbors_Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Fixed face color", Fixed_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Dragged face color", Dragged_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Fixed vertex color", Fixed_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
@@ -815,6 +840,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 		Draw_menu_for_colors();
 		ImGui::PushItemWidth(80 * menu_scaling());
 		ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
+		ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
 		ImGui::PopItemWidth();
 	}
 	//close the window
@@ -966,10 +992,10 @@ void deformation_plugin::Update_view() {
 
 void deformation_plugin::follow_and_mark_selected_faces() {
 	//check if there faces which is selected on the left screen
-	int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
+	curr_highlighted_face = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
 	for(int i=0;i<Outputs.size();i++)
-		if (f == -1) 
-			f = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 +i);
+		if (curr_highlighted_face == -1)
+			curr_highlighted_face = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 +i);
 	if(InputModel().F.size()){
 		//Mark the faces
 		for (int i = 0; i < Outputs.size(); i++) {
@@ -983,9 +1009,12 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 			for (int fi : selected_fixed_faces)
 				Outputs[i].color_per_face.row(fi) = Fixed_face_color.cast<double>();
 
-			//Mark the highlighted face
-			if (f != -1 && Highlighted_face)
-				Outputs[i].color_per_face.row(f) = Highlighted_face_color.cast<double>();
+			//Mark the highlighted face & neighbors
+			if (curr_highlighted_face != -1 && Highlighted_face) {
+				for (int fi : Outputs[i].getNeighborsSphereCenters(curr_highlighted_face, neighbor_distance))
+					Outputs[i].color_per_face.row(fi) = Neighbors_Highlighted_face_color.cast<double>();
+				Outputs[i].color_per_face.row(curr_highlighted_face) = Highlighted_face_color.cast<double>();
+			}
 			//Mark the Dragged face
 			if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_FACES))
 				Outputs[i].color_per_face.row(Translate_Index) = Dragged_face_color.cast<double>();
