@@ -300,7 +300,6 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 {
 	if (IsMouseHoveringAnyWindow | IsMouseDraggingAnyWindow)
 		return true;
-
 	if (!IsTranslate)
 		return false;
 	
@@ -309,7 +308,6 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		if (!selected_fixed_faces.empty())
 		{
 			Eigen::RowVector3d face_avg_pt = app_utils::get_face_avg(viewer, Model_Translate_ID, Translate_Index);
-			Eigen::RowVector3i face = viewer->data(Model_Translate_ID).F.row(Translate_Index);
 			Eigen::Vector3f translation = app_utils::computeTranslation(mouse_x, down_mouse_x, mouse_y, down_mouse_y, face_avg_pt, viewer->core(Core_Translate_ID));
 			for (auto& out : Outputs) {
 				out.translateCenterOfSphere(Translate_Index, translation.cast<double>());
@@ -336,14 +334,26 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 					viewer->data(out.ModelID).set_mesh(viewer->data(out.ModelID).V, viewer->data(out.ModelID).F);
 				}
 			}
-			
 			down_mouse_x = mouse_x;
 			down_mouse_y = mouse_y;
 			UpdateVerticesHandles();
 			return true;
 		}
 	}
-	UpdateVerticesHandles();
+	else if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
+		//check if there faces which is selected on the left screen
+		int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
+		for (int i = 0; i < Outputs.size(); i++)
+			if (f == -1)
+				f = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i);
+		if (f != -1) {
+			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
+			if (!(find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end()))
+				faceClusters[clusterIndex].faces.insert(f);
+			UpdateClustersHandles();
+		}
+		return true;
+	}
 	return false;
 }
 
@@ -382,7 +392,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end())
 				faceClusters[clusterIndex].faces.erase(f);
 			else
-				faceClusters[clusterIndex].faces.insert(f);
+				IsTranslate = true;
 			UpdateClustersHandles();
 		}
 	}
@@ -988,12 +998,17 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 			//Mark the fixed faces
 			for (int fi : selected_fixed_faces)
 				Outputs[i].updateFaceColors(fi, Fixed_face_color);
-	
 			//Mark the highlighted face & neighbors
 			if (curr_highlighted_face != -1 && Highlighted_face) {
 				for (int fi : Outputs[i].getNeighborsSphereCenters(curr_highlighted_face, neighbor_distance))
 					Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
 				Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
+			}
+			if (IsTranslate && (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0)) {
+				//Mark the cluster faces again
+				for (FaceClusters cluster : faceClusters)
+					for (int fi : cluster.faces)
+						Outputs[i].updateFaceColors(fi, cluster.color);
 			}
 			//Mark the Dragged face
 			if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_FACES))
