@@ -508,35 +508,15 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 	for (int fi = 0; fi < InputModel().F.rows(); fi++) {
 		E.row(fi) << fi, InputModel().F.rows() + fi;
 	}
-
-	Eigen::MatrixXd sphere(InputModel().F.rows(), 3);
-	Eigen::MatrixXd vertex(InputModel().F.rows(), 3);
-	Eigen::MatrixXd edge(InputModel().F.rows(), 3);
-	for (int fi = 0; fi < InputModel().F.rows(); fi++) {
-		sphere.row(fi) = center_sphere_color.cast<double>();
-		vertex.row(fi) = center_vertex_color.cast<double>();
-		edge.row(fi) = centers_edge_color.cast<double>();
-	}
 	
 	for (int i = 0; i < Outputs.size(); i++) {
-		//Mark the highlighted face & neighbors
-		if (curr_highlighted_face != -1 && Highlighted_face) {
-			for (int fi : Outputs[i].getNeighborsSphereCenters(curr_highlighted_face, neighbor_distance)) {
-				sphere.row(fi) = Neighbors_Highlighted_face_color.cast<double>();
-				vertex.row(fi) = Neighbors_Highlighted_face_color.cast<double>();
-				edge.row(fi) = Neighbors_Highlighted_face_color.cast<double>();
-			}
-			sphere.row(curr_highlighted_face) = Highlighted_face_color.cast<double>();
-			vertex.row(curr_highlighted_face) = Highlighted_face_color.cast<double>();
-			edge.row(curr_highlighted_face) = Highlighted_face_color.cast<double>();
-		}
 		OutputModel(i).point_size = 10;
 		if (showTriangleCenters && Outputs[i].getCenterOfTriangle().size() != 0)
-			OutputModel(i).add_points(Outputs[i].getCenterOfTriangle(), vertex);
+			OutputModel(i).add_points(Outputs[i].getCenterOfTriangle(), Outputs[i].color_per_vertex_center);
 		if (showSphereCeneters && Outputs[i].getCenterOfSphere().size() != 0)
-			OutputModel(i).add_points(Outputs[i].getCenterOfSphere(), sphere);
+			OutputModel(i).add_points(Outputs[i].getCenterOfSphere(), Outputs[i].color_per_sphere_center);
 		if (showEdges && Outputs[i].getAllCenters().size() != 0)
-			OutputModel(i).set_edges(Outputs[i].getAllCenters(), E, edge);
+			OutputModel(i).set_edges(Outputs[i].getAllCenters(), E, Outputs[i].color_per_edge);
 		else
 			OutputModel(i).clear_edges();
 	}
@@ -999,25 +979,25 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 	if(InputModel().F.size()){
 		//Mark the faces
 		for (int i = 0; i < Outputs.size(); i++) {
-			Outputs[i].color_per_face.resize(InputModel().F.rows(), 3);
+			Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color,centers_edge_color);
 			UpdateEnergyColors(i);
 			//Mark the cluster faces
-			for(FaceClusters cluster: faceClusters)
+			for (FaceClusters cluster : faceClusters)
 				for (int fi : cluster.faces)
-					Outputs[i].color_per_face.row(fi) = cluster.color.cast<double>();
+					Outputs[i].updateFaceColors(fi, cluster.color);
 			//Mark the fixed faces
 			for (int fi : selected_fixed_faces)
-				Outputs[i].color_per_face.row(fi) = Fixed_face_color.cast<double>();
-
+				Outputs[i].updateFaceColors(fi, Fixed_face_color);
+	
 			//Mark the highlighted face & neighbors
 			if (curr_highlighted_face != -1 && Highlighted_face) {
 				for (int fi : Outputs[i].getNeighborsSphereCenters(curr_highlighted_face, neighbor_distance))
-					Outputs[i].color_per_face.row(fi) = Neighbors_Highlighted_face_color.cast<double>();
-				Outputs[i].color_per_face.row(curr_highlighted_face) = Highlighted_face_color.cast<double>();
+					Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
+				Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
 			}
 			//Mark the Dragged face
 			if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_FACES))
-				Outputs[i].color_per_face.row(Translate_Index) = Dragged_face_color.cast<double>();
+				Outputs[i].updateFaceColors(Translate_Index, Dragged_face_color);
 			//Mark the vertices
 			int idx = 0;
 			Vertices_Input.resize(selected_vertices.size(), 3);

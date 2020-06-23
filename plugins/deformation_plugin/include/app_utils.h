@@ -226,6 +226,9 @@ public:
 	std::vector < std::vector<int>> *ClustersInd;
 	std::vector < Eigen::MatrixX3d> *CurrClustersPos;
 	Eigen::MatrixXd color_per_face, Vertices_output;
+	Eigen::MatrixXd color_per_sphere_center;
+	Eigen::MatrixXd color_per_vertex_center;
+	Eigen::MatrixXd color_per_edge;
 	int ModelID, CoreID;
 	ImVec2 window_position, window_size, text_position;
 	
@@ -289,6 +292,31 @@ public:
 		c.middleRows(0, numF) = getCenterOfTriangle();
 		c.middleRows(numF, numF) = getCenterOfSphere();
 		return c;
+	}
+
+	void initFaceColors(
+		const int numF, 
+		const Eigen::Vector3f center_sphere_color,
+		const Eigen::Vector3f center_vertex_color,
+		const Eigen::Vector3f centers_edge_color) 
+	{
+		color_per_face.resize(numF, 3);
+		color_per_sphere_center.resize(numF, 3);
+		color_per_vertex_center.resize(numF, 3);
+		color_per_edge.resize(numF, 3);
+
+		for (int fi = 0; fi < numF; fi++) {
+			color_per_sphere_center.row(fi) = center_sphere_color.cast<double>();
+			color_per_vertex_center.row(fi) = center_vertex_color.cast<double>();
+			color_per_edge.row(fi) = centers_edge_color.cast<double>();
+		}
+	}
+
+	void updateFaceColors(const int fi, const Eigen::Vector3f color) {
+		color_per_face.row(fi) = color.cast<double>();
+		color_per_sphere_center.row(fi) = color.cast<double>();
+		color_per_vertex_center.row(fi) = color.cast<double>();
+		color_per_edge.row(fi) = color.cast<double>();
 	}
 
 	void init(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,const OptimizationUtils::InitAuxVariables& typeAuxVar){
