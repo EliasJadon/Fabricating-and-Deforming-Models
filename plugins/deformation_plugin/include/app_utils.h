@@ -211,7 +211,8 @@ private:
 	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
 	std::shared_ptr<AdamMinimizer> adamMinimizer;
 	Eigen::MatrixXd center_of_triangle;
-	Eigen::MatrixXd center_of_sphere;
+	Eigen::MatrixXd center_of_sphere,norm;
+	Eigen::VectorXd radius_of_sphere;
 
 public:
 	std::shared_ptr<TotalObjective> totalObjective;
@@ -224,7 +225,6 @@ public:
 	std::vector<int> *CentersInd; //pointer to indices in constraitPositional
 	Eigen::MatrixX3d *CentersPosDeformed; //pointer to positions in constraitPositional
 	std::vector < std::vector<int>> *ClustersInd;
-	std::vector < Eigen::MatrixX3d> *CurrClustersPos;
 	Eigen::MatrixXd color_per_face, Vertices_output;
 	Eigen::MatrixXd color_per_sphere_center;
 	Eigen::MatrixXd color_per_vertex_center;
@@ -254,13 +254,17 @@ public:
 
 	~OptimizationOutput() {}
 
-	void setCenters(
+	void setAuxVariables(
 		const Eigen::MatrixXd& V, 
 		const Eigen::MatrixXi& F, 
-		const Eigen::MatrixXd& center_of_sphere
+		const Eigen::MatrixXd& center_of_sphere,
+		const Eigen::VectorXd& radius_of_sphere,
+		const Eigen::MatrixXd& norm
 	) {
-		this->center_of_triangle = OptimizationUtils::center_per_triangle(V, F);;
+		this->center_of_triangle = OptimizationUtils::center_per_triangle(V, F);
 		this->center_of_sphere = center_of_sphere;
+		this->radius_of_sphere = radius_of_sphere;
+		this->norm = norm;
 	}
 
 	void translateCenterOfSphere(const int fi, const Eigen::Vector3d translateValue) {
@@ -319,8 +323,8 @@ public:
 		color_per_edge.row(fi) = color.cast<double>();
 	}
 
-	void init(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,const OptimizationUtils::InitAuxVariables& typeAuxVar){
-		Eigen::VectorXd init = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
+	void initMinimizers(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,const OptimizationUtils::InitAuxVariables& typeAuxVar){
+		Eigen::VectorXd initVertices = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
 		Eigen::MatrixX3d normals;
 		igl::per_face_normals((Eigen::MatrixX3d)V, (Eigen::MatrixX3i)F, normals);
 		Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size());
@@ -330,10 +334,10 @@ public:
 			OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
 		else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MESH_CENTER)
 			OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
-		setCenters(V,F, center0);
+		setAuxVariables(V,F, center0, Radius0, normals);
 		newtonMinimizer->init(
 			totalObjective,
-			init,
+			initVertices,
 			initNormals,
 			Eigen::Map<Eigen::VectorXd>(center0.data(), F.size()),
 			Radius0,
@@ -342,7 +346,7 @@ public:
 		);
 		gradientDescentMinimizer->init(
 			totalObjective,
-			init,
+			initVertices,
 			initNormals,
 			Eigen::Map<Eigen::VectorXd>(center0.data(), F.size()),
 			Radius0,
@@ -351,7 +355,7 @@ public:
 		);
 		adamMinimizer->init(
 			totalObjective,
-			init,
+			initVertices,
 			initNormals,
 			Eigen::Map<Eigen::VectorXd>(center0.data(), F.size()),
 			Radius0,

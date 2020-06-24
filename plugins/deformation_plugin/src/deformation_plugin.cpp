@@ -917,29 +917,12 @@ void deformation_plugin::UpdateCentersHandles() {
 
 void deformation_plugin::UpdateClustersHandles() {
 	std::vector < std::vector<int>> ind(faceClusters.size());
-	std::vector < std::vector < Eigen::MatrixX3d>> currPos;
 	for (int ci = 0; ci < faceClusters.size(); ci++)
 		for (int fi : faceClusters[ci].faces)
 			ind[ci].push_back(fi);
-	for (int oi = 0; oi < Outputs.size(); oi++) {
-		std::vector <Eigen::MatrixX3d> currPos_oi;
-		for (int ci = 0; ci < faceClusters.size(); ci++) {
-			Eigen::MatrixX3d currPos_oi_ci;
-			currPos_oi_ci = Eigen::MatrixX3d::Zero(ind[ci].size(), 3);
-			if (Outputs[oi].getCenterOfSphere().size() != 0) 
-				for (int fi = 0; fi < ind[ci].size(); fi++) 
-					currPos_oi_ci.row(fi) = Outputs[oi].getCenterOfSphere().row(ind[ci][fi]);
-			currPos_oi.push_back(currPos_oi_ci);
-		}
-		currPos.push_back(currPos_oi);
-	}
-	//Finally, we update the handles in the constraints positional object
-	for (int i = 0; i < Outputs.size(); i++) {
-		if (isModelLoaded) {
+	for (int i = 0; i < Outputs.size(); i++)
+		if (isModelLoaded)
 			*(Outputs[i].ClustersInd) = ind;
-			*(Outputs[i].CurrClustersPos) = currPos[i];
-		}
-	}
 }
 
 void deformation_plugin::UpdateVerticesHandles() {
@@ -1151,17 +1134,16 @@ void deformation_plugin::checkHessians()
 
 void deformation_plugin::update_data_from_minimizer()
 {
-	std::vector<Eigen::MatrixXd> V,center; 
-	center.resize(Outputs.size());
-	V.resize(Outputs.size());
+	std::vector<Eigen::MatrixXd> V(Outputs.size()),center(Outputs.size()),norm(Outputs.size());
+	std::vector<Eigen::VectorXd> radius(Outputs.size());
 	for (int i = 0; i < Outputs.size(); i++){
-		Outputs[i].activeMinimizer->get_data(V[i], center[i]);
+		Outputs[i].activeMinimizer->get_data(V[i], center[i],radius[i],norm[i]);
 		if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_VERTEX)
 			V[i].row(Translate_Index) = OutputModel(i).V.row(Translate_Index);
 		else if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_FACES)
 			if (Outputs[i].getCenterOfSphere().size() != 0)
 				center[i].row(Translate_Index) = Outputs[i].getCenterOfSphere().row(Translate_Index);
-		Outputs[i].setCenters(V[i], InputModel().F, center[i]);
+		Outputs[i].setAuxVariables(V[i], InputModel().F, center[i],radius[i],norm[i]);
 		set_vertices_for_mesh(V[i],i);
 	}
 }
@@ -1179,7 +1161,7 @@ void deformation_plugin::stop_minimizer_thread() {
 void deformation_plugin::init_minimizer_thread() {
 	stop_minimizer_thread();
 	for (int i = 0; i < Outputs.size(); i++)
-		Outputs[i].init(OutputModel(i).V, OutputModel(i).F, typeAuxVar);
+		Outputs[i].initMinimizers(OutputModel(i).V, OutputModel(i).F, typeAuxVar);
 }
 
 void deformation_plugin::start_minimizer_thread() {
@@ -1254,7 +1236,6 @@ void deformation_plugin::initializeMinimizer(const int index)
 	clusterCenters->numF = F.rows();
 	clusterCenters->init();
 	Outputs[index].ClustersInd = &(clusterCenters->ClustersInd);
-	Outputs[index].CurrClustersPos = &(clusterCenters->CurrClustersPos);
 	//init total objective
 	Outputs[index].totalObjective->objectiveList.clear();
 	Outputs[index].totalObjective->init_mesh(V, F);

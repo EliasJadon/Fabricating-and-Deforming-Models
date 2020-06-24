@@ -68,6 +68,8 @@ void Minimizer::init(
 	X.middleRows(3 * V.rows() + 6 * F.rows(), 1 * F.rows()) = Radius0;
 	ext_x = X0;
 	ext_center = center0;
+	ext_norm = norm0;
+	ext_radius = Radius0;
 	internal_init();
 }
 
@@ -391,16 +393,20 @@ void Minimizer::update_external_data()
 {
 	give_parameter_update_slot();
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
-	ext_x = X.middleRows(0, 3 * V.rows());
-	ext_center = X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows());
+	ext_x =			X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows());
+	ext_norm =		X.middleRows(3 * V.rows() + 0 * F.rows(), 3 * F.rows());
+	ext_center =	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows());
+	ext_radius =	X.middleRows(3 * V.rows() + 6 * F.rows(), 1 * F.rows());
 	progressed = true;
 }
 
-void Minimizer::get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center)
+void Minimizer::get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center, Eigen::VectorXd& radius, Eigen::MatrixXd& norm)
 {
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
 	X = Eigen::Map<Eigen::MatrixXd>(ext_x.data(), ext_x.rows() / 3, 3);
 	center = Eigen::Map<Eigen::MatrixXd>(ext_center.data(), ext_center.rows() / 3, 3);
+	radius = ext_radius;
+	norm = Eigen::Map<Eigen::MatrixXd>(ext_norm.data(), ext_norm.rows() / 3, 3);
 	progressed = false;
 }
 

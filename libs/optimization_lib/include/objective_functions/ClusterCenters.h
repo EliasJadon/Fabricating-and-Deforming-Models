@@ -16,7 +16,8 @@ public:
 	virtual void hessian() override;
 	
 	std::vector < std::vector<int>> ClustersInd;
-	std::vector < Eigen::MatrixX3d> CurrClustersPos;
+	std::vector < Eigen::MatrixX3d> SphereCenterPos;
+	std::vector < Eigen::VectorXd> SphereRadiusLen;
 	int numV=0;
 	int numF=0;
 };
