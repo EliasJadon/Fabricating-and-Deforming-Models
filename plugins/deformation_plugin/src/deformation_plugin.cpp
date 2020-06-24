@@ -31,7 +31,8 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		view = app_utils::View::HORIZONTAL;
 
 		Max_Distortion = 5;
-		neighbor_distance = 0.15;
+		neighbor_center_distance = 0.15;
+		neighbor_radius_distance = 0.15;
 		texture_scaling_input = texture_scaling_output = 1;
 		down_mouse_x = down_mouse_y = -1;
 
@@ -830,7 +831,8 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 		Draw_menu_for_colors();
 		ImGui::PushItemWidth(80 * menu_scaling());
 		ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
-		ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
+		ImGui::DragFloat("Neighbors Center Distance", &neighbor_center_distance, 0.05f, 0.01f, 10000.0f);
+		ImGui::DragFloat("Neighbors Radius Distance", &neighbor_radius_distance, 0.05f, 0.01f, 10000.0f);
 		ImGui::PopItemWidth();
 	}
 	//close the window
@@ -983,7 +985,7 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 				Outputs[i].updateFaceColors(fi, Fixed_face_color);
 			//Mark the highlighted face & neighbors
 			if (curr_highlighted_face != -1 && Highlighted_face) {
-				for (int fi : Outputs[i].getNeighborsSphereCenters(curr_highlighted_face, neighbor_distance))
+				for (int fi : Outputs[i].getNeighborsSphereCenters(curr_highlighted_face, neighbor_center_distance,neighbor_radius_distance))
 					Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
 				Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
 			}
