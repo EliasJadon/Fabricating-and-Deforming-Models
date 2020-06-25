@@ -6,6 +6,7 @@ class ClusterCenters : public ObjectiveFunction
 private:
 	virtual void init_hessian() override;
 	int getNumberOfClusters();
+	int CheckInputValidation();
 public:
 	ClusterCenters();
 	~ClusterCenters();

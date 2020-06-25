@@ -295,11 +295,9 @@ public:
 		if (getCenterOfTriangle().size() == 0 || getCenterOfSphere().size() == 0)
 			return empty;
 		c.middleRows(0, numF) = getCenterOfTriangle();
-
 		for (int fi = 0; fi < numF; fi++) {
 			Eigen::RowVectorXd v = (getCenterOfSphere().row(fi) - getCenterOfTriangle().row(fi)).normalized();
 			c.row(numF+fi) = getCenterOfTriangle().row(fi) + radius_of_sphere(fi) *v;
-			
 		}
 		return c;
 	}

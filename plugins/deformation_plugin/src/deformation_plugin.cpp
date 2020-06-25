@@ -41,7 +41,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		Neighbors_Highlighted_face_color = Eigen::Vector3f(1, 102 / 255.0f, 1);
 		center_sphere_color = Eigen::Vector3f(0, 1, 1);
 		center_vertex_color = Eigen::Vector3f(128 / 255.0f, 128 / 255.0f, 128 / 255.0f);
-		centers_edge_color = RED_COLOR;
+		centers_edge_color = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);;
 		Fixed_vertex_color = Fixed_face_color = BLUE_COLOR;
 		Dragged_vertex_color = Dragged_face_color = GREEN_COLOR;
 		model_color = GREY_COLOR;

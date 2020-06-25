@@ -44,12 +44,24 @@ int ClusterCenters::getNumberOfClusters() {
 	return ClustersInd.size();
 }
 
+int ClusterCenters::CheckInputValidation() {
+	if ((SphereCenterPos.size() != ClustersInd.size()) 
+		|| (SphereRadiusLen.size() != ClustersInd.size()))
+		return 0;
+	for (int ci = 0; ci < getNumberOfClusters(); ci++)
+		if ((SphereCenterPos[ci].rows() != ClustersInd[ci].size()) 
+			||(SphereRadiusLen[ci].size() != ClustersInd[ci].size()))
+			return 0;
+	return 1;
+}
+
 double ClusterCenters::value(const bool update)
 {
 	double E = 0;
+	
 	for (int ci = 0; ci < getNumberOfClusters(); ci++) {
 		//for each cluster
-		if (SphereCenterPos[ci].rows() != ClustersInd[ci].size())
+		if (!CheckInputValidation())
 			return 0;
 		for (int f1 = 0; f1 < SphereCenterPos[ci].rows(); f1++)
 			for (int f2 = f1 + 1; f2 < SphereCenterPos[ci].rows(); f2++) {
@@ -69,7 +81,7 @@ void ClusterCenters::gradient(Eigen::VectorXd& g, const bool update)
 
 	for (int ci = 0; ci < getNumberOfClusters(); ci++) {
 		//for each cluster
-		if (SphereCenterPos[ci].rows() != ClustersInd[ci].size()) {
+		if (!CheckInputValidation()) {
 			g.setZero(); 
 			return;
 		}
@@ -112,7 +124,7 @@ void ClusterCenters::hessian()
 
 	for (int ci = 0; ci < getNumberOfClusters(); ci++) {
 		//for each cluster
-		if (SphereCenterPos[ci].rows() != ClustersInd[ci].size()) {
+		if (!CheckInputValidation()) {
 			II.clear();
 			JJ.clear();
 			SS.clear();
