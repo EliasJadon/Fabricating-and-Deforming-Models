@@ -230,7 +230,7 @@ public:
 	Eigen::MatrixXd color_per_sphere_center;
 	Eigen::MatrixXd color_per_vertex_center;
 	Eigen::MatrixXd color_per_face_norm;
-	Eigen::MatrixXd color_per_edge;
+	Eigen::MatrixXd color_per_sphere_edge, color_per_norm_edge;
 	int ModelID, CoreID;
 	ImVec2 window_position, window_size, text_position;
 	
@@ -278,7 +278,7 @@ public:
 	}
 
 	Eigen::MatrixXd getFacesNorm() {
-		return facesNorm;
+		return center_of_triangle + facesNorm;
 	}
 
 	std::vector<int> getNeighborsSphereCenters(const int fi,const float max_center_distance,const float max_radius_distance) {
@@ -296,14 +296,13 @@ public:
 
 	Eigen::MatrixXd getSphereEdges() {
 		int numF = center_of_sphere.rows();
-		Eigen::MatrixXd c(2 * numF, 3);
+		Eigen::MatrixXd c(numF, 3);
 		Eigen::MatrixXd empty;
 		if (getCenterOfTriangle().size() == 0 || getCenterOfSphere().size() == 0)
 			return empty;
-		c.middleRows(0, numF) = getCenterOfTriangle();
 		for (int fi = 0; fi < numF; fi++) {
 			Eigen::RowVectorXd v = (getCenterOfSphere().row(fi) - getCenterOfTriangle().row(fi)).normalized();
-			c.row(numF+fi) = getCenterOfTriangle().row(fi) + radius_of_sphere(fi) *v;
+			c.row(fi) = getCenterOfTriangle().row(fi) + radius_of_sphere(fi) *v;
 		}
 		return c;
 	}
@@ -312,20 +311,23 @@ public:
 		const int numF, 
 		const Eigen::Vector3f center_sphere_color,
 		const Eigen::Vector3f center_vertex_color,
-		const Eigen::Vector3f centers_edge_color,
+		const Eigen::Vector3f centers_sphere_edge_color,
+		const Eigen::Vector3f centers_norm_edge_color,
 		const Eigen::Vector3f face_norm_color) 
 	{
 		color_per_face.resize(numF, 3);
 		color_per_sphere_center.resize(numF, 3);
 		color_per_vertex_center.resize(numF, 3);
 		color_per_face_norm.resize(numF, 3);
-		color_per_edge.resize(numF, 3);
+		color_per_sphere_edge.resize(numF, 3);
+		color_per_norm_edge.resize(numF, 3);
 
 		for (int fi = 0; fi < numF; fi++) {
 			color_per_sphere_center.row(fi) = center_sphere_color.cast<double>();
 			color_per_vertex_center.row(fi) = center_vertex_color.cast<double>();
 			color_per_face_norm.row(fi) = face_norm_color.cast<double>();
-			color_per_edge.row(fi) = centers_edge_color.cast<double>();
+			color_per_sphere_edge.row(fi) = centers_sphere_edge_color.cast<double>();
+			color_per_norm_edge.row(fi) = centers_norm_edge_color.cast<double>();
 		}
 	}
 
@@ -334,7 +336,8 @@ public:
 		color_per_sphere_center.row(fi) = color.cast<double>();
 		color_per_vertex_center.row(fi) = color.cast<double>();
 		color_per_face_norm.row(fi) = color.cast<double>();
-		color_per_edge.row(fi) = color.cast<double>();
+		color_per_sphere_edge.row(fi) = color.cast<double>();
+		color_per_norm_edge.row(fi) = color.cast<double>();
 	}
 
 	void initMinimizers(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,const OptimizationUtils::InitAuxVariables& typeAuxVar){

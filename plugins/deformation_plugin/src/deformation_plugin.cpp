@@ -10,7 +10,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	ImGuiMenu::init(_viewer);
 	if (_viewer)
 	{
-		showEdges = showTriangleCenters = showSphereCeneters = true;
+		showSphereEdges = showNormEdges = showTriangleCenters = showSphereCeneters = true;
 		showFacesNorm = false;
 		typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
 		isLoadNeeded = false;
@@ -42,7 +42,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		Neighbors_Highlighted_face_color = Eigen::Vector3f(1, 102 / 255.0f, 1);
 		center_sphere_color = Eigen::Vector3f(0, 1, 1);
 		center_vertex_color = Eigen::Vector3f(128 / 255.0f, 128 / 255.0f, 128 / 255.0f);
-		centers_edge_color = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);;
+		centers_sphere_edge_color = centers_norm_edge_color = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);;
 		face_norm_color = Eigen::Vector3f(0, 1, 1);
 		Fixed_vertex_color = Fixed_face_color = BLUE_COLOR;
 		Dragged_vertex_color = Dragged_face_color = GREEN_COLOR;
@@ -517,12 +517,9 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 		OutputModel(i).point_size = 10;
 		OutputModel(i).set_points(Outputs[i].Vertices_output, color_per_vertex);
 	}
-	Eigen::MatrixXi E(InputModel().F.rows(), 2);
-	for (int fi = 0; fi < InputModel().F.rows(); fi++) {
-		E.row(fi) << fi, InputModel().F.rows() + fi;
-	}
 	
 	for (int i = 0; i < Outputs.size(); i++) {
+		OutputModel(i).clear_edges();
 		OutputModel(i).point_size = 10;
 		if (showFacesNorm && Outputs[i].getFacesNorm().size() != 0)
 			OutputModel(i).add_points(Outputs[i].getFacesNorm(), Outputs[i].color_per_face_norm);
@@ -530,10 +527,10 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 			OutputModel(i).add_points(Outputs[i].getCenterOfTriangle(), Outputs[i].color_per_vertex_center);
 		if (showSphereCeneters && Outputs[i].getCenterOfSphere().size() != 0)
 			OutputModel(i).add_points(Outputs[i].getCenterOfSphere(), Outputs[i].color_per_sphere_center);
-		if (showEdges && Outputs[i].getSphereEdges().size() != 0)
-			OutputModel(i).set_edges(Outputs[i].getSphereEdges(), E, Outputs[i].color_per_edge);
-		else
-			OutputModel(i).clear_edges();
+		if (showSphereEdges && Outputs[i].getCenterOfTriangle().size() != 0)
+			OutputModel(i).add_edges(Outputs[i].getCenterOfTriangle(), Outputs[i].getSphereEdges(), Outputs[i].color_per_sphere_edge);
+		if (showNormEdges && Outputs[i].getCenterOfTriangle().size() != 0)
+			OutputModel(i).add_edges(Outputs[i].getCenterOfTriangle(), Outputs[i].getFacesNorm(), Outputs[i].color_per_norm_edge);
 	}
 	return false;
 }
@@ -545,7 +542,8 @@ void deformation_plugin::Draw_menu_for_colors() {
 		ImGui::ColorEdit3("Highlighted face color", Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Center sphere color", center_sphere_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Center vertex color", center_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Centers edge color", centers_edge_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Centers sphere edge color", centers_sphere_edge_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Centers norm edge color", centers_norm_edge_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Face norm color", face_norm_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Neighbors Highlighted face color", Neighbors_Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Fixed face color", Fixed_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
@@ -566,10 +564,10 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 		if (ImGui::Checkbox(isMinimizerRunning ? "On" : "Off", &isMinimizerRunning))
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
 		ImGui::Checkbox("Minimizer settings", &minimizer_settings);
-
 		ImGui::Checkbox("show faces norm", &showFacesNorm);
-		ImGui::Checkbox("show edges", &showEdges);
+		ImGui::Checkbox("show norm edges", &showNormEdges);
 		ImGui::Checkbox("show triangle centers", &showTriangleCenters);
+		ImGui::Checkbox("show sphere edges", &showSphereEdges);
 		ImGui::Checkbox("show sphere ceneters", &showSphereCeneters);
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
 			stop_minimizer_thread();
@@ -980,7 +978,7 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 	if(InputModel().F.size()){
 		//Mark the faces
 		for (int i = 0; i < Outputs.size(); i++) {
-			Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color,centers_edge_color, face_norm_color);
+			Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color, centers_sphere_edge_color, centers_norm_edge_color, face_norm_color);
 			UpdateEnergyColors(i);
 			//Mark the cluster faces
 			for (FaceClusters cluster : faceClusters)
