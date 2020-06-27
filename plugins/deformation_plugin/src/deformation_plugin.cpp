@@ -10,7 +10,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	ImGuiMenu::init(_viewer);
 	if (_viewer)
 	{
-		showSphereEdges = showNormEdges = showTriangleCenters = showSphereCeneters = true;
+		showSphereEdges = showNormEdges = showTriangleCenters = showSphereCeneters = false;
 		showFacesNorm = false;
 		typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
 		isLoadNeeded = false;
@@ -18,7 +18,8 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		IsMouseHoveringAnyWindow = false;
 		isMinimizerRunning = false;
 		Outputs_Settings = false;
-		Highlighted_face = false;
+		show_sphere_clusters = false;
+		show_norm_clusters = false;
 		IsTranslate = false;
 		isModelLoaded = false;
 		isUpdateAll = true;
@@ -34,6 +35,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		Max_Distortion = 5;
 		neighbor_center_distance = 0.15;
 		neighbor_radius_distance = 0.15;
+		neighbor_norm_distance = 0.03;
 		texture_scaling_input = texture_scaling_output = 1;
 		down_mouse_x = down_mouse_y = -1;
 
@@ -119,7 +121,12 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	if (ImGui::Checkbox("Show text", &show_text))
 		if(show_text)
 			Outputs_Settings = !show_text;
-	ImGui::Checkbox("Highlight faces", &Highlighted_face);
+	if (ImGui::Checkbox("show sphere clusters", &show_sphere_clusters))
+		if (show_sphere_clusters)
+			show_norm_clusters = false;
+	if(ImGui::Checkbox("show norm clusters", &show_norm_clusters))
+		if (show_norm_clusters)
+			show_sphere_clusters = false;
 	if ((view == app_utils::View::HORIZONTAL) || (view == app_utils::View::VERTICAL)) {
 		if(ImGui::SliderFloat("Core Size", &core_size, 0, 1.0/ Outputs.size(), std::to_string(core_size).c_str(), 1)){
 			int frameBufferWidth, frameBufferHeight;
@@ -837,6 +844,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 		ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
 		ImGui::DragFloat("Neighbors Center Distance", &neighbor_center_distance, 0.05f, 0.01f, 10000.0f);
 		ImGui::DragFloat("Neighbors Radius Distance", &neighbor_radius_distance, 0.05f, 0.01f, 10000.0f);
+		ImGui::DragFloat("Neighbors Norm Distance", &neighbor_norm_distance, 0.05f, 0.01f, 10000.0f);
 		ImGui::PopItemWidth();
 	}
 	//close the window
@@ -988,8 +996,13 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 			for (int fi : selected_fixed_faces)
 				Outputs[i].updateFaceColors(fi, Fixed_face_color);
 			//Mark the highlighted face & neighbors
-			if (curr_highlighted_face != -1 && Highlighted_face) {
+			if (curr_highlighted_face != -1 && show_sphere_clusters) {
 				for (int fi : Outputs[i].getNeighborsSphereCenters(curr_highlighted_face, neighbor_center_distance,neighbor_radius_distance))
+					Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
+				Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
+			}
+			if (curr_highlighted_face != -1 && show_norm_clusters) {
+				for (int fi : Outputs[i].getNeighborsNorms(curr_highlighted_face, neighbor_norm_distance))
 					Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
 				Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
 			}

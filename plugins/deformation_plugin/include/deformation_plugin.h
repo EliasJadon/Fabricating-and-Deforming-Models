@@ -14,7 +14,7 @@ private:
 	bool isModelLoaded;
 	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCeneters, showFacesNorm;
 	float Max_Distortion;
-	float neighbor_center_distance, neighbor_radius_distance;
+	float neighbor_center_distance, neighbor_radius_distance, neighbor_norm_distance;
 	bool isUpdateAll;
 	bool isMinimizerRunning, minimizer_settings, IsMouseHoveringAnyWindow, IsMouseDraggingAnyWindow;
 	int faceColoring_type;
@@ -41,7 +41,7 @@ private:
 	bool show_text;
 	float core_size;
 	float texture_scaling_output;
-	bool Highlighted_face, Outputs_Settings;
+	bool show_sphere_clusters, show_norm_clusters, Outputs_Settings;
 	std::set<int> selected_fixed_faces, selected_vertices;
 	std::vector<FaceClusters> faceClusters;
 	std::vector<OptimizationOutput> Outputs;

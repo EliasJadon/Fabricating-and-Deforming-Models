@@ -290,6 +290,14 @@ public:
 		return Neighbors;
 	}
 
+	std::vector<int> getNeighborsNorms(const int fi,const float max_norm_distance) {
+		std::vector<int> Neighbors; Neighbors.clear();
+		for (int i = 0; i < facesNorm.rows(); i++)
+			if ((facesNorm.row(fi) - facesNorm.row(i)).squaredNorm() < max_norm_distance)
+				Neighbors.push_back(i);
+		return Neighbors;
+	}
+
 	Eigen::MatrixXd getCenterOfSphere() {
 		return center_of_sphere;
 	}
