@@ -12,7 +12,7 @@ private:
 	bool runOneIteration;
 	bool isLoadNeeded;
 	bool isModelLoaded;
-	bool showEdges, showTriangleCenters, showSphereCeneters;
+	bool showEdges, showTriangleCenters, showSphereCeneters, showFacesNorm;
 	float Max_Distortion;
 	float neighbor_center_distance, neighbor_radius_distance;
 	bool isUpdateAll;
@@ -27,6 +27,7 @@ private:
 		Highlighted_face_color,
 		center_sphere_color,
 		center_vertex_color,
+		face_norm_color,
 		centers_edge_color,
 		Neighbors_Highlighted_face_color,
 		Fixed_face_color,

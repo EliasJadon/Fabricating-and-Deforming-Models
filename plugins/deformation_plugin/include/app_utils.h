@@ -211,7 +211,8 @@ private:
 	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
 	std::shared_ptr<AdamMinimizer> adamMinimizer;
 	Eigen::MatrixXd center_of_triangle;
-	Eigen::MatrixXd center_of_sphere,norm;
+	Eigen::MatrixXd center_of_sphere;
+	Eigen::MatrixXd facesNorm;
 	Eigen::VectorXd radius_of_sphere;
 
 public:
@@ -228,6 +229,7 @@ public:
 	Eigen::MatrixXd color_per_face, Vertices_output;
 	Eigen::MatrixXd color_per_sphere_center;
 	Eigen::MatrixXd color_per_vertex_center;
+	Eigen::MatrixXd color_per_face_norm;
 	Eigen::MatrixXd color_per_edge;
 	int ModelID, CoreID;
 	ImVec2 window_position, window_size, text_position;
@@ -264,7 +266,7 @@ public:
 		this->center_of_triangle = OptimizationUtils::center_per_triangle(V, F);
 		this->center_of_sphere = center_of_sphere;
 		this->radius_of_sphere = radius_of_sphere;
-		this->norm = norm;
+		this->facesNorm = norm;
 	}
 
 	void translateCenterOfSphere(const int fi, const Eigen::Vector3d translateValue) {
@@ -273,6 +275,10 @@ public:
 
 	Eigen::MatrixXd getCenterOfTriangle() {
 		return center_of_triangle;
+	}
+
+	Eigen::MatrixXd getFacesNorm() {
+		return facesNorm;
 	}
 
 	std::vector<int> getNeighborsSphereCenters(const int fi,const float max_center_distance,const float max_radius_distance) {
@@ -288,7 +294,7 @@ public:
 		return center_of_sphere;
 	}
 
-	Eigen::MatrixXd getAllCenters() {
+	Eigen::MatrixXd getSphereEdges() {
 		int numF = center_of_sphere.rows();
 		Eigen::MatrixXd c(2 * numF, 3);
 		Eigen::MatrixXd empty;
@@ -306,16 +312,19 @@ public:
 		const int numF, 
 		const Eigen::Vector3f center_sphere_color,
 		const Eigen::Vector3f center_vertex_color,
-		const Eigen::Vector3f centers_edge_color) 
+		const Eigen::Vector3f centers_edge_color,
+		const Eigen::Vector3f face_norm_color) 
 	{
 		color_per_face.resize(numF, 3);
 		color_per_sphere_center.resize(numF, 3);
 		color_per_vertex_center.resize(numF, 3);
+		color_per_face_norm.resize(numF, 3);
 		color_per_edge.resize(numF, 3);
 
 		for (int fi = 0; fi < numF; fi++) {
 			color_per_sphere_center.row(fi) = center_sphere_color.cast<double>();
 			color_per_vertex_center.row(fi) = center_vertex_color.cast<double>();
+			color_per_face_norm.row(fi) = face_norm_color.cast<double>();
 			color_per_edge.row(fi) = centers_edge_color.cast<double>();
 		}
 	}
@@ -324,6 +333,7 @@ public:
 		color_per_face.row(fi) = color.cast<double>();
 		color_per_sphere_center.row(fi) = color.cast<double>();
 		color_per_vertex_center.row(fi) = color.cast<double>();
+		color_per_face_norm.row(fi) = color.cast<double>();
 		color_per_edge.row(fi) = color.cast<double>();
 	}
 
