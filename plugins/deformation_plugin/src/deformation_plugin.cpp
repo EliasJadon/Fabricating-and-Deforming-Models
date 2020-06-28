@@ -1250,11 +1250,11 @@ void deformation_plugin::initializeMinimizer(const int index)
 	fixChosenCenters->init();
 	Outputs[index].CentersInd = &(fixChosenCenters->ConstrainedCentersInd);
 	Outputs[index].CentersPosDeformed = &(fixChosenCenters->ConstrainedCentersPos);
-	std::shared_ptr< ClusterCenters> clusterCenters = std::make_shared<ClusterCenters>();
-	clusterCenters->numV = V.rows();
-	clusterCenters->numF = F.rows();
-	clusterCenters->init();
-	Outputs[index].ClustersInd = &(clusterCenters->ClustersInd);
+	std::shared_ptr< ClusterSpheres> clusterSpheres = std::make_shared<ClusterSpheres>();
+	clusterSpheres->numV = V.rows();
+	clusterSpheres->numF = F.rows();
+	clusterSpheres->init();
+	Outputs[index].ClustersInd = &(clusterSpheres->ClustersInd);
 	//init total objective
 	Outputs[index].totalObjective->objectiveList.clear();
 	Outputs[index].totalObjective->init_mesh(V, F);
@@ -1271,7 +1271,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	add_obj(fixAllVertices);
 	add_obj(fixChosenVertices);
 	add_obj(fixChosenCenters);
-	add_obj(clusterCenters);
+	add_obj(clusterSpheres);
 	Outputs[index].totalObjective->init();
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
 	init_minimizer_thread();

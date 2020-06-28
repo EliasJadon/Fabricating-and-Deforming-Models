@@ -18,7 +18,8 @@
 #include "../../libs/optimization_lib/include/minimizers/GradientDescentMinimizer.h"
 #include "../../libs/optimization_lib/include/minimizers/AdamMinimizer.h"
 
-#include "../../libs/optimization_lib/include/objective_functions/ClusterCenters.h"
+#include "../../libs/optimization_lib/include/objective_functions/ClusterSpheres.h"
+#include "../../libs/optimization_lib/include/objective_functions/ClusterNormals.h"
 #include "../../libs/optimization_lib/include/objective_functions/FixChosenCenters.h"
 #include "../../libs/optimization_lib/include/objective_functions/STVK.h"
 #include "../../libs/optimization_lib/include/objective_functions/SymmetricDirichlet.h"
@@ -254,7 +255,7 @@ public:
 		totalObjective = std::make_shared<TotalObjective>();
 	}
 
-	~OptimizationOutput() {}
+	~OptimizationOutput() = default;
 
 	void setAuxVariables(
 		const Eigen::MatrixXd& V, 

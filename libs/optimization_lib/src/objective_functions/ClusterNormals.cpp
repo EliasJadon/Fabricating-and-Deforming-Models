@@ -1,18 +1,18 @@
-#include "objective_functions/ClusterCenters.h"
+#include "objective_functions/ClusterNormals.h"
 
-ClusterCenters::ClusterCenters()
+ClusterNormals::ClusterNormals()
 {
-    name = "Cluster Centers";
+    name = "Cluster Normals";
 	w = 10000;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
-ClusterCenters::~ClusterCenters()
+ClusterNormals::~ClusterNormals()
 {
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void ClusterCenters::init()
+void ClusterNormals::init()
 {
 	std::cout << "\t" << name << " initialization" << std::endl;
 	if(numV==0 || numF == 0)
@@ -20,7 +20,7 @@ void ClusterCenters::init()
 	init_hessian();
 }
 
-void ClusterCenters::updateX(const Eigen::VectorXd& X)
+void ClusterNormals::updateX(const Eigen::VectorXd& X)
 {
 	SphereCenterPos.resize(getNumberOfClusters());
 	SphereRadiusLen.resize(getNumberOfClusters());
@@ -40,11 +40,11 @@ void ClusterCenters::updateX(const Eigen::VectorXd& X)
 	}
 }
 
-int ClusterCenters::getNumberOfClusters() {
+int ClusterNormals::getNumberOfClusters() {
 	return ClustersInd.size();
 }
 
-int ClusterCenters::CheckInputValidation() {
+int ClusterNormals::CheckInputValidation() {
 	if ((SphereCenterPos.size() != ClustersInd.size()) 
 		|| (SphereRadiusLen.size() != ClustersInd.size()))
 		return 0;
@@ -55,7 +55,7 @@ int ClusterCenters::CheckInputValidation() {
 	return 1;
 }
 
-double ClusterCenters::value(const bool update)
+double ClusterNormals::value(const bool update)
 {
 	double E = 0;
 	
@@ -74,7 +74,7 @@ double ClusterCenters::value(const bool update)
 	return E;
 }
 
-void ClusterCenters::gradient(Eigen::VectorXd& g, const bool update)
+void ClusterNormals::gradient(Eigen::VectorXd& g, const bool update)
 {
 	g.conservativeResize(numV * 3 + numF * 7);
 	g.setZero();
@@ -108,7 +108,7 @@ void ClusterCenters::gradient(Eigen::VectorXd& g, const bool update)
 		gradient_norm = g.norm();
 }
 
-void ClusterCenters::hessian()
+void ClusterNormals::hessian()
 {
 	auto PushTriple = [&](const int row, const int col, const double val) {
 		if (col >= row) {
@@ -199,7 +199,7 @@ void ClusterCenters::hessian()
 	);
 }
 
-void ClusterCenters::init_hessian()
+void ClusterNormals::init_hessian()
 {
 	
 }

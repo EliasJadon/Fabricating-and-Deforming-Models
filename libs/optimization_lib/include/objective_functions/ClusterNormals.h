@@ -1,15 +1,15 @@
 #pragma once
 #include "libs/optimization_lib/include/objective_functions/ObjectiveFunction.h"
 
-class ClusterCenters : public ObjectiveFunction
+class ClusterNormals : public ObjectiveFunction
 {
 private:
 	virtual void init_hessian() override;
 	int getNumberOfClusters();
 	int CheckInputValidation();
 public:
-	ClusterCenters();
-	~ClusterCenters();
+	ClusterNormals();
+	~ClusterNormals();
 	virtual void init() override;
 	virtual void updateX(const Eigen::VectorXd& X) override;
 	virtual double value(const bool update) override;
