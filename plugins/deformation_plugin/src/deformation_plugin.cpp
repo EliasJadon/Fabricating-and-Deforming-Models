@@ -935,8 +935,10 @@ void deformation_plugin::UpdateClustersHandles() {
 		for (int fi : faceClusters[ci].faces)
 			ind[ci].push_back(fi);
 	for (int i = 0; i < Outputs.size(); i++)
-		if (isModelLoaded)
-			*(Outputs[i].ClustersInd) = ind;
+		if (isModelLoaded) {
+			*(Outputs[i].ClustersSphereInd) = ind;
+			*(Outputs[i].ClustersNormInd) = ind;
+		}	
 }
 
 void deformation_plugin::UpdateVerticesHandles() {
@@ -1254,7 +1256,12 @@ void deformation_plugin::initializeMinimizer(const int index)
 	clusterSpheres->numV = V.rows();
 	clusterSpheres->numF = F.rows();
 	clusterSpheres->init();
-	Outputs[index].ClustersInd = &(clusterSpheres->ClustersInd);
+	Outputs[index].ClustersSphereInd = &(clusterSpheres->ClustersInd);
+	std::shared_ptr< ClusterNormals> clusterNormals = std::make_shared<ClusterNormals>();
+	clusterNormals->numV = V.rows();
+	clusterNormals->numF = F.rows();
+	clusterNormals->init();
+	Outputs[index].ClustersNormInd = &(clusterNormals->ClustersInd);
 	//init total objective
 	Outputs[index].totalObjective->objectiveList.clear();
 	Outputs[index].totalObjective->init_mesh(V, F);
@@ -1272,6 +1279,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	add_obj(fixChosenVertices);
 	add_obj(fixChosenCenters);
 	add_obj(clusterSpheres);
+	add_obj(clusterNormals);
 	Outputs[index].totalObjective->init();
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
 	init_minimizer_thread();

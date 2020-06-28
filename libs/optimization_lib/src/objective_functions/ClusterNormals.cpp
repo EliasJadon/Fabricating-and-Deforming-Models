@@ -22,20 +22,16 @@ void ClusterNormals::init()
 
 void ClusterNormals::updateX(const Eigen::VectorXd& X)
 {
-	SphereCenterPos.resize(getNumberOfClusters());
-	SphereRadiusLen.resize(getNumberOfClusters());
+	NormalPos.resize(getNumberOfClusters());
 	for (int ci = 0; ci < getNumberOfClusters(); ci++) {
 		//for each cluster
-		SphereCenterPos[ci].resize(ClustersInd[ci].size(),3);
-		SphereRadiusLen[ci].resize(ClustersInd[ci].size());
+		NormalPos[ci].resize(ClustersInd[ci].size(),3);
 		for (int fi = 0; fi < ClustersInd[ci].size(); fi++) {
-			int startC = 3 * numV + 3 * numF;
-			int startR = 3 * numV + 6 * numF;
-			SphereCenterPos[ci].row(fi) <<
-				X(ClustersInd[ci][fi] + (0 * numF) + startC),	//X-coordinate
-				X(ClustersInd[ci][fi] + (1 * numF) + startC),	//Y-coordinate
-				X(ClustersInd[ci][fi] + (2 * numF) + startC);	//Z-coordinate
-			SphereRadiusLen[ci](fi) = X(ClustersInd[ci][fi] + startR);
+			int startN = 3 * numV;
+			NormalPos[ci].row(fi) <<
+				X(ClustersInd[ci][fi] + (0 * numF) + startN),	//X-coordinate
+				X(ClustersInd[ci][fi] + (1 * numF) + startN),	//Y-coordinate
+				X(ClustersInd[ci][fi] + (2 * numF) + startN);	//Z-coordinate
 		}
 	}
 }
@@ -45,12 +41,10 @@ int ClusterNormals::getNumberOfClusters() {
 }
 
 int ClusterNormals::CheckInputValidation() {
-	if ((SphereCenterPos.size() != ClustersInd.size()) 
-		|| (SphereRadiusLen.size() != ClustersInd.size()))
+	if (NormalPos.size() != ClustersInd.size())
 		return 0;
 	for (int ci = 0; ci < getNumberOfClusters(); ci++)
-		if ((SphereCenterPos[ci].rows() != ClustersInd[ci].size()) 
-			||(SphereRadiusLen[ci].size() != ClustersInd[ci].size()))
+		if (NormalPos[ci].rows() != ClustersInd[ci].size())
 			return 0;
 	return 1;
 }
@@ -58,16 +52,13 @@ int ClusterNormals::CheckInputValidation() {
 double ClusterNormals::value(const bool update)
 {
 	double E = 0;
-	
 	for (int ci = 0; ci < getNumberOfClusters(); ci++) {
 		//for each cluster
 		if (!CheckInputValidation())
 			return 0;
-		for (int f1 = 0; f1 < SphereCenterPos[ci].rows(); f1++)
-			for (int f2 = f1 + 1; f2 < SphereCenterPos[ci].rows(); f2++) {
-				E += (SphereCenterPos[ci].row(f1) - SphereCenterPos[ci].row(f2)).squaredNorm();
-				E += pow(SphereRadiusLen[ci](f1)- SphereRadiusLen[ci](f2), 2);
-			}
+		for (int f1 = 0; f1 < NormalPos[ci].rows(); f1++)
+			for (int f2 = f1 + 1; f2 < NormalPos[ci].rows(); f2++)
+				E += (NormalPos[ci].row(f1) - NormalPos[ci].row(f2)).squaredNorm();
 	}
 	if (update)
 		energy_value = E;
@@ -85,22 +76,16 @@ void ClusterNormals::gradient(Eigen::VectorXd& g, const bool update)
 			g.setZero(); 
 			return;
 		}
-		int startC = 3 * numV + 3 * numF;
-		int startR = 3 * numV + 6 * numF;
-		for (int f1 = 0; f1 < SphereCenterPos[ci].rows(); f1++) {
-			for (int f2 = f1 + 1; f2 < SphereCenterPos[ci].rows(); f2++) {
-				Eigen::RowVector3d diffC = SphereCenterPos[ci].row(f1) - SphereCenterPos[ci].row(f2);
-				double diffR = SphereRadiusLen[ci](f1) - SphereRadiusLen[ci](f2);
+		int startN = 3 * numV;
+		for (int f1 = 0; f1 < NormalPos[ci].rows(); f1++) {
+			for (int f2 = f1 + 1; f2 < NormalPos[ci].rows(); f2++) {
+				Eigen::RowVector3d diffN = NormalPos[ci].row(f1) - NormalPos[ci].row(f2);
 				for (int xyz = 0; xyz < 3; xyz++) {
 					//f1 derivative
-					g(ClustersInd[ci][f1] + (xyz * numF) + startC) += 2 * diffC(xyz);
+					g(ClustersInd[ci][f1] + (xyz * numF) + startN) += 2 * diffN(xyz);
 					//f2 derivative
-					g(ClustersInd[ci][f2] + (xyz * numF) + startC) += -2 * diffC(xyz); 
+					g(ClustersInd[ci][f2] + (xyz * numF) + startN) += -2 * diffN(xyz);
 				}
-				//f1 derivative
-				g(ClustersInd[ci][f1] + startR) += 2 * diffR;
-				//f2 derivative
-				g(ClustersInd[ci][f2] + startR) += -2 * diffR;
 			}
 		}
 	}
@@ -135,60 +120,35 @@ void ClusterNormals::hessian()
 			);
 			return;
 		}
-		int startC = 3 * numV + 3 * numF;
-		int startR = 3 * numV + 6 * numF;
-		for (int f1 = 0; f1 < SphereCenterPos[ci].rows(); f1++) {
-			for (int f2 = f1 + 1; f2 < SphereCenterPos[ci].rows(); f2++) {
+		int startN = 3 * numV;
+		for (int f1 = 0; f1 < NormalPos[ci].rows(); f1++) {
+			for (int f2 = f1 + 1; f2 < NormalPos[ci].rows(); f2++) {
 				for (int xyz = 0; xyz < 3; xyz++) {
 					// d2E/df1df1
 					PushTriple(
-						ClustersInd[ci][f1] + (xyz * numF) + startC,
-						ClustersInd[ci][f1] + (xyz * numF) + startC,
+						ClustersInd[ci][f1] + (xyz * numF) + startN,
+						ClustersInd[ci][f1] + (xyz * numF) + startN,
 						2
 					);
 					// d2E/df1df2
 					PushTriple(
-						ClustersInd[ci][f1] + (xyz * numF) + startC,
-						ClustersInd[ci][f2] + (xyz * numF) + startC,
+						ClustersInd[ci][f1] + (xyz * numF) + startN,
+						ClustersInd[ci][f2] + (xyz * numF) + startN,
 						-2
 					);
 					// d2E/df2df1
 					PushTriple(
-						ClustersInd[ci][f2] + (xyz * numF) + startC,
-						ClustersInd[ci][f1] + (xyz * numF) + startC,
+						ClustersInd[ci][f2] + (xyz * numF) + startN,
+						ClustersInd[ci][f1] + (xyz * numF) + startN,
 						-2
 					);
 					// d2E/df2df2
 					PushTriple(
-						ClustersInd[ci][f2] + (xyz * numF) + startC,
-						ClustersInd[ci][f2] + (xyz * numF) + startC,
+						ClustersInd[ci][f2] + (xyz * numF) + startN,
+						ClustersInd[ci][f2] + (xyz * numF) + startN,
 						2
 					);
 				}
-				// d2E/df1df1
-				PushTriple(
-					ClustersInd[ci][f1] + startR,
-					ClustersInd[ci][f1] + startR,
-					2
-				);
-				// d2E/df1df2
-				PushTriple(
-					ClustersInd[ci][f1] + startR,
-					ClustersInd[ci][f2] + startR,
-					-2
-				);
-				// d2E/df2df1
-				PushTriple(
-					ClustersInd[ci][f2] + startR,
-					ClustersInd[ci][f1] + startR,
-					-2
-				);
-				// d2E/df2df2
-				PushTriple(
-					ClustersInd[ci][f2] + startR,
-					ClustersInd[ci][f2] + startR,
-					2
-				);
 			}
 		}
 	}
