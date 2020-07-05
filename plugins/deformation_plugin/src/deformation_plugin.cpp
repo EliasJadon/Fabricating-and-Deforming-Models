@@ -18,8 +18,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		IsMouseHoveringAnyWindow = false;
 		isMinimizerRunning = false;
 		Outputs_Settings = false;
-		show_sphere_clusters = false;
-		show_norm_clusters = false;
+		highlightFacesType = app_utils::HighlightFaces::NO_HIGHLIGHT;
 		IsTranslate = false;
 		isModelLoaded = false;
 		isUpdateAll = true;
@@ -33,9 +32,6 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		view = app_utils::View::HORIZONTAL;
 
 		Max_Distortion = 5;
-		neighbor_center_distance = 0.15;
-		neighbor_radius_distance = 0.15;
-		neighbor_norm_distance = 0.03;
 		texture_scaling_input = texture_scaling_output = 1;
 		down_mouse_x = down_mouse_y = -1;
 
@@ -121,24 +117,35 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	if (ImGui::Checkbox("Show text", &show_text))
 		if(show_text)
 			Outputs_Settings = !show_text;
-	if (ImGui::Checkbox("show sphere clusters", &show_sphere_clusters))
-		if (show_sphere_clusters)
-			show_norm_clusters = false;
-	if(ImGui::Checkbox("show norm clusters", &show_norm_clusters))
-		if (show_norm_clusters)
-			show_sphere_clusters = false;
-	if ((view == app_utils::View::HORIZONTAL) || (view == app_utils::View::VERTICAL)) {
-		if(ImGui::SliderFloat("Core Size", &core_size, 0, 1.0/ Outputs.size(), std::to_string(core_size).c_str(), 1)){
-			int frameBufferWidth, frameBufferHeight;
-			glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
-			post_resize(frameBufferWidth, frameBufferHeight);
-		}
+
+	if (ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "No Highlight\0Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0")) {
+		if(highlightFacesType == app_utils::HighlightFaces::GLOBAL_NORMALS ||
+			highlightFacesType == app_utils::HighlightFaces::LOCAL_NORMALS)
+			neighbor_distance = 0.03;
+		if(highlightFacesType == app_utils::HighlightFaces::GLOBAL_SPHERE ||
+			highlightFacesType == app_utils::HighlightFaces::LOCAL_SPHERE)
+			neighbor_distance = 0.3;
 	}
+	if (highlightFacesType == app_utils::HighlightFaces::GLOBAL_NORMALS ||
+		highlightFacesType == app_utils::HighlightFaces::LOCAL_NORMALS ||
+		highlightFacesType == app_utils::HighlightFaces::GLOBAL_SPHERE ||
+		highlightFacesType == app_utils::HighlightFaces::LOCAL_SPHERE)
+		ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
+
+	
 	if (ImGui::Combo("View cores", (int *)(&view), app_utils::build_view_names_list(Outputs.size()))) {
 		// That's how you get the current width/height of the frame buffer (for example, after the window was resized)
 		int frameBufferWidth, frameBufferHeight;
 		glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
 		post_resize(frameBufferWidth, frameBufferHeight);
+	}
+
+	if ((view == app_utils::View::HORIZONTAL) || (view == app_utils::View::VERTICAL)) {
+		if (ImGui::SliderFloat("Core Size", &core_size, 0, 1.0 / Outputs.size(), std::to_string(core_size).c_str(), 1)) {
+			int frameBufferWidth, frameBufferHeight;
+			glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
+			post_resize(frameBufferWidth, frameBufferHeight);
+		}
 	}
 	
 	ImGui::Combo("Mouse Mode", (int *)(&mouse_mode), app_utils::build_clusters_names_list(faceClusters.size()));
@@ -378,7 +385,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 		IsMouseDraggingAnyWindow = true;
 	down_mouse_x = viewer->current_mouse_x;
 	down_mouse_y = viewer->current_mouse_y;
-
+	
 	//check if there faces which is selected on the left screen
 	int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
 	for (int i = 0; i < Outputs.size(); i++)
@@ -571,11 +578,14 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 		if (ImGui::Checkbox(isMinimizerRunning ? "On" : "Off", &isMinimizerRunning))
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
 		ImGui::Checkbox("Minimizer settings", &minimizer_settings);
-		ImGui::Checkbox("show faces norm", &showFacesNorm);
-		ImGui::Checkbox("show norm edges", &showNormEdges);
-		ImGui::Checkbox("show triangle centers", &showTriangleCenters);
-		ImGui::Checkbox("show sphere edges", &showSphereEdges);
-		ImGui::Checkbox("show sphere ceneters", &showSphereCeneters);
+		ImGui::Text("Show:");
+		ImGui::Checkbox("Norm", &showFacesNorm);
+		ImGui::SameLine();
+		ImGui::Checkbox("Norm Edges", &showNormEdges);
+		ImGui::Checkbox("Sphere", &showSphereCeneters);
+		ImGui::SameLine();
+		ImGui::Checkbox("Sphere Edges", &showSphereEdges);
+		ImGui::Checkbox("Face Centers", &showTriangleCenters);
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
 			stop_minimizer_thread();
 			init_minimizer_thread();
@@ -742,20 +752,20 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 				ImGui::PushID(id++);
 				ImGui::DragFloat("w", &(obj->w), 0.05f, 0.0f, 100000.0f);
 				
-				std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
-				std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
+				//std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
+				//std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-				if (BE != NULL)
+				/*if (BE != NULL)
 					ImGui::Combo("Function", (int *)(&(BE->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 				if (BN != NULL)
 					ImGui::Combo("Function", (int *)(&(BN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
-				if (ABN != NULL)
+				*/if (ABN != NULL)
 					ImGui::Combo("Function", (int *)(&(ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 				if (AS != NULL)
 					ImGui::Combo("Function", (int *)(&(AS->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 
-				if (BE != NULL && BE->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+				/*if (BE != NULL && BE->functionType == OptimizationUtils::FunctionType::SIGMOID) {
 					ImGui::Text((std::to_string(BE->planarParameter)).c_str());
 					ImGui::SameLine();
 					if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -780,7 +790,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 					{
 						BN->planarParameter /= 2;
 					}
-				}
+				}*/
 				if (ABN != NULL && ABN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
 					ImGui::Text((std::to_string(ABN->planarParameter)).c_str());
 					ImGui::SameLine();
@@ -842,9 +852,6 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 		Draw_menu_for_colors();
 		ImGui::PushItemWidth(80 * menu_scaling());
 		ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
-		ImGui::DragFloat("Neighbors Center Distance", &neighbor_center_distance, 0.05f, 0.01f, 10000.0f);
-		ImGui::DragFloat("Neighbors Radius Distance", &neighbor_radius_distance, 0.05f, 0.01f, 10000.0f);
-		ImGui::DragFloat("Neighbors Norm Distance", &neighbor_norm_distance, 0.05f, 0.01f, 10000.0f);
 		ImGui::PopItemWidth();
 	}
 	//close the window
@@ -998,16 +1005,13 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 			for (int fi : selected_fixed_faces)
 				Outputs[i].updateFaceColors(fi, Fixed_face_color);
 			//Mark the highlighted face & neighbors
-			if (curr_highlighted_face != -1 && show_sphere_clusters) {
-				for (int fi : Outputs[i].getNeighborsSphereCenters(curr_highlighted_face, neighbor_center_distance,neighbor_radius_distance))
+			if (curr_highlighted_face != -1 && highlightFacesType != app_utils::HighlightFaces::NO_HIGHLIGHT) {
+				std::vector<int> neigh = Outputs[i].getNeigh(highlightFacesType,InputModel().F, curr_highlighted_face, neighbor_distance);
+				for (int fi : neigh)
 					Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
 				Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
 			}
-			if (curr_highlighted_face != -1 && show_norm_clusters) {
-				for (int fi : Outputs[i].getNeighborsNorms(curr_highlighted_face, neighbor_norm_distance))
-					Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
-				Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
-			}
+			
 			if (IsTranslate && (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0)) {
 				//Mark the cluster faces again
 				for (FaceClusters cluster : faceClusters)
@@ -1063,7 +1067,7 @@ int deformation_plugin::pick_face(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int Co
 		y = (viewer->core(inputCoreID).viewport(3) / core_size) - viewer->current_mouse_y;
 	}
 	//Eigen::RowVector3d pt;
-	Eigen::Matrix<double, 3, 1, 0, 3, 1> pt;
+	Eigen::RowVector3d pt;
 	Eigen::Matrix4f modelview = viewer->core(CoreID).view;
 	int vi = -1;
 	std::vector<igl::Hit> hits;
@@ -1217,18 +1221,18 @@ void deformation_plugin::initializeMinimizer(const int index)
 		return;
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
-	std::shared_ptr <BendingEdge> bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::FunctionType::SIGMOID);
-	bendingEdge->init_mesh(V, F);
-	bendingEdge->init();
+	//std::shared_ptr <BendingEdge> bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::FunctionType::SIGMOID);
+	//bendingEdge->init_mesh(V, F);
+	//bendingEdge->init();
 	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
 	auxBendingNormal->init_mesh(V, F);
 	auxBendingNormal->init();
 	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(OptimizationUtils::FunctionType::SIGMOID);
 	auxSpherePerHinge->init_mesh(V, F);
 	auxSpherePerHinge->init();
-	std::shared_ptr <BendingNormal> bendingNormal = std::make_unique<BendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
-	bendingNormal->init_mesh(V, F);
-	bendingNormal->init();
+	//std::shared_ptr <BendingNormal> bendingNormal = std::make_unique<BendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
+	//bendingNormal->init_mesh(V, F);
+	//bendingNormal->init();
 	std::shared_ptr <SymmetricDirichlet> SymmDirich = std::make_unique<SymmetricDirichlet>();
 	SymmDirich->init_mesh(V, F);
 	SymmDirich->init();
@@ -1270,8 +1274,8 @@ void deformation_plugin::initializeMinimizer(const int index)
 	};
 	add_obj(auxSpherePerHinge);
 	add_obj(auxBendingNormal);
-	add_obj(bendingNormal);
-	add_obj(bendingEdge);
+	//add_obj(bendingNormal);
+	//add_obj(bendingEdge);
 	add_obj(SymmDirich);
 	if(app_utils::IsMesh2D(InputModel().V))
 		add_obj(stvk);

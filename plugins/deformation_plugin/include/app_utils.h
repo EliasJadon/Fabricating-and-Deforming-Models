@@ -9,6 +9,8 @@
 #include <igl/map_vertices_to_circle.h>
 #include <igl/project.h>
 #include <igl/unproject.h>
+#include <igl/triangle_triangle_adjacency.h>
+#include <igl/connected_components.h>
 #include <igl/slice.h>
 #include <igl/edge_lengths.h>
 #include <imgui/imgui.h>
@@ -44,9 +46,17 @@ namespace app_utils
 {
 	enum View {
 		HORIZONTAL = 0,
-		VERTICAL = 1,
-		INPUT_ONLY = 2,
-		OUTPUT_ONLY_0 = 3
+		VERTICAL,
+		INPUT_ONLY,
+		OUTPUT_ONLY_0
+	};
+	enum HighlightFaces {
+		NO_HIGHLIGHT = 0,
+		HOVERED_FACE,
+		LOCAL_SPHERE,
+		GLOBAL_SPHERE,
+		LOCAL_NORMALS,
+		GLOBAL_NORMALS
 	};
 	enum MouseMode { 
 		NONE = 0,
@@ -175,12 +185,10 @@ namespace app_utils
 	static Eigen::RowVector3d get_face_avg(const igl::opengl::glfw::Viewer *viewer, const int Model_Translate_ID,const int Translate_Index){
 		Eigen::RowVector3d avg; avg << 0, 0, 0;
 		Eigen::RowVector3i face = viewer->data(Model_Translate_ID).F.row(Translate_Index);
-
 		avg += viewer->data(Model_Translate_ID).V.row(face[0]);
 		avg += viewer->data(Model_Translate_ID).V.row(face[1]);
 		avg += viewer->data(Model_Translate_ID).V.row(face[2]);
 		avg /= 3;
-
 		return avg;
 	}
 }
@@ -282,21 +290,66 @@ public:
 		return center_of_triangle + facesNorm;
 	}
 
-	std::vector<int> getNeighborsSphereCenters(const int fi,const float max_center_distance,const float max_radius_distance) {
+	std::vector<int> GlobNeighSphereCenters(const int fi,const float distance) {
 		std::vector<int> Neighbors; Neighbors.clear();
 		for (int i = 0; i < center_of_sphere.rows(); i++)
-			if (((center_of_sphere.row(fi) - center_of_sphere.row(i)).norm() < max_center_distance)
-				 && abs(radius_of_sphere(fi) - radius_of_sphere(i)) < max_radius_distance)
+			if (((center_of_sphere.row(fi) - center_of_sphere.row(i)).norm() + abs(radius_of_sphere(fi) - radius_of_sphere(i))) < distance)
 				Neighbors.push_back(i);
 		return Neighbors;
 	}
 
-	std::vector<int> getNeighborsNorms(const int fi,const float max_norm_distance) {
+	std::vector<int> GlobNeighNorms(const int fi,const float distance) {
 		std::vector<int> Neighbors; Neighbors.clear();
 		for (int i = 0; i < facesNorm.rows(); i++)
-			if ((facesNorm.row(fi) - facesNorm.row(i)).squaredNorm() < max_norm_distance)
+			if ((facesNorm.row(fi) - facesNorm.row(i)).squaredNorm() < distance)
 				Neighbors.push_back(i);
 		return Neighbors;
+	}
+
+	std::vector<int> getNeigh(const app_utils::HighlightFaces type,const Eigen::MatrixXi& F,const int fi, const float distance) {
+		std::vector<int> neigh;
+		if (type == app_utils::HighlightFaces::HOVERED_FACE)
+			return neigh;
+		if(type == app_utils::HighlightFaces::GLOBAL_NORMALS)
+			return GlobNeighNorms(fi, distance);
+		if(type == app_utils::HighlightFaces::GLOBAL_SPHERE)
+			return GlobNeighSphereCenters(fi, distance);
+		if(type == app_utils::HighlightFaces::LOCAL_NORMALS)
+			neigh = GlobNeighNorms(fi, distance);
+		else if(type == app_utils::HighlightFaces::LOCAL_SPHERE)
+			neigh = GlobNeighSphereCenters(fi, distance);
+		
+		std::vector<int> result; result.push_back(fi);
+		std::vector<std::vector<std::vector<int>>> TT;
+		igl::triangle_triangle_adjacency(F, TT);
+		int prevSize;
+		do {
+			prevSize = result.size();
+			result = vectorsIntersection(adjSetOfTriangles(F, result,TT), neigh);
+		} while (prevSize != result.size());
+		return result;
+	}
+
+	std::vector<int> adjSetOfTriangles(const Eigen::MatrixXi& F, const std::vector<int> selected, std::vector<std::vector<std::vector<int>>> TT) {
+		std::vector<int> adj = selected;
+		for (int selectedFace : selected) {
+			for (std::vector<int> _ : TT[selectedFace]) {
+				for (int fi : _) {
+					if (std::find(adj.begin(), adj.end(), fi) == adj.end())
+						adj.push_back(fi);
+				}
+			}
+		}
+		return adj;
+	}
+
+	std::vector<int> vectorsIntersection(const std::vector<int>& A, const std::vector<int>& B) {
+		std::vector<int> intersection;
+		for (int fi : A) {
+			if (std::find(B.begin(), B.end(), fi) != B.end())
+				intersection.push_back(fi);
+		}
+		return intersection;
 	}
 
 	Eigen::MatrixXd getCenterOfSphere() {
