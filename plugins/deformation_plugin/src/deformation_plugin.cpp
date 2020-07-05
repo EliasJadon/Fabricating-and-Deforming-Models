@@ -413,6 +413,24 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 			UpdateClustersHandles();
 		}
 	}
+	else if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0 && button == GLFW_MOUSE_BUTTON_MIDDLE && modifier == 2)
+	{
+		if (f != -1) {
+			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
+			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end()) {
+				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
+				for(int currF: neigh)
+					faceClusters[clusterIndex].faces.erase(currF);
+			}	
+			else {
+				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
+				for (int currF : neigh)
+					if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), currF) == faceClusters[clusterIndex].faces.end())
+						faceClusters[clusterIndex].faces.insert(currF);
+			}
+			UpdateClustersHandles();
+		}
+	}
 	else if (mouse_mode == app_utils::MouseMode::FIX_VERTEX && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
 		//check if there faces which is selected on the left screen
