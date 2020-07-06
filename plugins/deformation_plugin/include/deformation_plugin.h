@@ -92,7 +92,7 @@ public:
 	//Pick faces & vertices and highlight them
 	int pick_face(const bool update=false);
 	int pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
-	int pick_vertex(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
+	int pick_vertex(const bool update = false);
 	int pick_vertex_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
 	void follow_and_mark_selected_faces();
 	void UpdateVerticesHandles();

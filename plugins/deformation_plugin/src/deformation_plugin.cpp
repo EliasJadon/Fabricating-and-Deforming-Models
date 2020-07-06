@@ -429,10 +429,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	else if (mouse_mode == app_utils::MouseMode::FIX_VERTEX && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
 		//check if there faces which is selected on the left screen
-		int v = pick_vertex(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
-		for(int i=0;i<Outputs.size();i++)
-			if(v == -1) 
-				v = pick_vertex(OutputModel(i).V, OutputModel(i).F, app_utils::OUTPUT_ONLY_0 +i);
+		int v = pick_vertex();
 		if (v != -1)
 		{
 			if (find(selected_vertices.begin(), selected_vertices.end(), v) != selected_vertices.end())
@@ -459,16 +456,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 		if (!selected_vertices.empty())
 		{
 			//check if there faces which is selected on the left screen
-			int v = pick_vertex(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
-			Model_Translate_ID = inputModelID;
-			Core_Translate_ID = inputCoreID;
-			for (int i = 0; i < Outputs.size(); i++) {
-				if (v == -1) {
-					v = pick_vertex(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i);
-					Model_Translate_ID = Outputs[i].ModelID;
-					Core_Translate_ID = Outputs[i].CoreID;
-				}
-			}
+			int v = pick_vertex(true);
 			if (find(selected_vertices.begin(), selected_vertices.end(), v) != selected_vertices.end()) {
 				IsTranslate = true;
 				Translate_Index = v;
@@ -1100,7 +1088,26 @@ int deformation_plugin::pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& 
 	return fi;
 }
 
-int deformation_plugin::pick_vertex(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int CoreIndex) {
+int deformation_plugin::pick_vertex(const bool update) {
+	//check if there faces which is selected on the left screen
+	int v = pick_vertex_per_core(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
+	if (update) {
+		Model_Translate_ID = inputModelID;
+		Core_Translate_ID = inputCoreID;
+	}
+	for (int i = 0; i < Outputs.size(); i++) {
+		if (v == -1) {
+			v = pick_vertex_per_core(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i);
+			if (update) {
+				Model_Translate_ID = Outputs[i].ModelID;
+				Core_Translate_ID = Outputs[i].CoreID;
+			}
+		}
+	}
+	return v;
+}
+
+int deformation_plugin::pick_vertex_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int CoreIndex) {
 	// Cast a ray in the view direction starting from the mouse position
 	int CoreID;
 	if (CoreIndex == app_utils::View::INPUT_ONLY)
