@@ -14,7 +14,7 @@ private:
 	bool isModelLoaded;
 	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCeneters, showFacesNorm;
 	float Max_Distortion;
-	float neighbor_distance;
+	float neighbor_distance, brush_radius;
 	bool isUpdateAll;
 	bool isMinimizerRunning, minimizer_settings, IsMouseHoveringAnyWindow, IsMouseDraggingAnyWindow;
 	int faceColoring_type;

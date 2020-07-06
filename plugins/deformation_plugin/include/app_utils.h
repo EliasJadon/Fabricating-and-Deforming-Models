@@ -219,7 +219,7 @@ private:
 	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
 	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
 	std::shared_ptr<AdamMinimizer> adamMinimizer;
-	Eigen::MatrixXd center_of_triangle;
+	Eigen::MatrixXd center_of_faces;
 	Eigen::MatrixXd center_of_sphere;
 	Eigen::MatrixXd facesNorm;
 	Eigen::VectorXd radius_of_sphere;
@@ -272,7 +272,7 @@ public:
 		const Eigen::VectorXd& radius_of_sphere,
 		const Eigen::MatrixXd& norm
 	) {
-		this->center_of_triangle = OptimizationUtils::center_per_triangle(V, F);
+		this->center_of_faces = OptimizationUtils::center_per_triangle(V, F);
 		this->center_of_sphere = center_of_sphere;
 		this->radius_of_sphere = radius_of_sphere;
 		this->facesNorm = norm;
@@ -283,17 +283,25 @@ public:
 	}
 
 	Eigen::MatrixXd getCenterOfTriangle() {
-		return center_of_triangle;
+		return center_of_faces;
 	}
 
 	Eigen::MatrixXd getFacesNorm() {
-		return center_of_triangle + facesNorm;
+		return center_of_faces + facesNorm;
 	}
 
 	std::vector<int> GlobNeighSphereCenters(const int fi,const float distance) {
 		std::vector<int> Neighbors; Neighbors.clear();
 		for (int i = 0; i < center_of_sphere.rows(); i++)
 			if (((center_of_sphere.row(fi) - center_of_sphere.row(i)).norm() + abs(radius_of_sphere(fi) - radius_of_sphere(i))) < distance)
+				Neighbors.push_back(i);
+		return Neighbors;
+	}
+
+	std::vector<int> FaceNeigh(const int fi, const float distance) {
+		std::vector<int> Neighbors; Neighbors.clear();
+		for (int i = 0; i < center_of_faces.rows(); i++)
+			if ((center_of_faces.row(fi) - center_of_faces.row(i)).norm() < distance)
 				Neighbors.push_back(i);
 		return Neighbors;
 	}

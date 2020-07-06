@@ -10,6 +10,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	ImGuiMenu::init(_viewer);
 	if (_viewer)
 	{
+		brush_radius = 0.3;
 		showSphereEdges = showNormEdges = showTriangleCenters = showSphereCeneters = false;
 		showFacesNorm = false;
 		typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
@@ -153,6 +154,9 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		clear_sellected_faces_and_vertices();
 		mouse_mode = app_utils::MouseMode::FIX_VERTEX;
 	}
+	if(mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0)
+		ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
+
 	if (ImGui::Button("Add Cluster"))
 		faceClusters.push_back(FaceClusters(faceClusters.size()));
 
@@ -362,8 +366,10 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		int f = pick_face();
 		if (f != -1) {
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
-			if (!(find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end()))
-				faceClusters[clusterIndex].faces.insert(f);
+			std::vector<int> brush_faces = Outputs[0].FaceNeigh(f, brush_radius);
+			for(int fi: brush_faces)
+				if (!(find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), fi) != faceClusters[clusterIndex].faces.end()))
+					faceClusters[clusterIndex].faces.insert(fi);
 			UpdateClustersHandles();
 		}
 		return true;
@@ -1074,6 +1080,7 @@ int deformation_plugin::pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& 
 	if (view == app_utils::View::VERTICAL) {
 		y = (viewer->core(inputCoreID).viewport(3) / core_size) - viewer->current_mouse_y;
 	}
+	
 	//Eigen::RowVector3d pt;
 	Eigen::RowVector3d pt;
 	Eigen::Matrix4f modelview = viewer->core(CoreID).view;
