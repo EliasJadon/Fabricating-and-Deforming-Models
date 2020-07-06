@@ -359,10 +359,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 	}
 	else if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
 		//check if there faces which is selected on the left screen
-		int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
-		for (int i = 0; i < Outputs.size(); i++)
-			if (f == -1)
-				f = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i);
+		int f = pick_face();
 		if (f != -1) {
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
 			if (!(find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end()))
@@ -387,13 +384,9 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	down_mouse_y = viewer->current_mouse_y;
 	
 	//check if there faces which is selected on the left screen
-	int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
-	for (int i = 0; i < Outputs.size(); i++)
-		if (f == -1)
-			f = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i);
-
 	if (mouse_mode == app_utils::MouseMode::FIX_FACES && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
+		int f = pick_face();
 		if (f != -1) {
 			if (find(selected_fixed_faces.begin(), selected_fixed_faces.end(), f) != selected_fixed_faces.end())
 				selected_fixed_faces.erase(f);
@@ -402,8 +395,9 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 			UpdateCentersHandles();
 		}
 	}
-	if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0 && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
+	else if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0 && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
+		int f = pick_face();
 		if (f != -1) {
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
 			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end())
@@ -415,6 +409,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	}
 	else if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0 && button == GLFW_MOUSE_BUTTON_MIDDLE && modifier == 2)
 	{
+		int f = pick_face();
 		if (f != -1) {
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
 			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end()) {
@@ -452,16 +447,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 		if (!selected_fixed_faces.empty())
 		{
 			//check if there faces which is selected on the left screen
-			int f = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
-			Model_Translate_ID = inputModelID;
-			Core_Translate_ID = inputCoreID;
-			for (int i = 0; i < Outputs.size(); i++) {
-				if (f == -1) {
-					f = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i);
-					Model_Translate_ID = Outputs[i].ModelID;
-					Core_Translate_ID = Outputs[i].CoreID;
-				}
-			}
+			int f = pick_face(true);
 			if (find(selected_fixed_faces.begin(), selected_fixed_faces.end(), f) != selected_fixed_faces.end()) {
 				IsTranslate = true;
 				Translate_Index = f;
@@ -1006,10 +992,7 @@ void deformation_plugin::Update_view() {
 
 void deformation_plugin::follow_and_mark_selected_faces() {
 	//check if there faces which is selected on the left screen
-	curr_highlighted_face = pick_face(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
-	for(int i=0;i<Outputs.size();i++)
-		if (curr_highlighted_face == -1)
-			curr_highlighted_face = pick_face(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 +i);
+	curr_highlighted_face = pick_face();
 	if(InputModel().F.size()){
 		//Mark the faces
 		for (int i = 0; i < Outputs.size(); i++) {
@@ -1072,7 +1055,26 @@ igl::opengl::ViewerData& deformation_plugin::OutputModel(const int index) {
 	return viewer->data(Outputs[index].ModelID);
 }
 
-int deformation_plugin::pick_face(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int CoreIndex) {
+int deformation_plugin::pick_face(const bool update) {
+	//check if there faces which is selected on the left screen
+	int f = pick_face_per_core(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
+	if (update) {
+		Model_Translate_ID = inputModelID;
+		Core_Translate_ID = inputCoreID;
+	}
+	for (int i = 0; i < Outputs.size(); i++) {
+		if (f == -1) {
+			f = pick_face_per_core(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i);
+			if (update) {
+				Model_Translate_ID = Outputs[i].ModelID;
+				Core_Translate_ID = Outputs[i].CoreID;
+			}
+		}
+	}
+	return f;
+}
+
+int deformation_plugin::pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int CoreIndex) {
 	// Cast a ray in the view direction starting from the mouse position
 	int CoreID;
 	if (CoreIndex == app_utils::View::INPUT_ONLY)
