@@ -29,7 +29,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		faceColoring_type = 1;
 		minimizer_type = app_utils::MinimizerType::NEWTON;
 		linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
-		mouse_mode = app_utils::MouseMode::FIX_VERTEX;
+		mouse_mode = app_utils::MouseMode::FACE_CLUSTERING_0;
 		view = app_utils::View::HORIZONTAL;
 
 		Max_Distortion = 5;
@@ -47,6 +47,9 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		Dragged_vertex_color = Dragged_face_color = GREEN_COLOR;
 		model_color = GREY_COLOR;
 		text_color = BLACK_COLOR;
+
+		for (int i = 0; i < 5; i++)
+			faceClusters.push_back(FaceClusters(faceClusters.size()));
 		
 		//update input viewer
 		inputCoreID = viewer->core_list[0].id;
@@ -152,7 +155,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	ImGui::Combo("Mouse Mode", (int *)(&mouse_mode), app_utils::build_clusters_names_list(faceClusters.size()));
 	if (mouse_mode == app_utils::MouseMode::CLEAR) {
 		clear_sellected_faces_and_vertices();
-		mouse_mode = app_utils::MouseMode::FIX_VERTEX;
+		mouse_mode = app_utils::MouseMode::CLEAR;
 	}
 	if(mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0)
 		ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
@@ -365,6 +368,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		//check if there faces which is selected on the left screen
 		int f = pick_face();
 		if (f != -1) {
+			brush_index = f;
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
 			std::vector<int> brush_faces = Outputs[0].FaceNeigh(f, brush_radius);
 			for(int fi: brush_faces)
@@ -473,33 +477,30 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 }
 
 IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers) {
-	if ((key == 'V' || key == 'v') && modifiers == 1)
-		mouse_mode = app_utils::MouseMode::FIX_VERTEX;
-	if ((key == 'C' || key == 'c') && modifiers == 1)
-		mouse_mode = app_utils::MouseMode::CLEAR;
-	if ((key == ' ') && modifiers == 1)
-		isMinimizerRunning ? stop_minimizer_thread() : start_minimizer_thread();
 	if ((key == '!') && modifiers == 1) {
+		mouse_mode = app_utils::MouseMode::FACE_CLUSTERING_0;
+		highlightFacesType = app_utils::HighlightFaces::LOCAL_NORMALS;
+		neighbor_distance = 0.03;
 		isLoadNeeded = true;
-		modelPath = OptimizationUtils::RDSPath() + "\\models\\Face_1\\Triangle306090degree.obj";
-	}
+		modelPath = OptimizationUtils::RDSPath() + "\\models\\island.obj";
+	}	
 	if ((key == '@') && modifiers == 1) {
+		mouse_mode = app_utils::MouseMode::FACE_CLUSTERING_0;
+		highlightFacesType = app_utils::HighlightFaces::LOCAL_SPHERE;
+		neighbor_distance = 0.3;
 		isLoadNeeded = true;
-		modelPath = OptimizationUtils::RDSPath() + "\\models\\Face_2\\Triangle2.obj";
+		modelPath = OptimizationUtils::RDSPath() + "\\models\\Bunny.obj";
 	}
 	if ((key == '#') && modifiers == 1) {
+		mouse_mode = app_utils::MouseMode::FACE_CLUSTERING_0;
+		highlightFacesType = app_utils::HighlightFaces::LOCAL_SPHERE;
+		neighbor_distance = 0.3;
 		isLoadNeeded = true;
-		modelPath = OptimizationUtils::RDSPath() + "\\models\\Face_3\\Triangle3.obj";
-	}
-	if ((key == '$') && modifiers == 1) {
-		isLoadNeeded = true;
-		modelPath = OptimizationUtils::RDSPath() + "\\models\\Face_4\\Triangle4.obj";
-	}
-	if ((key == ')') && modifiers == 1) {
-		isLoadNeeded = true;
-		modelPath = OptimizationUtils::RDSPath() + "\\models\\cube.off";
-	}
-
+		modelPath = OptimizationUtils::RDSPath() + "\\models\\spot.obj";
+	}	
+	if ((key == ' ') && modifiers == 1)
+		isMinimizerRunning ? stop_minimizer_thread() : start_minimizer_thread();
+	
 	return ImGuiMenu::key_pressed(key, modifiers);
 }
 
@@ -533,16 +534,45 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 	for (int i = 0; i < Outputs.size(); i++) {
 		OutputModel(i).clear_edges();
 		OutputModel(i).point_size = 10;
+		
+		
+		
+		///////////////////////////////////////////////
+		//if (brush_index != -1) {
+		//	Eigen::MatrixXd colorr(1, 3);
+		//	colorr << 1, 0, 0;
+		//	Eigen::MatrixXd center(1,3),from_circle(37,3), to_circle(37, 3);
+		//	center <<
+		//		(Outputs[i].getCenterOfFaces())(brush_index, 0),
+		//		(Outputs[i].getCenterOfFaces())(brush_index, 1),
+		//		(Outputs[i].getCenterOfFaces())(brush_index, 2) - 0.0001;
+		//	double alfa = 0;
+		//	for (int i=0; alfa <= 360; i++,alfa += 10) {
+		//		Eigen::MatrixXd dir(1,3);
+		//		dir << sin(alfa), cos(alfa), 0;
+		//		from_circle.row(i) = dir * brush_radius + center;
+		//		to_circle.row((i+1)%37) = dir * brush_radius + center;
+		//	}
+		//	
+		//	OutputModel(i).add_edges(from_circle, to_circle, colorr);
+
+		//	brush_index = -1;
+		//}
+		//
+		///////////////////////////////////////////////
+		
+
+
 		if (showFacesNorm && Outputs[i].getFacesNorm().size() != 0)
 			OutputModel(i).add_points(Outputs[i].getFacesNorm(), Outputs[i].color_per_face_norm);
-		if (showTriangleCenters && Outputs[i].getCenterOfTriangle().size() != 0)
-			OutputModel(i).add_points(Outputs[i].getCenterOfTriangle(), Outputs[i].color_per_vertex_center);
+		if (showTriangleCenters && Outputs[i].getCenterOfFaces().size() != 0)
+			OutputModel(i).add_points(Outputs[i].getCenterOfFaces(), Outputs[i].color_per_vertex_center);
 		if (showSphereCeneters && Outputs[i].getCenterOfSphere().size() != 0)
 			OutputModel(i).add_points(Outputs[i].getCenterOfSphere(), Outputs[i].color_per_sphere_center);
-		if (showSphereEdges && Outputs[i].getCenterOfTriangle().size() != 0)
-			OutputModel(i).add_edges(Outputs[i].getCenterOfTriangle(), Outputs[i].getSphereEdges(), Outputs[i].color_per_sphere_edge);
-		if (showNormEdges && Outputs[i].getCenterOfTriangle().size() != 0)
-			OutputModel(i).add_edges(Outputs[i].getCenterOfTriangle(), Outputs[i].getFacesNorm(), Outputs[i].color_per_norm_edge);
+		if (showSphereEdges && Outputs[i].getCenterOfFaces().size() != 0)
+			OutputModel(i).add_edges(Outputs[i].getCenterOfFaces(), Outputs[i].getSphereEdges(), Outputs[i].color_per_sphere_edge);
+		if (showNormEdges && Outputs[i].getCenterOfFaces().size() != 0)
+			OutputModel(i).add_edges(Outputs[i].getCenterOfFaces(), Outputs[i].getFacesNorm(), Outputs[i].color_per_norm_edge);
 	}
 	return false;
 }
