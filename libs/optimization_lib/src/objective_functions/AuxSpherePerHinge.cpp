@@ -5,7 +5,7 @@
 AuxSpherePerHinge::AuxSpherePerHinge(OptimizationUtils::FunctionType type) {
 	functionType = type;
 	name = "Aux Sphere Per Hinge";
-	w = 1.6;
+	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 

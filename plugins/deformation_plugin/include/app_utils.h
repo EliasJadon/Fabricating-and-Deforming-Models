@@ -282,7 +282,7 @@ public:
 		this->center_of_sphere.row(fi) += translateValue;
 	}
 
-	Eigen::MatrixXd getCenterOfTriangle() {
+	Eigen::MatrixXd getCenterOfFaces() {
 		return center_of_faces;
 	}
 
@@ -368,11 +368,11 @@ public:
 		int numF = center_of_sphere.rows();
 		Eigen::MatrixXd c(numF, 3);
 		Eigen::MatrixXd empty;
-		if (getCenterOfTriangle().size() == 0 || getCenterOfSphere().size() == 0)
+		if (getCenterOfFaces().size() == 0 || getCenterOfSphere().size() == 0)
 			return empty;
 		for (int fi = 0; fi < numF; fi++) {
-			Eigen::RowVectorXd v = (getCenterOfSphere().row(fi) - getCenterOfTriangle().row(fi)).normalized();
-			c.row(fi) = getCenterOfTriangle().row(fi) + radius_of_sphere(fi) *v;
+			Eigen::RowVectorXd v = (getCenterOfSphere().row(fi) - getCenterOfFaces().row(fi)).normalized();
+			c.row(fi) = getCenterOfFaces().row(fi) + radius_of_sphere(fi) *v;
 		}
 		return c;
 	}
