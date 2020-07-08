@@ -59,7 +59,7 @@ private:
 	
 	float texture_scaling_input;
 	
-	bool IsTranslate;
+	bool IsTranslate, IsChoosingCluster;
 	int Translate_Index, Model_Translate_ID, Core_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
 

@@ -21,12 +21,14 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		Outputs_Settings = false;
 		highlightFacesType = app_utils::HighlightFaces::NO_HIGHLIGHT;
 		IsTranslate = false;
+		IsChoosingCluster = false;
 		isModelLoaded = false;
 		isUpdateAll = true;
 		minimizer_settings = true;
 		show_text = true;
 		runOneIteration = false;
 		faceColoring_type = 1;
+		curr_highlighted_face = -1;
 		minimizer_type = app_utils::MinimizerType::NEWTON;
 		linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 		mouse_mode = app_utils::MouseMode::FACE_CLUSTERING_0;
@@ -324,10 +326,8 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 {
 	if (IsMouseHoveringAnyWindow | IsMouseDraggingAnyWindow)
 		return true;
-	if (!IsTranslate)
-		return false;
 	
-	if (mouse_mode == app_utils::MouseMode::FIX_FACES)
+	if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_FACES)
 	{
 		if (!selected_fixed_faces.empty())
 		{
@@ -342,7 +342,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			return true;
 		}
 	}
-	else if (mouse_mode == app_utils::MouseMode::FIX_VERTEX)
+	else if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_VERTEX)
 	{
 		if (!selected_vertices.empty())
 		{
@@ -364,7 +364,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			return true;
 		}
 	}
-	else if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
+	else if (IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
 		//check if there faces which is selected on the left screen
 		int f = pick_face(intersec_point);
 		brush_index = f;
@@ -378,12 +378,39 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		}
 		return true;
 	}
+	else if (IsChoosingCluster && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
+		Eigen::Vector3f _;
+		curr_highlighted_face = pick_face(_);
+		return true;
+	}
+
 	return false;
 }
 
 IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier) {
 	IsTranslate = false;
 	IsMouseDraggingAnyWindow = false;
+	if (IsChoosingCluster) {
+		IsChoosingCluster = false;
+		curr_highlighted_face = -1;
+		Eigen::Vector3f _;
+		int f = pick_face(_);
+		if (f != -1) {
+			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
+			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end()) {
+				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
+				for (int currF : neigh)
+					faceClusters[clusterIndex].faces.erase(currF);
+			}
+			else {
+				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
+				for (int currF : neigh)
+					if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), currF) == faceClusters[clusterIndex].faces.end())
+						faceClusters[clusterIndex].faces.insert(currF);
+			}
+			UpdateClustersHandles();
+		}
+	}
 	return false;
 }
 
@@ -421,23 +448,9 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	}
 	else if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0 && button == GLFW_MOUSE_BUTTON_MIDDLE && modifier == 2)
 	{
+		IsChoosingCluster = true;
 		Eigen::Vector3f _;
-		int f = pick_face(_);
-		if (f != -1) {
-			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
-			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end()) {
-				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
-				for(int currF: neigh)
-					faceClusters[clusterIndex].faces.erase(currF);
-			}	
-			else {
-				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
-				for (int currF : neigh)
-					if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), currF) == faceClusters[clusterIndex].faces.end())
-						faceClusters[clusterIndex].faces.insert(currF);
-			}
-			UpdateClustersHandles();
-		}
+		curr_highlighted_face = pick_face(_);
 	}
 	else if (mouse_mode == app_utils::MouseMode::FIX_VERTEX && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
@@ -531,7 +544,6 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 		OutputModel(oi).clear_edges();
 		OutputModel(oi).point_size = 10;
 		
-		/////////////////////////////////////////////
 		if (brush_index != -1 && IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
 			Eigen::MatrixXd circle(36*36, 3);
 			//Eigen::RowVector3d center = Outputs[oi].getCenterOfFaces().row(brush_index);
@@ -544,7 +556,6 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 					circle.row(i+36*j) = dir * brush_radius + center;
 				}
 			}
-
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
 			Eigen::MatrixXd c(1, 3);
 			c.row(0) = faceClusters[clusterIndex].color.cast<double>();
@@ -1003,10 +1014,8 @@ void deformation_plugin::Update_view() {
 }
 
 void deformation_plugin::follow_and_mark_selected_faces() {
-	//check if there faces which is selected on the left screen
-	Eigen::Vector3f _;
-	curr_highlighted_face = pick_face(_);
 	if(InputModel().F.size()){
+		
 		//Mark the faces
 		for (int i = 0; i < Outputs.size(); i++) {
 			Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color, centers_sphere_edge_color, centers_norm_edge_color, face_norm_color);
@@ -1024,13 +1033,6 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 				for (int fi : neigh)
 					Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
 				Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
-			}
-			
-			if (IsTranslate && (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0)) {
-				//Mark the cluster faces again
-				for (FaceClusters cluster : faceClusters)
-					for (int fi : cluster.faces)
-						Outputs[i].updateFaceColors(fi, cluster.color);
 			}
 			//Mark the Dragged face
 			if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_FACES))
