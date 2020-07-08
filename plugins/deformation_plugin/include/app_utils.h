@@ -3,6 +3,7 @@
 #include <iostream>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/unproject_in_mesh.h>
+#include <igl/unproject_ray.h>
 #include <igl/lscm.h>
 #include <igl/harmonic.h>
 #include <igl/arap.h>
@@ -298,10 +299,10 @@ public:
 		return Neighbors;
 	}
 
-	std::vector<int> FaceNeigh(const int fi, const float distance) {
+	std::vector<int> FaceNeigh(const Eigen::Vector3d center, const float distance) {
 		std::vector<int> Neighbors; Neighbors.clear();
 		for (int i = 0; i < center_of_faces.rows(); i++)
-			if ((center_of_faces.row(fi) - center_of_faces.row(i)).norm() < distance)
+			if ((center.transpose() - center_of_faces.row(i)).norm() < distance)
 				Neighbors.push_back(i);
 		return Neighbors;
 	}

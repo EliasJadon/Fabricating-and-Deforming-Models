@@ -42,6 +42,7 @@ private:
 	bool show_text;
 	float core_size;
 	float texture_scaling_output;
+	Eigen::Vector3f intersec_point;
 	bool Outputs_Settings;
 	app_utils::HighlightFaces highlightFacesType;
 	std::set<int> selected_fixed_faces, selected_vertices;
@@ -91,8 +92,8 @@ public:
 	void Draw_menu_for_text_results();
 
 	//Pick faces & vertices and highlight them
-	int pick_face(const bool update=false);
-	int pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
+	int pick_face(Eigen::Vector3f& intersec_point,const bool update=false);
+	int pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR, Eigen::Vector3f& intersec_point);
 	int pick_vertex(const bool update = false);
 	int pick_vertex_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
 	void follow_and_mark_selected_faces();
