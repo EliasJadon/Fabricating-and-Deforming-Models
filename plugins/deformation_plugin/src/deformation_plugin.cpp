@@ -322,6 +322,26 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 	}
 }
 
+void deformation_plugin::brush_erase_or_insert() {
+	int f = pick_face(intersec_point);
+	brush_index = f;
+	if (f != -1) {
+		std::vector<int> brush_faces = Outputs[0].FaceNeigh(intersec_point.cast<double>(), brush_radius);
+		if (EraseOrInsert == false) { //insert
+			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
+			for (int fi : brush_faces)
+				if (!(find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), fi) != faceClusters[clusterIndex].faces.end()))
+					faceClusters[clusterIndex].faces.insert(fi);
+		}
+		else if (EraseOrInsert == true) { //erase
+			for (FaceClusters& clusterI : faceClusters)
+				for (int fi : brush_faces)
+					clusterI.faces.erase(fi);
+		}
+		UpdateClustersHandles();
+	}
+}
+
 IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 {
 	if (IsMouseHoveringAnyWindow | IsMouseDraggingAnyWindow)
@@ -365,17 +385,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		}
 	}
 	else if (IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
-		//check if there faces which is selected on the left screen
-		int f = pick_face(intersec_point);
-		brush_index = f;
-		if (f != -1) {
-			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
-			std::vector<int> brush_faces = Outputs[0].FaceNeigh(intersec_point.cast<double>(), brush_radius);
-			for(int fi: brush_faces)
-				if (!(find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), fi) != faceClusters[clusterIndex].faces.end()))
-					faceClusters[clusterIndex].faces.insert(fi);
-			UpdateClustersHandles();
-		}
+		brush_erase_or_insert();
 		return true;
 	}
 	else if (IsChoosingCluster && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
@@ -454,10 +464,12 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 		if (f != -1) {
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
 			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end())
-				faceClusters[clusterIndex].faces.erase(f);
-			else
-				IsTranslate = true;
-			UpdateClustersHandles();
+				EraseOrInsert = true; //erase
+			else 
+				EraseOrInsert = false; // insert
+			
+			IsTranslate = true;
+			brush_erase_or_insert();
 		}
 	}
 	else if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0 && button == GLFW_MOUSE_BUTTON_MIDDLE && modifier == 2)
@@ -533,7 +545,7 @@ IGL_INLINE void deformation_plugin::shutdown()
 	ImGuiMenu::shutdown();
 }
 
-void deformation_plugin::add_brush_sphere() {
+void deformation_plugin::draw_brush_sphere() {
 	if (!(brush_index != -1 && IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0))
 		return;
 	//prepare brush sphere
@@ -549,9 +561,14 @@ void deformation_plugin::add_brush_sphere() {
 	}
 
 	//prepare color
-	int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
 	Eigen::MatrixXd c(1, 3);
-	c.row(0) = faceClusters[clusterIndex].color.cast<double>();
+	if (EraseOrInsert == false) { //insert
+		int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
+		c.row(0) = faceClusters[clusterIndex].color.cast<double>();
+	}
+	else if (EraseOrInsert == true) { //erase
+		c.row(0) << 1, 1, 1; // white color for eraseing
+	}
 
 	//update data for cores
 	InputModel().point_size = 10;
@@ -583,7 +600,7 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 		OutputModel(i).set_points(Outputs[i].Vertices_output, color_per_vertex);
 	}
 	
-	add_brush_sphere();
+	draw_brush_sphere();
 
 	for (int oi = 0; oi < Outputs.size(); oi++) {
 		OutputModel(oi).clear_edges();

@@ -59,7 +59,7 @@ private:
 	
 	float texture_scaling_input;
 	
-	bool IsTranslate, IsChoosingCluster;
+	bool IsTranslate,EraseOrInsert, IsChoosingCluster;
 	int Translate_Index, Model_Translate_ID, Core_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
 
@@ -109,7 +109,8 @@ public:
 	igl::opengl::ViewerData& InputModel();
 	igl::opengl::ViewerData& OutputModel(const int index);
 
-	void add_brush_sphere();
+	void draw_brush_sphere();
+	void brush_erase_or_insert();
 	void load_new_model(const std::string modelpath);
 	void Update_view();
 	void update_data_from_minimizer();
