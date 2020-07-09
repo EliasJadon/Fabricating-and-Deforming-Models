@@ -3,7 +3,7 @@
 ClusterNormals::ClusterNormals()
 {
     name = "Cluster Normals";
-	w = 0.1;
+	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 

@@ -3,7 +3,7 @@
 ClusterSpheres::ClusterSpheres()
 {
     name = "Cluster Spheres";
-	w = 10000;
+	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 

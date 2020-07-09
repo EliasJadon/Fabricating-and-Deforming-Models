@@ -3,7 +3,7 @@
 FixChosenVertices::FixChosenVertices()
 {
     name = "Fix Chosen Vertices";
-	w = 10000;
+	w = 0.05;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 

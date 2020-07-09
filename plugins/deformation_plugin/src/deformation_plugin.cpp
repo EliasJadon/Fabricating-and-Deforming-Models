@@ -11,7 +11,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	if (_viewer)
 	{
 		brush_radius = 0.3;
-		showSphereEdges = showNormEdges = showTriangleCenters = showSphereCeneters = false;
+		showSphereEdges = showNormEdges = showTriangleCenters = showSphereCenters = false;
 		showFacesNorm = false;
 		typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
 		isLoadNeeded = false;
@@ -532,7 +532,62 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		mouse_mode = (app_utils::MouseMode)8;
 	if ((key == 'c' || key == 'C') && modifiers == 1)
 		clear_sellected_faces_and_vertices();
+	if ((key == 'a' || key == 'A') && modifiers == 1) {
+		modelPath = OptimizationUtils::ProjectPath() + "\\models\\island.obj";
+		isLoadNeeded = true;
+	}
+	if ((key == 's' || key == 'S') && modifiers == 1) {
+		modelPath = OptimizationUtils::ProjectPath() + "\\models\\spot.obj";
+		isLoadNeeded = true;
+	}
+	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) {
+		highlightFacesType = app_utils::HighlightFaces::LOCAL_NORMALS;
+		neighbor_distance = 0.03;
+		change_minimizer_type(app_utils::MinimizerType::ADAM_MINIMIZER);
+		showFacesNorm = true;
+		showSphereEdges = showNormEdges = showTriangleCenters = showSphereCenters = false;
+		for (OptimizationOutput& out : Outputs) {
+			for (auto& obj : out.totalObjective->objectiveList) {
+				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
+				std::shared_ptr<ClusterSpheres> CS = std::dynamic_pointer_cast<ClusterSpheres>(obj);
+				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+				std::shared_ptr<ClusterNormals> CN = std::dynamic_pointer_cast<ClusterNormals>(obj);
+				if(ABN != NULL)
+					ABN->w = 1.6;
+				if (CN != NULL)
+					CN->w = 0.05;
+				if (AS != NULL)
+					AS->w = 0;
+				if (CS != NULL)
+					CS->w = 0;
+			}
+		}
+	}
+	if (isModelLoaded && (key == 'w' || key == 'W') && modifiers == 1) {
+		highlightFacesType = app_utils::HighlightFaces::LOCAL_SPHERE;
+		neighbor_distance = 0.3;
+		change_minimizer_type(app_utils::MinimizerType::ADAM_MINIMIZER);
+		showSphereCenters = true;
+		showSphereEdges = showNormEdges = showTriangleCenters = showFacesNorm = false;
+		for (OptimizationOutput& out : Outputs) {
+			for (auto& obj : out.totalObjective->objectiveList) {
+				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
+				std::shared_ptr<ClusterSpheres> CS = std::dynamic_pointer_cast<ClusterSpheres>(obj);
+				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+				std::shared_ptr<ClusterNormals> CN = std::dynamic_pointer_cast<ClusterNormals>(obj);
 
+				if(AS != NULL)
+					AS->w = 1.6;
+				if (CS != NULL)
+					CS->w = 0.05;
+				if (ABN != NULL)
+					ABN->w = 0;
+				if (CN != NULL)
+					CN->w = 0;
+			}
+		}
+	}
+	
 	if ((key == ' ') && modifiers == 1)
 		isMinimizerRunning ? stop_minimizer_thread() : start_minimizer_thread();
 	
@@ -610,7 +665,7 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 			OutputModel(oi).add_points(Outputs[oi].getFacesNorm(), Outputs[oi].color_per_face_norm);
 		if (showTriangleCenters && Outputs[oi].getCenterOfFaces().size() != 0)
 			OutputModel(oi).add_points(Outputs[oi].getCenterOfFaces(), Outputs[oi].color_per_vertex_center);
-		if (showSphereCeneters && Outputs[oi].getCenterOfSphere().size() != 0)
+		if (showSphereCenters && Outputs[oi].getCenterOfSphere().size() != 0)
 			OutputModel(oi).add_points(Outputs[oi].getCenterOfSphere(), Outputs[oi].color_per_sphere_center);
 		if (showSphereEdges && Outputs[oi].getCenterOfFaces().size() != 0)
 			OutputModel(oi).add_edges(Outputs[oi].getCenterOfFaces(), Outputs[oi].getSphereEdges(), Outputs[oi].color_per_sphere_edge);
@@ -641,6 +696,14 @@ void deformation_plugin::Draw_menu_for_colors() {
 	}
 }
 
+void deformation_plugin::change_minimizer_type(app_utils::MinimizerType type) {
+	minimizer_type = type;
+	stop_minimizer_thread();
+	init_minimizer_thread();
+	for (int i = 0; i < Outputs.size(); i++)
+		Outputs[i].updateActiveMinimizer(minimizer_type);
+}
+
 void deformation_plugin::Draw_menu_for_Minimizer() {
 	if (ImGui::CollapsingHeader("Minimizer", ImGuiTreeNodeFlags_DefaultOpen))
 	{
@@ -653,15 +716,12 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 		ImGui::Checkbox("Norm", &showFacesNorm);
 		ImGui::SameLine();
 		ImGui::Checkbox("Norm Edges", &showNormEdges);
-		ImGui::Checkbox("Sphere", &showSphereCeneters);
+		ImGui::Checkbox("Sphere", &showSphereCenters);
 		ImGui::SameLine();
 		ImGui::Checkbox("Sphere Edges", &showSphereEdges);
 		ImGui::Checkbox("Face Centers", &showTriangleCenters);
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
-			stop_minimizer_thread();
-			init_minimizer_thread();
-			for (int i = 0; i < Outputs.size(); i++)
-				Outputs[i].updateActiveMinimizer(minimizer_type);
+			change_minimizer_type(minimizer_type);
 		}
 		if (ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0\0"))
 			init_minimizer_thread();

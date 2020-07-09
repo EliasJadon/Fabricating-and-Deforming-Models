@@ -12,7 +12,7 @@ private:
 	bool runOneIteration;
 	bool isLoadNeeded;
 	bool isModelLoaded;
-	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCeneters, showFacesNorm;
+	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCenters, showFacesNorm;
 	float Max_Distortion;
 	float neighbor_distance, brush_radius;
 	int brush_index = -1;
@@ -109,6 +109,7 @@ public:
 	igl::opengl::ViewerData& InputModel();
 	igl::opengl::ViewerData& OutputModel(const int index);
 
+	void change_minimizer_type(app_utils::MinimizerType type);
 	void draw_brush_sphere();
 	void brush_erase_or_insert();
 	void load_new_model(const std::string modelpath);

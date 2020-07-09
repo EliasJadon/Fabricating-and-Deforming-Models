@@ -3,7 +3,7 @@
 FixChosenCenters::FixChosenCenters()
 {
     name = "Fix Chosen Centers";
-	w = 10000;
+	w = 0.05;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 

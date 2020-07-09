@@ -152,11 +152,11 @@ namespace OptimizationUtils
 		return std::string(buffer).substr(0, pos);
 	}
 
-	static std::string RDSPath() {
+	static std::string ProjectPath() {
 		char buffer[MAX_PATH];
 		GetModuleFileName(NULL, buffer, MAX_PATH);
-		std::string::size_type pos = std::string(buffer).find("\\RDS\\");
-		return std::string(buffer).substr(0, pos + 5);
+		std::string::size_type pos = std::string(buffer).find("\\MappingsLab\\");
+		return std::string(buffer).substr(0, pos + 11 + 2);
 	}
 
 	static std::vector<int> temp_get_one_ring_vertices_per_vertex(const Eigen::MatrixXi& F, const std::vector<int>& OneRingFaces) {
