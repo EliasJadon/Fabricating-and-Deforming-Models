@@ -78,6 +78,7 @@ public:
 	IGL_INLINE virtual bool mouse_move(int mouse_x, int mouse_y) override;
 	IGL_INLINE virtual bool mouse_down(int button, int modifier) override;
 	IGL_INLINE virtual bool mouse_up(int button, int modifier) override;
+	IGL_INLINE virtual bool mouse_scroll(float delta_y) override;
 	IGL_INLINE virtual bool pre_draw() override;
 	IGL_INLINE virtual void shutdown() override;
 	IGL_INLINE virtual bool key_pressed(unsigned int key, int modifiers) override;
@@ -108,6 +109,7 @@ public:
 	igl::opengl::ViewerData& InputModel();
 	igl::opengl::ViewerData& OutputModel(const int index);
 
+	void add_brush_sphere();
 	void load_new_model(const std::string modelpath);
 	void Update_view();
 	void update_data_from_minimizer();

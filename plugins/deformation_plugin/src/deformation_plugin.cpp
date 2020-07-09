@@ -387,6 +387,20 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 	return false;
 }
 
+IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y) {
+	if (IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
+		brush_radius += delta_y * 0.05;
+		brush_radius = std::max<float>(0.05, brush_radius);
+		return true;
+	}
+	else if (IsChoosingCluster && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
+		neighbor_distance += delta_y * 0.05;
+		neighbor_distance = std::max<float>(0.05, neighbor_distance);
+		return true;
+	}
+	return false;
+}
+
 IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier) {
 	IsTranslate = false;
 	IsMouseDraggingAnyWindow = false;
@@ -519,6 +533,35 @@ IGL_INLINE void deformation_plugin::shutdown()
 	ImGuiMenu::shutdown();
 }
 
+void deformation_plugin::add_brush_sphere() {
+	if (!(brush_index != -1 && IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0))
+		return;
+	//prepare brush sphere
+	Eigen::MatrixXd sphere(36 * 36, 3);
+	Eigen::RowVector3d center = intersec_point.cast<double>().transpose();
+	int i, j;
+	for (double alfa = 0, i = 0; alfa < 360; i++, alfa += 10) {
+		for (double beta = 0, j = 0; beta < 360; j++, beta += 10) {
+			Eigen::RowVector3d dir;
+			dir << sin(alfa), cos(alfa)*cos(beta), sin(beta)*cos(alfa);
+			sphere.row(i + 36 * j) = dir * brush_radius + center;
+		}
+	}
+
+	//prepare color
+	int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
+	Eigen::MatrixXd c(1, 3);
+	c.row(0) = faceClusters[clusterIndex].color.cast<double>();
+
+	//update data for cores
+	InputModel().point_size = 10;
+	InputModel().add_points(sphere, c);
+	for (int oi = 0; oi < Outputs.size(); oi++) {
+		OutputModel(oi).point_size = 10;
+		OutputModel(oi).add_points(sphere, c);
+	}
+}
+
 IGL_INLINE bool deformation_plugin::pre_draw() {
 	//call parent function
 	ImGuiMenu::pre_draw();
@@ -540,28 +583,12 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 		OutputModel(i).set_points(Outputs[i].Vertices_output, color_per_vertex);
 	}
 	
+	add_brush_sphere();
+
 	for (int oi = 0; oi < Outputs.size(); oi++) {
 		OutputModel(oi).clear_edges();
 		OutputModel(oi).point_size = 10;
-		
-		if (brush_index != -1 && IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
-			Eigen::MatrixXd circle(36*36, 3);
-			//Eigen::RowVector3d center = Outputs[oi].getCenterOfFaces().row(brush_index);
-			Eigen::RowVector3d center = intersec_point.cast<double>().transpose();
-			int i,j;
-			for (double alfa = 0,i = 0; alfa < 360; i++, alfa += 10) {
-				for (double beta = 0, j = 0; beta < 360; j++, beta += 10) {
-					Eigen::RowVector3d dir;
-					dir << sin(alfa),cos(alfa)*cos(beta), sin(beta)*cos(alfa);
-					circle.row(i+36*j) = dir * brush_radius + center;
-				}
-			}
-			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
-			Eigen::MatrixXd c(1, 3);
-			c.row(0) = faceClusters[clusterIndex].color.cast<double>();
-			OutputModel(oi).add_points(circle, c);
-		}
-	
+			
 		if (showFacesNorm && Outputs[oi].getFacesNorm().size() != 0)
 			OutputModel(oi).add_points(Outputs[oi].getFacesNorm(), Outputs[oi].color_per_face_norm);
 		if (showTriangleCenters && Outputs[oi].getCenterOfFaces().size() != 0)

@@ -114,7 +114,7 @@ namespace app_utils
 		tail = str.find_last_of("/.");
 		return (str.substr((head + 1), (tail - head - 1)));
 	}
-
+	
 	static bool IsMesh2D(const Eigen::MatrixXd& V) {
 		return (V.col(2).array() == 0).all();
 	}
