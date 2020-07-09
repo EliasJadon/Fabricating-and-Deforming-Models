@@ -469,7 +469,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 				EraseOrInsert = false; // insert
 			
 			IsTranslate = true;
-			brush_erase_or_insert();
+			//brush_erase_or_insert();
 		}
 	}
 	else if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0 && button == GLFW_MOUSE_BUTTON_MIDDLE && modifier == 2)

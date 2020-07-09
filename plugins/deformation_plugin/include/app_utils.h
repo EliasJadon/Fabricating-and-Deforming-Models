@@ -201,16 +201,29 @@ public:
 	std::set<int> faces;
 
 	FaceClusters(const int index) {
+		auto put_color = [&](const float r, const float g, const float b) {
+			this->color << r / 255.0f, g / 255.0f, b / 255.0f;
+		};
 		name = "Cluster " + std::to_string(index);
 		faces.clear();
 		if (index == 0)
-			this->color << 1, 1, 0;
+			put_color(255, 255, 0);
 		else if (index == 1)
-			this->color << 0.5, 0.5, 0;
+			put_color(204, 102, 0); 
 		else if (index == 2)
-			this->color << 240 / 255.0f, 230 / 255.0f, 140 / 255.0f;
+			put_color(255, 51, 51); 
 		else if (index == 3)
-			this->color << 255 / 255.0f, 218 / 255.0f, 185 / 255.0f;
+			put_color(102, 204, 0);
+		else if (index == 4)
+			put_color(51, 255, 255);
+		else if (index == 5)
+			put_color(0, 76, 153);
+		else if (index == 6)
+			put_color(255, 0, 255); 
+		else if (index == 7)
+			put_color(204, 0, 102); 
+		else if (index == 8)
+			put_color(96, 96, 96);
 		
 	}
 };
