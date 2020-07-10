@@ -7,7 +7,7 @@ private:
 	
 	Eigen::MatrixX3d CurrV, CurrCenter;
 	Eigen::VectorXd  d_center,d_radius, CurrRadius;
-		Eigen::VectorXd restAreaPerFace, restAreaPerHinge;
+	Eigen::VectorXd restAreaPerFace, restAreaPerHinge;
 	int num_hinges = -1;
 	std::vector<Eigen::Vector2d> hinges_faceIndex;
 	Eigen::VectorXi x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd;
@@ -23,7 +23,7 @@ private:
 	Eigen::Matrix< double, 8, 8> d2m_dNdN(int hi);
 	
 public:
-	float w1 = 1, w2 = 100;
+	double w1 = 1, w2 = 100;
 	OptimizationUtils::FunctionType functionType;
 	float planarParameter;
 

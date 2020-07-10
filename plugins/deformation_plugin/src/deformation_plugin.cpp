@@ -164,10 +164,10 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		update_parameters_for_all_cores();
 	IsMouseHoveringAnyWindow = false;
 	if (ImGui::IsAnyWindowHovered() |
-		ImGui::IsRootWindowOrAnyChildHovered() |
-		ImGui::IsItemHoveredRect() |
-		ImGui::IsMouseHoveringAnyWindow() |
-		ImGui::IsMouseHoveringWindow())
+		ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) |
+		ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly) |
+		ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) |
+		ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
 		IsMouseHoveringAnyWindow = true;
 }
 
@@ -711,141 +711,147 @@ void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data) {
 }
 
 void deformation_plugin::Draw_menu_for_minimizer_settings() {
-	ImGui::SetNextWindowSize(ImVec2(800, 150), ImGuiSetCond_FirstUseEver);
-	ImGui::Begin("minimizer settings", NULL);
-	ImGui::SetWindowPos(ImVec2(800, 150), ImGuiSetCond_FirstUseEver);
+// 	ImGui::SetNextWindowSize(ImVec2(1000, 0), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(200, 0), ImGuiCond_FirstUseEver);
+
+	ImGui::Begin("minimizer settings", NULL,ImGuiWindowFlags_AlwaysAutoResize);
 	//add outputs buttons
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
 	if (ImGui::Button("Add Output"))
 		add_output();
 	ImGui::PopStyleColor();
 	int id = 0;
+	
 	if (Outputs.size() != 0) {
-		// prepare the first column
-		ImGui::Columns(Outputs[0].totalObjective->objectiveList.size() + 3, "Unconstrained weights table", true);
-		ImGui::Separator();
-		ImGui::NextColumn();
-		for (auto & obj : Outputs[0].totalObjective->objectiveList) {
-			ImGui::Text(obj->name.c_str());
-			ImGui::NextColumn();
-		}
-		ImGui::Text("shift eigen values");
-		ImGui::NextColumn();
-		ImGui::Text("Remove output");
-		ImGui::NextColumn();
-		ImGui::Separator();
-		// fill the table
-		for (int i = 0; i < Outputs.size();i++) {
-			ImGui::Text(("Output " + std::to_string(Outputs[i].CoreID)).c_str());
-			ImGui::NextColumn();
-			for (auto& obj : Outputs[i].totalObjective->objectiveList) {
-				ImGui::PushID(id++);
-				ImGui::DragFloat("w", &(obj->w), 0.05f, 0.0f, 100000.0f);
-				
-				std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
-				std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
-				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-				if (BE != NULL)
-					ImGui::Combo("Function", (int *)(&(BE->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
-				if (BN != NULL)
-					ImGui::Combo("Function", (int *)(&(BN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
-				if (ABN != NULL)
-					ImGui::Combo("Function", (int *)(&(ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
-				if (AS != NULL)
-					ImGui::Combo("Function", (int *)(&(AS->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 4, ImGuiTableFlags_Resizable))
+		{
 
-				if (BE != NULL && BE->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-					ImGui::Text((std::to_string(BE->planarParameter)).c_str());
-					ImGui::SameLine();
-					if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-					{
-						BE->planarParameter = (BE->planarParameter * 2) > 1 ? 1 : BE->planarParameter * 2;
-					}
-					ImGui::SameLine();
-					if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-					{
-						BE->planarParameter /= 2;
-					}
-				}
-				if (BN != NULL && BN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-					ImGui::Text((std::to_string(BN->planarParameter)).c_str());
-					ImGui::SameLine();
-					if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-					{
-						BN->planarParameter = (BN->planarParameter * 2) > 1 ? 1 : BN->planarParameter * 2;
-					}
-					ImGui::SameLine();
-					if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-					{
-						BN->planarParameter /= 2;
-					}
-				}
-				if (ABN != NULL && ABN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-					ImGui::Text((std::to_string(ABN->planarParameter)).c_str());
-					ImGui::SameLine();
-					if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-					{
-						ABN->planarParameter = (ABN->planarParameter * 2) > 1 ? 1 : ABN->planarParameter * 2;
-					}
-					ImGui::SameLine();
-					if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-					{
-						ABN->planarParameter /= 2;
-					}
-					ImGui::DragFloat("w1", &(ABN->w1), 0.05f, 0.0f, 100000.0f);
-					ImGui::DragFloat("w2", &(ABN->w2), 0.05f, 0.0f, 100000.0f);
-					ImGui::DragFloat("w3", &(ABN->w3), 0.05f, 0.0f, 100000.0f);
-				}
-				if (AS != NULL && AS->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-					ImGui::Text((std::to_string(AS->planarParameter)).c_str());
-					ImGui::SameLine();
-					if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-					{
-						AS->planarParameter = (AS->planarParameter * 2) > 1 ? 1 : AS->planarParameter * 2;
-					}
-					ImGui::SameLine();
-					if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-					{
-						AS->planarParameter /= 2;
-					}
-					ImGui::DragFloat("w1", &(AS->w1), 0.05f, 0.0f, 100000.0f);
-					ImGui::DragFloat("w2", &(AS->w2), 0.05f, 0.0f, 100000.0f);
-				}
-				ImGui::NextColumn();
-				ImGui::PopID();
+			ImGui::TableSetupColumn("Outputs", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("##col1", ImGuiTableColumnFlags_WidthFixed);
+			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
+				ImGui::TableSetupColumn(obj->name.c_str(), ImGuiTableColumnFlags_WidthFixed);
 			}
-			ImGui::PushID(id++);
-			ImGui::DragFloat("", &(Outputs[i].totalObjective->Shift_eigen_values), 0.05f, 0.0f, 100000.0f);
-			ImGui::NextColumn();
-			if (Outputs.size() > 1) {
-				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+			ImGui::TableSetupColumn("shift eigen values", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableAutoHeaders();
+
+			ImGui::Separator();
+
+			ImGui::TableNextRow();
+			for (int i = 0; i < Outputs.size(); i++) {
+				ImGui::Text(("Output " + std::to_string(Outputs[i].CoreID)).c_str());
+				
 				if (ImGui::Button("Remove"))
 					remove_output(i);
-				ImGui::PopStyleColor();
-			}
-			ImGui::NextColumn();
-			ImGui::PopID();
-			ImGui::Separator();
-		}
-		ImGui::Columns(1);
-	}
-	
-	ImGui::Spacing();
+				
+				ImGui::TableNextCell();
+				ImGui::Text("Weight");
+				ImGui::TableNextCell();
 
-	static bool show = false;
-	if (ImGui::Button("More info")) {
-		show = !show;
-	}
-	if (show) {
-		//add more features
-		Draw_menu_for_colors();
-		ImGui::PushItemWidth(80 * menu_scaling());
-		ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
-		ImGui::DragFloat("Neighbors Center Distance", &neighbor_center_distance, 0.05f, 0.01f, 10000.0f);
-		ImGui::DragFloat("Neighbors Radius Distance", &neighbor_radius_distance, 0.05f, 0.01f, 10000.0f);
-		ImGui::DragFloat("Neighbors Norm Distance", &neighbor_norm_distance, 0.05f, 0.01f, 10000.0f);
-		ImGui::PopItemWidth();
+				ImGui::PushItemWidth(100);
+				for (auto& obj : Outputs[i].totalObjective->objectiveList) {
+					ImGui::PushID(id++);
+					ImGui::DragFloat("##w", &(obj->w), 0.05f, 0.0f, 100000.0f);
+					auto BE = std::dynamic_pointer_cast<BendingEdge>(obj);
+					auto BN = std::dynamic_pointer_cast<BendingNormal>(obj);
+					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
+					if (false)
+					{
+						if (BE != NULL)
+							ImGui::Combo("Function", (int*)(&(BE->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+						if (BN != NULL)
+							ImGui::Combo("Function", (int*)(&(BN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+						if (ABN != NULL)
+							ImGui::Combo("Function", (int*)(&(ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+						if (AS != NULL)
+							ImGui::Combo("Function", (int*)(&(AS->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+
+						if (BE != NULL && BE->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+							ImGui::Text((std::to_string(BE->planarParameter)).c_str());
+							ImGui::SameLine();
+							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								BE->planarParameter = (BE->planarParameter * 2) > 1 ? 1 : BE->planarParameter * 2;
+							}
+							ImGui::SameLine();
+							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								BE->planarParameter /= 2;
+							}
+						}
+						if (BN != NULL && BN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+							ImGui::Text((std::to_string(BN->planarParameter)).c_str());
+							ImGui::SameLine();
+							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								BN->planarParameter = (BN->planarParameter * 2) > 1 ? 1 : BN->planarParameter * 2;
+							}
+							ImGui::SameLine();
+							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								BN->planarParameter /= 2;
+							}
+						}
+						if (ABN != NULL && ABN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+							ImGui::Text((std::to_string(ABN->planarParameter)).c_str());
+							ImGui::SameLine();
+							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								ABN->planarParameter = (ABN->planarParameter * 2) > 1 ? 1 : ABN->planarParameter * 2;
+							}
+							ImGui::SameLine();
+							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								ABN->planarParameter /= 2;
+							}
+							const double  f64_zero = 0, f64_max = 100000.0;
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(ABN->w1), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w2", ImGuiDataType_Double, &(ABN->w2), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ABN->w3), 0.05f, &f64_zero, &f64_max);
+						}
+						if (AS != NULL && AS->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+							ImGui::Text((std::to_string(AS->planarParameter)).c_str());
+							ImGui::SameLine();
+							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								AS->planarParameter = (AS->planarParameter * 2) > 1 ? 1 : AS->planarParameter * 2;
+							}
+							ImGui::SameLine();
+							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								AS->planarParameter /= 2;
+							}
+							const double  f64_zero = 0, f64_max = 100000.0;
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->w1), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->w2), 0.05f, &f64_zero, &f64_max);
+						}
+					}
+					ImGui::TableNextCell();
+					ImGui::PopID();
+				}
+				ImGui::DragFloat("##ShiftEigenValues", &(Outputs[i].totalObjective->Shift_eigen_values), 0.05f, 0.0f, 100000.0f);
+				ImGui::TableNextCell();
+				ImGui::PopItemWidth();
+
+
+			}
+			ImGui::EndTable();
+		}
+
+		static bool show = false;
+		if (ImGui::Button("More info")) {
+			show = !show;
+		}
+		if (show) {
+			//add more features
+			Draw_menu_for_colors();
+			ImGui::PushItemWidth(80 * menu_scaling());
+			ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
+			ImGui::DragFloat("Neighbors Center Distance", &neighbor_center_distance, 0.05f, 0.01f, 10000.0f);
+			ImGui::DragFloat("Neighbors Radius Distance", &neighbor_radius_distance, 0.05f, 0.01f, 10000.0f);
+			ImGui::DragFloat("Neighbors Norm Distance", &neighbor_norm_distance, 0.05f, 0.01f, 10000.0f);
+			ImGui::PopItemWidth();
+		}
 	}
 	//close the window
 	ImGui::End();
@@ -854,7 +860,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 void deformation_plugin::Draw_menu_for_output_settings() {
 	for (auto& out : Outputs) {
 		if (Outputs_Settings) {
-			ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiSetCond_FirstUseEver);
+			ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
 			ImGui::Begin(("Output settings " + std::to_string(out.CoreID)).c_str(),
 				NULL, 
 				ImGuiWindowFlags_NoTitleBar |

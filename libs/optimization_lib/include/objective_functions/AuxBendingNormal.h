@@ -22,9 +22,9 @@ private:
 	Eigen::Matrix< double, 6, 6> d2m_dNdN(int hi);
 	
 public:
-	float w1 = 1, w2 = 100, w3 = 100;
+	double w1 = 1, w2 = 100, w3 = 100;
 	OptimizationUtils::FunctionType functionType;
-	float planarParameter;
+	double planarParameter;
 
 	AuxBendingNormal(OptimizationUtils::FunctionType type);
 	~AuxBendingNormal();
