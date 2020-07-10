@@ -755,7 +755,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 					auto BN = std::dynamic_pointer_cast<BendingNormal>(obj);
 					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-					if (false)
+					if (true)
 					{
 						if (BE != NULL)
 							ImGui::Combo("Function", (int*)(&(BE->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
@@ -822,8 +822,8 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 								AS->planarParameter /= 2;
 							}
 							const double  f64_zero = 0, f64_max = 100000.0;
-							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->w1), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->w2), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w0", ImGuiDataType_Double, &(AS->w_aux[0]), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->w_aux[1]), 0.05f, &f64_zero, &f64_max);
 						}
 					}
 					ImGui::TableNextCell();

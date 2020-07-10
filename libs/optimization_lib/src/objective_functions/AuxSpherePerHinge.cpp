@@ -287,8 +287,8 @@ double AuxSpherePerHinge::value(const bool update)
 	}
 
 	double value =
-		w1 * Energy1.transpose()*restAreaPerHinge +
-		w2 * Energy2;
+		w_aux[0] * Energy1.transpose()*restAreaPerHinge +
+		w_aux[1] * Energy2;
 
 	if (update) {
 		//TODO: calculate Efi (for coloring the faces)
@@ -308,7 +308,7 @@ void AuxSpherePerHinge::gradient(Eigen::VectorXd& g, const bool update)
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi](0);
 		int f1 = hinges_faceIndex[hi](1);
-		Eigen::Matrix<double, 1, 8> dE_dx = w1*restAreaPerHinge(hi)*dphi_dm(hi) * dm_dN(hi).transpose();
+		Eigen::Matrix<double, 1, 8> dE_dx = w_aux[0]*restAreaPerHinge(hi)*dphi_dm(hi) * dm_dN(hi).transpose();
 		for (int xyz = 0; xyz < 3; ++xyz) {
 			int start = 3 * restShapeV.rows() + 3 * restShapeF.rows();
 			g[f0 + start + (xyz * restShapeF.rows())] += dE_dx(xyz);
@@ -345,7 +345,7 @@ void AuxSpherePerHinge::gradient(Eigen::VectorXd& g, const bool update)
 			-2 * (x(1) - c(1)), // Cy
 			-2 * (x(2) - c(2)), // Cz
 			-2 * r; //r
-		Eigen::Matrix<double, 1, 13> dE_dx = w2 * 2 * sqrtE*g_sqrtE;
+		Eigen::Matrix<double, 1, 13> dE_dx = w_aux[1] * 2 * sqrtE*g_sqrtE;
 		
 		int startC = 3 * restShapeV.rows() + 3 * restShapeF.rows();
 		int startR = 3 * restShapeV.rows() + 6 * restShapeF.rows();
@@ -408,7 +408,7 @@ void AuxSpherePerHinge::hessian() {
 			phi_m(hi) * m2_nn +
 			m_n * phi2_mm(hi) * m_n.transpose();
 		dE_dx *= restAreaPerHinge(hi);
-		dE_dx *= w1;
+		dE_dx *= w_aux[0];
 
 		for (int fk = 0; fk < 2; fk++) {
 			for (int fj = 0; fj < 2; fj++) {
@@ -490,7 +490,7 @@ void AuxSpherePerHinge::hessian() {
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2;
 
 		Eigen::Matrix<double, 13, 13> dE_dx = 
-			w2 * 2 * (sqrtE*H_sqrtE + g_sqrtE.transpose()*g_sqrtE);
+			w_aux[1] * 2 * (sqrtE * H_sqrtE + g_sqrtE.transpose() * g_sqrtE);
 
 		auto pushTriple = [&](int row, int col, double val) {
 			if (row <= col) {

@@ -23,9 +23,9 @@ private:
 	Eigen::Matrix< double, 8, 8> d2m_dNdN(int hi);
 	
 public:
-	double w1 = 1, w2 = 100;
+	std::vector<float> w_aux={ 1,100 }; // w1 = 1, w2 = 100;
 	OptimizationUtils::FunctionType functionType;
-	float planarParameter;
+	double planarParameter;
 
 	AuxSpherePerHinge(OptimizationUtils::FunctionType type);
 	~AuxSpherePerHinge();
