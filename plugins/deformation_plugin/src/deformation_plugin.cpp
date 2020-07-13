@@ -1413,12 +1413,12 @@ void deformation_plugin::initializeMinimizer(const int index)
 	fixChosenVertices->init();
 	Outputs[index].HandlesInd = &(fixChosenVertices->ConstrainedVerticesInd);
 	Outputs[index].HandlesPosDeformed = &(fixChosenVertices->ConstrainedVerticesPos);
-	std::shared_ptr< FixChosenCenters> fixChosenCenters = std::make_shared<FixChosenCenters>();
-	fixChosenCenters->numV = V.rows();
-	fixChosenCenters->numF = F.rows();
-	fixChosenCenters->init();
-	Outputs[index].CentersInd = &(fixChosenCenters->ConstrainedCentersInd);
-	Outputs[index].CentersPosDeformed = &(fixChosenCenters->ConstrainedCentersPos);
+	std::shared_ptr< FixChosenSpheres> fixChosenSpheres = std::make_shared<FixChosenSpheres>();
+	fixChosenSpheres->numV = V.rows();
+	fixChosenSpheres->numF = F.rows();
+	fixChosenSpheres->init();
+	Outputs[index].CentersInd = &(fixChosenSpheres->ConstrainedCentersInd);
+	Outputs[index].CentersPosDeformed = &(fixChosenSpheres->ConstrainedCentersPos);
 	std::shared_ptr< ClusterSpheres> clusterSpheres = std::make_shared<ClusterSpheres>();
 	clusterSpheres->numV = V.rows();
 	clusterSpheres->numF = F.rows();
@@ -1444,7 +1444,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 		add_obj(stvk);
 	add_obj(fixAllVertices);
 	add_obj(fixChosenVertices);
-	add_obj(fixChosenCenters);
+	add_obj(fixChosenSpheres);
 	add_obj(clusterSpheres);
 	add_obj(clusterNormals);
 	Outputs[index].totalObjective->init();

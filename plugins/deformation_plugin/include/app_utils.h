@@ -23,7 +23,7 @@
 
 #include "../../libs/optimization_lib/include/objective_functions/ClusterSpheres.h"
 #include "../../libs/optimization_lib/include/objective_functions/ClusterNormals.h"
-#include "../../libs/optimization_lib/include/objective_functions/FixChosenCenters.h"
+#include "../../libs/optimization_lib/include/objective_functions/FixChosenSpheres.h"
 #include "../../libs/optimization_lib/include/objective_functions/STVK.h"
 #include "../../libs/optimization_lib/include/objective_functions/SymmetricDirichlet.h"
 #include "../../libs/optimization_lib/include/objective_functions/FixAllVertices.h"
@@ -31,7 +31,6 @@
 #include "../../libs/optimization_lib/include/objective_functions/AuxBendingNormal.h"
 #include "../../libs/optimization_lib/include/objective_functions/AuxSpherePerHinge.h"
 #include "../../libs/optimization_lib/include/objective_functions/BendingNormal.h"
-#include "../../libs/optimization_lib/include/objective_functions/MembraneConstraints.h"
 #include "../../libs/optimization_lib/include/objective_functions/FixChosenVertices.h"
 
 #define RED_COLOR Eigen::Vector3f(1, 0, 0)

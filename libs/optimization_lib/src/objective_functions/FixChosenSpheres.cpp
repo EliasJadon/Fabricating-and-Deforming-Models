@@ -1,18 +1,18 @@
-#include "objective_functions/FixChosenCenters.h"
+#include "objective_functions/FixChosenSpheres.h"
 
-FixChosenCenters::FixChosenCenters()
+FixChosenSpheres::FixChosenSpheres()
 {
-    name = "Fix Chosen Centers";
+    name = "Fix Chosen Spheres";
 	w = 0.05;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
-FixChosenCenters::~FixChosenCenters()
+FixChosenSpheres::~FixChosenSpheres()
 {
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void FixChosenCenters::init()
+void FixChosenSpheres::init()
 {
 	std::cout << "\t" << name << " initialization" << std::endl;
 	if(numV==0 || numF == 0)
@@ -20,7 +20,7 @@ void FixChosenCenters::init()
 	init_hessian();
 }
 
-void FixChosenCenters::updateX(const Eigen::VectorXd& X)
+void FixChosenSpheres::updateX(const Eigen::VectorXd& X)
 {
 	CurrConstrainedCentersPos.resizeLike(ConstrainedCentersPos);
 	for (int i = 0; i < ConstrainedCentersInd.size(); i++)
@@ -33,7 +33,7 @@ void FixChosenCenters::updateX(const Eigen::VectorXd& X)
 	}
 }
 
-double FixChosenCenters::value(const bool update)
+double FixChosenSpheres::value(const bool update)
 {
 	if (CurrConstrainedCentersPos.rows() != ConstrainedCentersPos.rows()) {
 		return 0;
@@ -45,7 +45,7 @@ double FixChosenCenters::value(const bool update)
 	return E;
 }
 
-void FixChosenCenters::gradient(Eigen::VectorXd& g, const bool update)
+void FixChosenSpheres::gradient(Eigen::VectorXd& g, const bool update)
 {
 	g.conservativeResize(numV * 3 + numF * 7);
 	g.setZero();
@@ -65,7 +65,7 @@ void FixChosenCenters::gradient(Eigen::VectorXd& g, const bool update)
 		gradient_norm = g.norm();
 }
 
-void FixChosenCenters::hessian()
+void FixChosenSpheres::hessian()
 {
 	fill(SS.begin(), SS.end(), 0);
 	for (int i = 0; i < ConstrainedCentersInd.size(); i++)
@@ -77,7 +77,7 @@ void FixChosenCenters::hessian()
 	}
 }
 
-void FixChosenCenters::init_hessian()
+void FixChosenSpheres::init_hessian()
 {
 	II.resize(3 * numV + 7 * numF);
 	JJ.resize(3 * numV + 7 * numF);
