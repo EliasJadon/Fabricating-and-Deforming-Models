@@ -575,7 +575,7 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 		ImGui::Checkbox("show norm edges", &showNormEdges);
 		ImGui::Checkbox("show triangle centers", &showTriangleCenters);
 		ImGui::Checkbox("show sphere edges", &showSphereEdges);
-		ImGui::Checkbox("show sphere ceneters", &showSphereCeneters);
+		ImGui::Checkbox("show sphere centers", &showSphereCeneters);
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
 			stop_minimizer_thread();
 			init_minimizer_thread();
@@ -585,7 +585,7 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 		if (ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0\0"))
 			init_minimizer_thread();
 		std::shared_ptr<NewtonMinimizer> newtonMinimizer = std::dynamic_pointer_cast<NewtonMinimizer>(Outputs[0].activeMinimizer);
-		if (newtonMinimizer != NULL) {
+		if (newtonMinimizer != nullptr) {
 			bool PD = newtonMinimizer->getPositiveDefiniteChecker();
 			ImGui::Checkbox("Positive Definite check", &PD);
 			for (auto& o : Outputs) {
@@ -723,7 +723,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 	int id = 0;
 	
 	if (Outputs.size() != 0) {
-		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 4, ImGuiTableFlags_Resizable))
+		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 3, ImGuiTableFlags_Resizable))
 		{
 
 			ImGui::TableSetupColumn("Outputs", ImGuiTableColumnFlags_WidthFixed);

@@ -23,7 +23,7 @@ private:
 	Eigen::Matrix< double, 8, 8> d2m_dNdN(int hi);
 	
 public:
-	std::vector<float> w_aux={ 1,100 }; // w1 = 1, w2 = 100;
+	std::vector<double> w_aux={ 1,100 }; // w1 = 1, w2 = 100;
 	OptimizationUtils::FunctionType functionType;
 	double planarParameter;
 
