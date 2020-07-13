@@ -280,10 +280,11 @@ double AuxSpherePerHinge::value(const bool update)
 		int x0 = restShapeF(fi, 0);
 		int x1 = restShapeF(fi, 1);
 		int x2 = restShapeF(fi, 2);
-		Eigen::RowVector3d x = ((CurrV.row(x0) + CurrV.row(x1) + CurrV.row(x2)) / 3);
 		Eigen::RowVector3d c = CurrCenter.row(fi);
 		double r = CurrRadius(fi);
-		Energy2 += pow((x - c).squaredNorm() - pow(r, 2), 2);
+		Energy2 += pow((CurrV.row(x0) - c).squaredNorm() - pow(r, 2), 2);
+		Energy2 += pow((CurrV.row(x1) - c).squaredNorm() - pow(r, 2), 2);
+		Energy2 += pow((CurrV.row(x2) - c).squaredNorm() - pow(r, 2), 2);
 	}
 
 	double value =
@@ -325,27 +326,57 @@ void AuxSpherePerHinge::gradient(Eigen::VectorXd& g, const bool update)
 		int x0 = restShapeF(fi, 0);
 		int x1 = restShapeF(fi, 1);
 		int x2 = restShapeF(fi, 2);
-		Eigen::RowVector3d x = ((CurrV.row(x0) + CurrV.row(x1) + CurrV.row(x2)) / 3);
 		Eigen::RowVector3d c = CurrCenter.row(fi);
 		double r = CurrRadius(fi);
-		double sqrtE = (x - c).squaredNorm() - pow(r, 2);
+		double sqrtE0 = (CurrV.row(x0) - c).squaredNorm() - pow(r, 2);
+		double sqrtE1 = (CurrV.row(x1) - c).squaredNorm() - pow(r, 2);
+		double sqrtE2 = (CurrV.row(x2) - c).squaredNorm() - pow(r, 2);
 		
-		Eigen::Matrix<double, 1, 13> g_sqrtE;
-		g_sqrtE <<
-			(2 / 3.0f)*(x(0) - c(0)), // V0x
-			(2 / 3.0f)*(x(1) - c(1)), // V0y
-			(2 / 3.0f)*(x(2) - c(2)), // V0z
-			(2 / 3.0f)*(x(0) - c(0)), // V1x
-			(2 / 3.0f)*(x(1) - c(1)), // V1y
-			(2 / 3.0f)*(x(2) - c(2)), // V1z
-			(2 / 3.0f)*(x(0) - c(0)), // V2x
-			(2 / 3.0f)*(x(1) - c(1)), // V2y
-			(2 / 3.0f)*(x(2) - c(2)), // V2z
-			-2 * (x(0) - c(0)), // Cx
-			-2 * (x(1) - c(1)), // Cy
-			-2 * (x(2) - c(2)), // Cz
+		Eigen::Matrix<double, 1, 13> g_sqrtE0, g_sqrtE1, g_sqrtE2;
+		g_sqrtE0 <<
+			2 * (CurrV(x0, 0) - c(0)), // V0x
+			2 * (CurrV(x0, 1) - c(1)), // V0y
+			2 * (CurrV(x0, 2) - c(2)), // V0z
+			0, // V1x
+			0, // V1y
+			0, // V1z
+			0, // V2x
+			0, // V2y
+			0, // V2z
+			-2 * (CurrV(x0, 0) - c(0)), // Cx
+			-2 * (CurrV(x0, 1) - c(1)), // Cy
+			-2 * (CurrV(x0, 2) - c(2)), // Cz
 			-2 * r; //r
-		Eigen::Matrix<double, 1, 13> dE_dx = w2 * 2 * sqrtE*g_sqrtE;
+		g_sqrtE1 <<
+			0, // V0x
+			0, // V0y
+			0, // V0z
+			2 * (CurrV(x1, 0) - c(0)), // V1x
+			2 * (CurrV(x1, 1) - c(1)), // V1y
+			2 * (CurrV(x1, 2) - c(2)), // V1z
+			0, // V2x
+			0, // V2y
+			0, // V2z
+			-2 * (CurrV(x1, 0) - c(0)), // Cx
+			-2 * (CurrV(x1, 1) - c(1)), // Cy
+			-2 * (CurrV(x1, 2) - c(2)), // Cz
+			-2 * r; //r
+		g_sqrtE2 <<
+			0, // V0x
+			0, // V0y
+			0, // V0z
+			0, // V1x
+			0, // V1y
+			0, // V1z
+			2 * (CurrV(x2, 0) - c(0)), // V2x
+			2 * (CurrV(x2, 1) - c(1)), // V2y
+			2 * (CurrV(x2, 2) - c(2)), // V2z
+			-2 * (CurrV(x2, 0) - c(0)), // Cx
+			-2 * (CurrV(x2, 1) - c(1)), // Cy
+			-2 * (CurrV(x2, 2) - c(2)), // Cz
+			-2 * r; //r
+		Eigen::Matrix<double, 1, 13> dE_dx = w2 * 2 * 
+			(sqrtE0*g_sqrtE0 + sqrtE1 * g_sqrtE1 + sqrtE2 * g_sqrtE2);
 		
 		int startC = 3 * restShapeV.rows() + 3 * restShapeF.rows();
 		int startR = 3 * restShapeV.rows() + 6 * restShapeF.rows();
@@ -453,44 +484,103 @@ void AuxSpherePerHinge::hessian() {
 		int x0 = restShapeF(fi, 0);
 		int x1 = restShapeF(fi, 1);
 		int x2 = restShapeF(fi, 2);
-		Eigen::RowVector3d x = ((CurrV.row(x0) + CurrV.row(x1) + CurrV.row(x2)) / 3);
 		Eigen::RowVector3d c = CurrCenter.row(fi);
 		double r = CurrRadius(fi);
-		double sqrtE = (x - c).squaredNorm() - pow(r, 2);
+		double sqrtE0 = (CurrV.row(x0) - c).squaredNorm() - pow(r, 2);
+		double sqrtE1 = (CurrV.row(x1) - c).squaredNorm() - pow(r, 2);
+		double sqrtE2 = (CurrV.row(x2) - c).squaredNorm() - pow(r, 2);
 
-		Eigen::Matrix<double, 1, 13> g_sqrtE;
-		g_sqrtE <<
-			(2 / 3.0f)*(x(0) - c(0)), // V0x
-			(2 / 3.0f)*(x(1) - c(1)), // V0y
-			(2 / 3.0f)*(x(2) - c(2)), // V0z
-			(2 / 3.0f)*(x(0) - c(0)), // V1x
-			(2 / 3.0f)*(x(1) - c(1)), // V1y
-			(2 / 3.0f)*(x(2) - c(2)), // V1z
-			(2 / 3.0f)*(x(0) - c(0)), // V2x
-			(2 / 3.0f)*(x(1) - c(1)), // V2y
-			(2 / 3.0f)*(x(2) - c(2)), // V2z
-			-2 * (x(0) - c(0)), // Cx
-			-2 * (x(1) - c(1)), // Cy
-			-2 * (x(2) - c(2)), // Cz
+		Eigen::Matrix<double, 1, 13> g_sqrtE0, g_sqrtE1, g_sqrtE2;
+		g_sqrtE0 <<
+			2 * (CurrV(x0, 0) - c(0)), // V0x
+			2 * (CurrV(x0, 1) - c(1)), // V0y
+			2 * (CurrV(x0, 2) - c(2)), // V0z
+			0, // V1x
+			0, // V1y
+			0, // V1z
+			0, // V2x
+			0, // V2y
+			0, // V2z
+			-2 * (CurrV(x0, 0) - c(0)), // Cx
+			-2 * (CurrV(x0, 1) - c(1)), // Cy
+			-2 * (CurrV(x0, 2) - c(2)), // Cz
 			-2 * r; //r
-		Eigen::Matrix<double, 13, 13> H_sqrtE;
-		H_sqrtE <<
-			2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, -2 / 3.0f, 0, 0, 0,
-			0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, -2 / 3.0f, 0, 0,
-			0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, -2 / 3.0f, 0,
-			2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, -2 / 3.0f, 0, 0, 0,
-			0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, -2 / 3.0f, 0, 0,
-			0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, -2 / 3.0f, 0,
-			2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, -2 / 3.0f, 0, 0, 0,
-			0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, -2 / 3.0f, 0, 0,
-			0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, 2 / 9.0f, 0, 0, -2 / 3.0f, 0,
-			-2 / 3.0f, 0, 0, -2 / 3.0f, 0, 0, -2 / 3.0f, 0, 0, 2, 0, 0, 0,
-			0, -2 / 3.0f, 0, 0, -2 / 3.0f, 0, 0, -2 / 3.0f, 0, 0, 2, 0, 0,
-			0, 0, -2 / 3.0f, 0, 0, -2 / 3.0f, 0, 0, -2 / 3.0f, 0, 0, 2, 0,
+		g_sqrtE1 <<
+			0, // V0x
+			0, // V0y
+			0, // V0z
+			2 * (CurrV(x1, 0) - c(0)), // V1x
+			2 * (CurrV(x1, 1) - c(1)), // V1y
+			2 * (CurrV(x1, 2) - c(2)), // V1z
+			0, // V2x
+			0, // V2y
+			0, // V2z
+			-2 * (CurrV(x1, 0) - c(0)), // Cx
+			-2 * (CurrV(x1, 1) - c(1)), // Cy
+			-2 * (CurrV(x1, 2) - c(2)), // Cz
+			-2 * r; //r
+		g_sqrtE2 <<
+			0, // V0x
+			0, // V0y
+			0, // V0z
+			0, // V1x
+			0, // V1y
+			0, // V1z
+			2 * (CurrV(x2, 0) - c(0)), // V2x
+			2 * (CurrV(x2, 1) - c(1)), // V2y
+			2 * (CurrV(x2, 2) - c(2)), // V2z
+			-2 * (CurrV(x2, 0) - c(0)), // Cx
+			-2 * (CurrV(x2, 1) - c(1)), // Cy
+			-2 * (CurrV(x2, 2) - c(2)), // Cz
+			-2 * r; //r
+		Eigen::Matrix<double, 13, 13> H_sqrtE0, H_sqrtE1, H_sqrtE2;
+		H_sqrtE0 <<
+			2, 0, 0, 0, 0, 0, 0, 0, 0, -2, 0, 0, 0,
+			0, 2, 0, 0, 0, 0, 0, 0, 0, 0, -2, 0, 0,
+			0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, -2, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			-2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0,
+			0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0,
+			0, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2;
-
-		Eigen::Matrix<double, 13, 13> dE_dx = 
-			w2 * 2 * (sqrtE*H_sqrtE + g_sqrtE.transpose()*g_sqrtE);
+		H_sqrtE1 <<
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 2, 0, 0, 0, 0, 0, -2, 0, 0, 0,
+			0, 0, 0, 0, 2, 0, 0, 0, 0, 0, -2, 0, 0,
+			0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, -2, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, -2, 0, 0, 0, 0, 0, 2, 0, 0, 0,
+			0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 2, 0, 0,
+			0, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 2, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2;
+		H_sqrtE2 <<
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 2, 0, 0, -2, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 2, 0, 0, -2, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, -2, 0,
+			0, 0, 0, 0, 0, 0, -2, 0, 0, 2, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, -2, 0, 0, 2, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, -2, 0, 0, 2, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2;
+		
+		Eigen::Matrix<double, 13, 13> dE_dx =
+			w2 * 2 * (sqrtE0*H_sqrtE0 + g_sqrtE0.transpose()*g_sqrtE0) +
+			w2 * 2 * (sqrtE1*H_sqrtE1 + g_sqrtE1.transpose()*g_sqrtE1) +
+			w2 * 2 * (sqrtE2*H_sqrtE2 + g_sqrtE2.transpose()*g_sqrtE2);
 
 		auto pushTriple = [&](int row, int col, double val) {
 			if (row <= col) {
