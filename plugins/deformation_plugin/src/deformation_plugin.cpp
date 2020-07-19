@@ -862,7 +862,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 	ImGui::PopStyleColor();
 	int id = 0;
 	if (Outputs.size() != 0) {
-		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 4, ImGuiTableFlags_Resizable))
+		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 3, ImGuiTableFlags_Resizable))
 		{
 
 			ImGui::TableSetupColumn("Outputs", ImGuiTableColumnFlags_WidthFixed);
