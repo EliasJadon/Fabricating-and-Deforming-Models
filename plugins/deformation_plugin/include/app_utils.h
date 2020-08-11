@@ -291,6 +291,10 @@ public:
 		this->facesNorm = norm;
 	}
 
+	double getRadiusOfSphere(int index) {
+		return this->radius_of_sphere(index);
+	}
+
 	void translateCenterOfSphere(const int fi, const Eigen::Vector3d translateValue) {
 		this->center_of_sphere.row(fi) += translateValue;
 	}

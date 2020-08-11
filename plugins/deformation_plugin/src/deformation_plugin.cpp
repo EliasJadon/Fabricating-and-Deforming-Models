@@ -269,8 +269,11 @@ void deformation_plugin::add_output() {
 	initializeMinimizer(Outputs.size() - 1);
 	//Update the scene
 	viewer->core(inputCoreID).align_camera_center(InputModel().V, InputModel().F);
-	for (int i = 0; i < Outputs.size(); i++)
+	viewer->core(inputCoreID).is_animating = true;
+	for (int i = 0; i < Outputs.size(); i++) {
 		viewer->core(Outputs[i].CoreID).align_camera_center(OutputModel(i).V, OutputModel(i).F);
+		viewer->core(Outputs[i].CoreID).is_animating = true;
+	}
 	core_size = 1.0 / (Outputs.size() + 1.0);
 	int frameBufferWidth, frameBufferHeight;
 	glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
@@ -1036,6 +1039,10 @@ void deformation_plugin::Draw_menu_for_text_results() {
 			for (auto& obj : out.totalObjective->objectiveList) {
 				ImGui::TextColored(c, (std::string(obj->name) + std::string(" energy ") + std::to_string(obj->energy_value)).c_str());
 				ImGui::TextColored(c, (std::string(obj->name) + std::string(" gradient ") + std::to_string(obj->gradient_norm)).c_str());
+			}
+			if (IsChoosingCluster) {
+				double r = out.getRadiusOfSphere(curr_highlighted_face);
+				ImGui::TextColored(c, std::to_string(r).c_str());
 			}
 			ImGui::End();
 			ImGui::PopStyleColor();
