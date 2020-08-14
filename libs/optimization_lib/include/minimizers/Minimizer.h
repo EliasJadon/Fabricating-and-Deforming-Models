@@ -21,7 +21,7 @@ class Minimizer
 public:
 	Minimizer(const int solverID);
 	~Minimizer();
-	int run();
+	virtual int run();
 	
 	void run_one_iteration(const int steps, const bool showGraph);
 	void stop();
