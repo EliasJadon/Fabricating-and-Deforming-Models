@@ -480,6 +480,5 @@ public:
 			activeMinimizer = adamMinimizer;
 			break;
 		}
-		activeMinimizer->lineSearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 	}
 };

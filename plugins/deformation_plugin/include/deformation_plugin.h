@@ -10,6 +10,7 @@ class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 private:
 	OptimizationUtils::InitAuxVariables typeAuxVar;
 	bool runOneIteration;
+	bool isLoadNeeded;
 	bool isModelLoaded;
 	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCenters, showFacesNorm;
 	float Max_Distortion;
@@ -102,7 +103,7 @@ public:
 	void UpdateClustersHandles();
 	void UpdateEnergyColors(const int index);
 	void update_parameters_for_all_cores();
-	void clear_selected_faces_and_vertices();
+	void clear_sellected_faces_and_vertices();
 
 	//Basic Methods
 	igl::opengl::ViewerData& InputModel();
@@ -112,16 +113,14 @@ public:
 	void draw_brush_sphere();
 	void brush_erase_or_insert();
 	void load_new_model(const std::string modelpath);
-	void reset();
 	void Update_view();
 	void update_data_from_minimizer();
 	void set_vertices_for_mesh(Eigen::MatrixXd& V, const int index);
 
 	//Start/Stop the minimizer Thread
 	void initializeMinimizer(const int index);
-	void StopAllSolvers();
-	void StopSolver(int i);
-	void StartAllSolvers();
+	void stop_minimizer_thread();
+	void start_minimizer_thread();
 	void init_minimizer_thread();
 
 	//FD check
