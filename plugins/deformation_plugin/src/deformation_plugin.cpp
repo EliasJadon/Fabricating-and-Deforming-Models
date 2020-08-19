@@ -26,6 +26,8 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		isUpdateAll = true;
 		minimizer_settings = true;
 		show_text = true;
+		isNormalClustering = false;
+		normalMSE = 0.1;
 		runOneIteration = false;
 		faceColoring_type = 1;
 		curr_highlighted_face = -1;
@@ -123,6 +125,18 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	if (ImGui::Checkbox("Show text", &show_text))
 		if(show_text)
 			Outputs_Settings = !show_text;
+
+	if (ImGui::Checkbox("Cluster normals", &isNormalClustering) ||
+		ImGui::DragFloat("normal MSE", &normalMSE, 0.001f, 0.001f, 100.0f)) {
+		if (isNormalClustering) {
+			for(auto& out:Outputs)
+				out.cluster_by_normals(normalMSE);
+		}
+		else {
+			for (auto& out : Outputs)
+				out.normal_clusters.clear();	
+		}
+	}
 
 	if (ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "No Highlight\0Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0")) {
 		if(highlightFacesType == app_utils::HighlightFaces::GLOBAL_NORMALS ||
@@ -1034,15 +1048,31 @@ void deformation_plugin::Draw_menu_for_text_results() {
 			ImGui::SetWindowSize(out.window_size);
 			ImGui::SetWindowCollapsed(false);
 			//add text...
-			ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" energy ") + std::to_string(out.totalObjective->energy_value)).c_str());
-			ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" gradient ") + std::to_string(out.totalObjective->gradient_norm)).c_str());
-			for (auto& obj : out.totalObjective->objectiveList) {
-				ImGui::TextColored(c, (std::string(obj->name) + std::string(" energy ") + std::to_string(obj->energy_value)).c_str());
-				ImGui::TextColored(c, (std::string(obj->name) + std::string(" gradient ") + std::to_string(obj->gradient_norm)).c_str());
+			if(isNormalClustering && out.normal_clusters.size())
+			{
+				Eigen::Vector3f _;
+				int highlightedFi = pick_face(_);
+				ImGui::TextColored(c, (std::string("Number of clusters:\t") + std::to_string(out.normal_clusters.size())).c_str());
+				for (int ci = 0; ci < out.normal_clusters.size(); ci++)
+				{
+					if (std::find(out.normal_clusters[ci].begin(), out.normal_clusters[ci].end(), highlightedFi) != out.normal_clusters[ci].end())
+					{
+						ImGui::TextColored(c, (std::string("clusters:\t") + std::to_string(ci)).c_str());
+					}
+				}
 			}
-			if (IsChoosingCluster) {
-				double r = out.getRadiusOfSphere(curr_highlighted_face);
-				ImGui::TextColored(c, std::to_string(r).c_str());
+			else 
+			{
+				ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" energy ") + std::to_string(out.totalObjective->energy_value)).c_str());
+				ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" gradient ") + std::to_string(out.totalObjective->gradient_norm)).c_str());
+				for (auto& obj : out.totalObjective->objectiveList) {
+					ImGui::TextColored(c, (std::string(obj->name) + std::string(" energy ") + std::to_string(obj->energy_value)).c_str());
+					ImGui::TextColored(c, (std::string(obj->name) + std::string(" gradient ") + std::to_string(obj->gradient_norm)).c_str());
+				}
+				if (IsChoosingCluster) {
+					double r = out.getRadiusOfSphere(curr_highlighted_face);
+					ImGui::TextColored(c, std::to_string(r).c_str());
+				}
 			}
 			ImGui::End();
 			ImGui::PopStyleColor();
@@ -1128,7 +1158,6 @@ void deformation_plugin::Update_view() {
 
 void deformation_plugin::follow_and_mark_selected_faces() {
 	if(InputModel().F.size()){
-		
 		//Mark the faces
 		for (int i = 0; i < Outputs.size(); i++) {
 			Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color, centers_sphere_edge_color, centers_norm_edge_color, face_norm_color);
@@ -1170,6 +1199,18 @@ void deformation_plugin::follow_and_mark_selected_faces() {
 				Vertices_Input.row(idx) = InputModel().V.row(vi);
 				Outputs[i].Vertices_output.row(idx) = OutputModel(i).V.row(vi);
 				color_per_vertex.row(idx++) = Fixed_vertex_color.cast<double>();
+			}
+
+			if (isNormalClustering && Outputs[i].normal_clusters.size()) {
+				UniqueColors uniqueColors;
+				for(std::vector<int> clus: Outputs[i].normal_clusters)
+				{
+					Eigen::Vector3f clusColor = uniqueColors.getNext();
+					for (int fi : clus)
+					{
+						Outputs[i].updateFaceColors(fi, clusColor);
+					}
+				}
 			}
 		}
 	}

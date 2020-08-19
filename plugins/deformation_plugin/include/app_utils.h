@@ -193,6 +193,66 @@ namespace app_utils
 	}
 }
 
+class UniqueColors {
+private:
+	std::vector<Eigen::Vector3f> colors;
+	int index;
+	float add(const float x, const float num) {
+		float r = x * 255.0f;
+		r += num;
+		while (r < 0) {
+			r += 255;
+		}
+		r = (int)r % 255;
+		return r / 255.0f;
+	}
+public:
+	UniqueColors() {
+		auto put_color = [&](const float r, const float g, const float b) {
+			this->colors.push_back(Eigen::Vector3f(r / 255.0f, g / 255.0f, b / 255.0f));
+		};
+		index = 0;
+		put_color(255, 0, 0); //red
+		put_color(0, 255, 0); //Lime
+		put_color(0, 0, 255); //Blue
+		put_color(255, 255, 0); //Yellow
+		put_color(0, 255, 255); //Cyan / Aqua
+		put_color(255, 0, 255); //Magenta / Fuchsia
+		put_color(192, 192, 192); //Silver
+		put_color(128, 128, 128); //Gray
+		put_color(128, 0, 0); //Maroon
+		put_color(128, 128, 0); //Olive
+		put_color(0, 128, 0); //Green
+		put_color(128, 0, 128); //Purple
+		put_color(0, 128, 128); //Teal
+		put_color(0, 0, 128); //Navy
+		put_color(178, 34, 34); //firebrick
+		put_color(255, 165, 0); //orange
+		put_color(184, 134, 11); //dark golden rod
+		put_color(218, 165, 32); //golden rod
+		put_color(0, 233, 154); //medium spring green
+		put_color(102, 205, 170); //medium aqua marine
+		put_color(95, 158, 160); //cadet blue
+		put_color(221, 160, 221); //plum
+		put_color(218, 112, 214); //orchid
+		put_color(245, 222, 179); //wheat
+		put_color(205, 133, 63); //peru
+		put_color(210, 105, 30); //chocolate
+		put_color(230, 230, 250); //lavender
+		put_color(240, 248, 255); //alice blue
+		put_color(0, 0, 0); //black
+		put_color(220, 220, 220); //gainsboro
+	}
+	Eigen::Vector3f getNext() 
+	{
+		Eigen::Vector3f c = colors[index];
+		colors[index] << add(c(0), 18), add(c(1), -18), add(c(2), 60);
+		if ((++index) >= colors.size())
+			index = 0;
+		return c;
+	}
+};
+
 class FaceClusters { 
 public:
 	Eigen::Vector3f color;
@@ -238,6 +298,7 @@ private:
 	Eigen::VectorXd radius_of_sphere;
 
 public:
+	std::vector<std::vector<int>> normal_clusters;
 	std::shared_ptr<TotalObjective> totalObjective;
 	std::shared_ptr<Minimizer> activeMinimizer;
 	float prev_camera_zoom;
@@ -293,6 +354,141 @@ public:
 
 	double getRadiusOfSphere(int index) {
 		return this->radius_of_sphere(index);
+	}
+
+	void cluster_by_normals(const double MSE) {
+		std::vector<std::vector<int>> clusters_ind;
+		std::vector<Eigen::RowVectorXd> clusters_val;
+		cluster_by_normals_init(MSE, clusters_val);
+		
+		//Do 5 rounds of K-means clustering alg.
+		for (int _ = 0; _ < 5; _++) {
+			clusters_ind.clear();
+			clusters_ind.resize(clusters_val.size());
+			for (int fi = 0; fi < facesNorm.rows(); fi++)
+			{
+				bool found = false;
+				double minMSE = MSE;
+				int argmin;
+				for (int ci = 0; ci < clusters_val.size(); ci++)
+				{
+					double currMSE = (facesNorm.row(fi) - clusters_val[ci]).squaredNorm();
+					if (currMSE < minMSE)
+					{
+						minMSE = currMSE;
+						argmin = ci;
+						found = true;
+					}
+				}
+				if (found)
+				{
+					clusters_ind[argmin].push_back(fi);
+				}
+				else
+				{
+					clusters_ind.push_back({ fi });
+					clusters_val.push_back(facesNorm.row(fi));
+				}
+			}
+			//Remove empty clusters
+			auto& it1 = clusters_val.begin();
+			auto& it2 = clusters_ind.begin();
+			while (it2 != clusters_ind.end()) {
+				if (it2->size() == 0) {
+					it2 = clusters_ind.erase(it2);
+					it1 = clusters_val.erase(it1);
+				}
+				else {
+					it2++; it1++;
+				}
+			}
+			//Update average
+			for (int ci = 0; ci < clusters_ind.size(); ci++) {
+				Eigen::RowVectorXd avg;
+				avg.resize(3);
+				avg << 0, 0, 0;
+				for (int currf : clusters_ind[ci]) {
+					avg += facesNorm.row(currf);
+				}
+				avg /= clusters_ind[ci].size();
+				clusters_val[ci] = avg;
+			}
+			//Union similar clusters
+			auto& val1 = clusters_val.begin();
+			auto& val2 = val1+1;
+			auto& ind1 = clusters_ind.begin();
+			auto& ind2 = ind1+1;
+			for (val1 = clusters_val.begin(), ind1 = clusters_ind.begin(); val1 != clusters_val.end() ||ind1 != clusters_ind.end(); val1++, ind1++)
+			{
+				for (val2 = val1+1, ind2 = ind1+1; val2 != clusters_val.end() || ind2 != clusters_ind.end();)
+				{
+					double diff = (*val1 - *val2).squaredNorm();
+					if (diff < MSE) {
+						for (int currf : (*ind2)) {
+							ind1->push_back(currf);
+						}
+						Eigen::RowVectorXd avg;
+						avg.resize(3);
+						avg << 0, 0, 0;
+						for (int currf : (*ind1)) {
+							avg += facesNorm.row(currf);
+						}
+						avg /= ind1->size();
+						*val1 = avg;
+						val2 = clusters_val.erase(val2);
+						ind2 = clusters_ind.erase(ind2);
+					}
+					else {
+						val2++;
+						ind2++;
+					}
+				}
+			}
+		}
+		normal_clusters = clusters_ind;
+	}
+
+	void cluster_by_normals_init(
+		const double MSE, 
+		std::vector<Eigen::RowVectorXd>& clusters_val) 
+	{
+		std::vector<std::vector<int>> clusters_ind;
+		clusters_val.clear();
+		clusters_ind.push_back({0});
+		clusters_val.push_back(facesNorm.row(0));
+		for (int fi = 1; fi < facesNorm.rows(); fi++) 
+		{
+			bool found = false;
+			double minMSE = MSE;
+			int argmin;
+			for (int ci = 0; ci < clusters_val.size(); ci++)
+			{
+				double currMSE = (facesNorm.row(fi) - clusters_val[ci]).squaredNorm();
+				if (currMSE < minMSE)
+				{
+					minMSE = currMSE;
+					argmin = ci;
+					found = true;
+				}
+			}
+			if (found)
+			{
+				clusters_ind[argmin].push_back(fi);
+				Eigen::RowVectorXd avg;
+				avg.resize(3);
+				avg << 0, 0, 0;
+				for (int currf : clusters_ind[argmin]) {
+					avg += facesNorm.row(currf);
+				}
+				avg /= clusters_ind[argmin].size();
+				clusters_val[argmin] << avg;
+			}
+			else
+			{
+				clusters_ind.push_back({ fi });
+				clusters_val.push_back(facesNorm.row(fi));
+			}
+		}
 	}
 
 	void translateCenterOfSphere(const int fi, const Eigen::Vector3d translateValue) {

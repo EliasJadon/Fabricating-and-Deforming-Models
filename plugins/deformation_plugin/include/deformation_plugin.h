@@ -39,8 +39,8 @@ private:
 		Dragged_vertex_color,
 		Vertex_Energy_color,
 		text_color;
-	bool show_text;
-	float core_size;
+	bool show_text, isNormalClustering;
+	float core_size, normalMSE;
 	float texture_scaling_output;
 	Eigen::Vector3f intersec_point;
 	bool Outputs_Settings;
