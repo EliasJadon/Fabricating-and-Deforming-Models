@@ -15,7 +15,8 @@ namespace OptimizationUtils
 {
 	enum InitAuxVariables {
 		SPHERE = 0,
-		MESH_CENTER = 1
+		MESH_CENTER,
+		MINUS_NORMALS
 	};
 
 	enum FunctionType {
