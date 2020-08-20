@@ -44,6 +44,11 @@
 
 namespace app_utils
 {
+	enum ClusteringType {
+		NoClustering = 0,
+		NormalClustering,
+		SphereClustering
+	};
 	enum View {
 		HORIZONTAL = 0,
 		VERTICAL,
@@ -298,7 +303,7 @@ private:
 	Eigen::VectorXd radius_of_sphere;
 
 public:
-	std::vector<std::vector<int>> normal_clusters;
+	std::vector<std::vector<int>> clusters_indices;
 	std::shared_ptr<TotalObjective> totalObjective;
 	std::shared_ptr<Minimizer> activeMinimizer;
 	float prev_camera_zoom;
@@ -356,23 +361,46 @@ public:
 		return this->radius_of_sphere(index);
 	}
 
-	void cluster_by_normals(const double MSE) {
+	void clustering(const double MSE,const bool isNormal) {
 		std::vector<std::vector<int>> clusters_ind;
 		std::vector<Eigen::RowVectorXd> clusters_val;
-		cluster_by_normals_init(MSE, clusters_val);
+		std::vector<Eigen::RowVectorXd> clusters_center;
+		std::vector<double> clusters_radius;
+		clusters_init(MSE, clusters_val, clusters_center, clusters_radius, isNormal);
 		
+		//////////////////////////////
+		std::cout << "center_of_sphere  = \n" << center_of_sphere << std::endl;
+		std::cout << "radius_of_sphere  = \n" << radius_of_sphere << std::endl;
+		//////////////////////////////
+
+		int numFaces;
+		if (isNormal)
+			numFaces = facesNorm.rows();
+		else
+			numFaces = center_of_sphere.rows();
 		//Do 5 rounds of K-means clustering alg.
 		for (int _ = 0; _ < 5; _++) {
 			clusters_ind.clear();
-			clusters_ind.resize(clusters_val.size());
-			for (int fi = 0; fi < facesNorm.rows(); fi++)
+			int numClusters;
+			if (isNormal)
+				numClusters = clusters_val.size();
+			else
+				numClusters = clusters_center.size();
+			clusters_ind.resize(numClusters);
+			for (int fi = 0; fi < numFaces; fi++)
 			{
 				bool found = false;
 				double minMSE = MSE;
 				int argmin;
-				for (int ci = 0; ci < clusters_val.size(); ci++)
+				for (int ci = 0; ci < numClusters; ci++)
 				{
-					double currMSE = (facesNorm.row(fi) - clusters_val[ci]).squaredNorm();
+					double currMSE;
+					if (isNormal) {
+						currMSE = (facesNorm.row(fi) - clusters_val[ci]).squaredNorm();
+					}
+					else {
+						currMSE = ((center_of_sphere.row(fi) - clusters_center[ci]).norm() + abs(radius_of_sphere(fi) - clusters_radius[ci]));
+					}
 					if (currMSE < minMSE)
 					{
 						minMSE = currMSE;
@@ -387,83 +415,197 @@ public:
 				else
 				{
 					clusters_ind.push_back({ fi });
-					clusters_val.push_back(facesNorm.row(fi));
+					if(isNormal)
+						clusters_val.push_back(facesNorm.row(fi));
+					else {
+						clusters_center.push_back(center_of_sphere.row(fi));
+						clusters_radius.push_back(radius_of_sphere(fi));
+					}
 				}
 			}
 			//Remove empty clusters
-			auto& it1 = clusters_val.begin();
-			auto& it2 = clusters_ind.begin();
-			while (it2 != clusters_ind.end()) {
-				if (it2->size() == 0) {
-					it2 = clusters_ind.erase(it2);
-					it1 = clusters_val.erase(it1);
+			auto& it_N = clusters_val.begin();
+			auto& it_C = clusters_center.begin();
+			auto& it_R = clusters_radius.begin();
+			auto& it_i = clusters_ind.begin();
+			while (it_i != clusters_ind.end()) {
+				if (it_i->size() == 0) {
+					it_i = clusters_ind.erase(it_i);
+					if(isNormal)
+						it_N = clusters_val.erase(it_N);
+					else {
+						it_C = clusters_center.erase(it_C);
+						it_R = clusters_radius.erase(it_R);
+					}
 				}
 				else {
-					it2++; it1++;
+					it_i++; 
+					if(isNormal)
+						it_N++;
+					else {
+						it_R++;
+						it_C++;
+					}
 				}
 			}
 			//Update average
 			for (int ci = 0; ci < clusters_ind.size(); ci++) {
-				Eigen::RowVectorXd avg;
-				avg.resize(3);
-				avg << 0, 0, 0;
-				for (int currf : clusters_ind[ci]) {
-					avg += facesNorm.row(currf);
+				if (isNormal) {
+					Eigen::RowVectorXd avg;
+					avg.resize(3);
+					avg << 0, 0, 0;
+					for (int currf : clusters_ind[ci]) {
+						avg += facesNorm.row(currf);
+					}
+					avg /= clusters_ind[ci].size();
+					clusters_val[ci] = avg;
 				}
-				avg /= clusters_ind[ci].size();
-				clusters_val[ci] = avg;
+				else {
+					Eigen::RowVectorXd avgC;
+					double avgR = 0;
+					avgC.resize(3);
+					avgC << 0, 0, 0;
+					for (int currf : clusters_ind[ci]) {
+						avgC += center_of_sphere.row(currf);
+						avgR += radius_of_sphere(currf);
+					}
+					avgC /= clusters_ind[ci].size();
+					avgR /= clusters_ind[ci].size();
+					clusters_center[ci] = avgC;
+					clusters_radius[ci] = avgR;
+				}
 			}
 			//Union similar clusters
-			auto& val1 = clusters_val.begin();
-			auto& val2 = val1+1;
+			std::vector<Eigen::RowVectorXd>::iterator val1,val2,cent1,cent2;
+			std::vector<double>::iterator radius1, radius2;
+			if (isNormal) {
+				val1 = clusters_val.begin();
+				val2 = val1 + 1;
+			}
+			else {
+				cent1 = clusters_center.begin();
+				cent2 = cent1 + 1;
+				radius1 = clusters_radius.begin();
+				radius2 = radius1 + 1;
+			}
+			
 			auto& ind1 = clusters_ind.begin();
 			auto& ind2 = ind1+1;
-			for (val1 = clusters_val.begin(), ind1 = clusters_ind.begin(); val1 != clusters_val.end() ||ind1 != clusters_ind.end(); val1++, ind1++)
+			while(ind1 != clusters_ind.end())
 			{
-				for (val2 = val1+1, ind2 = ind1+1; val2 != clusters_val.end() || ind2 != clusters_ind.end();)
+				if (isNormal) {
+					val2 = val1 + 1;
+				}
+				else {
+					cent2 = cent1 + 1;
+					radius2 = radius1 + 1;
+				}
+				for (ind2 = ind1+1; ind2 != clusters_ind.end();)
 				{
-					double diff = (*val1 - *val2).squaredNorm();
+					double diff;
+					if (isNormal)
+						diff = (*val1 - *val2).squaredNorm();
+					else 
+						diff = ((*cent1 - *cent2).norm() + abs(*radius1 - *radius2));
+
 					if (diff < MSE) {
 						for (int currf : (*ind2)) {
 							ind1->push_back(currf);
 						}
-						Eigen::RowVectorXd avg;
-						avg.resize(3);
-						avg << 0, 0, 0;
-						for (int currf : (*ind1)) {
-							avg += facesNorm.row(currf);
+						if (isNormal) {
+							Eigen::RowVectorXd avg;
+							avg.resize(3);
+							avg << 0, 0, 0;
+							for (int currf : (*ind1)) {
+								avg += facesNorm.row(currf);
+							}
+							avg /= ind1->size();
+							*val1 = avg;
+							val2 = clusters_val.erase(val2);
 						}
-						avg /= ind1->size();
-						*val1 = avg;
-						val2 = clusters_val.erase(val2);
+						else {
+							Eigen::RowVectorXd avgC;
+							double avgR = 0;
+							avgC.resize(3);
+							avgC << 0, 0, 0;
+							for (int currf : (*ind1)) {
+								avgC += center_of_sphere.row(currf);
+								avgR += radius_of_sphere(currf);
+							}
+							avgC /= ind1->size();
+							avgR /= ind1->size();
+							*cent1 = avgC;
+							*radius1 = avgR;
+							cent2 = clusters_center.erase(cent2);
+							radius2 = clusters_radius.erase(radius2);
+						}
 						ind2 = clusters_ind.erase(ind2);
 					}
 					else {
-						val2++;
+						if (isNormal) {
+							val2++;
+						}
+						else {
+							cent2++;
+							radius2++;
+						}
 						ind2++;
 					}
 				}
+				
+				if(isNormal)
+					val1++; 
+				else {
+					cent1++; radius1++;
+				}
+				ind1++;
 			}
 		}
-		normal_clusters = clusters_ind;
+		clusters_indices = clusters_ind;
 	}
 
-	void cluster_by_normals_init(
-		const double MSE, 
-		std::vector<Eigen::RowVectorXd>& clusters_val) 
+	void clusters_init(
+		const double MSE,
+		std::vector<Eigen::RowVectorXd>& clusters_val,
+		std::vector<Eigen::RowVectorXd>& clusters_center,
+		std::vector<double>& clusters_radius,
+		const bool isNormal)
 	{
 		std::vector<std::vector<int>> clusters_ind;
-		clusters_val.clear();
+		int numFaces;
+		if (isNormal) {
+			clusters_val.clear();
+			clusters_val.push_back(facesNorm.row(0));
+			numFaces = facesNorm.rows();
+		}
+		else {
+			clusters_center.clear();
+			clusters_center.push_back(center_of_sphere.row(0));
+			clusters_radius.clear();
+			clusters_radius.push_back(radius_of_sphere(0));
+			numFaces = center_of_sphere.rows();
+		}
 		clusters_ind.push_back({0});
-		clusters_val.push_back(facesNorm.row(0));
-		for (int fi = 1; fi < facesNorm.rows(); fi++) 
+		
+		for (int fi = 1; fi < numFaces; fi++)
 		{
 			bool found = false;
 			double minMSE = MSE;
 			int argmin;
-			for (int ci = 0; ci < clusters_val.size(); ci++)
+			int numClusters;
+			if (isNormal)
+				numClusters = clusters_val.size();
+			else
+				numClusters = clusters_center.size();
+			for (int ci = 0; ci < numClusters; ci++)
 			{
-				double currMSE = (facesNorm.row(fi) - clusters_val[ci]).squaredNorm();
+				double currMSE;
+				if (isNormal) {
+					currMSE = (facesNorm.row(fi) - clusters_val[ci]).squaredNorm();
+				}
+				else {
+					currMSE = ((center_of_sphere.row(fi) - clusters_center[ci]).norm() + abs(radius_of_sphere(fi) - clusters_radius[ci]));
+				}
 				if (currMSE < minMSE)
 				{
 					minMSE = currMSE;
@@ -474,19 +616,40 @@ public:
 			if (found)
 			{
 				clusters_ind[argmin].push_back(fi);
-				Eigen::RowVectorXd avg;
-				avg.resize(3);
-				avg << 0, 0, 0;
-				for (int currf : clusters_ind[argmin]) {
-					avg += facesNorm.row(currf);
+				if (isNormal) {
+					Eigen::RowVectorXd avg;
+					avg.resize(3);
+					avg << 0, 0, 0;
+					for (int currf : clusters_ind[argmin]) {
+						avg += facesNorm.row(currf);
+					}
+					avg /= clusters_ind[argmin].size();
+					clusters_val[argmin] << avg;
 				}
-				avg /= clusters_ind[argmin].size();
-				clusters_val[argmin] << avg;
+				else {
+					Eigen::RowVectorXd avgC;
+					double avgR = 0;
+					avgC.resize(3);
+					avgC << 0, 0, 0;
+					for (int currf : clusters_ind[argmin]) {
+						avgC += center_of_sphere.row(currf);
+						avgR += radius_of_sphere(currf);
+					}
+					avgC /= clusters_ind[argmin].size();
+					avgR /= clusters_ind[argmin].size();
+					clusters_center[argmin] << avgC;
+					clusters_radius[argmin] = avgR;
+				}
 			}
 			else
 			{
 				clusters_ind.push_back({ fi });
-				clusters_val.push_back(facesNorm.row(fi));
+				if(isNormal)
+					clusters_val.push_back(facesNorm.row(fi));
+				else {
+					clusters_center.push_back(center_of_sphere.row(fi));
+					clusters_radius.push_back(radius_of_sphere(fi));
+				}
 			}
 		}
 	}
