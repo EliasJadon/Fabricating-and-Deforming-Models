@@ -558,11 +558,11 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if ((key == 'c' || key == 'C') && modifiers == 1)
 		clear_sellected_faces_and_vertices();
 	if ((key == 'a' || key == 'A') && modifiers == 1) {
-		modelPath = OptimizationUtils::ProjectPath() + "\\models\\island.obj";
+		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\from_2k_to_10k\\island.obj";
 		isLoadNeeded = true;
 	}
 	if ((key == 's' || key == 'S') && modifiers == 1) {
-		modelPath = OptimizationUtils::ProjectPath() + "\\models\\spot.obj";
+		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\from_2k_to_10k\\spot.obj";
 		isLoadNeeded = true;
 	}
 	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) {
@@ -748,7 +748,7 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
 			change_minimizer_type(minimizer_type);
 		}
-		if (ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0\0"))
+		if (ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0Minus Normal\0\0"))
 			init_minimizer_thread();
 		std::shared_ptr<NewtonMinimizer> newtonMinimizer = std::dynamic_pointer_cast<NewtonMinimizer>(Outputs[0].activeMinimizer);
 		if (newtonMinimizer != NULL) {

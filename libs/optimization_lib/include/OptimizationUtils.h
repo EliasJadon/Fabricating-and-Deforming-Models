@@ -9,6 +9,7 @@
 #include <windows.h>
 #include <Eigen/sparse>
 #include <igl/vertex_triangle_adjacency.h>
+#include <chrono>
 
 
 namespace OptimizationUtils
@@ -306,4 +307,20 @@ namespace OptimizationUtils
 		}
 		return centers;
 	}
+
+	class Timer {
+	private:
+		std::chrono::time_point<std::chrono::steady_clock> start, end;
+		std::chrono::duration<double> duration;
+	public:
+		Timer() {
+			start = std::chrono::high_resolution_clock::now();
+		}
+		~Timer() {
+			end = std::chrono::high_resolution_clock::now();
+			duration = end - start;
+			double ms = duration.count() * 1000.0f;
+			std::cout << "Timer took " << ms << "ms\n";
+		}
+	};
 }

@@ -15,6 +15,7 @@
 #include <igl/slice.h>
 #include <igl/edge_lengths.h>
 #include <imgui/imgui.h>
+#include <chrono>
 
 #include "../../libs/optimization_lib/include/minimizers/Minimizer.h"
 #include "../../libs/optimization_lib/include/minimizers/NewtonMinimizer.h"
@@ -368,11 +369,6 @@ public:
 		std::vector<double> clusters_radius;
 		clusters_init(MSE, clusters_val, clusters_center, clusters_radius, isNormal);
 		
-		//////////////////////////////
-		std::cout << "center_of_sphere  = \n" << center_of_sphere << std::endl;
-		std::cout << "radius_of_sphere  = \n" << radius_of_sphere << std::endl;
-		//////////////////////////////
-
 		int numFaces;
 		if (isNormal)
 			numFaces = facesNorm.rows();
@@ -797,6 +793,17 @@ public:
 			OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
 		else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MESH_CENTER)
 			OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
+		else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MINUS_NORMALS) {
+			//OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
+			this->center_of_faces = OptimizationUtils::center_per_triangle(V, F);
+			Radius0.resize(F.rows());
+			center0.resize(F.rows(),3);
+			Radius0.setConstant(0.1);
+			
+			for (int i = 0; i < center0.rows(); i++) {
+				center0.row(i) = this->center_of_faces.row(i) - Radius0(i) * normals.row(i);
+			}
+		}
 		setAuxVariables(V,F, center0, Radius0, normals);
 		newtonMinimizer->init(
 			totalObjective,
