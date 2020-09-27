@@ -331,7 +331,7 @@ public:
 	{
 		//update viewer
 		CoreID = viewer->append_core(Eigen::Vector4f::Zero());
-		viewer->core(CoreID).background_color = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
+		viewer->core(CoreID).background_color = Eigen::Vector4f(1, 1, 1, 0);
 		viewer->core(CoreID).is_animating = true;
 		viewer->core(CoreID).lighting_factor = 0.5;
 		// Initialize minimizer thread
@@ -362,12 +362,12 @@ public:
 		return this->radius_of_sphere(index);
 	}
 
-	void clustering(const double MSE,const bool isNormal) {
+	void clustering(const double ratio, const double MSE,const bool isNormal) {
 		std::vector<std::vector<int>> clusters_ind;
 		std::vector<Eigen::RowVectorXd> clusters_val;
 		std::vector<Eigen::RowVectorXd> clusters_center;
 		std::vector<double> clusters_radius;
-		clusters_init(MSE, clusters_val, clusters_center, clusters_radius, isNormal);
+		clusters_init(ratio, MSE, clusters_val, clusters_center, clusters_radius, isNormal);
 		
 		int numFaces;
 		if (isNormal)
@@ -395,7 +395,7 @@ public:
 						currMSE = (facesNorm.row(fi) - clusters_val[ci]).squaredNorm();
 					}
 					else {
-						currMSE = ((center_of_sphere.row(fi) - clusters_center[ci]).norm() + abs(radius_of_sphere(fi) - clusters_radius[ci]));
+						currMSE = (ratio*((center_of_sphere.row(fi) - clusters_center[ci]).norm()) + (1 - ratio)*abs(radius_of_sphere(fi) - clusters_radius[ci]));
 					}
 					if (currMSE < minMSE)
 					{
@@ -502,7 +502,7 @@ public:
 					if (isNormal)
 						diff = (*val1 - *val2).squaredNorm();
 					else 
-						diff = ((*cent1 - *cent2).norm() + abs(*radius1 - *radius2));
+						diff = (ratio*((*cent1 - *cent2).norm()) + (1-ratio)*abs(*radius1 - *radius2));
 
 					if (diff < MSE) {
 						for (int currf : (*ind2)) {
@@ -561,6 +561,7 @@ public:
 	}
 
 	void clusters_init(
+		const double ratio,
 		const double MSE,
 		std::vector<Eigen::RowVectorXd>& clusters_val,
 		std::vector<Eigen::RowVectorXd>& clusters_center,
@@ -600,7 +601,7 @@ public:
 					currMSE = (facesNorm.row(fi) - clusters_val[ci]).squaredNorm();
 				}
 				else {
-					currMSE = ((center_of_sphere.row(fi) - clusters_center[ci]).norm() + abs(radius_of_sphere(fi) - clusters_radius[ci]));
+					currMSE = (ratio*((center_of_sphere.row(fi) - clusters_center[ci]).norm()) + (1-ratio)*abs(radius_of_sphere(fi) - clusters_radius[ci]));
 				}
 				if (currMSE < minMSE)
 				{

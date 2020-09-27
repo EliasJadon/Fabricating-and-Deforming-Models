@@ -28,6 +28,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		show_text = true;
 		clusteringType = app_utils::ClusteringType::NoClustering;
 		clusteringMSE = 0.1;
+		clusteringRatio = 0.5;
 		runOneIteration = false;
 		faceColoring_type = 1;
 		curr_highlighted_face = -1;
@@ -57,7 +58,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		
 		//update input viewer
 		inputCoreID = viewer->core_list[0].id;
-		viewer->core(inputCoreID).background_color = Eigen::Vector4f(0.9, 0.9, 0.9, 0);
+		viewer->core(inputCoreID).background_color = Eigen::Vector4f(1, 1, 1, 0);
 		viewer->core(inputCoreID).is_animating = true;
 		viewer->core(inputCoreID).lighting_factor = 0.5;
 
@@ -129,15 +130,16 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	
 
 	if (ImGui::Combo("Clustering", (int *)(&clusteringType), "No Clustering\0Clust Normals\0Clust Spheres\0\0") ||
-		ImGui::DragFloat("clustering MSE", &clusteringMSE, 0.001f, 0.001f, 100.0f)) 
+		ImGui::DragFloat("clustering MSE", &clusteringMSE, 0.001f, 0.001f, 100.0f) ||
+		ImGui::DragFloat("ratio clustering", &clusteringRatio, 0.001f, 0.0f, 1.0f)) 
 	{
 		if (clusteringType == app_utils::ClusteringType::NormalClustering) {
 			for (auto& out : Outputs)
-				out.clustering(clusteringMSE, true);
+				out.clustering(clusteringRatio,clusteringMSE, true);
 		}
 		else if (clusteringType == app_utils::ClusteringType::SphereClustering) {
 			for (auto& out : Outputs)
-				out.clustering(clusteringMSE, false);
+				out.clustering(clusteringRatio,clusteringMSE, false);
 		}
 		else {
 			for (auto& out : Outputs)
@@ -1442,18 +1444,18 @@ void deformation_plugin::initializeMinimizer(const int index)
 		return;
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
-	//std::shared_ptr <BendingEdge> bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::FunctionType::SIGMOID);
-	//bendingEdge->init_mesh(V, F);
-	//bendingEdge->init();
+	std::shared_ptr <BendingEdge> bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::FunctionType::SIGMOID);
+	bendingEdge->init_mesh(V, F);
+	bendingEdge->init();
 	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
 	auxBendingNormal->init_mesh(V, F);
 	auxBendingNormal->init();
 	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(OptimizationUtils::FunctionType::SIGMOID);
 	auxSpherePerHinge->init_mesh(V, F);
 	auxSpherePerHinge->init();
-	//std::shared_ptr <BendingNormal> bendingNormal = std::make_unique<BendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
-	//bendingNormal->init_mesh(V, F);
-	//bendingNormal->init();
+	std::shared_ptr <BendingNormal> bendingNormal = std::make_unique<BendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
+	bendingNormal->init_mesh(V, F);
+	bendingNormal->init();
 	std::shared_ptr <SymmetricDirichlet> SymmDirich = std::make_unique<SymmetricDirichlet>();
 	SymmDirich->init_mesh(V, F);
 	SymmDirich->init();
@@ -1495,8 +1497,8 @@ void deformation_plugin::initializeMinimizer(const int index)
 	};
 	add_obj(auxSpherePerHinge);
 	add_obj(auxBendingNormal);
-	//add_obj(bendingNormal);
-	//add_obj(bendingEdge);
+	add_obj(bendingNormal);
+	add_obj(bendingEdge);
 	add_obj(SymmDirich);
 	if(app_utils::IsMesh2D(InputModel().V))
 		add_obj(stvk);

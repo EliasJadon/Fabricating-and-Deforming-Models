@@ -40,7 +40,7 @@ private:
 		Vertex_Energy_color,
 		text_color;
 	bool show_text;
-	float core_size, clusteringMSE;
+	float core_size, clusteringMSE, clusteringRatio;
 	app_utils::ClusteringType clusteringType;
 	float texture_scaling_output;
 	Eigen::Vector3f intersec_point;

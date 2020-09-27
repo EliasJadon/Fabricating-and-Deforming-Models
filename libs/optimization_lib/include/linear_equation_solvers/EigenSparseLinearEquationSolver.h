@@ -5,7 +5,7 @@
 #include <Eigen/IterativeLinearSolvers>
 #include <Eigen/SparseCholesky>
 #include <igl/matlab_format.h>
-#include <Eigen/PardisoSupport>
+//#include <Eigen/PardisoSupport>
 
 // TODO: Make this depend on a #define
 // #include <igl/matlab/MatlabWorkspace.h>

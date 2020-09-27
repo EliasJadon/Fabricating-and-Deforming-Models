@@ -2,7 +2,7 @@
 
 #include "libs/optimization_lib/include/minimizers/Minimizer.h"
 #include "libs/optimization_lib/include/linear_equation_solvers/EigenSparseLinearEquationSolver.h"
-//#include "libs/optimization_lib/include/linear_equation_solvers/PardisoLinearEquationSolver.h"
+#include "libs/optimization_lib/include/linear_equation_solvers/tryPardiso.h"
 
 class NewtonMinimizer : public Minimizer
 {
@@ -24,6 +24,7 @@ public:
 	}
 
 	virtual void internal_init() override {
+		//pardisoSolver p;
 		bool needs_init = linear_solver == nullptr;
 		if (needs_init) {
 			linear_solver = std::make_unique<EigenSparseLinearEquationSolver<std::vector<int>, std::vector<double>>>();
@@ -42,6 +43,7 @@ public:
 	}
 
 	double get_MSE() {
+		
 		return linear_solver->MSE;
 	}
 
