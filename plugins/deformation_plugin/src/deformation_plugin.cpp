@@ -374,7 +374,30 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 	if (IsMouseHoveringAnyWindow | IsMouseDraggingAnyWindow)
 		return true;
 	
-	if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_FACES)
+	if (clusteringType != app_utils::ClusteringType::NoClustering && cluster_index != -1)
+	{
+		Eigen::Vector3f _;
+		int highlightedFi = pick_face(_);
+		for (auto&out : Outputs) {
+			if (out.clusters_indices.size()) {
+				for (int ci = 0; ci < out.clusters_indices.size(); ci++)
+				{
+					for (auto& it = out.clusters_indices[ci].begin(); it != out.clusters_indices[ci].end(); ++it) {
+						if (highlightedFi == *it) {
+							//found
+							if (cluster_index != ci && cluster_index != -1) {
+								out.clusters_indices[cluster_index].push_back(*it);
+								out.clusters_indices[ci].erase(it);
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+		return true;
+	}
+	else if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_FACES)
 	{
 		if (!selected_fixed_faces.empty())
 		{
@@ -441,6 +464,8 @@ IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y) {
 IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier) {
 	IsTranslate = false;
 	IsMouseDraggingAnyWindow = false;
+	cluster_index = -1;
+
 	if (IsChoosingCluster) {
 		IsChoosingCluster = false;
 		curr_highlighted_face = -1;
@@ -472,7 +497,23 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	down_mouse_y = viewer->current_mouse_y;
 	
 	//check if there faces which is selected on the left screen
-	if (mouse_mode == app_utils::MouseMode::FIX_FACES && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
+	if (clusteringType != app_utils::ClusteringType::NoClustering && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
+	{
+		for (auto&out : Outputs) {
+			if (out.clusters_indices.size()) {
+				Eigen::Vector3f _;
+				int highlightedFi = pick_face(_);
+				for (int ci = 0; ci < out.clusters_indices.size(); ci++)
+				{
+					if (std::find(out.clusters_indices[ci].begin(), out.clusters_indices[ci].end(), highlightedFi) != out.clusters_indices[ci].end())
+					{
+						cluster_index = ci;
+					}
+				}
+			}
+		}
+	}
+	else if (mouse_mode == app_utils::MouseMode::FIX_FACES && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
 		Eigen::Vector3f _;
 		int f = pick_face(_);

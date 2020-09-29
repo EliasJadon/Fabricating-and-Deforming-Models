@@ -49,6 +49,7 @@ private:
 	std::set<int> selected_fixed_faces, selected_vertices;
 	std::vector<FaceClusters> faceClusters;
 	std::vector<OptimizationOutput> Outputs;
+	int cluster_index = -1;
 	//Basic (necessary) parameteres
 	float prev_camera_zoom;
 	Eigen::Vector3f prev_camera_translation;
