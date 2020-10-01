@@ -52,9 +52,12 @@ public:
 	Eigen::VectorXd X;
 	Eigen::MatrixX3i F;
 	Eigen::MatrixXd V;
-	int num_steps;
+	
 	OptimizationUtils::LineSearch lineSearch_type = OptimizationUtils::LineSearch::GRADIENT_NORM;
 	double constantStep_LineSearch;
+	inline int getNumiter() {
+		return this->numIteration;
+	}
 protected:
 	// Give the wrapper a chance to intersect gracefully
 	void give_parameter_update_slot();
@@ -75,6 +78,7 @@ protected:
 	
 	std::unique_ptr<std::shared_timed_mutex> data_mutex;
 	double currentEnergy;
+	int numIteration = 0;
 private:
 #ifdef SAVE_DATA_IN_MATLAB
 	// Matlab instance

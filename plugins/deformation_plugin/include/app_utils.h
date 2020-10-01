@@ -302,7 +302,6 @@ private:
 	Eigen::MatrixXd center_of_sphere;
 	Eigen::MatrixXd facesNorm;
 	Eigen::VectorXd radius_of_sphere;
-
 public:
 	std::vector<std::vector<int>> clusters_indices;
 	std::shared_ptr<TotalObjective> totalObjective;
@@ -322,7 +321,9 @@ public:
 	Eigen::MatrixXd color_per_sphere_edge, color_per_norm_edge;
 	int ModelID, CoreID;
 	ImVec2 window_position, window_size, text_position;
-	
+	bool isAutoLambdaRunning = false;
+	int autoLambda_from, autoLambda_to, autoLambda_jump, autoLambda_Lastupdate;
+
 	//Constructor & initialization
 	OptimizationOutput(
 		igl::opengl::glfw::Viewer* viewer, 
@@ -341,6 +342,9 @@ public:
 		updateActiveMinimizer(minimizer_type);
 		activeMinimizer->lineSearch_type = linesearchType;
 		totalObjective = std::make_shared<TotalObjective>();
+		isAutoLambdaRunning = false;
+		autoLambda_from = 100; autoLambda_to = 5000; autoLambda_jump = 50;
+		autoLambda_Lastupdate = 0;
 	}
 
 	~OptimizationOutput() = default;

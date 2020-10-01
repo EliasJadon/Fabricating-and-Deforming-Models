@@ -653,6 +653,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 				if (CN != NULL)
 					CN->w = 0;
 			}
+			out.activeMinimizer->lineSearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 		}
 	}
 	
@@ -929,6 +930,44 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 		add_output();
 	ImGui::PopStyleColor();
 	int id = 0;
+
+	//add automatic lambda change
+	for (auto&out : Outputs) {
+		ImGui::PushID(id++);
+		const int  i64_zero = 0, i64_max = 100000.0;
+		ImGui::Text(("Output " + std::to_string(out.CoreID)).c_str());
+		ImGui::SameLine();
+		ImGui::Text(("Iter " + std::to_string(out.activeMinimizer->getNumiter())).c_str());
+		ImGui::SameLine();
+		ImGui::Checkbox(out.isAutoLambdaRunning ? "On" : "Off", &out.isAutoLambdaRunning);
+		ImGui::SameLine();
+		ImGui::DragInt("From Iter", &(out.autoLambda_from), 1, i64_zero, i64_max);
+		ImGui::SameLine();
+		ImGui::DragInt("To Iter", &(out.autoLambda_to), 1, i64_zero, i64_max);
+		ImGui::SameLine();
+		ImGui::DragInt("jump", &(out.autoLambda_jump), 1, i64_zero, i64_max);
+		if (out.isAutoLambdaRunning) {
+			if (out.activeMinimizer->getNumiter() >= out.autoLambda_from &&
+				out.activeMinimizer->getNumiter() <= out.autoLambda_to &&
+				out.activeMinimizer->getNumiter() % out.autoLambda_jump == 0 &&
+				out.activeMinimizer->getNumiter() > out.autoLambda_Lastupdate)
+			{
+				out.autoLambda_Lastupdate = out.activeMinimizer->getNumiter();
+				for (auto& obj : out.totalObjective->objectiveList) {
+					std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
+					std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+					if (ASH) {
+						ASH->planarParameter /= 2;
+					}
+					if (ABN) {
+						ABN->planarParameter /= 2;
+					}
+				}
+			}
+		}
+		ImGui::PopID();
+	}
+
 	if (Outputs.size() != 0) {
 		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 3, ImGuiTableFlags_Resizable))
 		{

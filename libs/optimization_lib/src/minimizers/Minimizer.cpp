@@ -11,8 +11,7 @@ Minimizer::Minimizer(const int solverID)
 	solverID(solverID),
 	parameters_mutex(std::make_unique<std::mutex>()),
 	data_mutex(std::make_unique<std::shared_timed_mutex>()),
-	param_cv(std::make_unique<std::condition_variable>()),
-	num_steps(2147483647)
+	param_cv(std::make_unique<std::condition_variable>())
 {
 	lineSearch_alfa.resize(ARRAY_OUTPUT_SIZE, 1);
 	lineSearch_value.resize(ARRAY_OUTPUT_SIZE, 1);
@@ -77,14 +76,15 @@ int Minimizer::run()
 {
 	is_running = true;
 	halt = false;
-	int steps = 0;
+	numIteration = 0;
 	do {
-		std::cout << "step = " << steps << std::endl;
+		std::cout << "step = " << numIteration << std::endl;
 		{
 			OptimizationUtils::Timer t;
-			run_one_iteration(steps, false);
+			run_one_iteration(numIteration, false);
+			numIteration++;
 		}
-	} while ((a_parameter_was_updated || test_progress()) && !halt && ++steps < num_steps);
+	} while ((a_parameter_was_updated || test_progress()) && !halt);
 	is_running = false;
 	
 	std::cout << ">> solver " + std::to_string(solverID) + " stopped" << std::endl;
