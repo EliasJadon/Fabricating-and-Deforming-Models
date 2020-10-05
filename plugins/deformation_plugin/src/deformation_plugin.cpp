@@ -917,8 +917,18 @@ void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data) {
 		ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.3f);
 		ImGui::DragFloat("Shininess", &(data.shininess), 0.05f, 0.0f, 100.0f);
 		ImGui::PopItemWidth();
-		make_checkbox("Wireframe", data.show_lines);
-		make_checkbox("Fill", data.show_faces);
+		if (make_checkbox("Wireframe", data.show_lines) && isUpdateAll)
+		{
+			viewer->data(inputModelID).show_lines = data.show_lines;
+			for (auto&out : Outputs)
+				viewer->data(out.ModelID).show_lines = data.show_lines;
+		}
+		if (make_checkbox("Fill", data.show_faces) && isUpdateAll)
+		{
+			viewer->data(inputModelID).show_faces = data.show_faces;
+			for (auto&out : Outputs)
+				viewer->data(out.ModelID).show_faces = data.show_faces;
+		}
 		ImGui::Checkbox("Show vertex labels", &(data.show_vertid));
 		ImGui::Checkbox("Show faces labels", &(data.show_faceid));
 	}
@@ -958,11 +968,11 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 			out.gradientDescentMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
 		}
 		ImGui::SameLine();
-		if(ImGui::DragInt("To Iter", &(out.activeMinimizer->autoLambda_to), 1, i64_zero, i64_max))
+		if(ImGui::DragInt("count", &(out.activeMinimizer->autoLambda_count), 1, i64_zero, i64_max))
 		{
-			out.newtonMinimizer->autoLambda_to = out.activeMinimizer->autoLambda_to;
-			out.adamMinimizer->autoLambda_to = out.activeMinimizer->autoLambda_to;
-			out.gradientDescentMinimizer->autoLambda_to = out.activeMinimizer->autoLambda_to;
+			out.newtonMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
+			out.adamMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
+			out.gradientDescentMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
 		}
 		ImGui::SameLine();
 		if(ImGui::DragInt("jump", &(out.activeMinimizer->autoLambda_jump), 1, i64_zero, i64_max))

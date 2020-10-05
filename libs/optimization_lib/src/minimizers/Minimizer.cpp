@@ -79,11 +79,12 @@ int Minimizer::run()
 	is_running = true;
 	halt = false;
 	numIteration = 0;
+	int lambda_counter = 0;
 	do {
 		std::cout << "step = " << numIteration << std::endl;
 		{
 			OptimizationUtils::Timer t;
-			update_lambda();
+			update_lambda(lambda_counter);
 			run_one_iteration(numIteration, false);
 			numIteration++;
 		}
@@ -94,25 +95,23 @@ int Minimizer::run()
 	return 0;
 }
 
-void Minimizer::update_lambda() {
-	if (isAutoLambdaRunning) {
-		if (numIteration >= autoLambda_from &&
-			numIteration <= autoLambda_to &&
-			numIteration % autoLambda_jump == 0)
-		{
-			std::shared_ptr<TotalObjective> totalObjective = std::dynamic_pointer_cast<TotalObjective>(objective);
-				for (auto& obj : totalObjective->objectiveList) {
-					std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-						std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-						if (ASH) {
-							ASH->planarParameter /= 2;
-						}
-					if (ABN) {
-						ABN->planarParameter /= 2;
-					}
-				}
+void Minimizer::update_lambda(int& lambda_counter) {
+	if (isAutoLambdaRunning &&
+		numIteration >= autoLambda_from &&
+		lambda_counter < autoLambda_count &&
+		numIteration % autoLambda_jump == 0)
+	{
+		std::shared_ptr<TotalObjective> totalObjective = std::dynamic_pointer_cast<TotalObjective>(objective);
+		for (auto& obj : totalObjective->objectiveList) {
+			std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
+			std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+			if (ASH)
+				ASH->planarParameter /= 2;
+			if (ABN)
+				ABN->planarParameter /= 2;
+		}
+		lambda_counter++;
 	}
-}
 }
 
 void Minimizer::run_one_iteration(const int steps,const bool showGraph) {
