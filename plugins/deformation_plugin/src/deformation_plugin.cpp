@@ -944,31 +944,32 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 		ImGui::SameLine();
 		ImGui::Text(("Iter " + std::to_string(out.activeMinimizer->getNumiter())).c_str());
 		ImGui::SameLine();
-		ImGui::Checkbox(out.isAutoLambdaRunning ? "On" : "Off", &out.isAutoLambdaRunning);
+		if (ImGui::Checkbox(out.activeMinimizer->isAutoLambdaRunning ? "On" : "Off", &out.activeMinimizer->isAutoLambdaRunning))
+		{
+			out.newtonMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
+			out.adamMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
+			out.gradientDescentMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
+		}
 		ImGui::SameLine();
-		ImGui::DragInt("From Iter", &(out.autoLambda_from), 1, i64_zero, i64_max);
+		if(ImGui::DragInt("From Iter", &(out.activeMinimizer->autoLambda_from), 1, i64_zero, i64_max))
+		{
+			out.newtonMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
+			out.adamMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
+			out.gradientDescentMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
+		}
 		ImGui::SameLine();
-		ImGui::DragInt("To Iter", &(out.autoLambda_to), 1, i64_zero, i64_max);
+		if(ImGui::DragInt("To Iter", &(out.activeMinimizer->autoLambda_to), 1, i64_zero, i64_max))
+		{
+			out.newtonMinimizer->autoLambda_to = out.activeMinimizer->autoLambda_to;
+			out.adamMinimizer->autoLambda_to = out.activeMinimizer->autoLambda_to;
+			out.gradientDescentMinimizer->autoLambda_to = out.activeMinimizer->autoLambda_to;
+		}
 		ImGui::SameLine();
-		ImGui::DragInt("jump", &(out.autoLambda_jump), 1, i64_zero, i64_max);
-		if (out.isAutoLambdaRunning) {
-			if (out.activeMinimizer->getNumiter() >= out.autoLambda_from &&
-				out.activeMinimizer->getNumiter() <= out.autoLambda_to &&
-				out.activeMinimizer->getNumiter() % out.autoLambda_jump == 0 &&
-				out.activeMinimizer->getNumiter() > out.autoLambda_Lastupdate)
-			{
-				out.autoLambda_Lastupdate = out.activeMinimizer->getNumiter();
-				for (auto& obj : out.totalObjective->objectiveList) {
-					std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-					std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-					if (ASH) {
-						ASH->planarParameter /= 2;
-					}
-					if (ABN) {
-						ABN->planarParameter /= 2;
-					}
-				}
-			}
+		if(ImGui::DragInt("jump", &(out.activeMinimizer->autoLambda_jump), 1, i64_zero, i64_max))
+		{
+			out.newtonMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
+			out.adamMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
+			out.gradientDescentMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
 		}
 		ImGui::PopID();
 	}

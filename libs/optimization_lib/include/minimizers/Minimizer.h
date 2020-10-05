@@ -58,6 +58,9 @@ public:
 	inline int getNumiter() {
 		return this->numIteration;
 	}
+	void update_lambda();
+	bool isAutoLambdaRunning = false;
+	int autoLambda_from = 100, autoLambda_to = 5000, autoLambda_jump = 50;
 protected:
 	// Give the wrapper a chance to intersect gracefully
 	void give_parameter_update_slot();

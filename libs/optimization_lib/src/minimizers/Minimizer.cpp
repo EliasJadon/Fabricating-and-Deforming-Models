@@ -1,5 +1,7 @@
 #include "minimizers/Minimizer.h"
 #include "minimizers/NewtonMinimizer.h"
+#include "objective_functions/AuxBendingNormal.h"
+#include "objective_functions/AuxSpherePerHinge.h"
 
 #define HIGH 3
 #define LOW -3
@@ -81,6 +83,7 @@ int Minimizer::run()
 		std::cout << "step = " << numIteration << std::endl;
 		{
 			OptimizationUtils::Timer t;
+			update_lambda();
 			run_one_iteration(numIteration, false);
 			numIteration++;
 		}
@@ -89,6 +92,27 @@ int Minimizer::run()
 	
 	std::cout << ">> solver " + std::to_string(solverID) + " stopped" << std::endl;
 	return 0;
+}
+
+void Minimizer::update_lambda() {
+	if (isAutoLambdaRunning) {
+		if (numIteration >= autoLambda_from &&
+			numIteration <= autoLambda_to &&
+			numIteration % autoLambda_jump == 0)
+		{
+			std::shared_ptr<TotalObjective> totalObjective = std::dynamic_pointer_cast<TotalObjective>(objective);
+				for (auto& obj : totalObjective->objectiveList) {
+					std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
+						std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+						if (ASH) {
+							ASH->planarParameter /= 2;
+						}
+					if (ABN) {
+						ABN->planarParameter /= 2;
+					}
+				}
+	}
+}
 }
 
 void Minimizer::run_one_iteration(const int steps,const bool showGraph) {
