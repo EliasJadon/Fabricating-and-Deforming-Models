@@ -58,7 +58,8 @@ private:
 	int inputCoreID, inputModelID;
 	app_utils::View view;
 	app_utils::MouseMode mouse_mode;
-	
+	int clustering_outputIndex;
+
 	float texture_scaling_input;
 	
 	bool IsTranslate,EraseOrInsert, IsChoosingCluster;
@@ -95,7 +96,7 @@ public:
 	void Draw_menu_for_text_results();
 
 	//Pick faces & vertices and highlight them
-	int pick_face(Eigen::Vector3f& intersec_point,const bool update=false);
+	int pick_face(Eigen::Vector3f& intersec_point,const bool update=false, const bool update_clusters=false);
 	int pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR, Eigen::Vector3f& intersec_point);
 	int pick_vertex(const bool update = false);
 	int pick_vertex_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);

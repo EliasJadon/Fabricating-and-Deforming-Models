@@ -378,18 +378,17 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 	{
 		Eigen::Vector3f _;
 		int highlightedFi = pick_face(_);
-		for (auto&out : Outputs) {
-			if (out.clusters_indices.size()) {
-				for (int ci = 0; ci < out.clusters_indices.size(); ci++)
-				{
-					for (auto& it = out.clusters_indices[ci].begin(); it != out.clusters_indices[ci].end(); ++it) {
-						if (highlightedFi == *it) {
-							//found
-							if (cluster_index != ci && cluster_index != -1) {
-								out.clusters_indices[cluster_index].push_back(*it);
-								out.clusters_indices[ci].erase(it);
-								break;
-							}
+		OptimizationOutput& out = Outputs[clustering_outputIndex];
+		if (out.clusters_indices.size()) {
+			for (int ci = 0; ci < out.clusters_indices.size(); ci++)
+			{
+				for (auto& it = out.clusters_indices[ci].begin(); it != out.clusters_indices[ci].end(); ++it) {
+					if (highlightedFi == *it) {
+						//found
+						if (cluster_index != ci && cluster_index != -1) {
+							out.clusters_indices[cluster_index].push_back(*it);
+							out.clusters_indices[ci].erase(it);
+							break;
 						}
 					}
 				}
@@ -499,19 +498,13 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	//check if there faces which is selected on the left screen
 	if (clusteringType != app_utils::ClusteringType::NoClustering && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
-		for (auto&out : Outputs) {
-			if (out.clusters_indices.size()) {
-				Eigen::Vector3f _;
-				int highlightedFi = pick_face(_);
-				for (int ci = 0; ci < out.clusters_indices.size(); ci++)
-				{
-					if (std::find(out.clusters_indices[ci].begin(), out.clusters_indices[ci].end(), highlightedFi) != out.clusters_indices[ci].end())
-					{
-						cluster_index = ci;
-					}
-				}
-			}
-		}
+		Eigen::Vector3f _;
+		int highlightedFi = pick_face(_, false, true);
+		OptimizationOutput& out = Outputs[clustering_outputIndex];
+		if (out.clusters_indices.size())
+			for (int ci = 0; ci < out.clusters_indices.size(); ci++)
+				if (std::find(out.clusters_indices[ci].begin(), out.clusters_indices[ci].end(), highlightedFi) != out.clusters_indices[ci].end())
+					cluster_index = ci;
 	}
 	else if (mouse_mode == app_utils::MouseMode::FIX_FACES && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
@@ -1331,17 +1324,21 @@ igl::opengl::ViewerData& deformation_plugin::OutputModel(const int index) {
 	return viewer->data(Outputs[index].ModelID);
 }
 
-int deformation_plugin::pick_face(Eigen::Vector3f& intersec_point, const bool update) {
+int deformation_plugin::pick_face(Eigen::Vector3f& intersec_point, const bool update_fixfaces, const bool update_clusters) {
 	//check if there faces which is selected on the left screen
 	int f = pick_face_per_core(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY, intersec_point);
-	if (update) {
+	if (update_clusters)
+		clustering_outputIndex = -1;
+	if (update_fixfaces) {
 		Model_Translate_ID = inputModelID;
 		Core_Translate_ID = inputCoreID;
 	}
 	for (int i = 0; i < Outputs.size(); i++) {
 		if (f == -1) {
 			f = pick_face_per_core(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i, intersec_point);
-			if (update) {
+			if (update_clusters)
+				clustering_outputIndex = i;
+			if (update_fixfaces) {
 				Model_Translate_ID = Outputs[i].ModelID;
 				Core_Translate_ID = Outputs[i].CoreID;
 			}
