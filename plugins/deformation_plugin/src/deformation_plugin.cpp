@@ -1008,7 +1008,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 					auto BN = std::dynamic_pointer_cast<BendingNormal>(obj);
 					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-					if (true) {
+					if (obj->w) {
 						if (BE != NULL)
 							ImGui::Combo("Function", (int*)(&(BE->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (BN != NULL)
@@ -1019,7 +1019,8 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 							ImGui::Combo("Function", (int*)(&(AS->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 
 						if (BE != NULL && BE->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-							ImGui::Text((std::to_string(BE->planarParameter)).c_str());
+							
+							ImGui::Text(("2^" + std::to_string(int(log2(BE->planarParameter)))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
@@ -1032,7 +1033,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 							}
 						}
 						if (BN != NULL && BN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-							ImGui::Text((std::to_string(BN->planarParameter)).c_str());
+							ImGui::Text(("2^" + std::to_string(int(log2(BN->planarParameter)))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
@@ -1045,7 +1046,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 							}
 						}
 						if (ABN != NULL && ABN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-							ImGui::Text((std::to_string(ABN->planarParameter)).c_str());
+							ImGui::Text(("2^" + std::to_string(int(log2(ABN->planarParameter)))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
@@ -1062,7 +1063,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ABN->w3), 0.05f, &f64_zero, &f64_max);
 						}
 						if (AS != NULL && AS->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-							ImGui::Text((std::to_string(AS->planarParameter)).c_str());
+							ImGui::Text(("2^" + std::to_string(int(log2(AS->planarParameter)))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
