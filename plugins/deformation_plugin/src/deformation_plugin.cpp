@@ -653,7 +653,6 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 				if (CN != NULL)
 					CN->w = 0;
 			}
-			out.activeMinimizer->lineSearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 		}
 	}
 	
@@ -803,12 +802,18 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 			}
 		}
 		if (ImGui::Combo("line search", (int *)(&linesearch_type), "Gradient Norm\0Function Value\0Constant Step\0\0")) {
-			for (auto& o:Outputs)
-				o.activeMinimizer->lineSearch_type = linesearch_type;
+			for (auto& o : Outputs) {
+				o.newtonMinimizer->lineSearch_type = linesearch_type;
+				o.adamMinimizer->lineSearch_type = linesearch_type;
+				o.gradientDescentMinimizer->lineSearch_type = linesearch_type;
+			}	
 		}
 		if (linesearch_type == OptimizationUtils::LineSearch::CONSTANT_STEP && ImGui::DragFloat("Step value", &constantStep_LineSearch, 0.0001f, 0.0f, 1.0f)) {
-			for (auto& o : Outputs)
-				o.activeMinimizer->constantStep_LineSearch = constantStep_LineSearch;
+			for (auto& o : Outputs) {
+				o.newtonMinimizer->constantStep_LineSearch = constantStep_LineSearch;
+				o.adamMinimizer->constantStep_LineSearch = constantStep_LineSearch;
+				o.gradientDescentMinimizer->constantStep_LineSearch = constantStep_LineSearch;
+			}
 		}
 		ImGui::Combo("Face coloring", (int *)(&faceColoring_type), app_utils::build_color_energies_list(Outputs[0].totalObjective));
 		float w = ImGui::GetContentRegionAvailWidth(), p = ImGui::GetStyle().FramePadding.x;
@@ -1479,10 +1484,20 @@ void deformation_plugin::update_data_from_minimizer()
 void deformation_plugin::stop_minimizer_thread() {
 	isMinimizerRunning = false;
 	for (auto&o : Outputs) {
-		if (o.activeMinimizer->is_running) {
-			o.activeMinimizer->stop();
+		if (o.newtonMinimizer->is_running) {
+			o.newtonMinimizer->stop();
 		}
-		while (o.activeMinimizer->is_running);
+		while (o.newtonMinimizer->is_running);
+
+		if (o.adamMinimizer->is_running) {
+			o.adamMinimizer->stop();
+		}
+		while (o.adamMinimizer->is_running);
+
+		if (o.gradientDescentMinimizer->is_running) {
+			o.gradientDescentMinimizer->stop();
+		}
+		while (o.gradientDescentMinimizer->is_running);
 	}
 }
 

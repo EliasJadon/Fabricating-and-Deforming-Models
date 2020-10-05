@@ -295,14 +295,14 @@ public:
 
 class OptimizationOutput {
 private:
-	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
-	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
-	std::shared_ptr<AdamMinimizer> adamMinimizer;
 	Eigen::MatrixXd center_of_faces;
 	Eigen::MatrixXd center_of_sphere;
 	Eigen::MatrixXd facesNorm;
 	Eigen::VectorXd radius_of_sphere;
 public:
+	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
+	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
+	std::shared_ptr<AdamMinimizer> adamMinimizer;
 	std::vector<std::vector<int>> clusters_indices;
 	std::shared_ptr<TotalObjective> totalObjective;
 	std::shared_ptr<Minimizer> activeMinimizer;
@@ -339,8 +339,10 @@ public:
 		newtonMinimizer = std::make_shared<NewtonMinimizer>(CoreID);
 		gradientDescentMinimizer = std::make_shared<GradientDescentMinimizer>(CoreID);
 		adamMinimizer = std::make_shared<AdamMinimizer>(CoreID);
+		newtonMinimizer->lineSearch_type = linesearchType;
+		gradientDescentMinimizer->lineSearch_type = linesearchType;
+		adamMinimizer->lineSearch_type = linesearchType;
 		updateActiveMinimizer(minimizer_type);
-		activeMinimizer->lineSearch_type = linesearchType;
 		totalObjective = std::make_shared<TotalObjective>();
 		isAutoLambdaRunning = false;
 		autoLambda_from = 100; autoLambda_to = 5000; autoLambda_jump = 50;
