@@ -83,25 +83,17 @@ int Minimizer::run()
 	numIteration = 0;
 	int lambda_counter = 0;
 	do {
-		std::cout << "step = " << numIteration << std::endl;
-		{
-			OptimizationUtils::Timer t(&timer_sum,&timer_curr);
-			update_lambda(lambda_counter);
-			run_one_iteration(numIteration, false);
-			timer_avg = timer_sum / numIteration;
-			numIteration++;
-		}
-	} while ((a_parameter_was_updated || test_progress()) && !halt);
+		run_one_iteration(numIteration++, &lambda_counter, false);
+	} while (a_parameter_was_updated && !halt);
 	is_running = false;
-	
 	std::cout << ">> solver " + std::to_string(solverID) + " stopped" << std::endl;
 	return 0;
 }
 
-void Minimizer::update_lambda(int& lambda_counter) {
+void Minimizer::update_lambda(int* lambda_counter) {
 	if (isAutoLambdaRunning &&
 		numIteration >= autoLambda_from &&
-		lambda_counter < autoLambda_count &&
+		(*lambda_counter) < autoLambda_count &&
 		numIteration % autoLambda_jump == 0)
 	{
 		std::shared_ptr<TotalObjective> totalObjective = std::dynamic_pointer_cast<TotalObjective>(objective);
@@ -119,11 +111,14 @@ void Minimizer::update_lambda(int& lambda_counter) {
 			if (BN)
 				BN->planarParameter /= 2;
 		}
-		lambda_counter++;
+		(*lambda_counter)++;
 	}
 }
 
-void Minimizer::run_one_iteration(const int steps,const bool showGraph) {
+void Minimizer::run_one_iteration(const int steps,int* lambda_counter, const bool showGraph) {
+	OptimizationUtils::Timer t(&timer_sum, &timer_curr);
+	timer_avg = timer_sum / numIteration;
+	update_lambda(lambda_counter);
 	step();
 #if defined SAVE_DATA_IN_CSV || defined SAVE_DATA_IN_MATLAB
 	prepareData();

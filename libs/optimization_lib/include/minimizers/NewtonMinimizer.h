@@ -18,11 +18,6 @@ public:
 		Eigen::VectorXd rhs = -g;
 		p = linear_solver->solve(rhs);
 	}
-
-	virtual bool test_progress() override {
-		return true;
-	}
-
 	virtual void internal_init() override {
 		//pardisoSolver p;
 		bool needs_init = linear_solver == nullptr;

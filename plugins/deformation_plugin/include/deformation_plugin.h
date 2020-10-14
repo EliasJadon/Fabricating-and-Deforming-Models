@@ -9,7 +9,6 @@ class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
 	OptimizationUtils::InitAuxVariables typeAuxVar;
-	bool runOneIteration;
 	bool isLoadNeeded;
 	bool isModelLoaded;
 	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCenters, showFacesNorm;
@@ -17,7 +16,7 @@ private:
 	float neighbor_distance, brush_radius;
 	int brush_index = -1;
 	bool isUpdateAll;
-	bool isMinimizerRunning, minimizer_settings, IsMouseHoveringAnyWindow, IsMouseDraggingAnyWindow;
+	bool isMinimizerRunning, minimizer_settings, IsMouseDraggingAnyWindow;
 	int faceColoring_type;
 	app_utils::MinimizerType minimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
@@ -124,6 +123,7 @@ public:
 	void initializeMinimizer(const int index);
 	void stop_minimizer_thread();
 	void start_minimizer_thread();
+	void run_one_minimizer_iter();
 	void init_minimizer_thread();
 
 	//FD check

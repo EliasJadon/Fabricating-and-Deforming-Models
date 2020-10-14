@@ -23,7 +23,7 @@ public:
 	~Minimizer();
 	int run();
 	
-	void run_one_iteration(const int steps, const bool showGraph);
+	void run_one_iteration(const int steps,int* lambda_counter , const bool showGraph);
 	void stop();
 	void get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center, Eigen::VectorXd& radius, Eigen::MatrixXd& norm);
 	void init(
@@ -60,7 +60,7 @@ public:
 	inline int getNumiter() {
 		return this->numIteration;
 	}
-	void update_lambda(int&);
+	void update_lambda(int*);
 	bool isAutoLambdaRunning = false;
 	int autoLambda_from = 100, autoLambda_count = 70, autoLambda_jump = 50;
 protected:
@@ -96,7 +96,6 @@ private:
 	void value_linesearch();
 	void gradNorm_linesearch();
 	void constant_linesearch();
-	virtual bool test_progress() = 0;
 	virtual void internal_init() = 0;
 	void prepareData();
 	void saveSearchDirInfo(int numIteration, std::ofstream& SearchDirInfo);

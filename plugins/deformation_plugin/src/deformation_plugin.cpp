@@ -16,7 +16,6 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
 		isLoadNeeded = false;
 		IsMouseDraggingAnyWindow = false;
-		IsMouseHoveringAnyWindow = false;
 		isMinimizerRunning = false;
 		Outputs_Settings = false;
 		highlightFacesType = app_utils::HighlightFaces::NO_HIGHLIGHT;
@@ -29,7 +28,6 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 		clusteringType = app_utils::ClusteringType::NoClustering;
 		clusteringMSE = 0.1;
 		clusteringRatio = 0.5;
-		runOneIteration = false;
 		faceColoring_type = 1;
 		curr_highlighted_face = -1;
 		minimizer_type = app_utils::MinimizerType::NEWTON;
@@ -71,38 +69,38 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	}
 }
 
-void deformation_plugin::load_new_model(const std::string modelpath) {
+void deformation_plugin::load_new_model(const std::string modelpath) 
+{
 	clear_sellected_faces_and_vertices();
 	modelPath = modelpath;
-	if (modelPath.length() != 0)
-	{
-		modelName = app_utils::ExtractModelName(modelPath);
-		stop_minimizer_thread();
-		if (isModelLoaded) {
-			//remove previous data
-			while (Outputs.size() > 0)
-				remove_output(0);
-			viewer->load_mesh_from_file(modelPath.c_str());
-			viewer->erase_mesh(0);
-		}
-		else viewer->load_mesh_from_file(modelPath.c_str());
-		inputModelID = viewer->data_list[0].id;
-		for (int i = 0; i < Outputs.size(); i++){
-			viewer->load_mesh_from_file(modelPath.c_str());
-			Outputs[i].ModelID = viewer->data_list[i + 1].id;
-			initializeMinimizer(i);
-		}
-		if (isModelLoaded)
-			add_output();
-		viewer->core(inputCoreID).align_camera_center(InputModel().V, InputModel().F);
-		for (int i = 0; i < Outputs.size(); i++)
-			viewer->core(Outputs[i].CoreID).align_camera_center(OutputModel(i).V, OutputModel(i).F);
-		isModelLoaded = true;
-		//set rotation type to 3D mode
-		viewer->core(inputCoreID).trackball_angle = Eigen::Quaternionf::Identity();
-		viewer->core(inputCoreID).orthographic = false;
-		viewer->core(inputCoreID).set_rotation_type(igl::opengl::ViewerCore::RotationType(1));
+	if (modelPath.length() == 0)
+		return;
+	modelName = app_utils::ExtractModelName(modelPath);
+	stop_minimizer_thread();
+	if (isModelLoaded) {
+		//remove previous data
+		while (Outputs.size() > 0)
+			remove_output(0);
+		viewer->load_mesh_from_file(modelPath.c_str());
+		viewer->erase_mesh(0);
 	}
+	else viewer->load_mesh_from_file(modelPath.c_str());
+	inputModelID = viewer->data_list[0].id;
+	for (int i = 0; i < Outputs.size(); i++){
+		viewer->load_mesh_from_file(modelPath.c_str());
+		Outputs[i].ModelID = viewer->data_list[i + 1].id;
+		initializeMinimizer(i);
+	}
+	if (isModelLoaded)
+		add_output();
+	viewer->core(inputCoreID).align_camera_center(InputModel().V, InputModel().F);
+	for (int i = 0; i < Outputs.size(); i++)
+		viewer->core(Outputs[i].CoreID).align_camera_center(OutputModel(i).V, OutputModel(i).F);
+	isModelLoaded = true;
+	//set rotation type to 3D mode
+	viewer->core(inputCoreID).trackball_angle = Eigen::Quaternionf::Identity();
+	viewer->core(inputCoreID).orthographic = false;
+	viewer->core(inputCoreID).set_rotation_type(igl::opengl::ViewerCore::RotationType(1));
 }
 
 IGL_INLINE void deformation_plugin::draw_viewer_menu()
@@ -117,17 +115,16 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		load_new_model(modelPath);
 		isLoadNeeded = false;
 	}
-	ImGui::SameLine(0, p);
+	if (!isModelLoaded)
+		return;
+	ImGui::SameLine();
 	if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0)))
 		viewer->open_dialog_save_mesh();
-	if (ImGui::Checkbox("Outputs settings", &Outputs_Settings))
-		if(Outputs_Settings)
-			show_text = !Outputs_Settings;
-	if (ImGui::Checkbox("Show text", &show_text))
-		if(show_text)
-			Outputs_Settings = !show_text;
 
-	
+	if (ImGui::Checkbox("Outputs settings", &Outputs_Settings) && Outputs_Settings)
+		show_text = false;
+	if (ImGui::Checkbox("Show text", &show_text) && show_text)
+		Outputs_Settings = false;
 
 	if (ImGui::Combo("Clustering", (int *)(&clusteringType), "No Clustering\0Clust Normals\0Clust Spheres\0\0") ||
 		ImGui::DragFloat("clustering MSE", &clusteringMSE, 0.001f, 0.001f, 100.0f) ||
@@ -189,26 +186,14 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	if (ImGui::Button("Add Cluster"))
 		faceClusters.push_back(FaceClusters(faceClusters.size()));
 
-	ImGui::Checkbox("Update all cores together", &isUpdateAll);
-	if(isModelLoaded)
-		Draw_menu_for_Minimizer();
+	ImGui::Checkbox("Update all cores together", &isUpdateAll);	
+	Draw_menu_for_Minimizer();
 	Draw_menu_for_cores(viewer->core(inputCoreID));
 	Draw_menu_for_models(viewer->data(inputModelID));
 	Draw_menu_for_output_settings();
 	Draw_menu_for_text_results();
-	if (isModelLoaded && minimizer_settings)
+	if (minimizer_settings)
 		Draw_menu_for_minimizer_settings();
-	follow_and_mark_selected_faces();
-	Update_view();
-	if (isUpdateAll)
-		update_parameters_for_all_cores();
-	IsMouseHoveringAnyWindow = false;
-	if (ImGui::IsAnyWindowHovered() |
-		ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) |
-		ImGui::IsItemHovered(ImGuiHoveredFlags_RectOnly) |
-		ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow) |
-		ImGui::IsWindowHovered(ImGuiHoveredFlags_AllowWhenBlockedByPopup | ImGuiHoveredFlags_AllowWhenBlockedByActiveItem))
-		IsMouseHoveringAnyWindow = true;
 }
 
 void deformation_plugin::clear_sellected_faces_and_vertices() {
@@ -371,9 +356,9 @@ void deformation_plugin::brush_erase_or_insert() {
 
 IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 {
-	if (IsMouseHoveringAnyWindow | IsMouseDraggingAnyWindow)
+	if (!isModelLoaded || IsMouseDraggingAnyWindow)
 		return true;
-	
+		
 	if (clusteringType != app_utils::ClusteringType::NoClustering && cluster_index != -1)
 	{
 		Eigen::Vector3f _;
@@ -446,7 +431,10 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 	return false;
 }
 
-IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y) {
+IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y) 
+{
+	if (!isModelLoaded || IsMouseDraggingAnyWindow || ImGui::IsAnyWindowHovered())
+		return true;
 	if (IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
 		brush_radius += delta_y * 0.05;
 		brush_radius = std::max<float>(0.05, brush_radius);
@@ -490,7 +478,7 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier) {
 }
 
 IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
-	if (IsMouseHoveringAnyWindow)
+	if (ImGui::IsAnyWindowHovered())
 		IsMouseDraggingAnyWindow = true;
 	down_mouse_x = viewer->current_mouse_x;
 	down_mouse_y = viewer->current_mouse_y;
@@ -594,7 +582,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if ((key == 'c' || key == 'C') && modifiers == 1)
 		clear_sellected_faces_and_vertices();
 	if ((key == 'a' || key == 'A') && modifiers == 1) {
-		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\from_2k_to_10k\\island.obj";
+		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\from_2k_to_10k\\island.off";
 		isLoadNeeded = true;
 	}
 	if ((key == 's' || key == 'S') && modifiers == 1) {
@@ -696,8 +684,13 @@ void deformation_plugin::draw_brush_sphere() {
 }
 
 IGL_INLINE bool deformation_plugin::pre_draw() {
-	//call parent function
-	ImGuiMenu::pre_draw();
+	
+	follow_and_mark_selected_faces();
+	Update_view();
+	if (isUpdateAll)
+		update_parameters_for_all_cores();
+	
+
 	for (auto& out : Outputs)
 		if (out.activeMinimizer->progressed)
 			update_data_from_minimizer();
@@ -733,7 +726,7 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 		if (showNormEdges && Outputs[oi].getCenterOfFaces().size() != 0)
 			OutputModel(oi).add_edges(Outputs[oi].getCenterOfFaces(), Outputs[oi].getFacesNorm(), Outputs[oi].color_per_norm_edge);
 	}
-	return false;
+	return ImGuiMenu::pre_draw();
 }
 
 void deformation_plugin::Draw_menu_for_colors() {
@@ -768,8 +761,8 @@ void deformation_plugin::change_minimizer_type(app_utils::MinimizerType type) {
 void deformation_plugin::Draw_menu_for_Minimizer() {
 	if (ImGui::CollapsingHeader("Minimizer", ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		if (ImGui::Checkbox("Only one iteration", &runOneIteration) && isMinimizerRunning)
-			start_minimizer_thread();
+		if (ImGui::Button("Run one iter"))
+			run_one_minimizer_iter();
 		if (ImGui::Checkbox(isMinimizerRunning ? "On" : "Off", &isMinimizerRunning))
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
 		ImGui::Checkbox("Minimizer settings", &minimizer_settings);
@@ -1520,27 +1513,26 @@ void deformation_plugin::init_minimizer_thread() {
 		Outputs[i].initMinimizers(OutputModel(i).V, OutputModel(i).F, typeAuxVar);
 }
 
-void deformation_plugin::start_minimizer_thread() {
-	if (!isModelLoaded) {
-		isMinimizerRunning = false;
-		return;
+void deformation_plugin::run_one_minimizer_iter() {
+	stop_minimizer_thread();
+	static int iteration_counter = 0;
+	static int lambda_counter = 0;
+	if(iteration_counter == 0)
+		init_minimizer_thread();
+	for (int i = 0; i < Outputs.size(); i++) {
+		minimizer_thread = std::thread(&Minimizer::run_one_iteration, Outputs[i].activeMinimizer.get(), iteration_counter++, &lambda_counter, true);
+		minimizer_thread.join();
 	}
+}
+
+void deformation_plugin::start_minimizer_thread() {
 	stop_minimizer_thread();
 	init_minimizer_thread();
 	for (int i = 0; i < Outputs.size();i++) {
-		std::cout << ">> A new minimizer has been started" << std::endl;
-		isMinimizerRunning = true;
-		//start minimizer
-		if (runOneIteration) {
-			static int iteration_counter = 0;
-			minimizer_thread = std::thread(&Minimizer::run_one_iteration, Outputs[i].activeMinimizer.get(), iteration_counter++,true);
-			minimizer_thread.join();
-		}
-		else {
-			minimizer_thread = std::thread(&Minimizer::run, Outputs[i].activeMinimizer.get());
-			minimizer_thread.detach();
-		}
+		minimizer_thread = std::thread(&Minimizer::run, Outputs[i].activeMinimizer.get());
+		minimizer_thread.detach();
 	}
+	isMinimizerRunning = true;
 }
 
 void deformation_plugin::initializeMinimizer(const int index)

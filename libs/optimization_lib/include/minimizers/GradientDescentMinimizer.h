@@ -12,9 +12,6 @@ public:
 		objective->gradient(g, true);
 		p = -g;
 	}
-	virtual bool test_progress() override {
-		return true;
-	}
 	virtual void internal_init() override {
 		objective->updateX(X);
 		g.resize(X.size());

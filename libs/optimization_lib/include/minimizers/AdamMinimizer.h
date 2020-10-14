@@ -8,7 +8,6 @@ private:
 	Eigen::VectorXd v_adam;
 	Eigen::VectorXd s_adam;
 	double alpha_adam, beta1_adam, beta2_adam;
-
 public:
 	AdamMinimizer(const int solverID, 
 		double alpha_adam = 1,
@@ -17,9 +16,8 @@ public:
 		Minimizer(solverID),
 		alpha_adam(alpha_adam),
 		beta1_adam(beta1_adam),
-		beta2_adam(beta2_adam) {}
-	
-		
+		beta2_adam(beta2_adam) 
+	{}	
 	virtual void step() override {
 		objective->updateX(X);
 		currentEnergy = objective->value(true);
@@ -36,11 +34,6 @@ public:
 		tmp = s_adam.array().sqrt() + 1e-8; // just for casting
 		p = -v_adam.cwiseQuotient(tmp);
 	}
-
-	virtual bool test_progress() override {
-		return true;
-	}
-
 	virtual void internal_init() override {
 		objective->updateX(X);
 		g.resize(X.size());
