@@ -78,7 +78,6 @@ protected:
 	// Synchronization structures
 	std::atomic_bool params_ready_to_update = {false};
 	std::atomic_bool wait_for_param_update = {false};
-	std::atomic_bool a_parameter_was_updated = {false};
 	std::atomic_bool halt = {false};
 	
 	std::unique_ptr<std::shared_timed_mutex> data_mutex;

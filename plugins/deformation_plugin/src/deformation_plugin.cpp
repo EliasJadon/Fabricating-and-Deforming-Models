@@ -8,65 +8,58 @@ deformation_plugin::deformation_plugin() :
 IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 {
 	ImGuiMenu::init(_viewer);
-	if (_viewer)
-	{
-		brush_radius = 0.3;
-		showSphereEdges = showNormEdges = showTriangleCenters = showSphereCenters = false;
-		showFacesNorm = false;
-		typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
-		isLoadNeeded = false;
-		IsMouseDraggingAnyWindow = false;
-		isMinimizerRunning = false;
-		Outputs_Settings = false;
-		highlightFacesType = app_utils::HighlightFaces::NO_HIGHLIGHT;
-		IsTranslate = false;
-		IsChoosingCluster = false;
-		isModelLoaded = false;
-		isUpdateAll = true;
-		minimizer_settings = true;
-		show_text = true;
-		clusteringType = app_utils::ClusteringType::NoClustering;
-		clusteringMSE = 0.1;
-		clusteringRatio = 0.5;
-		faceColoring_type = 1;
-		curr_highlighted_face = -1;
-		minimizer_type = app_utils::MinimizerType::NEWTON;
-		linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
-		mouse_mode = app_utils::MouseMode::FACE_CLUSTERING_0;
-		view = app_utils::View::HORIZONTAL;
-
-		Max_Distortion = 5;
-		texture_scaling_input = texture_scaling_output = 1;
-		down_mouse_x = down_mouse_y = -1;
-
-		Vertex_Energy_color = RED_COLOR;
-		Highlighted_face_color = Eigen::Vector3f(153 / 255.0f, 0, 153 / 255.0f);
-		Neighbors_Highlighted_face_color = Eigen::Vector3f(1, 102 / 255.0f, 1);
-		center_sphere_color = Eigen::Vector3f(0, 1, 1);
-		center_vertex_color = Eigen::Vector3f(128 / 255.0f, 128 / 255.0f, 128 / 255.0f);
-		centers_sphere_edge_color = centers_norm_edge_color = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);;
-		face_norm_color = Eigen::Vector3f(0, 1, 1);
-		Fixed_vertex_color = Fixed_face_color = BLUE_COLOR;
-		Dragged_vertex_color = Dragged_face_color = GREEN_COLOR;
-		model_color = GREY_COLOR;
-		text_color = BLACK_COLOR;
-
-		for (int i = 0; i < 5; i++)
-			faceClusters.push_back(FaceClusters(faceClusters.size()));
-		
-		//update input viewer
-		inputCoreID = viewer->core_list[0].id;
-		viewer->core(inputCoreID).background_color = Eigen::Vector4f(1, 1, 1, 0);
-		viewer->core(inputCoreID).is_animating = true;
-		viewer->core(inputCoreID).lighting_factor = 0.5;
-
-		//Load multiple views
-		Outputs.push_back(OptimizationOutput(viewer, minimizer_type,linesearch_type));
-		core_size = 1.0 / (Outputs.size() + 1.0);
-		
-		//maximize window
-		glfwMaximizeWindow(viewer->window);
-	}
+	if (!_viewer)
+		return;
+	brush_radius = 0.3;
+	showSphereEdges = showNormEdges = showTriangleCenters = showSphereCenters = false;
+	showFacesNorm = false;
+	typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
+	isLoadNeeded = false;
+	IsMouseDraggingAnyWindow = false;
+	isMinimizerRunning = false;
+	Outputs_Settings = false;
+	highlightFacesType = app_utils::HighlightFaces::NO_HIGHLIGHT;
+	IsTranslate = false;
+	IsChoosingCluster = false;
+	isModelLoaded = false;
+	isUpdateAll = true;
+	minimizer_settings = true;
+	show_text = true;
+	clusteringType = app_utils::ClusteringType::NoClustering;
+	clusteringMSE = 0.1;
+	clusteringRatio = 0.5;
+	faceColoring_type = 1;
+	curr_highlighted_face = -1;
+	minimizer_type = app_utils::MinimizerType::NEWTON;
+	linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
+	mouse_mode = app_utils::MouseMode::FACE_CLUSTERING_0;
+	view = app_utils::View::HORIZONTAL;
+	Max_Distortion = 5;
+	texture_scaling_input = texture_scaling_output = 1;
+	down_mouse_x = down_mouse_y = -1;
+	Vertex_Energy_color = RED_COLOR;
+	Highlighted_face_color = Eigen::Vector3f(153 / 255.0f, 0, 153 / 255.0f);
+	Neighbors_Highlighted_face_color = Eigen::Vector3f(1, 102 / 255.0f, 1);
+	center_sphere_color = Eigen::Vector3f(0, 1, 1);
+	center_vertex_color = Eigen::Vector3f(128 / 255.0f, 128 / 255.0f, 128 / 255.0f);
+	centers_sphere_edge_color = centers_norm_edge_color = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);;
+	face_norm_color = Eigen::Vector3f(0, 1, 1);
+	Fixed_vertex_color = Fixed_face_color = BLUE_COLOR;
+	Dragged_vertex_color = Dragged_face_color = GREEN_COLOR;
+	model_color = GREY_COLOR;
+	text_color = BLACK_COLOR;
+	for (int i = 0; i < 5; i++)
+		faceClusters.push_back(FaceClusters(faceClusters.size()));
+	//update input viewer
+	inputCoreID = viewer->core_list[0].id;
+	viewer->core(inputCoreID).background_color = Eigen::Vector4f(1, 1, 1, 0);
+	viewer->core(inputCoreID).is_animating = true;
+	viewer->core(inputCoreID).lighting_factor = 0.5;
+	//Load multiple views
+	Outputs.push_back(OptimizationOutput(viewer, minimizer_type,linesearch_type));
+	core_size = 1.0 / (Outputs.size() + 1.0);
+	//maximize window
+	glfwMaximizeWindow(viewer->window);
 }
 
 void deformation_plugin::load_new_model(const std::string modelpath) 
@@ -77,16 +70,19 @@ void deformation_plugin::load_new_model(const std::string modelpath)
 		return;
 	modelName = app_utils::ExtractModelName(modelPath);
 	stop_minimizer_thread();
-	if (isModelLoaded) {
+	if (isModelLoaded) 
+	{
 		//remove previous data
 		while (Outputs.size() > 0)
 			remove_output(0);
 		viewer->load_mesh_from_file(modelPath.c_str());
 		viewer->erase_mesh(0);
 	}
-	else viewer->load_mesh_from_file(modelPath.c_str());
+	else 
+		viewer->load_mesh_from_file(modelPath.c_str());
 	inputModelID = viewer->data_list[0].id;
-	for (int i = 0; i < Outputs.size(); i++){
+	for (int i = 0; i < Outputs.size(); i++)
+	{
 		viewer->load_mesh_from_file(modelPath.c_str());
 		Outputs[i].ModelID = viewer->data_list[i + 1].id;
 		initializeMinimizer(i);
@@ -107,11 +103,13 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 {
 	float w = ImGui::GetContentRegionAvailWidth();
 	float p = ImGui::GetStyle().FramePadding.x;
-	if (ImGui::Button("Load##Mesh", ImVec2((w - p) / 2.f, 0))){
+	if (ImGui::Button("Load##Mesh", ImVec2((w - p) / 2.f, 0)))
+	{
 		modelPath = igl::file_dialog_open();
 		isLoadNeeded = true;
 	}
-	if (isLoadNeeded) {
+	if (isLoadNeeded) 
+	{
 		load_new_model(modelPath);
 		isLoadNeeded = false;
 	}
@@ -126,25 +124,27 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	if (ImGui::Checkbox("Show text", &show_text) && show_text)
 		Outputs_Settings = false;
 
-	if (ImGui::Combo("Clustering", (int *)(&clusteringType), "No Clustering\0Clust Normals\0Clust Spheres\0\0") ||
+	if (ImGui::Combo("Clustering", 
+		(int *)(&clusteringType), "No Clustering\0Clust Normals\0Clust Spheres\0\0") ||
 		ImGui::DragFloat("clustering MSE", &clusteringMSE, 0.001f, 0.001f, 100.0f) ||
 		ImGui::DragFloat("ratio clustering", &clusteringRatio, 0.001f, 0.0f, 1.0f)) 
 	{
-		if (clusteringType == app_utils::ClusteringType::NormalClustering) {
+		if (clusteringType == app_utils::ClusteringType::NormalClustering) 
+		{
 			for (auto& out : Outputs)
 				out.clustering(clusteringRatio,clusteringMSE, true);
 		}
-		else if (clusteringType == app_utils::ClusteringType::SphereClustering) {
+		else if (clusteringType == app_utils::ClusteringType::SphereClustering) 
+		{
 			for (auto& out : Outputs)
 				out.clustering(clusteringRatio,clusteringMSE, false);
 		}
-		else {
+		else 
+		{
 			for (auto& out : Outputs)
 				out.clusters_indices.clear();
 		}
 	}
-	
-	
 	if (ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "No Highlight\0Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0")) {
 		if(highlightFacesType == app_utils::HighlightFaces::GLOBAL_NORMALS ||
 			highlightFacesType == app_utils::HighlightFaces::LOCAL_NORMALS)
@@ -159,33 +159,33 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		highlightFacesType == app_utils::HighlightFaces::LOCAL_SPHERE)
 		ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
 
-	
-	if (ImGui::Combo("View cores", (int *)(&view), app_utils::build_view_names_list(Outputs.size()))) {
+	if (ImGui::Combo("View cores", (int *)(&view), app_utils::build_view_names_list(Outputs.size()))) 
+	{
 		// That's how you get the current width/height of the frame buffer (for example, after the window was resized)
 		int frameBufferWidth, frameBufferHeight;
 		glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
 		post_resize(frameBufferWidth, frameBufferHeight);
 	}
-
-	if ((view == app_utils::View::HORIZONTAL) || (view == app_utils::View::VERTICAL)) {
-		if (ImGui::SliderFloat("Core Size", &core_size, 0, 1.0 / Outputs.size(), std::to_string(core_size).c_str(), 1)) {
+	if (view == app_utils::View::HORIZONTAL || 
+		view == app_utils::View::VERTICAL) 
+	{
+		if (ImGui::SliderFloat("Core Size", &core_size, 0, 1.0 / Outputs.size(), std::to_string(core_size).c_str(), 1)) 
+		{
 			int frameBufferWidth, frameBufferHeight;
 			glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
 			post_resize(frameBufferWidth, frameBufferHeight);
 		}
 	}
-	
 	ImGui::Combo("Mouse Mode", (int *)(&mouse_mode), app_utils::build_clusters_names_list(faceClusters.size()));
-	if (mouse_mode == app_utils::MouseMode::CLEAR) {
+	if (mouse_mode == app_utils::MouseMode::CLEAR) 
+	{
 		clear_sellected_faces_and_vertices();
 		mouse_mode = app_utils::MouseMode::CLEAR;
 	}
 	if(mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0)
 		ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
-
 	if (ImGui::Button("Add Cluster"))
 		faceClusters.push_back(FaceClusters(faceClusters.size()));
-
 	ImGui::Checkbox("Update all cores together", &isUpdateAll);	
 	Draw_menu_for_Minimizer();
 	Draw_menu_for_cores(viewer->core(inputCoreID));
@@ -196,7 +196,8 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		Draw_menu_for_minimizer_settings();
 }
 
-void deformation_plugin::clear_sellected_faces_and_vertices() {
+void deformation_plugin::clear_sellected_faces_and_vertices() 
+{
 	selected_fixed_faces.clear();
 	for (auto& c : faceClusters)
 		c.faces.clear();
@@ -206,18 +207,23 @@ void deformation_plugin::clear_sellected_faces_and_vertices() {
 	UpdateClustersHandles();
 }
 
-void deformation_plugin::update_parameters_for_all_cores() {
-	for (auto& core : viewer->core_list) {
+void deformation_plugin::update_parameters_for_all_cores() 
+{
+	for (auto& core : viewer->core_list) 
+	{
 		int output_index = -1;
 		for (int i = 0; i < Outputs.size(); i++)
 			if (core.id == Outputs[i].CoreID)
 				output_index = i;
-		if (output_index == -1) {
+		if (output_index == -1) 
+		{
 			if (this->prev_camera_zoom != core.camera_zoom ||
 				this->prev_camera_translation != core.camera_translation ||
 				this->prev_trackball_angle.coeffs() != core.trackball_angle.coeffs()
-				) {
-				for (auto& c : viewer->core_list) {
+				) 
+			{
+				for (auto& c : viewer->core_list) 
+				{
 					c.camera_zoom = core.camera_zoom;
 					c.camera_translation = core.camera_translation;
 					c.trackball_angle = core.trackball_angle;
@@ -225,19 +231,23 @@ void deformation_plugin::update_parameters_for_all_cores() {
 				this->prev_camera_zoom = core.camera_zoom;
 				this->prev_camera_translation = core.camera_translation;
 				this->prev_trackball_angle = core.trackball_angle;
-				for (auto&o : Outputs){
+				for (auto&o : Outputs)
+				{
 					o.prev_camera_zoom = core.camera_zoom;
 					o.prev_camera_translation = core.camera_translation;
 					o.prev_trackball_angle = core.trackball_angle;
 				}
 			}
 		}
-		else {
+		else 
+		{
 			if (Outputs[output_index].prev_camera_zoom != core.camera_zoom ||
 				Outputs[output_index].prev_camera_translation != core.camera_translation ||
 				Outputs[output_index].prev_trackball_angle.coeffs() != core.trackball_angle.coeffs()
-				) {
-				for (auto& c : viewer->core_list) {
+				) 
+			{
+				for (auto& c : viewer->core_list) 
+				{
 					c.camera_zoom = core.camera_zoom;
 					c.camera_translation = core.camera_translation;
 					c.trackball_angle = core.trackball_angle;
@@ -245,7 +255,8 @@ void deformation_plugin::update_parameters_for_all_cores() {
 				this->prev_camera_zoom = core.camera_zoom;
 				this->prev_camera_translation = core.camera_translation;
 				this->prev_trackball_angle = core.trackball_angle;
-				for (auto&o : Outputs) {
+				for (auto&o : Outputs) 
+				{
 					o.prev_camera_zoom = core.camera_zoom;
 					o.prev_camera_translation = core.camera_translation;
 					o.prev_trackball_angle = core.trackball_angle;
@@ -255,7 +266,8 @@ void deformation_plugin::update_parameters_for_all_cores() {
 	}
 }
 
-void deformation_plugin::remove_output(const int output_index) {
+void deformation_plugin::remove_output(const int output_index) 
+{
 	stop_minimizer_thread();
 	viewer->erase_core(1 + output_index);
 	viewer->erase_mesh(1 + output_index);
@@ -270,7 +282,8 @@ void deformation_plugin::remove_output(const int output_index) {
 	post_resize(frameBufferWidth, frameBufferHeight);
 }
 
-void deformation_plugin::add_output() {
+void deformation_plugin::add_output() 
+{
 	stop_minimizer_thread();
 	Outputs.push_back(OptimizationOutput(viewer, minimizer_type,linesearch_type));
 	viewer->load_mesh_from_file(modelPath.c_str());
@@ -279,7 +292,8 @@ void deformation_plugin::add_output() {
 	//Update the scene
 	viewer->core(inputCoreID).align_camera_center(InputModel().V, InputModel().F);
 	viewer->core(inputCoreID).is_animating = true;
-	for (int i = 0; i < Outputs.size(); i++) {
+	for (int i = 0; i < Outputs.size(); i++) 
+	{
 		viewer->core(Outputs[i].CoreID).align_camera_center(OutputModel(i).V, OutputModel(i).F);
 		viewer->core(Outputs[i].CoreID).is_animating = true;
 	}
@@ -291,61 +305,72 @@ void deformation_plugin::add_output() {
 
 IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 {
-	if (viewer)
+	if (!viewer)
+		return;
+	if (view == app_utils::View::HORIZONTAL) 
 	{
-		if (view == app_utils::View::HORIZONTAL) {
-			viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, w - w * Outputs.size() * core_size, h);
-			for (int i = 0; i < Outputs.size(); i++) {
-				Outputs[i].window_position = ImVec2(w - w * (Outputs.size() - i) * core_size, 0);
-				Outputs[i].window_size = ImVec2(w * core_size, h);
-				Outputs[i].text_position = Outputs[i].window_position;
-			}
+		viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, w - w * Outputs.size() * core_size, h);
+		for (int i = 0; i < Outputs.size(); i++) 
+		{
+			Outputs[i].window_position = ImVec2(w - w * (Outputs.size() - i) * core_size, 0);
+			Outputs[i].window_size = ImVec2(w * core_size, h);
+			Outputs[i].text_position = Outputs[i].window_position;
 		}
-		if (view == app_utils::View::VERTICAL) {
-			viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, Outputs.size() * h * core_size, w, h - Outputs.size() * h * core_size);
-			for (int i = 0; i < Outputs.size(); i++) {
-				Outputs[i].window_position = ImVec2(0, (Outputs.size() - i - 1) * h * core_size);
-				Outputs[i].window_size = ImVec2(w, h * core_size);
-				Outputs[i].text_position = ImVec2(w*0.8, h - Outputs[i].window_position[1] - Outputs[i].window_size[1]);
-			}
-		}
-		if (view == app_utils::View::INPUT_ONLY) {
-			viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, w, h);
-			for (auto&o : Outputs) {
-				o.window_position = ImVec2(w, h);
-				o.window_size = ImVec2(0, 0);
-				o.text_position = o.window_position;
-			}
-		}
- 		if (view >= app_utils::View::OUTPUT_ONLY_0) {
- 			viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, 0, 0);
- 			for (auto&o : Outputs) {
- 				o.window_position = ImVec2(w, h);
- 				o.window_size = ImVec2(0, 0);
- 				o.text_position = o.window_position;
- 			}
- 			// what does this means?
- 			Outputs[view - app_utils::View::OUTPUT_ONLY_0].window_position = ImVec2(0, 0);
- 			Outputs[view - app_utils::View::OUTPUT_ONLY_0].window_size = ImVec2(w, h);
- 			Outputs[view - app_utils::View::OUTPUT_ONLY_0].text_position = ImVec2(w*0.8, 0);
- 		}		
-		for (auto& o : Outputs)
-			viewer->core(o.CoreID).viewport = Eigen::Vector4f(o.window_position[0], o.window_position[1], o.window_size[0]+1, o.window_size[1]+1);
 	}
+	if (view == app_utils::View::VERTICAL) 
+	{
+		viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, Outputs.size() * h * core_size, w, h - Outputs.size() * h * core_size);
+		for (int i = 0; i < Outputs.size(); i++) 
+		{
+			Outputs[i].window_position = ImVec2(0, (Outputs.size() - i - 1) * h * core_size);
+			Outputs[i].window_size = ImVec2(w, h * core_size);
+			Outputs[i].text_position = ImVec2(w*0.8, h - Outputs[i].window_position[1] - Outputs[i].window_size[1]);
+		}
+	}
+	if (view == app_utils::View::INPUT_ONLY) 
+	{
+		viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, w, h);
+		for (auto&o : Outputs) 
+		{
+			o.window_position = ImVec2(w, h);
+			o.window_size = ImVec2(0, 0);
+			o.text_position = o.window_position;
+		}
+	}
+ 	if (view >= app_utils::View::OUTPUT_ONLY_0) 
+	{
+ 		viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, 0, 0);
+ 		for (auto&o : Outputs) 
+		{
+ 			o.window_position = ImVec2(w, h);
+ 			o.window_size = ImVec2(0, 0);
+ 			o.text_position = o.window_position;
+ 		}
+ 		// what does this means?
+ 		Outputs[view - app_utils::View::OUTPUT_ONLY_0].window_position = ImVec2(0, 0);
+ 		Outputs[view - app_utils::View::OUTPUT_ONLY_0].window_size = ImVec2(w, h);
+ 		Outputs[view - app_utils::View::OUTPUT_ONLY_0].text_position = ImVec2(w*0.8, 0);
+ 	}		
+	for (auto& o : Outputs)
+		viewer->core(o.CoreID).viewport = Eigen::Vector4f(o.window_position[0], o.window_position[1], o.window_size[0]+1, o.window_size[1]+1);
 }
 
-void deformation_plugin::brush_erase_or_insert() {
+void deformation_plugin::brush_erase_or_insert() 
+{
 	int f = pick_face(intersec_point);
 	brush_index = f;
-	if (f != -1) {
+	if (f != -1) 
+	{
 		std::vector<int> brush_faces = Outputs[0].FaceNeigh(intersec_point.cast<double>(), brush_radius);
-		if (EraseOrInsert == false) { //insert
+		if (EraseOrInsert == false) 
+		{ //insert
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
 			for (int fi : brush_faces)
 				if (!(find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), fi) != faceClusters[clusterIndex].faces.end()))
 					faceClusters[clusterIndex].faces.insert(fi);
 		}
-		else if (EraseOrInsert == true) { //erase
+		else
+		{ //erase
 			for (FaceClusters& clusterI : faceClusters)
 				for (int fi : brush_faces)
 					clusterI.faces.erase(fi);
@@ -357,20 +382,23 @@ void deformation_plugin::brush_erase_or_insert() {
 IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 {
 	if (!isModelLoaded || IsMouseDraggingAnyWindow)
-		return true;
-		
+		return true;	
 	if (clusteringType != app_utils::ClusteringType::NoClustering && cluster_index != -1)
 	{
 		Eigen::Vector3f _;
 		int highlightedFi = pick_face(_);
 		OptimizationOutput& out = Outputs[clustering_outputIndex];
-		if (out.clusters_indices.size()) {
+		if (out.clusters_indices.size()) 
+		{
 			for (int ci = 0; ci < out.clusters_indices.size(); ci++)
 			{
-				for (auto& it = out.clusters_indices[ci].begin(); it != out.clusters_indices[ci].end(); ++it) {
-					if (highlightedFi == *it) {
+				for (auto& it = out.clusters_indices[ci].begin(); it != out.clusters_indices[ci].end(); ++it) 
+				{
+					if (highlightedFi == *it) 
+					{
 						//found
-						if (cluster_index != ci && cluster_index != -1) {
+						if (cluster_index != ci && cluster_index != -1) 
+						{
 							out.clusters_indices[cluster_index].push_back(*it);
 							out.clusters_indices[ci].erase(it);
 							break;
@@ -387,7 +415,8 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		{
 			Eigen::RowVector3d face_avg_pt = app_utils::get_face_avg(viewer, Model_Translate_ID, Translate_Index);
 			Eigen::Vector3f translation = app_utils::computeTranslation(mouse_x, down_mouse_x, mouse_y, down_mouse_y, face_avg_pt, viewer->core(Core_Translate_ID));
-			for (auto& out : Outputs) {
+			for (auto& out : Outputs) 
+			{
 				out.translateCenterOfSphere(Translate_Index, translation.cast<double>());
 			}
 			down_mouse_x = mouse_x;
@@ -396,18 +425,22 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			return true;
 		}
 	}
-	else if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_VERTEX)
+	else if (IsTranslate && 
+		mouse_mode == app_utils::MouseMode::FIX_VERTEX)
 	{
 		if (!selected_vertices.empty())
 		{
 			Eigen::RowVector3d vertex_pos = viewer->data(Model_Translate_ID).V.row(Translate_Index);
 			Eigen::Vector3f translation = app_utils::computeTranslation(mouse_x, down_mouse_x, mouse_y, down_mouse_y, vertex_pos, viewer->core(Core_Translate_ID));
-			if (Core_Translate_ID == inputCoreID) {
+			if (Core_Translate_ID == inputCoreID) 
+			{
 				viewer->data(Model_Translate_ID).V.row(Translate_Index) += translation.cast<double>();
 				viewer->data(Model_Translate_ID).set_mesh(viewer->data(Model_Translate_ID).V, viewer->data(Model_Translate_ID).F);
 			}
-			else {
-				for (auto& out : Outputs) {
+			else 
+			{
+				for (auto& out : Outputs) 
+				{
 					viewer->data(out.ModelID).V.row(Translate_Index) += translation.cast<double>();
 					viewer->data(out.ModelID).set_mesh(viewer->data(out.ModelID).V, viewer->data(out.ModelID).F);
 				}
@@ -418,11 +451,15 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			return true;
 		}
 	}
-	else if (IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
+	else if (IsTranslate && 
+		mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
+	{
 		brush_erase_or_insert();
 		return true;
 	}
-	else if (IsChoosingCluster && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
+	else if (IsChoosingCluster && 
+		mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
+	{
 		Eigen::Vector3f _;
 		curr_highlighted_face = pick_face(_);
 		return true;
@@ -435,12 +472,14 @@ IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y)
 {
 	if (!isModelLoaded || IsMouseDraggingAnyWindow || ImGui::IsAnyWindowHovered())
 		return true;
-	if (IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
+	if (IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
+	{
 		brush_radius += delta_y * 0.05;
 		brush_radius = std::max<float>(0.05, brush_radius);
 		return true;
 	}
-	else if (IsChoosingCluster && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) {
+	else if (IsChoosingCluster && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
+	{
 		neighbor_distance += delta_y * 0.05;
 		neighbor_distance = std::max<float>(0.05, neighbor_distance);
 		return true;
@@ -448,24 +487,29 @@ IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y)
 	return false;
 }
 
-IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier) {
+IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier) 
+{
 	IsTranslate = false;
 	IsMouseDraggingAnyWindow = false;
 	cluster_index = -1;
 
-	if (IsChoosingCluster) {
+	if (IsChoosingCluster) 
+	{
 		IsChoosingCluster = false;
 		curr_highlighted_face = -1;
 		Eigen::Vector3f _;
 		int f = pick_face(_);
-		if (f != -1) {
+		if (f != -1) 
+		{
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
-			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end()) {
+			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end()) 
+			{
 				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
 				for (int currF : neigh)
 					faceClusters[clusterIndex].faces.erase(currF);
 			}
-			else {
+			else 
+			{
 				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
 				for (int currF : neigh)
 					if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), currF) == faceClusters[clusterIndex].faces.end())
@@ -477,7 +521,8 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier) {
 	return false;
 }
 
-IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
+IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) 
+{
 	if (ImGui::IsAnyWindowHovered())
 		IsMouseDraggingAnyWindow = true;
 	down_mouse_x = viewer->current_mouse_x;
@@ -498,7 +543,8 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	{
 		Eigen::Vector3f _;
 		int f = pick_face(_);
-		if (f != -1) {
+		if (f != -1) 
+		{
 			if (find(selected_fixed_faces.begin(), selected_fixed_faces.end(), f) != selected_fixed_faces.end())
 				selected_fixed_faces.erase(f);
 			else
@@ -510,7 +556,8 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	{
 		int f = pick_face(intersec_point);
 		brush_index = f;
-		if (f != -1) {
+		if (f != -1) 
+		{
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
 			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end())
 				EraseOrInsert = true; //erase
@@ -547,7 +594,8 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 			//check if there faces which is selected on the left screen
 			Eigen::Vector3f _;
 			int f = pick_face(_,true);
-			if (find(selected_fixed_faces.begin(), selected_fixed_faces.end(), f) != selected_fixed_faces.end()) {
+			if (find(selected_fixed_faces.begin(), selected_fixed_faces.end(), f) != selected_fixed_faces.end()) 
+			{
 				IsTranslate = true;
 				Translate_Index = f;
 			}
@@ -559,7 +607,8 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 		{
 			//check if there faces which is selected on the left screen
 			int v = pick_vertex(true);
-			if (find(selected_vertices.begin(), selected_vertices.end(), v) != selected_vertices.end()) {
+			if (find(selected_vertices.begin(), selected_vertices.end(), v) != selected_vertices.end()) 
+			{
 				IsTranslate = true;
 				Translate_Index = v;
 			}
@@ -568,7 +617,8 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) {
 	return false;
 }
 
-IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers) {
+IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers) 
+{
 	if ((key == '!') && modifiers == 1)
 		mouse_mode = (app_utils::MouseMode)4;
 	if ((key == '@') && modifiers == 1)
@@ -581,22 +631,28 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		mouse_mode = (app_utils::MouseMode)8;
 	if ((key == 'c' || key == 'C') && modifiers == 1)
 		clear_sellected_faces_and_vertices();
-	if ((key == 'a' || key == 'A') && modifiers == 1) {
-		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\from_2k_to_10k\\island.off";
+	if ((key == 'a' || key == 'A') && modifiers == 1) 
+	{
+		modelPath = OptimizationUtils::ProjectPath() + 
+			"\\models\\InputModels\\from_2k_to_10k\\island.off";
 		isLoadNeeded = true;
 	}
 	if ((key == 's' || key == 'S') && modifiers == 1) {
-		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\from_2k_to_10k\\spot.obj";
+		modelPath = OptimizationUtils::ProjectPath() + 
+			"\\models\\InputModels\\from_2k_to_10k\\spot.obj";
 		isLoadNeeded = true;
 	}
-	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) {
+	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) 
+	{
 		highlightFacesType = app_utils::HighlightFaces::LOCAL_NORMALS;
 		neighbor_distance = 0.03;
 		change_minimizer_type(app_utils::MinimizerType::ADAM_MINIMIZER);
 		showFacesNorm = true;
 		showSphereEdges = showNormEdges = showTriangleCenters = showSphereCenters = false;
-		for (OptimizationOutput& out : Outputs) {
-			for (auto& obj : out.totalObjective->objectiveList) {
+		for (OptimizationOutput& out : Outputs) 
+		{
+			for (auto& obj : out.totalObjective->objectiveList) 
+			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				std::shared_ptr<ClusterSpheres> CS = std::dynamic_pointer_cast<ClusterSpheres>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
@@ -612,14 +668,18 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			}
 		}
 	}
-	if (isModelLoaded && (key == 'w' || key == 'W') && modifiers == 1) {
+	if (isModelLoaded && (key == 'w' || key == 'W') && modifiers == 1) 
+	{
 		highlightFacesType = app_utils::HighlightFaces::LOCAL_SPHERE;
 		neighbor_distance = 0.3;
 		change_minimizer_type(app_utils::MinimizerType::ADAM_MINIMIZER);
 		showSphereCenters = true;
-		showSphereEdges = showNormEdges = showTriangleCenters = showFacesNorm = false;
-		for (OptimizationOutput& out : Outputs) {
-			for (auto& obj : out.totalObjective->objectiveList) {
+		showSphereEdges = showNormEdges = 
+			showTriangleCenters = showFacesNorm = false;
+		for (OptimizationOutput& out : Outputs) 
+		{
+			for (auto& obj : out.totalObjective->objectiveList) 
+			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				std::shared_ptr<ClusterSpheres> CS = std::dynamic_pointer_cast<ClusterSpheres>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
@@ -649,15 +709,20 @@ IGL_INLINE void deformation_plugin::shutdown()
 	ImGuiMenu::shutdown();
 }
 
-void deformation_plugin::draw_brush_sphere() {
-	if (!(brush_index != -1 && IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0))
+void deformation_plugin::draw_brush_sphere() 
+{
+	if (!(brush_index != -1 && 
+		IsTranslate && 
+		mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0))
 		return;
 	//prepare brush sphere
 	Eigen::MatrixXd sphere(36 * 36, 3);
 	Eigen::RowVector3d center = intersec_point.cast<double>().transpose();
 	int i, j;
-	for (double alfa = 0, i = 0; alfa < 360; i++, alfa += 10) {
-		for (double beta = 0, j = 0; beta < 360; j++, beta += 10) {
+	for (double alfa = 0, i = 0; alfa < 360; i++, alfa += 10) 
+	{
+		for (double beta = 0, j = 0; beta < 360; j++, beta += 10) 
+		{
 			Eigen::RowVector3d dir;
 			dir << sin(alfa), cos(alfa)*cos(beta), sin(beta)*cos(alfa);
 			sphere.row(i + 36 * j) = dir * brush_radius + center;
@@ -671,26 +736,25 @@ void deformation_plugin::draw_brush_sphere() {
 		c.row(0) = faceClusters[clusterIndex].color.cast<double>();
 	}
 	else if (EraseOrInsert == true) { //erase
-		c.row(0) << 1, 1, 1; // white color for eraseing
+		c.row(0) << 1, 1, 1; // white color for erasing
 	}
 
 	//update data for cores
 	InputModel().point_size = 10;
 	InputModel().add_points(sphere, c);
-	for (int oi = 0; oi < Outputs.size(); oi++) {
+	for (int oi = 0; oi < Outputs.size(); oi++) 
+	{
 		OutputModel(oi).point_size = 10;
 		OutputModel(oi).add_points(sphere, c);
 	}
 }
 
-IGL_INLINE bool deformation_plugin::pre_draw() {
-	
+IGL_INLINE bool deformation_plugin::pre_draw() 
+{
 	follow_and_mark_selected_faces();
 	Update_view();
 	if (isUpdateAll)
 		update_parameters_for_all_cores();
-	
-
 	for (auto& out : Outputs)
 		if (out.activeMinimizer->progressed)
 			update_data_from_minimizer();
@@ -729,7 +793,9 @@ IGL_INLINE bool deformation_plugin::pre_draw() {
 	return ImGuiMenu::pre_draw();
 }
 
-void deformation_plugin::Draw_menu_for_colors() {
+void deformation_plugin::Draw_menu_for_colors() 
+
+{
 	ImVec2 screen_pos = ImGui::GetCursorScreenPos();
 	if (!ImGui::CollapsingHeader("colors", ImGuiTreeNodeFlags_DefaultOpen))
 	{
@@ -750,7 +816,8 @@ void deformation_plugin::Draw_menu_for_colors() {
 	}
 }
 
-void deformation_plugin::change_minimizer_type(app_utils::MinimizerType type) {
+void deformation_plugin::change_minimizer_type(app_utils::MinimizerType type) 
+{
 	minimizer_type = type;
 	stop_minimizer_thread();
 	init_minimizer_thread();
@@ -758,7 +825,8 @@ void deformation_plugin::change_minimizer_type(app_utils::MinimizerType type) {
 		Outputs[i].updateActiveMinimizer(minimizer_type);
 }
 
-void deformation_plugin::Draw_menu_for_Minimizer() {
+void deformation_plugin::Draw_menu_for_Minimizer() 
+{
 	if (ImGui::CollapsingHeader("Minimizer", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		if (ImGui::Button("Run one iter"))
@@ -811,7 +879,8 @@ void deformation_plugin::Draw_menu_for_Minimizer() {
 	}
 }
 
-void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core) {
+void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core) 
+{
 	if (!Outputs_Settings)
 		return;
 	ImGui::PushID(core.id);
@@ -867,7 +936,8 @@ void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core) {
 	ImGui::PopID();
 }
 
-void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data) {
+void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data) 
+{
 	if (!Outputs_Settings)
 		return;
 	// Helper for setting viewport specific mesh options
@@ -921,7 +991,8 @@ void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data) {
 	ImGui::PopID();
 }
 
-void deformation_plugin::Draw_menu_for_minimizer_settings() {
+void deformation_plugin::Draw_menu_for_minimizer_settings() 
+{
 	// 	ImGui::SetNextWindowSize(ImVec2(1000, 0), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowPos(ImVec2(200, 550), ImGuiCond_FirstUseEver);
 	ImGui::Begin("minimizer settings", NULL, ImGuiWindowFlags_AlwaysAutoResize);
@@ -1105,7 +1176,8 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 	ImGui::End();
 }
 
-void deformation_plugin::Draw_menu_for_output_settings() {
+void deformation_plugin::Draw_menu_for_output_settings() 
+{
 	for (auto& out : Outputs) {
 		if (Outputs_Settings) {
 			ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
@@ -1123,9 +1195,12 @@ void deformation_plugin::Draw_menu_for_output_settings() {
 	}
 }
 
-void deformation_plugin::Draw_menu_for_text_results() {
-	for (auto& out:Outputs) {
-		if (show_text) {
+void deformation_plugin::Draw_menu_for_text_results() 
+{
+	for (auto& out:Outputs) 
+	{
+		if (show_text) 
+		{
 			bool bOpened2(true);
 			ImColor c(text_color[0], text_color[1], text_color[2], 1.0f);
 			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
@@ -1177,7 +1252,8 @@ void deformation_plugin::Draw_menu_for_text_results() {
 	}
 }
 
-void deformation_plugin::UpdateCentersHandles() {
+void deformation_plugin::UpdateCentersHandles() 
+{
 	std::vector<int> CurrCentersInd;
 	std::vector<Eigen::MatrixX3d> CurrCentersPos;
 	CurrCentersInd.clear();
@@ -1186,9 +1262,11 @@ void deformation_plugin::UpdateCentersHandles() {
 	for (auto& out : Outputs)
 		CurrCentersPos.push_back(Eigen::MatrixX3d::Zero(CurrCentersInd.size(), 3));
 
-	for (int i = 0; i < Outputs.size(); i++) {
+	for (int i = 0; i < Outputs.size(); i++) 
+	{
 		int idx = 0;
-		for (auto ci : CurrCentersInd) {
+		for (auto ci : CurrCentersInd) 
+		{
 			if (Outputs[i].getCenterOfSphere().size() != 0)
 				CurrCentersPos[i].row(idx) = Outputs[i].getCenterOfSphere().row(ci);
 			idx++;
@@ -1203,19 +1281,22 @@ void deformation_plugin::UpdateCentersHandles() {
 	}
 }
 
-void deformation_plugin::UpdateClustersHandles() {
+void deformation_plugin::UpdateClustersHandles() 
+{
 	std::vector < std::vector<int>> ind(faceClusters.size());
 	for (int ci = 0; ci < faceClusters.size(); ci++)
 		for (int fi : faceClusters[ci].faces)
 			ind[ci].push_back(fi);
 	for (int i = 0; i < Outputs.size(); i++)
-		if (isModelLoaded) {
+		if (isModelLoaded) 
+		{
 			*(Outputs[i].ClustersSphereInd) = ind;
 			*(Outputs[i].ClustersNormInd) = ind;
 		}	
 }
 
-void deformation_plugin::UpdateVerticesHandles() {
+void deformation_plugin::UpdateVerticesHandles() 
+{
 	std::vector<int> CurrHandlesInd;
 	std::vector<Eigen::MatrixX3d> CurrHandlesPosDeformed;
 	CurrHandlesInd.clear();
@@ -1226,22 +1307,29 @@ void deformation_plugin::UpdateVerticesHandles() {
 	//Here we update the positions for each handle
 	for (auto& out :Outputs)
 		CurrHandlesPosDeformed.push_back(Eigen::MatrixX3d::Zero(CurrHandlesInd.size(),3));
-	for (int i = 0; i < Outputs.size(); i++){
+	for (int i = 0; i < Outputs.size(); i++)
+	{
 		int idx = 0;
 		for (auto hi : CurrHandlesInd)
-			CurrHandlesPosDeformed[i].row(idx++) << OutputModel(i).V(hi, 0), OutputModel(i).V(hi, 1), OutputModel(i).V(hi, 2);
+			CurrHandlesPosDeformed[i].row(idx++) <<
+			OutputModel(i).V(hi, 0),
+			OutputModel(i).V(hi, 1),
+			OutputModel(i).V(hi, 2);
 		set_vertices_for_mesh(OutputModel(i).V, i);
 	}
 	//Finally, we update the handles in the constraints positional object
-	for (int i = 0; i < Outputs.size();i++) {
-		if (isModelLoaded) {
+	for (int i = 0; i < Outputs.size();i++) 
+	{
+		if (isModelLoaded) 
+		{
 			*(Outputs[i].HandlesInd) = CurrHandlesInd;
 			*(Outputs[i].HandlesPosDeformed) = CurrHandlesPosDeformed[i];
 		}
 	}
 }
 
-void deformation_plugin::Update_view() {
+void deformation_plugin::Update_view() 
+{
 	for (auto& data : viewer->data_list)
 		for (auto& out : Outputs)
 			data.copy_options(viewer->core(inputCoreID), viewer->core(out.CoreID));
@@ -1253,89 +1341,106 @@ void deformation_plugin::Update_view() {
 		OutputModel(i).set_visible(true, Outputs[i].CoreID);
 }
 
-void deformation_plugin::follow_and_mark_selected_faces() {
-	if(InputModel().F.size()){
-		//Mark the faces
-		for (int i = 0; i < Outputs.size(); i++) {
-			Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color, centers_sphere_edge_color, centers_norm_edge_color, face_norm_color);
-			UpdateEnergyColors(i);
-			//Mark the cluster faces
-			for (FaceClusters cluster : faceClusters)
-				for (int fi : cluster.faces)
-					Outputs[i].updateFaceColors(fi, cluster.color);
-			//Mark the fixed faces
-			for (int fi : selected_fixed_faces)
-				Outputs[i].updateFaceColors(fi, Fixed_face_color);
-			//Mark the highlighted face & neighbors
-			if (curr_highlighted_face != -1 && highlightFacesType != app_utils::HighlightFaces::NO_HIGHLIGHT) {
-				std::vector<int> neigh = Outputs[i].getNeigh(highlightFacesType,InputModel().F, curr_highlighted_face, neighbor_distance);
-				for (int fi : neigh)
-					Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
-				Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
-			}
-			//Mark the Dragged face
-			if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_FACES))
-				Outputs[i].updateFaceColors(Translate_Index, Dragged_face_color);
-			//Mark the vertices
-			int idx = 0;
-			Vertices_Input.resize(selected_vertices.size(), 3);
-			Outputs[i].Vertices_output.resize(selected_vertices.size(), 3);
-			color_per_vertex.resize(selected_vertices.size(), 3);
-			//Mark the dragged vertex
-			if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_VERTEX)) {
-				Vertices_Input.resize(selected_vertices.size() + 1, 3);
-				Outputs[i].Vertices_output.resize(selected_vertices.size() + 1, 3);
-				color_per_vertex.resize(selected_vertices.size() + 1, 3);
-				Vertices_Input.row(idx) = InputModel().V.row(Translate_Index);
-				color_per_vertex.row(idx) = Dragged_vertex_color.cast<double>();
-				Outputs[i].Vertices_output.row(idx) = OutputModel(i).V.row(Translate_Index);
-				idx++;
-			}
-			//Mark the fixed vertices
-			for (auto vi : selected_vertices) {
-				Vertices_Input.row(idx) = InputModel().V.row(vi);
-				Outputs[i].Vertices_output.row(idx) = OutputModel(i).V.row(vi);
-				color_per_vertex.row(idx++) = Fixed_vertex_color.cast<double>();
-			}
+void deformation_plugin::follow_and_mark_selected_faces() 
+{
+	if (!InputModel().F.size())
+		return;
+	for (int i = 0; i < Outputs.size(); i++) 
+	{
+		Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color, centers_sphere_edge_color, centers_norm_edge_color, face_norm_color);
+		UpdateEnergyColors(i);
+		//Mark the cluster faces
+		for (FaceClusters cluster : faceClusters)
+			for (int fi : cluster.faces)
+				Outputs[i].updateFaceColors(fi, cluster.color);
+		//Mark the fixed faces
+		for (int fi : selected_fixed_faces)
+			Outputs[i].updateFaceColors(fi, Fixed_face_color);
+		//Mark the highlighted face & neighbors
+		if (curr_highlighted_face != -1 && 
+			highlightFacesType != app_utils::HighlightFaces::NO_HIGHLIGHT) 
+		{
+			std::vector<int> neigh = Outputs[i].getNeigh(highlightFacesType,InputModel().F, curr_highlighted_face, neighbor_distance);
+			for (int fi : neigh)
+				Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
+			Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
+		}
+		//Mark the Dragged face
+		if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_FACES))
+			Outputs[i].updateFaceColors(Translate_Index, Dragged_face_color);
+		//Mark the vertices
+		int idx = 0;
+		Vertices_Input.resize(selected_vertices.size(), 3);
+		Outputs[i].Vertices_output.resize(selected_vertices.size(), 3);
+		color_per_vertex.resize(selected_vertices.size(), 3);
+		//Mark the dragged vertex
+		if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_VERTEX)) 
+		{
+			Vertices_Input.resize(selected_vertices.size() + 1, 3);
+			Outputs[i].Vertices_output.resize(selected_vertices.size() + 1, 3);
+			color_per_vertex.resize(selected_vertices.size() + 1, 3);
+			Vertices_Input.row(idx) = InputModel().V.row(Translate_Index);
+			color_per_vertex.row(idx) = Dragged_vertex_color.cast<double>();
+			Outputs[i].Vertices_output.row(idx) = OutputModel(i).V.row(Translate_Index);
+			idx++;
+		}
+		//Mark the fixed vertices
+		for (auto vi : selected_vertices) 
+		{
+			Vertices_Input.row(idx) = InputModel().V.row(vi);
+			Outputs[i].Vertices_output.row(idx) = OutputModel(i).V.row(vi);
+			color_per_vertex.row(idx++) = Fixed_vertex_color.cast<double>();
+		}
 
-			if (clusteringType != app_utils::ClusteringType::NoClustering && Outputs[i].clusters_indices.size()) {
-				UniqueColors uniqueColors;
-				for(std::vector<int> clus: Outputs[i].clusters_indices)
+		if (clusteringType != app_utils::ClusteringType::NoClustering && 
+			Outputs[i].clusters_indices.size()) 
+		{
+			UniqueColors uniqueColors;
+			for(std::vector<int> clus: Outputs[i].clusters_indices)
+			{
+				Eigen::Vector3f clusColor = uniqueColors.getNext();
+				for (int fi : clus)
 				{
-					Eigen::Vector3f clusColor = uniqueColors.getNext();
-					for (int fi : clus)
-					{
-						Outputs[i].updateFaceColors(fi, clusColor);
-					}
+					Outputs[i].updateFaceColors(fi, clusColor);
 				}
 			}
 		}
 	}
 }
 	
-igl::opengl::ViewerData& deformation_plugin::InputModel() {
+igl::opengl::ViewerData& deformation_plugin::InputModel() 
+{
 	return viewer->data(inputModelID);
 }
 
-igl::opengl::ViewerData& deformation_plugin::OutputModel(const int index) {
+igl::opengl::ViewerData& deformation_plugin::OutputModel(const int index) 
+{
 	return viewer->data(Outputs[index].ModelID);
 }
 
-int deformation_plugin::pick_face(Eigen::Vector3f& intersec_point, const bool update_fixfaces, const bool update_clusters) {
+int deformation_plugin::pick_face(
+	Eigen::Vector3f& intersec_point, 
+	const bool update_fixfaces, 
+	const bool update_clusters) 
+{
 	//check if there faces which is selected on the left screen
 	int f = pick_face_per_core(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY, intersec_point);
 	if (update_clusters)
 		clustering_outputIndex = -1;
-	if (update_fixfaces) {
+	if (update_fixfaces) 
+	{
 		Model_Translate_ID = inputModelID;
 		Core_Translate_ID = inputCoreID;
 	}
-	for (int i = 0; i < Outputs.size(); i++) {
-		if (f == -1) {
+	for (int i = 0; i < Outputs.size(); i++) 
+	{
+		if (f == -1) 
+		{
 			f = pick_face_per_core(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i, intersec_point);
 			if (update_clusters)
 				clustering_outputIndex = i;
-			if (update_fixfaces) {
+			if (update_fixfaces) 
+			{
 				Model_Translate_ID = Outputs[i].ModelID;
 				Core_Translate_ID = Outputs[i].CoreID;
 			}
@@ -1344,7 +1449,12 @@ int deformation_plugin::pick_face(Eigen::Vector3f& intersec_point, const bool up
 	return f;
 }
 
-int deformation_plugin::pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int CoreIndex, Eigen::Vector3f& intersec_point) {
+int deformation_plugin::pick_face_per_core(
+	Eigen::MatrixXd& V, 
+	Eigen::MatrixXi& F, 
+	int CoreIndex, 
+	Eigen::Vector3f& intersec_point) 
+{
 	// Cast a ray in the view direction starting from the mouse position
 	int CoreID;
 	if (CoreIndex == app_utils::View::INPUT_ONLY)
@@ -1353,11 +1463,10 @@ int deformation_plugin::pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& 
 		CoreID = Outputs[CoreIndex - app_utils::View::OUTPUT_ONLY_0].CoreID;
 	double x = viewer->current_mouse_x;
 	double y = viewer->core(CoreID).viewport(3) - viewer->current_mouse_y;
-	if (view == app_utils::View::VERTICAL) {
+	if (view == app_utils::View::VERTICAL) 
+	{
 		y = (viewer->core(inputCoreID).viewport(3) / core_size) - viewer->current_mouse_y;
 	}
-	
-	//Eigen::RowVector3d pt;
 	Eigen::RowVector3d pt;
 	Eigen::Matrix4f modelview = viewer->core(CoreID).view;
 	int vi = -1;
@@ -1368,24 +1477,30 @@ int deformation_plugin::pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& 
 	igl::unproject_ray(Eigen::Vector2f(x, y), viewer->core(CoreID).view,
 		viewer->core(CoreID).proj, viewer->core(CoreID).viewport, s, dir);
 	int fi = -1;
-	if (hits.size() > 0) {
+	if (hits.size() > 0) 
+	{
 		fi = hits[0].id;
 		intersec_point = s + dir * hits[0].t;
 	}
 	return fi;
 }
 
-int deformation_plugin::pick_vertex(const bool update) {
+int deformation_plugin::pick_vertex(const bool update) 
+{
 	//check if there faces which is selected on the left screen
 	int v = pick_vertex_per_core(InputModel().V, InputModel().F, app_utils::View::INPUT_ONLY);
-	if (update) {
+	if (update) 
+	{
 		Model_Translate_ID = inputModelID;
 		Core_Translate_ID = inputCoreID;
 	}
-	for (int i = 0; i < Outputs.size(); i++) {
-		if (v == -1) {
+	for (int i = 0; i < Outputs.size(); i++) 
+	{
+		if (v == -1) 
+		{
 			v = pick_vertex_per_core(OutputModel(i).V, OutputModel(i).F, app_utils::View::OUTPUT_ONLY_0 + i);
-			if (update) {
+			if (update) 
+			{
 				Model_Translate_ID = Outputs[i].ModelID;
 				Core_Translate_ID = Outputs[i].CoreID;
 			}
@@ -1394,7 +1509,11 @@ int deformation_plugin::pick_vertex(const bool update) {
 	return v;
 }
 
-int deformation_plugin::pick_vertex_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int CoreIndex) {
+int deformation_plugin::pick_vertex_per_core(
+	Eigen::MatrixXd& V, 
+	Eigen::MatrixXi& F, 
+	int CoreIndex) 
+{
 	// Cast a ray in the view direction starting from the mouse position
 	int CoreID;
 	if (CoreIndex == app_utils::View::INPUT_ONLY)
@@ -1420,7 +1539,8 @@ int deformation_plugin::pick_vertex_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi
 		pt, 
 		hits
 	);
-	if (hits.size() > 0) {
+	if (hits.size() > 0) 
+	{
 		int fi = hits[0].id;
 		Eigen::RowVector3d bc;
 		bc << 1.0 - hits[0].u - hits[0].v, hits[0].u, hits[0].v;
@@ -1430,13 +1550,18 @@ int deformation_plugin::pick_vertex_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi
 	return vi;
 }
 
-void deformation_plugin::set_vertices_for_mesh(Eigen::MatrixXd& V_uv, const int index) {
+void deformation_plugin::set_vertices_for_mesh(
+	Eigen::MatrixXd& V_uv, 
+	const int index) 
+{
 	Eigen::MatrixXd V_uv_3D(V_uv.rows(),3);
-	if (V_uv.cols() == 2) {
+	if (V_uv.cols() == 2) 
+	{
 		V_uv_3D.leftCols(2) = V_uv.leftCols(2);
 		V_uv_3D.rightCols(1).setZero();
 	}
-	else if (V_uv.cols() == 3) {
+	else if (V_uv.cols() == 3) 
+	{
 		V_uv_3D = V_uv;
 	}
 	OutputModel(index).set_vertices(V_uv_3D);
@@ -1446,28 +1571,32 @@ void deformation_plugin::set_vertices_for_mesh(Eigen::MatrixXd& V_uv, const int 
 void deformation_plugin::checkGradients()
 {
 	stop_minimizer_thread();
-	for (auto& o: Outputs) {
-		if (!isModelLoaded) {
+	for (auto& o: Outputs) 
+	{
+		if (!isModelLoaded) 
+		{
 			isMinimizerRunning = false;
 			return;
 		}
-		Eigen::VectorXd xx = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
+		Eigen::VectorXd testX = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
 		for (auto const &objective : o.totalObjective->objectiveList)
-			objective->checkGradient(xx);
+			objective->checkGradient(testX);
 	}
 }
 
 void deformation_plugin::checkHessians()
 {
 	stop_minimizer_thread();
-	for (auto& o : Outputs) {
-		if (!isModelLoaded) {
+	for (auto& o : Outputs) 
+	{
+		if (!isModelLoaded) 
+		{
 			isMinimizerRunning = false;
 			return;
 		}
-		Eigen::VectorXd xx = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
+		Eigen::VectorXd testX = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
 		for (auto const &objective : o.totalObjective->objectiveList)
-			objective->checkHessian(xx);
+			objective->checkHessian(testX);
 	}
 }
 
@@ -1475,7 +1604,8 @@ void deformation_plugin::update_data_from_minimizer()
 {
 	std::vector<Eigen::MatrixXd> V(Outputs.size()),center(Outputs.size()),norm(Outputs.size());
 	std::vector<Eigen::VectorXd> radius(Outputs.size());
-	for (int i = 0; i < Outputs.size(); i++){
+	for (int i = 0; i < Outputs.size(); i++)
+	{
 		Outputs[i].activeMinimizer->get_data(V[i], center[i],radius[i],norm[i]);
 		if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_VERTEX)
 			V[i].row(Translate_Index) = OutputModel(i).V.row(Translate_Index);
@@ -1487,48 +1617,58 @@ void deformation_plugin::update_data_from_minimizer()
 	}
 }
 
-void deformation_plugin::stop_minimizer_thread() {
+void deformation_plugin::stop_minimizer_thread() 
+{
 	isMinimizerRunning = false;
-	for (auto&o : Outputs) {
-		if (o.newtonMinimizer->is_running) {
+	for (auto&o : Outputs) 
+	{
+		if (o.newtonMinimizer->is_running) 
+		{
 			o.newtonMinimizer->stop();
 		}
 		while (o.newtonMinimizer->is_running);
 
-		if (o.adamMinimizer->is_running) {
+		if (o.adamMinimizer->is_running) 
+		{
 			o.adamMinimizer->stop();
 		}
 		while (o.adamMinimizer->is_running);
 
-		if (o.gradientDescentMinimizer->is_running) {
+		if (o.gradientDescentMinimizer->is_running) 
+		{
 			o.gradientDescentMinimizer->stop();
 		}
 		while (o.gradientDescentMinimizer->is_running);
 	}
 }
 
-void deformation_plugin::init_minimizer_thread() {
+void deformation_plugin::init_minimizer_thread() 
+{
 	stop_minimizer_thread();
 	for (int i = 0; i < Outputs.size(); i++)
 		Outputs[i].initMinimizers(OutputModel(i).V, OutputModel(i).F, typeAuxVar);
 }
 
-void deformation_plugin::run_one_minimizer_iter() {
+void deformation_plugin::run_one_minimizer_iter() 
+{
 	stop_minimizer_thread();
 	static int iteration_counter = 0;
 	static int lambda_counter = 0;
 	if(iteration_counter == 0)
 		init_minimizer_thread();
-	for (int i = 0; i < Outputs.size(); i++) {
+	for (int i = 0; i < Outputs.size(); i++) 
+	{
 		minimizer_thread = std::thread(&Minimizer::run_one_iteration, Outputs[i].activeMinimizer.get(), iteration_counter++, &lambda_counter, true);
 		minimizer_thread.join();
 	}
 }
 
-void deformation_plugin::start_minimizer_thread() {
+void deformation_plugin::start_minimizer_thread() 
+{
 	stop_minimizer_thread();
 	init_minimizer_thread();
-	for (int i = 0; i < Outputs.size();i++) {
+	for (int i = 0; i < Outputs.size();i++) 
+	{
 		minimizer_thread = std::thread(&Minimizer::run, Outputs[i].activeMinimizer.get());
 		minimizer_thread.detach();
 	}
@@ -1560,7 +1700,8 @@ void deformation_plugin::initializeMinimizer(const int index)
 	SymmDirich->init_mesh(V, F);
 	SymmDirich->init();
 	std::shared_ptr <STVK> stvk = std::make_unique<STVK>();
-	if (app_utils::IsMesh2D(InputModel().V)) {
+	if (app_utils::IsMesh2D(InputModel().V)) 
+	{
 		stvk->init_mesh(V, F);
 		stvk->init();
 	}
@@ -1592,7 +1733,8 @@ void deformation_plugin::initializeMinimizer(const int index)
 	//init total objective
 	Outputs[index].totalObjective->objectiveList.clear();
 	Outputs[index].totalObjective->init_mesh(V, F);
-	auto add_obj = [&](std::shared_ptr< ObjectiveFunction> obj) {
+	auto add_obj = [&](std::shared_ptr< ObjectiveFunction> obj) 
+	{
 		Outputs[index].totalObjective->objectiveList.push_back(move(obj));
 	};
 	add_obj(auxSpherePerHinge);
@@ -1612,21 +1754,26 @@ void deformation_plugin::initializeMinimizer(const int index)
 	init_minimizer_thread();
 }
 
-void deformation_plugin::UpdateEnergyColors(const int index) {
+void deformation_plugin::UpdateEnergyColors(const int index) 
+{
 	int numF = OutputModel(index).F.rows();
 	Eigen::VectorXd DistortionPerFace(numF);
 	DistortionPerFace.setZero();
-	if (faceColoring_type == 0) { // No colors
+	if (faceColoring_type == 0) 
+	{ // No colors
 		DistortionPerFace.setZero();
 	}
-	else if (faceColoring_type == 1) { // total energy
-		for (auto& obj: Outputs[index].totalObjective->objectiveList) {
+	else if (faceColoring_type == 1) 
+	{ // total energy
+		for (auto& obj: Outputs[index].totalObjective->objectiveList) 
+		{
 			// calculate the distortion over all the energies
 			if ((obj->Efi.size() != 0) && (obj->w != 0))
 				DistortionPerFace += obj->Efi * obj->w;
 		}
 	}
-	else {
+	else 
+	{
 		auto& obj = Outputs[index].totalObjective->objectiveList[faceColoring_type - 2];
 		if ((obj->Efi.size() != 0) && (obj->w != 0))
 			DistortionPerFace = obj->Efi * obj->w;

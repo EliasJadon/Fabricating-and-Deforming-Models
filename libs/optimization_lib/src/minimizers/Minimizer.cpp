@@ -83,8 +83,9 @@ int Minimizer::run()
 	numIteration = 0;
 	int lambda_counter = 0;
 	do {
-		run_one_iteration(numIteration++, &lambda_counter, false);
-	} while (a_parameter_was_updated && !halt);
+		run_one_iteration(numIteration, &lambda_counter, false);
+		numIteration++;
+	} while (!halt);
 	is_running = false;
 	std::cout << ">> solver " + std::to_string(solverID) + " stopped" << std::endl;
 	return 0;
@@ -117,6 +118,8 @@ void Minimizer::update_lambda(int* lambda_counter) {
 
 void Minimizer::run_one_iteration(const int steps,int* lambda_counter, const bool showGraph) {
 	OptimizationUtils::Timer t(&timer_sum, &timer_curr);
+	std::cout << "gfd" << endl;
+	numIteration = steps;
 	timer_avg = timer_sum / numIteration;
 	update_lambda(lambda_counter);
 	step();
@@ -442,14 +445,12 @@ void Minimizer::get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center, Eigen::Vec
 
 void Minimizer::give_parameter_update_slot()
 {
-	a_parameter_was_updated = false;
 	std::unique_lock<std::mutex> lock(*parameters_mutex);
 	params_ready_to_update = true;
 	param_cv->notify_one();
 	while (wait_for_param_update)
 	{
 		param_cv->wait(lock);
-		a_parameter_was_updated = true;
 	}
 	params_ready_to_update = false;
 }
