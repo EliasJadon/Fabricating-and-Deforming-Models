@@ -2,6 +2,8 @@
 #include "minimizers/NewtonMinimizer.h"
 #include "objective_functions/AuxBendingNormal.h"
 #include "objective_functions/AuxSpherePerHinge.h"
+#include "objective_functions/BendingEdge.h"
+#include "objective_functions/BendingNormal.h"
 
 #define HIGH 3
 #define LOW -3
@@ -83,9 +85,10 @@ int Minimizer::run()
 	do {
 		std::cout << "step = " << numIteration << std::endl;
 		{
-			OptimizationUtils::Timer t;
+			OptimizationUtils::Timer t(&timer_sum,&timer_curr);
 			update_lambda(lambda_counter);
 			run_one_iteration(numIteration, false);
+			timer_avg = timer_sum / numIteration;
 			numIteration++;
 		}
 	} while ((a_parameter_was_updated || test_progress()) && !halt);
@@ -105,10 +108,16 @@ void Minimizer::update_lambda(int& lambda_counter) {
 		for (auto& obj : totalObjective->objectiveList) {
 			std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 			std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+			std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
+			std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
 			if (ASH)
 				ASH->planarParameter /= 2;
 			if (ABN)
 				ABN->planarParameter /= 2;
+			if (BE)
+				BE->planarParameter /= 2;
+			if (BN)
+				BN->planarParameter /= 2;
 		}
 		lambda_counter++;
 	}

@@ -53,6 +53,8 @@ public:
 	Eigen::MatrixX3i F;
 	Eigen::MatrixXd V;
 	
+	double timer_curr=0, timer_sum = 0, timer_avg = 0;
+
 	OptimizationUtils::LineSearch lineSearch_type = OptimizationUtils::LineSearch::GRADIENT_NORM;
 	double constantStep_LineSearch;
 	inline int getNumiter() {

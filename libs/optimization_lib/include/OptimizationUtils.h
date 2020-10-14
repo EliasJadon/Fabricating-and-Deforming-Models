@@ -312,14 +312,20 @@ namespace OptimizationUtils
 	private:
 		std::chrono::time_point<std::chrono::steady_clock> start, end;
 		std::chrono::duration<double> duration;
+		double* sum;
+		double* curr;
 	public:
-		Timer() {
+		Timer(double* sum, double* current) {
 			start = std::chrono::high_resolution_clock::now();
+			this->sum = sum;
+			this->curr = current;
 		}
 		~Timer() {
 			end = std::chrono::high_resolution_clock::now();
 			duration = end - start;
 			double ms = duration.count() * 1000.0f;
+			*sum += ms;
+			*curr = ms;
 			std::cout << "Timer took " << ms << "ms\n";
 		}
 	};

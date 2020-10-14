@@ -1,7 +1,7 @@
 #pragma once
 #include "libs/optimization_lib/include/objective_functions/ObjectiveFunction.h"
 
-class SymmetricDirichlet : public ObjectiveFunction {
+class Dirichlet : public ObjectiveFunction {
 private:
 	Eigen::VectorXd a;
 	Eigen::VectorXd b;
@@ -24,8 +24,8 @@ private:
 	void setRestShapeFromCurrentConfiguration();
 	virtual void init_hessian();
 public:
-	SymmetricDirichlet();
-	~SymmetricDirichlet();
+	Dirichlet();
+	~Dirichlet();
 	virtual void init();
 	virtual void updateX(const Eigen::VectorXd& X);
 	virtual double value(const bool update);

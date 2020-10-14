@@ -1,16 +1,16 @@
-﻿#include "objective_functions/SymmetricDirichlet.h"
+﻿#include "objective_functions/Dirichlet.h"
 
-SymmetricDirichlet::SymmetricDirichlet() {
-	name = "Symmetric Dirichlet";
+Dirichlet::Dirichlet() {
+	name = "Dirichlet";
 	w = 0.6;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
-SymmetricDirichlet::~SymmetricDirichlet() {
+Dirichlet::~Dirichlet() {
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void SymmetricDirichlet::init()
+void Dirichlet::init()
 {
 	std::cout << "\t" << name << " initialization" << std::endl;
 	if (restShapeV.size() == 0 || restShapeF.size() == 0)
@@ -20,7 +20,7 @@ void SymmetricDirichlet::init()
 	init_hessian();
 }
 
-void SymmetricDirichlet::setRestShapeFromCurrentConfiguration() {
+void Dirichlet::setRestShapeFromCurrentConfiguration() {
 	a.resize(restShapeF.rows());
 	b.resize(restShapeF.rows());
 	c.resize(restShapeF.rows());
@@ -37,7 +37,7 @@ void SymmetricDirichlet::setRestShapeFromCurrentConfiguration() {
 	restShapeArea /= 2;
 }
 
-void SymmetricDirichlet::updateX(const Eigen::VectorXd& X)
+void Dirichlet::updateX(const Eigen::VectorXd& X)
 {
 	assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
 	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, restShapeV.size()).data(), restShapeV.rows(), 3);
@@ -65,7 +65,7 @@ void SymmetricDirichlet::updateX(const Eigen::VectorXd& X)
 	}
 }
 
-double SymmetricDirichlet::value(const bool update) {
+double Dirichlet::value(const bool update) {
 	Eigen::VectorXd Energy(restShapeF.rows());
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
 		Energy(fi) = 0.5 * (1 + 1/ pow(detJ(fi),2)) * (pow(a(fi),2)+ pow(b(fi), 2)+ pow(c(fi), 2)+ pow(d(fi), 2));
@@ -79,21 +79,18 @@ double SymmetricDirichlet::value(const bool update) {
 	return total_energy;
 }
 
-Eigen::Matrix<double, 1, 4> SymmetricDirichlet::dE_dJ(int fi) {
+Eigen::Matrix<double, 1, 4> Dirichlet::dE_dJ(int fi) {
 	Eigen::Matrix<double, 1, 4> de_dJ;
-	double det2 = pow(detJ(fi), 2);
-	double det3 = pow(detJ(fi), 3);
-	double Fnorm = pow(a(fi), 2) + pow(b(fi), 2) + pow(c(fi), 2) + pow(d(fi), 2);
 	de_dJ <<
-		a(fi) + a(fi) / det2 - d(fi) * Fnorm / det3,
-		b(fi) + b(fi) / det2 + c(fi) * Fnorm / det3,
-		c(fi) + c(fi) / det2 + b(fi) * Fnorm / det3,
-		d(fi) + d(fi) / det2 - a(fi) * Fnorm / det3;
+		a(fi),
+		b(fi),
+		c(fi),
+		d(fi);
 	de_dJ *= restShapeArea[fi];
 	return de_dJ;
 }
 
-void SymmetricDirichlet::gradient(Eigen::VectorXd& g, const bool update)
+void Dirichlet::gradient(Eigen::VectorXd& g, const bool update)
 {
 	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
 	g.setZero();
@@ -109,11 +106,11 @@ void SymmetricDirichlet::gradient(Eigen::VectorXd& g, const bool update)
 		gradient_norm = g.norm();
 }
 
-void SymmetricDirichlet::init_hessian() {
+void Dirichlet::init_hessian() {
 
 }
 
-void SymmetricDirichlet::hessian() {
+void Dirichlet::hessian() {
 	II.clear();
 	JJ.clear();
 	SS.clear();
@@ -122,57 +119,11 @@ void SymmetricDirichlet::hessian() {
 		Eigen::Matrix<double, 4, 4> dE_dJdJ;
 		Eigen::Matrix<double, 9, 9> dE_dXdX;
 	
-		
-		double det = detJ(fi);
-		double det2 = pow(detJ(fi),2);
-		double det3 = pow(detJ(fi),3);
-		double det4 = pow(detJ(fi),4);
-		double Fnorm = pow(a(fi),2) + pow(b(fi), 2) + pow(c(fi), 2) + pow(d(fi), 2);
-		
-	
-		double aa = 1
-			+ (1 / det2)
-			- ((4 * a(fi)*d(fi)) / det3)
-			+ ((3 * pow(d(fi), 2)*Fnorm) / det4);
-	
-		double bb = 1
-			+ (1 / det2)
-			+ ((4 * b(fi)*c(fi)) / det3)
-			+ ((3 * pow(c(fi), 2)*Fnorm) / det4);
-	
-		double cc = 1
-			+ (1 / det2)
-			+ ((4 * b(fi)*c(fi)) / det3)
-			+ ((3 * pow(b(fi), 2)*Fnorm) / det4);
-	
-		double dd = 1
-			+ (1 / det2)
-			- ((4 * a(fi)*d(fi)) / det3)
-			+ ((3 * pow(a(fi), 2)*Fnorm) / det4);
-	
-		double ab = (-3 * c(fi)*d(fi)*Fnorm) + (2 * (a(fi)*c(fi) - b(fi) * d(fi))*det);
-		ab /= det4;
-	
-		double ac = (-3 * b(fi)*d(fi)*Fnorm) + (2 * (a(fi)*b(fi) - c(fi) * d(fi))*det);
-		ac /= det4;
-	
-		double ad = (3 * a(fi)*d(fi)*Fnorm) - ((2 * pow(a(fi), 2) + 2 * pow(d(fi), 2) + Fnorm)*det);
-		ad /= det4;
-	
-		double bc = (3 * b(fi)*c(fi)*Fnorm) + ((2 * pow(b(fi), 2) + 2 * pow(c(fi), 2) + Fnorm)*det);
-		bc /= det4;
-	
-		double bd = (-3 * a(fi)*c(fi)*Fnorm) + (2 * (c(fi)*d(fi) - a(fi) * b(fi))*det);
-		bd /= det4;
-	
-		double cd = (-3 * a(fi)*b(fi)*Fnorm) + (2 * (b(fi)*d(fi) - a(fi) * c(fi))*det);
-		cd /= det4;
-	
 		dE_dJdJ <<
-			aa, ab, ac, ad,
-			ab, bb, bc, bd,
-			ac, bc, cc, cd,
-			ad, bd, cd, dd;
+			1, 0, 0, 0,
+			0, 1, 0, 0,
+			0, 0, 1, 0,
+			0, 0, 0, 1;
 		dE_dJdJ *= restShapeArea[fi];
 		
 		Eigen::Matrix<double, 4, 9> dj_dX = dJ_dX(fi);
@@ -205,7 +156,7 @@ void SymmetricDirichlet::hessian() {
 	SS.push_back(0);
 }
 
-Eigen::Matrix<double, 4, 9> SymmetricDirichlet::dJ_dX(int fi) {
+Eigen::Matrix<double, 4, 9> Dirichlet::dJ_dX(int fi) {
 	Eigen::Vector3d Dx = D1d.col(fi);
 	Eigen::Vector3d Dy = D2d.col(fi);
 	Eigen::Matrix<double, 1, 3> V0 = CurrV.row(restShapeF(fi, 0));
@@ -234,7 +185,7 @@ Eigen::Matrix<double, 4, 9> SymmetricDirichlet::dJ_dX(int fi) {
 	return dJ;
 }
 
-Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 4> SymmetricDirichlet::ddJ_dXdX(int fi) {
+Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 4> Dirichlet::ddJ_dXdX(int fi) {
 	Eigen::Vector3d Dx = D1d.col(fi);
 	Eigen::Vector3d Dy = D2d.col(fi);
 
@@ -306,7 +257,7 @@ Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 4> SymmetricDirichlet::ddJ_dXdX(in
 	return H;
 }
 
-Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> SymmetricDirichlet::ddB1_dXdX(int fi) {
+Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> Dirichlet::ddB1_dXdX(int fi) {
 	Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> H;
 	Eigen::Matrix<double, 9, 9> H_x, H_y, H_z;
 
@@ -370,7 +321,7 @@ Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> SymmetricDirichlet::ddB1_dXdX(i
 	return H;
 }
 
-Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> SymmetricDirichlet::ddB2_dXdX(int fi) {
+Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> Dirichlet::ddB2_dXdX(int fi) {
 	Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> H;
 
 	Eigen::Matrix<double, 3, 1> V0 = CurrV.row(restShapeF(fi, 0));
@@ -448,31 +399,6 @@ Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> SymmetricDirichlet::ddB2_dXdX(i
 		(b2[0] * dxyz(0, 4) + b2[1] * dxyz(1, 4) + b2[2] * dxyz(2, 4)) / NormB2,
 		(b2[0] * dxyz(0, 5) + b2[1] * dxyz(1, 5) + b2[2] * dxyz(2, 5)) / NormB2;
 
-
-	////////gradient
-	////X-coordinate of B2
-	//double dB2xdQx = (dxdQx*NormB2 - b2[0] * dnormdQx) / NormB2_2;
-	//double dB2xdQy = (dxdQy*NormB2 - b2[0] * dnormdQy) / NormB2_2;
-	//double dB2xdQz = (dxdQz*NormB2 - b2[0] * dnormdQz) / NormB2_2;
-	//double dB2xdWx = (dxdWx*NormB2 - b2[0] * dnormdWx) / NormB2_2;
-	//double dB2xdWy = (dxdWy*NormB2 - b2[0] * dnormdWy) / NormB2_2;
-	//double dB2xdWz = (dxdWz*NormB2 - b2[0] * dnormdWz) / NormB2_2;
-	////Y-coordinate of B2
-	//double dB2ydQx = (dydQx*NormB2 - b2[1] * dnormdQx) / NormB2_2;
-	//double dB2ydQy = (dydQy*NormB2 - b2[1] * dnormdQy) / NormB2_2;
-	//double dB2ydQz = (dydQz*NormB2 - b2[1] * dnormdQz) / NormB2_2;
-	//double dB2ydWx = (dydWx*NormB2 - b2[1] * dnormdWx) / NormB2_2;
-	//double dB2ydWy = (dydWy*NormB2 - b2[1] * dnormdWy) / NormB2_2;
-	//double dB2ydWz = (dydWz*NormB2 - b2[1] * dnormdWz) / NormB2_2;
-	////Z-coordinate of B2
-	//double dB2zdQx = (dzdQx*NormB2 - b2[2] * dnormdQx) / NormB2_2;
-	//double dB2zdQy = (dzdQy*NormB2 - b2[2] * dnormdQy) / NormB2_2;
-	//double dB2zdQz = (dzdQz*NormB2 - b2[2] * dnormdQz) / NormB2_2;
-	//double dB2zdWx = (dzdWx*NormB2 - b2[2] * dnormdWx) / NormB2_2;
-	//double dB2zdWy = (dzdWy*NormB2 - b2[2] * dnormdWy) / NormB2_2;
-	//double dB2zdWz = (dzdWz*NormB2 - b2[2] * dnormdWz) / NormB2_2;
-
-
 	//hessian
 	auto Hess = [&](int v, int d1, int d2) {
 		return
@@ -518,7 +444,7 @@ Eigen::Matrix<Eigen::Matrix<double, 9, 9>, 1, 3> SymmetricDirichlet::ddB2_dXdX(i
 	return H;
 }
 
-Eigen::Matrix<double, 3, 9> SymmetricDirichlet::dB1_dX(int fi) {
+Eigen::Matrix<double, 3, 9> Dirichlet::dB1_dX(int fi) {
 	Eigen::Matrix<double, 3, 9> g;
 	Eigen::Matrix<double, 3, 1> V0 = CurrV.row(restShapeF(fi, 0));
 	Eigen::Matrix<double, 3, 1> V1 = CurrV.row(restShapeF(fi, 1));
@@ -540,7 +466,7 @@ Eigen::Matrix<double, 3, 9> SymmetricDirichlet::dB1_dX(int fi) {
 	return g;
 }
 
-Eigen::Matrix<double, 3, 9> SymmetricDirichlet::dB2_dX(int fi) {
+Eigen::Matrix<double, 3, 9> Dirichlet::dB2_dX(int fi) {
 	Eigen::Matrix<double, 3, 9> g;
 	Eigen::Matrix<double, 3, 1> V0 = CurrV.row(restShapeF(fi, 0));
 	Eigen::Matrix<double, 3, 1> V1 = CurrV.row(restShapeF(fi, 1));

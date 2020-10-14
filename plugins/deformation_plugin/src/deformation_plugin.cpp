@@ -943,9 +943,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 	for (auto&out : Outputs) {
 		ImGui::PushID(id++);
 		const int  i64_zero = 0, i64_max = 100000.0;
-		ImGui::Text(("Output " + std::to_string(out.CoreID)).c_str());
-		ImGui::SameLine();
-		ImGui::Text(("Iter " + std::to_string(out.activeMinimizer->getNumiter())).c_str());
+		ImGui::Text(("ID " + std::to_string(out.CoreID)).c_str());
 		ImGui::SameLine();
 		if (ImGui::Checkbox(out.activeMinimizer->isAutoLambdaRunning ? "On" : "Off", &out.activeMinimizer->isAutoLambdaRunning))
 		{
@@ -974,6 +972,12 @@ void deformation_plugin::Draw_menu_for_minimizer_settings() {
 			out.adamMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
 			out.gradientDescentMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
 		}
+		ImGui::SameLine();
+		ImGui::Text(("Iter " + std::to_string(out.activeMinimizer->getNumiter())).c_str());
+		ImGui::SameLine();
+		ImGui::Text(("currTime " + std::to_string((int)out.activeMinimizer->timer_curr) + "ms").c_str());
+		ImGui::SameLine();
+		ImGui::Text(("avgTime " + std::to_string((int)out.activeMinimizer->timer_avg) + "ms").c_str());
 		ImGui::PopID();
 	}
 
