@@ -196,6 +196,455 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		Draw_menu_for_minimizer_settings();
 }
 
+void deformation_plugin::Draw_menu_for_colors()
+
+{
+	ImVec2 screen_pos = ImGui::GetCursorScreenPos();
+	if (!ImGui::CollapsingHeader("colors", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		ImGui::ColorEdit3("Highlighted face color", Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Center sphere color", center_sphere_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Center vertex color", center_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Centers sphere edge color", centers_sphere_edge_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Centers norm edge color", centers_norm_edge_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Face norm color", face_norm_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Neighbors Highlighted face color", Neighbors_Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Fixed face color", Fixed_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Dragged face color", Dragged_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Fixed vertex color", Fixed_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Dragged vertex color", Dragged_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Model color", model_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Vertex Energy color", Vertex_Energy_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit4("text color", text_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+	}
+}
+
+void deformation_plugin::Draw_menu_for_Minimizer()
+{
+	if (ImGui::CollapsingHeader("Minimizer", ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		if (ImGui::Button("Run one iter"))
+			run_one_minimizer_iter();
+		if (ImGui::Checkbox(isMinimizerRunning ? "On" : "Off", &isMinimizerRunning))
+			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
+		ImGui::Checkbox("Minimizer settings", &minimizer_settings);
+		ImGui::Text("Show:");
+		ImGui::Checkbox("Norm", &showFacesNorm);
+		ImGui::SameLine();
+		ImGui::Checkbox("Norm Edges", &showNormEdges);
+		ImGui::Checkbox("Sphere", &showSphereCenters);
+		ImGui::SameLine();
+		ImGui::Checkbox("Sphere Edges", &showSphereEdges);
+		ImGui::Checkbox("Face Centers", &showTriangleCenters);
+		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
+			change_minimizer_type(minimizer_type);
+		}
+		if (ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0Minus Normal\0\0"))
+			init_minimizer_thread();
+		std::shared_ptr<NewtonMinimizer> newtonMinimizer = std::dynamic_pointer_cast<NewtonMinimizer>(Outputs[0].activeMinimizer);
+		if (newtonMinimizer != NULL) {
+			bool PD = newtonMinimizer->getPositiveDefiniteChecker();
+			ImGui::Checkbox("Positive Definite check", &PD);
+			for (auto& o : Outputs) {
+				std::dynamic_pointer_cast<NewtonMinimizer>(o.activeMinimizer)->SwitchPositiveDefiniteChecker(PD);
+			}
+		}
+		if (ImGui::Combo("line search", (int *)(&linesearch_type), "Gradient Norm\0Function Value\0Constant Step\0\0")) {
+			for (auto& o : Outputs) {
+				o.newtonMinimizer->lineSearch_type = linesearch_type;
+				o.adamMinimizer->lineSearch_type = linesearch_type;
+				o.gradientDescentMinimizer->lineSearch_type = linesearch_type;
+			}
+		}
+		if (linesearch_type == OptimizationUtils::LineSearch::CONSTANT_STEP && ImGui::DragFloat("Step value", &constantStep_LineSearch, 0.0001f, 0.0f, 1.0f)) {
+			for (auto& o : Outputs) {
+				o.newtonMinimizer->constantStep_LineSearch = constantStep_LineSearch;
+				o.adamMinimizer->constantStep_LineSearch = constantStep_LineSearch;
+				o.gradientDescentMinimizer->constantStep_LineSearch = constantStep_LineSearch;
+			}
+		}
+		ImGui::Combo("Face coloring", (int *)(&faceColoring_type), app_utils::build_color_energies_list(Outputs[0].totalObjective));
+		float w = ImGui::GetContentRegionAvailWidth(), p = ImGui::GetStyle().FramePadding.x;
+		if (ImGui::Button("Check gradients", ImVec2((w - p) / 2.f, 0)))
+			checkGradients();
+		ImGui::SameLine(0, p);
+		if (ImGui::Button("Check Hessians", ImVec2((w - p) / 2.f, 0)))
+			checkHessians();
+	}
+}
+
+void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core)
+{
+	if (!Outputs_Settings)
+		return;
+	ImGui::PushID(core.id);
+	std::stringstream ss;
+	std::string name = (core.id == inputCoreID) ? "Input Core" : "Output Core " + std::to_string(core.id);
+	ss << name;
+	if (!ImGui::CollapsingHeader(ss.str().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		int data_id;
+		for (int i = 0; i < Outputs.size(); i++)
+			if (core.id == Outputs[i].CoreID)
+				data_id = Outputs[i].ModelID;
+		if (core.id == inputCoreID)
+			data_id = inputModelID;
+		if (ImGui::Button("Center object", ImVec2(-1, 0)))
+			core.align_camera_center(viewer->data_list[data_id].V, viewer->data_list[data_id].F);
+		if (ImGui::Button("Snap canonical view", ImVec2(-1, 0)))
+			viewer->snap_to_canonical_quaternion();
+		// Zoom & Lightining factor
+		ImGui::PushItemWidth(80 * menu_scaling());
+		ImGui::DragFloat("Zoom", &(core.camera_zoom), 0.05f, 0.1f, 100000.0f);
+		ImGui::DragFloat("Lighting factor", &(core.lighting_factor), 0.05f, 0.1f, 20.0f);
+		// Select rotation type
+		int rotation_type = static_cast<int>(core.rotation_type);
+		static Eigen::Quaternionf trackball_angle = Eigen::Quaternionf::Identity();
+		static bool orthographic = true;
+		if (ImGui::Combo("Camera Type", &rotation_type, "Trackball\0Two Axes\0002D Mode\0\0"))
+		{
+			using RT = igl::opengl::ViewerCore::RotationType;
+			auto new_type = static_cast<RT>(rotation_type);
+			if (new_type != core.rotation_type)
+			{
+				if (new_type == RT::ROTATION_TYPE_NO_ROTATION)
+				{
+					trackball_angle = core.trackball_angle;
+					orthographic = core.orthographic;
+					core.trackball_angle = Eigen::Quaternionf::Identity();
+					core.orthographic = true;
+				}
+				else if (core.rotation_type == RT::ROTATION_TYPE_NO_ROTATION)
+				{
+					core.trackball_angle = trackball_angle;
+					core.orthographic = orthographic;
+				}
+				core.set_rotation_type(new_type);
+			}
+		}
+		// Orthographic view
+		ImGui::Checkbox("Orthographic view", &(core.orthographic));
+		ImGui::PopItemWidth();
+		ImGui::ColorEdit4("Background", core.background_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+	}
+	ImGui::PopID();
+}
+
+void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data)
+{
+	if (!Outputs_Settings)
+		return;
+	// Helper for setting viewport specific mesh options
+	auto make_checkbox = [&](const char *label, unsigned int &option) {
+		bool temp = option;
+		bool res = ImGui::Checkbox(label, &temp);
+		option = temp;
+		return res;
+	};
+	ImGui::PushID(data.id);
+	std::stringstream ss;
+	if (data.id == inputModelID)
+		ss << modelName;
+	else
+		ss << modelName + " " + std::to_string(data.id) + " (Param.)";
+
+	if (!ImGui::CollapsingHeader(ss.str().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+	{
+		float w = ImGui::GetContentRegionAvailWidth();
+		float p = ImGui::GetStyle().FramePadding.x;
+		if (data.id == inputModelID)
+			ImGui::SliderFloat("texture", &texture_scaling_input, 0.01, 100, std::to_string(texture_scaling_input).c_str(), 1);
+		else
+			ImGui::SliderFloat("texture", &texture_scaling_output, 0.01, 100, std::to_string(texture_scaling_output).c_str(), 1);
+		if (ImGui::Checkbox("Face-based", &(data.face_based)))
+			data.dirty = igl::opengl::MeshGL::DIRTY_ALL;
+		make_checkbox("Show texture", data.show_texture);
+		if (ImGui::Checkbox("Invert normals", &(data.invert_normals)))
+			data.dirty |= igl::opengl::MeshGL::DIRTY_NORMAL;
+		make_checkbox("Show overlay", data.show_overlay);
+		make_checkbox("Show overlay depth", data.show_overlay_depth);
+		ImGui::ColorEdit4("Line color", data.line_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.3f);
+		ImGui::DragFloat("Shininess", &(data.shininess), 0.05f, 0.0f, 100.0f);
+		ImGui::PopItemWidth();
+		if (make_checkbox("Wireframe", data.show_lines) && isUpdateAll)
+		{
+			viewer->data(inputModelID).show_lines = data.show_lines;
+			for (auto&out : Outputs)
+				viewer->data(out.ModelID).show_lines = data.show_lines;
+		}
+		if (make_checkbox("Fill", data.show_faces) && isUpdateAll)
+		{
+			viewer->data(inputModelID).show_faces = data.show_faces;
+			for (auto&out : Outputs)
+				viewer->data(out.ModelID).show_faces = data.show_faces;
+		}
+		ImGui::Checkbox("Show vertex labels", &(data.show_vertid));
+		ImGui::Checkbox("Show faces labels", &(data.show_faceid));
+	}
+	ImGui::PopID();
+}
+
+void deformation_plugin::Draw_menu_for_minimizer_settings()
+{
+	// 	ImGui::SetNextWindowSize(ImVec2(1000, 0), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(ImVec2(200, 550), ImGuiCond_FirstUseEver);
+	ImGui::Begin("minimizer settings", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+	//add outputs buttons
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
+	if (ImGui::Button("Add Output"))
+		add_output();
+	ImGui::PopStyleColor();
+	int id = 0;
+
+	//add automatic lambda change
+	for (auto&out : Outputs) {
+		ImGui::PushID(id++);
+		const int  i64_zero = 0, i64_max = 100000.0;
+		ImGui::Text(("ID " + std::to_string(out.CoreID)).c_str());
+		ImGui::SameLine();
+		if (ImGui::Checkbox(out.activeMinimizer->isAutoLambdaRunning ? "On" : "Off", &out.activeMinimizer->isAutoLambdaRunning))
+		{
+			out.newtonMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
+			out.adamMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
+			out.gradientDescentMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
+		}
+		ImGui::SameLine();
+		if (ImGui::DragInt("From Iter", &(out.activeMinimizer->autoLambda_from), 1, i64_zero, i64_max))
+		{
+			out.newtonMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
+			out.adamMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
+			out.gradientDescentMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
+		}
+		ImGui::SameLine();
+		if (ImGui::DragInt("count", &(out.activeMinimizer->autoLambda_count), 1, i64_zero, i64_max))
+		{
+			out.newtonMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
+			out.adamMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
+			out.gradientDescentMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
+		}
+		ImGui::SameLine();
+		if (ImGui::DragInt("jump", &(out.activeMinimizer->autoLambda_jump), 1, i64_zero, i64_max))
+		{
+			out.newtonMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
+			out.adamMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
+			out.gradientDescentMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
+		}
+		ImGui::SameLine();
+		ImGui::Text(("Iter " + std::to_string(out.activeMinimizer->getNumiter())).c_str());
+		ImGui::SameLine();
+		ImGui::Text(("currTime " + std::to_string((int)out.activeMinimizer->timer_curr) + "ms").c_str());
+		ImGui::SameLine();
+		ImGui::Text(("avgTime " + std::to_string((int)out.activeMinimizer->timer_avg) + "ms").c_str());
+		ImGui::PopID();
+	}
+
+	if (Outputs.size() != 0) {
+		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 3, ImGuiTableFlags_Resizable))
+		{
+
+			ImGui::TableSetupColumn("Outputs", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("##col1", ImGuiTableColumnFlags_WidthFixed);
+			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
+				ImGui::TableSetupColumn(obj->name.c_str(), ImGuiTableColumnFlags_WidthFixed);
+			}
+			ImGui::TableSetupColumn("shift eigen values", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableAutoHeaders();
+
+			ImGui::Separator();
+
+			ImGui::TableNextRow();
+			for (int i = 0; i < Outputs.size(); i++) {
+				ImGui::Text(("Output " + std::to_string(Outputs[i].CoreID)).c_str());
+
+				if (ImGui::Button("Remove"))
+					remove_output(i);
+
+				ImGui::TableNextCell();
+				ImGui::Text("Weight");
+				ImGui::TableNextCell();
+
+
+				ImGui::PushItemWidth(100);
+				for (auto& obj : Outputs[i].totalObjective->objectiveList) {
+					ImGui::PushID(id++);
+					ImGui::DragFloat("##w", &(obj->w), 0.05f, 0.0f, 100000.0f);
+					auto BE = std::dynamic_pointer_cast<BendingEdge>(obj);
+					auto BN = std::dynamic_pointer_cast<BendingNormal>(obj);
+					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
+					if (obj->w) {
+						if (BE != NULL)
+							ImGui::Combo("Function", (int*)(&(BE->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+						if (BN != NULL)
+							ImGui::Combo("Function", (int*)(&(BN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+						if (ABN != NULL)
+							ImGui::Combo("Function", (int*)(&(ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+						if (AS != NULL)
+							ImGui::Combo("Function", (int*)(&(AS->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+
+						if (BE != NULL && BE->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+
+							ImGui::Text(("2^" + std::to_string(int(log2(BE->planarParameter)))).c_str());
+							ImGui::SameLine();
+							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								BE->planarParameter = (BE->planarParameter * 2) > 1 ? 1 : BE->planarParameter * 2;
+							}
+							ImGui::SameLine();
+							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								BE->planarParameter /= 2;
+							}
+						}
+						if (BN != NULL && BN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+							ImGui::Text(("2^" + std::to_string(int(log2(BN->planarParameter)))).c_str());
+							ImGui::SameLine();
+							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								BN->planarParameter = (BN->planarParameter * 2) > 1 ? 1 : BN->planarParameter * 2;
+							}
+							ImGui::SameLine();
+							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								BN->planarParameter /= 2;
+							}
+						}
+						if (ABN != NULL && ABN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+							ImGui::Text(("2^" + std::to_string(int(log2(ABN->planarParameter)))).c_str());
+							ImGui::SameLine();
+							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								ABN->planarParameter = (ABN->planarParameter * 2) > 1 ? 1 : ABN->planarParameter * 2;
+							}
+							ImGui::SameLine();
+							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								ABN->planarParameter /= 2;
+							}
+							const double  f64_zero = 0, f64_max = 100000.0;
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(ABN->w1), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w2", ImGuiDataType_Double, &(ABN->w2), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ABN->w3), 0.05f, &f64_zero, &f64_max);
+						}
+						if (AS != NULL && AS->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+							ImGui::Text(("2^" + std::to_string(int(log2(AS->planarParameter)))).c_str());
+							ImGui::SameLine();
+							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								AS->planarParameter = (AS->planarParameter * 2) > 1 ? 1 : AS->planarParameter * 2;
+							}
+							ImGui::SameLine();
+							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								AS->planarParameter /= 2;
+							}
+							const double  f64_zero = 0, f64_max = 100000.0;
+							ImGui::DragScalar("w0", ImGuiDataType_Double, &(AS->w_aux[0]), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->w_aux[1]), 0.05f, &f64_zero, &f64_max);
+						}
+					}
+					ImGui::TableNextCell();
+					ImGui::PopID();
+				}
+				ImGui::DragFloat("##ShiftEigenValues", &(Outputs[i].totalObjective->Shift_eigen_values), 0.05f, 0.0f, 100000.0f);
+				ImGui::TableNextCell();
+				ImGui::PopItemWidth();
+			}
+			ImGui::EndTable();
+		}
+
+		static bool show = false;
+		if (ImGui::Button("More info")) {
+			show = !show;
+		}
+		if (show) {
+			//add more features
+			Draw_menu_for_colors();
+			ImGui::PushItemWidth(80 * menu_scaling());
+			ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
+			ImGui::PopItemWidth();
+		}
+	}
+	//close the window
+	ImGui::End();
+}
+
+void deformation_plugin::Draw_menu_for_output_settings()
+{
+	for (auto& out : Outputs) {
+		if (Outputs_Settings) {
+			ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
+			ImGui::Begin(("Output settings " + std::to_string(out.CoreID)).c_str(),
+				NULL,
+				ImGuiWindowFlags_NoTitleBar |
+				ImGuiWindowFlags_NoResize |
+				ImGuiWindowFlags_NoMove
+			);
+			ImGui::SetWindowPos(out.text_position);
+			Draw_menu_for_cores(viewer->core(out.CoreID));
+			Draw_menu_for_models(viewer->data(out.ModelID));
+			ImGui::End();
+		}
+	}
+}
+
+void deformation_plugin::Draw_menu_for_text_results()
+{
+	if (!show_text)
+		return;
+	for (auto& out : Outputs)
+	{
+		bool bOpened2(true);
+		ImColor c(text_color[0], text_color[1], text_color[2], 1.0f);
+		ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
+		ImGui::Begin(("Text " + std::to_string(out.CoreID)).c_str(), &bOpened2,
+			ImGuiWindowFlags_NoTitleBar |
+			ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoMove |
+			ImGuiWindowFlags_NoScrollbar |
+			ImGuiWindowFlags_NoScrollWithMouse |
+			ImGuiWindowFlags_NoBackground |
+			ImGuiWindowFlags_NoCollapse |
+			ImGuiWindowFlags_NoSavedSettings |
+			ImGuiWindowFlags_NoInputs |
+			ImGuiWindowFlags_NoFocusOnAppearing |
+			ImGuiWindowFlags_NoBringToFrontOnFocus);
+		ImGui::SetWindowPos(out.text_position);
+		ImGui::SetWindowSize(out.window_size);
+		ImGui::SetWindowCollapsed(false);
+		//add text...
+		if (clusteringType != app_utils::ClusteringType::NoClustering && out.clusters_indices.size())
+		{
+			Eigen::Vector3f _;
+			int highlightedFi = pick_face(_);
+			ImGui::TextColored(c, (std::string("Number of clusters:\t") + std::to_string(out.clusters_indices.size())).c_str());
+			for (int ci = 0; ci < out.clusters_indices.size(); ci++)
+			{
+				if (std::find(out.clusters_indices[ci].begin(), out.clusters_indices[ci].end(), highlightedFi) != out.clusters_indices[ci].end())
+				{
+					ImGui::TextColored(c, (std::string("clusters:\t") + std::to_string(ci)).c_str());
+				}
+			}
+		}
+		else
+		{
+			ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" energy ") + std::to_string(out.totalObjective->energy_value)).c_str());
+			ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" gradient ") + std::to_string(out.totalObjective->gradient_norm)).c_str());
+			for (auto& obj : out.totalObjective->objectiveList) {
+				ImGui::TextColored(c, (std::string(obj->name) + std::string(" energy ") + std::to_string(obj->energy_value)).c_str());
+				ImGui::TextColored(c, (std::string(obj->name) + std::string(" gradient ") + std::to_string(obj->gradient_norm)).c_str());
+			}
+			if (IsChoosingCluster) {
+				double r = out.getRadiusOfSphere(curr_highlighted_face);
+				ImGui::TextColored(c, std::to_string(r).c_str());
+			}
+		}
+		ImGui::End();
+		ImGui::PopStyleColor();
+	}
+}
+
 void deformation_plugin::clear_sellected_faces_and_vertices() 
 {
 	selected_fixed_faces.clear();
@@ -793,29 +1242,6 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 	return ImGuiMenu::pre_draw();
 }
 
-void deformation_plugin::Draw_menu_for_colors() 
-
-{
-	ImVec2 screen_pos = ImGui::GetCursorScreenPos();
-	if (!ImGui::CollapsingHeader("colors", ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		ImGui::ColorEdit3("Highlighted face color", Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Center sphere color", center_sphere_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Center vertex color", center_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Centers sphere edge color", centers_sphere_edge_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Centers norm edge color", centers_norm_edge_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Face norm color", face_norm_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Neighbors Highlighted face color", Neighbors_Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Fixed face color", Fixed_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Dragged face color", Dragged_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Fixed vertex color", Fixed_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Dragged vertex color", Dragged_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Model color", model_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Vertex Energy color", Vertex_Energy_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit4("text color", text_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-	}
-}
-
 void deformation_plugin::change_minimizer_type(app_utils::MinimizerType type) 
 {
 	minimizer_type = type;
@@ -823,433 +1249,6 @@ void deformation_plugin::change_minimizer_type(app_utils::MinimizerType type)
 	init_minimizer_thread();
 	for (int i = 0; i < Outputs.size(); i++)
 		Outputs[i].updateActiveMinimizer(minimizer_type);
-}
-
-void deformation_plugin::Draw_menu_for_Minimizer() 
-{
-	if (ImGui::CollapsingHeader("Minimizer", ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		if (ImGui::Button("Run one iter"))
-			run_one_minimizer_iter();
-		if (ImGui::Checkbox(isMinimizerRunning ? "On" : "Off", &isMinimizerRunning))
-			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
-		ImGui::Checkbox("Minimizer settings", &minimizer_settings);
-		ImGui::Text("Show:");
-		ImGui::Checkbox("Norm", &showFacesNorm);
-		ImGui::SameLine();
-		ImGui::Checkbox("Norm Edges", &showNormEdges);
-		ImGui::Checkbox("Sphere", &showSphereCenters);
-		ImGui::SameLine();
-		ImGui::Checkbox("Sphere Edges", &showSphereEdges);
-		ImGui::Checkbox("Face Centers", &showTriangleCenters);
-		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
-			change_minimizer_type(minimizer_type);
-		}
-		if (ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0Minus Normal\0\0"))
-			init_minimizer_thread();
-		std::shared_ptr<NewtonMinimizer> newtonMinimizer = std::dynamic_pointer_cast<NewtonMinimizer>(Outputs[0].activeMinimizer);
-		if (newtonMinimizer != NULL) {
-			bool PD = newtonMinimizer->getPositiveDefiniteChecker();
-			ImGui::Checkbox("Positive Definite check", &PD);
-			for (auto& o : Outputs) {
-				std::dynamic_pointer_cast<NewtonMinimizer>(o.activeMinimizer)->SwitchPositiveDefiniteChecker(PD);
-			}
-		}
-		if (ImGui::Combo("line search", (int *)(&linesearch_type), "Gradient Norm\0Function Value\0Constant Step\0\0")) {
-			for (auto& o : Outputs) {
-				o.newtonMinimizer->lineSearch_type = linesearch_type;
-				o.adamMinimizer->lineSearch_type = linesearch_type;
-				o.gradientDescentMinimizer->lineSearch_type = linesearch_type;
-			}	
-		}
-		if (linesearch_type == OptimizationUtils::LineSearch::CONSTANT_STEP && ImGui::DragFloat("Step value", &constantStep_LineSearch, 0.0001f, 0.0f, 1.0f)) {
-			for (auto& o : Outputs) {
-				o.newtonMinimizer->constantStep_LineSearch = constantStep_LineSearch;
-				o.adamMinimizer->constantStep_LineSearch = constantStep_LineSearch;
-				o.gradientDescentMinimizer->constantStep_LineSearch = constantStep_LineSearch;
-			}
-		}
-		ImGui::Combo("Face coloring", (int *)(&faceColoring_type), app_utils::build_color_energies_list(Outputs[0].totalObjective));
-		float w = ImGui::GetContentRegionAvailWidth(), p = ImGui::GetStyle().FramePadding.x;
-		if (ImGui::Button("Check gradients", ImVec2((w - p) / 2.f, 0)))
-			checkGradients();
-		ImGui::SameLine(0, p);
-		if (ImGui::Button("Check Hessians", ImVec2((w - p) / 2.f, 0)))
-			checkHessians();
-	}
-}
-
-void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core) 
-{
-	if (!Outputs_Settings)
-		return;
-	ImGui::PushID(core.id);
-	std::stringstream ss;
-	std::string name = (core.id == inputCoreID) ? "Input Core" : "Output Core " + std::to_string(core.id);
-	ss << name;
-	if (!ImGui::CollapsingHeader(ss.str().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		int data_id;
-		for (int i = 0; i < Outputs.size(); i++)
-			if (core.id == Outputs[i].CoreID)
-				data_id = Outputs[i].ModelID;
-		if (core.id == inputCoreID)
-			data_id = inputModelID;
-		if (ImGui::Button("Center object", ImVec2(-1, 0)))
-			core.align_camera_center(viewer->data_list[data_id].V, viewer->data_list[data_id].F);
-		if (ImGui::Button("Snap canonical view", ImVec2(-1, 0)))
-			viewer->snap_to_canonical_quaternion();
-		// Zoom & Lightining factor
-		ImGui::PushItemWidth(80 * menu_scaling());
-		ImGui::DragFloat("Zoom", &(core.camera_zoom), 0.05f, 0.1f, 100000.0f);
-		ImGui::DragFloat("Lighting factor", &(core.lighting_factor), 0.05f, 0.1f, 20.0f);
-		// Select rotation type
-		int rotation_type = static_cast<int>(core.rotation_type);
-		static Eigen::Quaternionf trackball_angle = Eigen::Quaternionf::Identity();
-		static bool orthographic = true;
-		if (ImGui::Combo("Camera Type", &rotation_type, "Trackball\0Two Axes\0002D Mode\0\0"))
-		{
-			using RT = igl::opengl::ViewerCore::RotationType;
-			auto new_type = static_cast<RT>(rotation_type);
-			if (new_type != core.rotation_type)
-			{
-				if (new_type == RT::ROTATION_TYPE_NO_ROTATION)
-				{	
-					trackball_angle = core.trackball_angle;
-					orthographic = core.orthographic;
-					core.trackball_angle = Eigen::Quaternionf::Identity();
-					core.orthographic = true;
-				}
-				else if (core.rotation_type == RT::ROTATION_TYPE_NO_ROTATION)
-				{
-					core.trackball_angle = trackball_angle;
-					core.orthographic = orthographic;
-				}
-				core.set_rotation_type(new_type);
-			}
-		}
-		// Orthographic view
-		ImGui::Checkbox("Orthographic view", &(core.orthographic));
-		ImGui::PopItemWidth();
-		ImGui::ColorEdit4("Background", core.background_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-	}
-	ImGui::PopID();
-}
-
-void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data) 
-{
-	if (!Outputs_Settings)
-		return;
-	// Helper for setting viewport specific mesh options
-	auto make_checkbox = [&](const char *label, unsigned int &option) {
-		bool temp = option;
-		bool res = ImGui::Checkbox(label, &temp);
-		option = temp;
-		return res;
-	};
-	ImGui::PushID(data.id);
-	std::stringstream ss;
-	if (data.id == inputModelID)
-		ss << modelName;
-	else
-		ss << modelName + " " + std::to_string(data.id) + " (Param.)";
-			
-	if (!ImGui::CollapsingHeader(ss.str().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		float w = ImGui::GetContentRegionAvailWidth();
-		float p = ImGui::GetStyle().FramePadding.x;
-		if (data.id == inputModelID)
-			ImGui::SliderFloat("texture", &texture_scaling_input, 0.01, 100, std::to_string(texture_scaling_input).c_str(), 1);
-		else
-			ImGui::SliderFloat("texture", &texture_scaling_output, 0.01, 100, std::to_string(texture_scaling_output).c_str(), 1);	
-		if (ImGui::Checkbox("Face-based", &(data.face_based)))
-			data.dirty = igl::opengl::MeshGL::DIRTY_ALL;
-		make_checkbox("Show texture", data.show_texture);
-		if (ImGui::Checkbox("Invert normals", &(data.invert_normals)))
-			data.dirty |= igl::opengl::MeshGL::DIRTY_NORMAL;
-		make_checkbox("Show overlay", data.show_overlay);
-		make_checkbox("Show overlay depth", data.show_overlay_depth);
-		ImGui::ColorEdit4("Line color", data.line_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.3f);
-		ImGui::DragFloat("Shininess", &(data.shininess), 0.05f, 0.0f, 100.0f);
-		ImGui::PopItemWidth();
-		if (make_checkbox("Wireframe", data.show_lines) && isUpdateAll)
-		{
-			viewer->data(inputModelID).show_lines = data.show_lines;
-			for (auto&out : Outputs)
-				viewer->data(out.ModelID).show_lines = data.show_lines;
-		}
-		if (make_checkbox("Fill", data.show_faces) && isUpdateAll)
-		{
-			viewer->data(inputModelID).show_faces = data.show_faces;
-			for (auto&out : Outputs)
-				viewer->data(out.ModelID).show_faces = data.show_faces;
-		}
-		ImGui::Checkbox("Show vertex labels", &(data.show_vertid));
-		ImGui::Checkbox("Show faces labels", &(data.show_faceid));
-	}
-	ImGui::PopID();
-}
-
-void deformation_plugin::Draw_menu_for_minimizer_settings() 
-{
-	// 	ImGui::SetNextWindowSize(ImVec2(1000, 0), ImGuiCond_FirstUseEver);
-	ImGui::SetNextWindowPos(ImVec2(200, 550), ImGuiCond_FirstUseEver);
-	ImGui::Begin("minimizer settings", NULL, ImGuiWindowFlags_AlwaysAutoResize);
-	//add outputs buttons
-	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
-	if (ImGui::Button("Add Output"))
-		add_output();
-	ImGui::PopStyleColor();
-	int id = 0;
-
-	//add automatic lambda change
-	for (auto&out : Outputs) {
-		ImGui::PushID(id++);
-		const int  i64_zero = 0, i64_max = 100000.0;
-		ImGui::Text(("ID " + std::to_string(out.CoreID)).c_str());
-		ImGui::SameLine();
-		if (ImGui::Checkbox(out.activeMinimizer->isAutoLambdaRunning ? "On" : "Off", &out.activeMinimizer->isAutoLambdaRunning))
-		{
-			out.newtonMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
-			out.adamMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
-			out.gradientDescentMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
-		}
-		ImGui::SameLine();
-		if(ImGui::DragInt("From Iter", &(out.activeMinimizer->autoLambda_from), 1, i64_zero, i64_max))
-		{
-			out.newtonMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
-			out.adamMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
-			out.gradientDescentMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
-		}
-		ImGui::SameLine();
-		if(ImGui::DragInt("count", &(out.activeMinimizer->autoLambda_count), 1, i64_zero, i64_max))
-		{
-			out.newtonMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
-			out.adamMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
-			out.gradientDescentMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
-		}
-		ImGui::SameLine();
-		if(ImGui::DragInt("jump", &(out.activeMinimizer->autoLambda_jump), 1, i64_zero, i64_max))
-		{
-			out.newtonMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
-			out.adamMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
-			out.gradientDescentMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
-		}
-		ImGui::SameLine();
-		ImGui::Text(("Iter " + std::to_string(out.activeMinimizer->getNumiter())).c_str());
-		ImGui::SameLine();
-		ImGui::Text(("currTime " + std::to_string((int)out.activeMinimizer->timer_curr) + "ms").c_str());
-		ImGui::SameLine();
-		ImGui::Text(("avgTime " + std::to_string((int)out.activeMinimizer->timer_avg) + "ms").c_str());
-		ImGui::PopID();
-	}
-
-	if (Outputs.size() != 0) {
-		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 3, ImGuiTableFlags_Resizable))
-		{
-
-			ImGui::TableSetupColumn("Outputs", ImGuiTableColumnFlags_WidthFixed);
-			ImGui::TableSetupColumn("##col1", ImGuiTableColumnFlags_WidthFixed);
-			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
-				ImGui::TableSetupColumn(obj->name.c_str(), ImGuiTableColumnFlags_WidthFixed);
-			}
-			ImGui::TableSetupColumn("shift eigen values", ImGuiTableColumnFlags_WidthFixed);
-			ImGui::TableAutoHeaders();
-
-			ImGui::Separator();
-
-			ImGui::TableNextRow();
-			for (int i = 0; i < Outputs.size(); i++) {
-				ImGui::Text(("Output " + std::to_string(Outputs[i].CoreID)).c_str());
-
-				if (ImGui::Button("Remove"))
-					remove_output(i);
-
-				ImGui::TableNextCell();
-				ImGui::Text("Weight");
-				ImGui::TableNextCell();
-
-
-				ImGui::PushItemWidth(100);
-				for (auto& obj : Outputs[i].totalObjective->objectiveList) {
-					ImGui::PushID(id++);
-					ImGui::DragFloat("##w", &(obj->w), 0.05f, 0.0f, 100000.0f);
-					auto BE = std::dynamic_pointer_cast<BendingEdge>(obj);
-					auto BN = std::dynamic_pointer_cast<BendingNormal>(obj);
-					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-					if (obj->w) {
-						if (BE != NULL)
-							ImGui::Combo("Function", (int*)(&(BE->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
-						if (BN != NULL)
-							ImGui::Combo("Function", (int*)(&(BN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
-						if (ABN != NULL)
-							ImGui::Combo("Function", (int*)(&(ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
-						if (AS != NULL)
-							ImGui::Combo("Function", (int*)(&(AS->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
-
-						if (BE != NULL && BE->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-							
-							ImGui::Text(("2^" + std::to_string(int(log2(BE->planarParameter)))).c_str());
-							ImGui::SameLine();
-							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								BE->planarParameter = (BE->planarParameter * 2) > 1 ? 1 : BE->planarParameter * 2;
-							}
-							ImGui::SameLine();
-							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								BE->planarParameter /= 2;
-							}
-						}
-						if (BN != NULL && BN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(BN->planarParameter)))).c_str());
-							ImGui::SameLine();
-							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								BN->planarParameter = (BN->planarParameter * 2) > 1 ? 1 : BN->planarParameter * 2;
-							}
-							ImGui::SameLine();
-							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								BN->planarParameter /= 2;
-							}
-						}
-						if (ABN != NULL && ABN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(ABN->planarParameter)))).c_str());
-							ImGui::SameLine();
-							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								ABN->planarParameter = (ABN->planarParameter * 2) > 1 ? 1 : ABN->planarParameter * 2;
-							}
-							ImGui::SameLine();
-							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								ABN->planarParameter /= 2;
-							}
-							const double  f64_zero = 0, f64_max = 100000.0;
-							ImGui::DragScalar("w1", ImGuiDataType_Double, &(ABN->w1), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w2", ImGuiDataType_Double, &(ABN->w2), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ABN->w3), 0.05f, &f64_zero, &f64_max);
-						}
-						if (AS != NULL && AS->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(AS->planarParameter)))).c_str());
-							ImGui::SameLine();
-							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								AS->planarParameter = (AS->planarParameter * 2) > 1 ? 1 : AS->planarParameter * 2;
-							}
-							ImGui::SameLine();
-							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								AS->planarParameter /= 2;
-							}
-							const double  f64_zero = 0, f64_max = 100000.0;
-							ImGui::DragScalar("w0", ImGuiDataType_Double, &(AS->w_aux[0]), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->w_aux[1]), 0.05f, &f64_zero, &f64_max);
-						}
-					}
-					ImGui::TableNextCell();
-					ImGui::PopID();
-				}
-				ImGui::DragFloat("##ShiftEigenValues", &(Outputs[i].totalObjective->Shift_eigen_values), 0.05f, 0.0f, 100000.0f);
-				ImGui::TableNextCell();
-				ImGui::PopItemWidth();
-			}
-			ImGui::EndTable();
-		}
-
-		static bool show = false;
-		if (ImGui::Button("More info")) {
-			show = !show;
-		}
-		if (show) {
-			//add more features
-			Draw_menu_for_colors();
-			ImGui::PushItemWidth(80 * menu_scaling());
-			ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
-			ImGui::PopItemWidth();
-		}
-	}
-	//close the window
-	ImGui::End();
-}
-
-void deformation_plugin::Draw_menu_for_output_settings() 
-{
-	for (auto& out : Outputs) {
-		if (Outputs_Settings) {
-			ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
-			ImGui::Begin(("Output settings " + std::to_string(out.CoreID)).c_str(),
-				NULL, 
-				ImGuiWindowFlags_NoTitleBar |
-				ImGuiWindowFlags_NoResize |
-				ImGuiWindowFlags_NoMove
-			);
-			ImGui::SetWindowPos(out.text_position);
-			Draw_menu_for_cores(viewer->core(out.CoreID));
-			Draw_menu_for_models(viewer->data(out.ModelID));
-			ImGui::End();
-		}
-	}
-}
-
-void deformation_plugin::Draw_menu_for_text_results() 
-{
-	for (auto& out:Outputs) 
-	{
-		if (show_text) 
-		{
-			bool bOpened2(true);
-			ImColor c(text_color[0], text_color[1], text_color[2], 1.0f);
-			ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0, 0, 0, 0));
-			ImGui::Begin(("Text " + std::to_string(out.CoreID)).c_str(), &bOpened2,
-				ImGuiWindowFlags_NoTitleBar |
-				ImGuiWindowFlags_NoResize |
-				ImGuiWindowFlags_NoMove |
-				ImGuiWindowFlags_NoScrollbar |
-				ImGuiWindowFlags_NoScrollWithMouse |
-				ImGuiWindowFlags_NoBackground |
-				ImGuiWindowFlags_NoCollapse |
-				ImGuiWindowFlags_NoSavedSettings |
-				ImGuiWindowFlags_NoInputs |
-				ImGuiWindowFlags_NoFocusOnAppearing |
-				ImGuiWindowFlags_NoBringToFrontOnFocus);
-			ImGui::SetWindowPos(out.text_position);
-			ImGui::SetWindowSize(out.window_size);
-			ImGui::SetWindowCollapsed(false);
-			//add text...
-			if(clusteringType != app_utils::ClusteringType::NoClustering && out.clusters_indices.size())
-			{
-				Eigen::Vector3f _;
-				int highlightedFi = pick_face(_);
-				ImGui::TextColored(c, (std::string("Number of clusters:\t") + std::to_string(out.clusters_indices.size())).c_str());
-				for (int ci = 0; ci < out.clusters_indices.size(); ci++)
-				{
-					if (std::find(out.clusters_indices[ci].begin(), out.clusters_indices[ci].end(), highlightedFi) != out.clusters_indices[ci].end())
-					{
-						ImGui::TextColored(c, (std::string("clusters:\t") + std::to_string(ci)).c_str());
-					}
-				}
-			}
-			else 
-			{
-				ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" energy ") + std::to_string(out.totalObjective->energy_value)).c_str());
-				ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" gradient ") + std::to_string(out.totalObjective->gradient_norm)).c_str());
-				for (auto& obj : out.totalObjective->objectiveList) {
-					ImGui::TextColored(c, (std::string(obj->name) + std::string(" energy ") + std::to_string(obj->energy_value)).c_str());
-					ImGui::TextColored(c, (std::string(obj->name) + std::string(" gradient ") + std::to_string(obj->gradient_norm)).c_str());
-				}
-				if (IsChoosingCluster) {
-					double r = out.getRadiusOfSphere(curr_highlighted_face);
-					ImGui::TextColored(c, std::to_string(r).c_str());
-				}
-			}
-			ImGui::End();
-			ImGui::PopStyleColor();
-		}
-	}
 }
 
 void deformation_plugin::UpdateCentersHandles() 

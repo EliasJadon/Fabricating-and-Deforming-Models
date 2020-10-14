@@ -55,7 +55,8 @@ void Minimizer::init(
 	const Eigen::VectorXd& Radius0,
 	const Eigen::MatrixXi& F, 
 	const Eigen::MatrixXd& V
-) {
+) 
+{
 	this->F = F;
 	this->V = V;
 	this->constantStep_LineSearch = 0.01;
@@ -82,7 +83,8 @@ int Minimizer::run()
 	halt = false;
 	numIteration = 0;
 	int lambda_counter = 0;
-	do {
+	do 
+	{
 		run_one_iteration(numIteration, &lambda_counter, false);
 		numIteration++;
 	} while (!halt);
