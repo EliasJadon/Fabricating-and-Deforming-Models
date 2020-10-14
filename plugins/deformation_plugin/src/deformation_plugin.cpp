@@ -387,7 +387,6 @@ void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data)
 
 void deformation_plugin::Draw_menu_for_minimizer_settings()
 {
-	// 	ImGui::SetNextWindowSize(ImVec2(1000, 0), ImGuiCond_FirstUseEver);
 	ImGui::SetNextWindowPos(ImVec2(200, 550), ImGuiCond_FirstUseEver);
 	ImGui::Begin("minimizer settings", NULL, ImGuiWindowFlags_AlwaysAutoResize);
 	//add outputs buttons
@@ -572,20 +571,21 @@ void deformation_plugin::Draw_menu_for_minimizer_settings()
 
 void deformation_plugin::Draw_menu_for_output_settings()
 {
-	for (auto& out : Outputs) {
-		if (Outputs_Settings) {
-			ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
-			ImGui::Begin(("Output settings " + std::to_string(out.CoreID)).c_str(),
-				NULL,
-				ImGuiWindowFlags_NoTitleBar |
-				ImGuiWindowFlags_NoResize |
-				ImGuiWindowFlags_NoMove
-			);
-			ImGui::SetWindowPos(out.text_position);
-			Draw_menu_for_cores(viewer->core(out.CoreID));
-			Draw_menu_for_models(viewer->data(out.ModelID));
-			ImGui::End();
-		}
+	if (!Outputs_Settings)
+		return;
+	for (auto& out : Outputs) 
+	{
+		ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
+		ImGui::Begin(("Output settings " + std::to_string(out.CoreID)).c_str(),
+			NULL,
+			ImGuiWindowFlags_NoTitleBar |
+			ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoMove
+		);
+		ImGui::SetWindowPos(out.text_position);
+		Draw_menu_for_cores(viewer->core(out.CoreID));
+		Draw_menu_for_models(viewer->data(out.ModelID));
+		ImGui::End();
 	}
 }
 
@@ -874,8 +874,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			return true;
 		}
 	}
-	else if (IsTranslate && 
-		mouse_mode == app_utils::MouseMode::FIX_VERTEX)
+	else if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_VERTEX)
 	{
 		if (!selected_vertices.empty())
 		{
@@ -900,14 +899,12 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			return true;
 		}
 	}
-	else if (IsTranslate && 
-		mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
+	else if (IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
 	{
 		brush_erase_or_insert();
 		return true;
 	}
-	else if (IsChoosingCluster && 
-		mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
+	else if (IsChoosingCluster && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
 	{
 		Eigen::Vector3f _;
 		curr_highlighted_face = pick_face(_);
