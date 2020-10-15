@@ -57,51 +57,56 @@ public:
 		if (index == 0)
 		{
 			put_color(255, 255, 0);//Yellow
-			name = "Group Yellow";
+			name = "Yellow";
 		}
 		else if (index == 1)
 		{
 			put_color(0, 0, 255); //Blue
-			name = "Group Blue";
+			name = "Blue";
 		}
 		else if (index == 2)
 		{
 			put_color(0, 255, 0); //Green
-			name = "Group Green";
+			name = "Green";
 		}
 		else if (index == 3)
 		{
 			put_color(255, 0, 0); //red
-			name = "Group Red";
+			name = "Red";
 		}
 		else if (index == 4)
 		{
 			put_color(128, 128, 128); //Gray
-			name = "Group Gray";
+			name = "Gray";
 		}
 		else if (index == 5)
 		{
 			put_color(128, 0, 128); //Purple
-			name = "Group Purple";
+			name = "Purple";
 		}
 		else if (index == 6)
 		{
 			put_color(255, 165, 0); //orange
-			name = "Group Orange";
+			name = "Orange";
 		}
 		else if (index == 7)
 		{
 			put_color(210, 105, 30); //chocolate
-			name = "Group Chocolate";
+			name = "Chocolate";
 		}
 		else if (index == 8)
 		{
 			put_color(0, 0, 0); //black
-			name = "Group Black";
+			name = "Black";
 		}
-		else {
+		else if (index == 9) 
+		{
 			put_color(255, 255, 255); //black
-			name = "Group white";
+			name = "white";
+		}
+		else
+		{
+			name = "Err!Overflow";
 		}
 	}
 };
@@ -127,12 +132,11 @@ namespace app_utils
 		LOCAL_NORMALS,
 		GLOBAL_NORMALS
 	};
-	enum MouseMode { 
-		NONE = 0,
-		CLEAR,
-		FIX_VERTEX,
+	enum UserInterfaceOptions { 
+		NONE,
+		FIX_VERTICES,
 		FIX_FACES,
-		FACE_CLUSTERING_0
+		GROUPING
 	};
 	enum MinimizerType {
 		NEWTON = 0,
@@ -211,14 +215,6 @@ namespace app_utils
 
 	static char* build_groups_names_list(const std::vector<FacesGroup> fgs) {
 		std::string cStr("");
-		cStr += "None";
-		cStr += '\0';
-		cStr += "Clear";
-		cStr += '\0';
-		cStr += "Fix Vertex";
-		cStr += '\0';
-		cStr += "Fix Face";
-		cStr += '\0';
 		for (FacesGroup fg : fgs) {
 			cStr += fg.name.c_str();
 			cStr += '\0';

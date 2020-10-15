@@ -30,7 +30,8 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	curr_highlighted_face = -1;
 	minimizer_type = app_utils::MinimizerType::NEWTON;
 	linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
-	mouse_mode = app_utils::MouseMode::FACE_CLUSTERING_0;
+	UserInterface_groupNum = 0;
+	UserInterface_option = app_utils::UserInterfaceOptions::NONE;
 	view = app_utils::View::HORIZONTAL;
 	Max_Distortion = 5;
 	down_mouse_x = down_mouse_y = -1;
@@ -116,22 +117,6 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0)))
 		viewer->open_dialog_save_mesh();
 
-	
-
-	if (ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "No Highlight\0Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0")) {
-		if(highlightFacesType == app_utils::HighlightFaces::GLOBAL_NORMALS ||
-			highlightFacesType == app_utils::HighlightFaces::LOCAL_NORMALS)
-			neighbor_distance = 0.03;
-		if(highlightFacesType == app_utils::HighlightFaces::GLOBAL_SPHERE ||
-			highlightFacesType == app_utils::HighlightFaces::LOCAL_SPHERE)
-			neighbor_distance = 0.3;
-	}
-	if (highlightFacesType == app_utils::HighlightFaces::GLOBAL_NORMALS ||
-		highlightFacesType == app_utils::HighlightFaces::LOCAL_NORMALS ||
-		highlightFacesType == app_utils::HighlightFaces::GLOBAL_SPHERE ||
-		highlightFacesType == app_utils::HighlightFaces::LOCAL_SPHERE)
-		ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
-	
 	Draw_menu_for_views();
 	Draw_menu_for_clustering();
 	Draw_menu_for_user_interface();
@@ -140,8 +125,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	Draw_menu_for_models(viewer->data(inputModelID));
 	Draw_menu_for_output_settings();
 	Draw_menu_for_text_results();
-	if (energy_timing_settings)
-		Draw_menu_for_minimizer_settings();
+	Draw_menu_for_energy_settings();
 }
 
 void deformation_plugin::Draw_menu_for_colors()
@@ -199,14 +183,24 @@ void deformation_plugin::Draw_menu_for_user_interface()
 	if (ImGui::CollapsingHeader("User Interface"))
 	{
 		ImGui::Button("Help");
-		ImGui::Combo("Mouse Mode", (int *)(&mouse_mode), app_utils::build_groups_names_list(facesGroups));
-		if (mouse_mode == app_utils::MouseMode::CLEAR)
-		{
-			clear_sellected_faces_and_vertices();
-			mouse_mode = app_utils::MouseMode::CLEAR;
+		if (ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "No Highlight\0Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0")) {
+			if (highlightFacesType == app_utils::HighlightFaces::GLOBAL_NORMALS ||
+				highlightFacesType == app_utils::HighlightFaces::LOCAL_NORMALS)
+				neighbor_distance = 0.03;
+			if (highlightFacesType == app_utils::HighlightFaces::GLOBAL_SPHERE ||
+				highlightFacesType == app_utils::HighlightFaces::LOCAL_SPHERE)
+				neighbor_distance = 0.3;
 		}
-		if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0)
-			ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
+		if (highlightFacesType == app_utils::HighlightFaces::GLOBAL_NORMALS ||
+			highlightFacesType == app_utils::HighlightFaces::LOCAL_NORMALS ||
+			highlightFacesType == app_utils::HighlightFaces::GLOBAL_SPHERE ||
+			highlightFacesType == app_utils::HighlightFaces::LOCAL_SPHERE)
+			ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
+
+		ImGui::Combo("Group Color", (int *)(&UserInterface_groupNum), app_utils::build_groups_names_list(facesGroups));
+		if (ImGui::Button("Clear sellected faces & vertices"))
+			clear_sellected_faces_and_vertices();
+		ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
 		if (ImGui::Button("Add Group"))
 			facesGroups.push_back(FacesGroup(facesGroups.size()));
 	}
@@ -414,8 +408,10 @@ void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data)
 	ImGui::PopID();
 }
 
-void deformation_plugin::Draw_menu_for_minimizer_settings()
+void deformation_plugin::Draw_menu_for_energy_settings()
 {
+	if (!energy_timing_settings)
+		return;
 	ImGui::SetNextWindowPos(ImVec2(200, 550), ImGuiCond_FirstUseEver);
 	ImGui::Begin("Energies & Timing", NULL, ImGuiWindowFlags_AlwaysAutoResize);
 	int id = 0;
@@ -877,10 +873,9 @@ void deformation_plugin::brush_erase_or_insert()
 		std::vector<int> brush_faces = Outputs[0].FaceNeigh(intersec_point.cast<double>(), brush_radius);
 		if (EraseOrInsert == false) 
 		{ //insert
-			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
 			for (int fi : brush_faces)
-				if (!(find(facesGroups[clusterIndex].faces.begin(), facesGroups[clusterIndex].faces.end(), fi) != facesGroups[clusterIndex].faces.end()))
-					facesGroups[clusterIndex].faces.insert(fi);
+				if (!(find(facesGroups[UserInterface_groupNum].faces.begin(), facesGroups[UserInterface_groupNum].faces.end(), fi) != facesGroups[UserInterface_groupNum].faces.end()))
+					facesGroups[UserInterface_groupNum].faces.insert(fi);
 		}
 		else
 		{ //erase
@@ -894,6 +889,8 @@ void deformation_plugin::brush_erase_or_insert()
 
 IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 {
+	std::cout << UserInterface_option << "\n";
+
 	if (!isModelLoaded || IsMouseDraggingAnyWindow)
 		return true;	
 	if (clusteringType != app_utils::ClusteringType::NoClustering && cluster_index != -1)
@@ -922,7 +919,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		}
 		return true;
 	}
-	else if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_FACES)
+	else if (IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES)
 	{
 		if (!selected_fixed_faces.empty())
 		{
@@ -938,7 +935,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			return true;
 		}
 	}
-	else if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_VERTEX)
+	else if (IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES)
 	{
 		if (!selected_vertices.empty())
 		{
@@ -963,12 +960,12 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			return true;
 		}
 	}
-	else if (IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
+	else if (IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::GROUPING)
 	{
 		brush_erase_or_insert();
 		return true;
 	}
-	else if (IsChoosingCluster && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
+	else if (IsChoosingCluster && UserInterface_option == app_utils::UserInterfaceOptions::GROUPING)
 	{
 		Eigen::Vector3f _;
 		curr_highlighted_face = pick_face(_);
@@ -982,13 +979,13 @@ IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y)
 {
 	if (!isModelLoaded || IsMouseDraggingAnyWindow || ImGui::IsAnyWindowHovered())
 		return true;
-	if (IsTranslate && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
+	if (IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::GROUPING)
 	{
 		brush_radius += delta_y * 0.05;
 		brush_radius = std::max<float>(0.05, brush_radius);
 		return true;
 	}
-	else if (IsChoosingCluster && mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0) 
+	else if (IsChoosingCluster && UserInterface_option == app_utils::UserInterfaceOptions::GROUPING)
 	{
 		neighbor_distance += delta_y * 0.05;
 		neighbor_distance = std::max<float>(0.05, neighbor_distance);
@@ -1011,19 +1008,18 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		int f = pick_face(_);
 		if (f != -1) 
 		{
-			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
-			if (find(facesGroups[clusterIndex].faces.begin(), facesGroups[clusterIndex].faces.end(), f) != facesGroups[clusterIndex].faces.end()) 
+			if (find(facesGroups[UserInterface_groupNum].faces.begin(), facesGroups[UserInterface_groupNum].faces.end(), f) != facesGroups[UserInterface_groupNum].faces.end())
 			{
 				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
 				for (int currF : neigh)
-					facesGroups[clusterIndex].faces.erase(currF);
+					facesGroups[UserInterface_groupNum].faces.erase(currF);
 			}
 			else 
 			{
 				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
 				for (int currF : neigh)
-					if (find(facesGroups[clusterIndex].faces.begin(), facesGroups[clusterIndex].faces.end(), currF) == facesGroups[clusterIndex].faces.end())
-						facesGroups[clusterIndex].faces.insert(currF);
+					if (find(facesGroups[UserInterface_groupNum].faces.begin(), facesGroups[UserInterface_groupNum].faces.end(), currF) == facesGroups[UserInterface_groupNum].faces.end())
+						facesGroups[UserInterface_groupNum].faces.insert(currF);
 			}
 			UpdateClustersHandles();
 		}
@@ -1039,7 +1035,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 	down_mouse_y = viewer->current_mouse_y;
 	
 	//check if there faces which is selected on the left screen
-	if (clusteringType != app_utils::ClusteringType::NoClustering && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
+	if (clusteringType != app_utils::ClusteringType::NoClustering && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
 		Eigen::Vector3f _;
 		int highlightedFi = pick_face(_, false, true);
@@ -1049,7 +1045,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 				if (std::find(out.clusters_indices[ci].begin(), out.clusters_indices[ci].end(), highlightedFi) != out.clusters_indices[ci].end())
 					cluster_index = ci;
 	}
-	else if (mouse_mode == app_utils::MouseMode::FIX_FACES && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
+	else if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
 		Eigen::Vector3f _;
 		int f = pick_face(_);
@@ -1062,14 +1058,13 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			UpdateCentersHandles();
 		}
 	}
-	else if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0 && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
+	else if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
 		int f = pick_face(intersec_point);
 		brush_index = f;
 		if (f != -1) 
 		{
-			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
-			if (find(facesGroups[clusterIndex].faces.begin(), facesGroups[clusterIndex].faces.end(), f) != facesGroups[clusterIndex].faces.end())
+			if (find(facesGroups[UserInterface_groupNum].faces.begin(), facesGroups[UserInterface_groupNum].faces.end(), f) != facesGroups[UserInterface_groupNum].faces.end())
 				EraseOrInsert = true; //erase
 			else 
 				EraseOrInsert = false; // insert
@@ -1078,13 +1073,13 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			//brush_erase_or_insert();
 		}
 	}
-	else if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0 && button == GLFW_MOUSE_BUTTON_MIDDLE && modifier == 2)
+	else if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
 		IsChoosingCluster = true;
 		Eigen::Vector3f _;
 		curr_highlighted_face = pick_face(_);
 	}
-	else if (mouse_mode == app_utils::MouseMode::FIX_VERTEX && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
+	else if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
 		//check if there faces which is selected on the left screen
 		int v = pick_vertex();
@@ -1097,7 +1092,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			UpdateVerticesHandles();
 		}
 	}
-	else if (mouse_mode == app_utils::MouseMode::FIX_FACES && button == GLFW_MOUSE_BUTTON_MIDDLE)
+	else if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
 		if (!selected_fixed_faces.empty())
 		{
@@ -1111,7 +1106,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			}
 		}
 	}
-	else if (mouse_mode == app_utils::MouseMode::FIX_VERTEX && button == GLFW_MOUSE_BUTTON_MIDDLE)
+	else if (UserInterface_groupNum == app_utils::UserInterfaceOptions::FIX_VERTICES && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
 		if (!selected_vertices.empty())
 		{
@@ -1129,16 +1124,6 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 
 IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers) 
 {
-	if ((key == '!') && modifiers == 1)
-		mouse_mode = (app_utils::MouseMode)4;
-	if ((key == '@') && modifiers == 1)
-		mouse_mode = (app_utils::MouseMode)5;
-	if ((key == '#') && modifiers == 1)
-		mouse_mode = (app_utils::MouseMode) 6;
-	if ((key == '$') && modifiers == 1)
-		mouse_mode = (app_utils::MouseMode)7;
-	if ((key == '%') && modifiers == 1)
-		mouse_mode = (app_utils::MouseMode)8;
 	if ((key == 'c' || key == 'C') && modifiers == 1)
 		clear_sellected_faces_and_vertices();
 	if ((key == 'a' || key == 'A') && modifiers == 1) 
@@ -1217,6 +1202,23 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	return ImGuiMenu::key_pressed(key, modifiers);
 }
 
+IGL_INLINE bool deformation_plugin::key_down(int key, int modifiers)
+{
+	if (key == 'g' || key == 'G')
+		UserInterface_option = app_utils::UserInterfaceOptions::FIX_VERTICES;
+	if (key == 'h' || key == 'H')
+		UserInterface_option = app_utils::UserInterfaceOptions::GROUPING;
+	if (key == 'j' || key == 'J')
+		UserInterface_option = app_utils::UserInterfaceOptions::FIX_FACES;
+	return ImGuiMenu::key_down(key, modifiers);
+}
+
+IGL_INLINE bool deformation_plugin::key_up(int key, int modifiers)
+{
+	UserInterface_option = app_utils::UserInterfaceOptions::NONE;
+	return ImGuiMenu::key_up(key, modifiers);
+}
+
 IGL_INLINE void deformation_plugin::shutdown()
 {
 	stop_minimizer_thread();
@@ -1227,7 +1229,7 @@ void deformation_plugin::draw_brush_sphere()
 {
 	if (!(brush_index != -1 && 
 		IsTranslate && 
-		mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0))
+		UserInterface_option == app_utils::UserInterfaceOptions::GROUPING))
 		return;
 	//prepare brush sphere
 	Eigen::MatrixXd sphere(36 * 36, 3);
@@ -1246,8 +1248,7 @@ void deformation_plugin::draw_brush_sphere()
 	//prepare color
 	Eigen::MatrixXd c(1, 3);
 	if (EraseOrInsert == false) { //insert
-		int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
-		c.row(0) = facesGroups[clusterIndex].color.cast<double>();
+		c.row(0) = facesGroups[UserInterface_groupNum].color.cast<double>();
 	}
 	else if (EraseOrInsert == true) { //erase
 		c.row(0) << 1, 1, 1; // white color for erasing
@@ -1429,7 +1430,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 			Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
 		}
 		//Mark the Dragged face
-		if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_FACES))
+		if (IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES))
 			Outputs[i].updateFaceColors(Translate_Index, Dragged_face_color);
 		//Mark the vertices
 		int idx = 0;
@@ -1437,7 +1438,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		Outputs[i].Vertices_output.resize(selected_vertices.size(), 3);
 		color_per_vertex.resize(selected_vertices.size(), 3);
 		//Mark the dragged vertex
-		if (IsTranslate && (mouse_mode == app_utils::MouseMode::FIX_VERTEX)) 
+		if (IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES))
 		{
 			Vertices_Input.resize(selected_vertices.size() + 1, 3);
 			Outputs[i].Vertices_output.resize(selected_vertices.size() + 1, 3);
@@ -1670,9 +1671,9 @@ void deformation_plugin::update_data_from_minimizer()
 	for (int i = 0; i < Outputs.size(); i++)
 	{
 		Outputs[i].activeMinimizer->get_data(V[i], center[i],radius[i],norm[i]);
-		if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_VERTEX)
+		if (IsTranslate && UserInterface_groupNum == app_utils::UserInterfaceOptions::FIX_VERTICES)
 			V[i].row(Translate_Index) = OutputModel(i).V.row(Translate_Index);
-		else if (IsTranslate && mouse_mode == app_utils::MouseMode::FIX_FACES)
+		else if (IsTranslate && UserInterface_groupNum == app_utils::UserInterfaceOptions::FIX_FACES)
 			if (Outputs[i].getCenterOfSphere().size() != 0)
 				center[i].row(Translate_Index) = Outputs[i].getCenterOfSphere().row(Translate_Index);
 		Outputs[i].setAuxVariables(V[i], InputModel().F, center[i],radius[i],norm[i]);

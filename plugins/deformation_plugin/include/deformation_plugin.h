@@ -54,7 +54,8 @@ private:
 	std::string modelName, modelPath;
 	int inputCoreID, inputModelID;
 	app_utils::View view;
-	app_utils::MouseMode mouse_mode;
+	app_utils::UserInterfaceOptions UserInterface_option;
+	int UserInterface_groupNum;
 	int clustering_outputIndex;
 	bool IsTranslate,EraseOrInsert, IsChoosingCluster;
 	int Translate_Index, Model_Translate_ID, Core_Translate_ID, down_mouse_x, down_mouse_y;
@@ -79,6 +80,8 @@ public:
 	IGL_INLINE virtual bool pre_draw() override;
 	IGL_INLINE virtual void shutdown() override;
 	IGL_INLINE virtual bool key_pressed(unsigned int key, int modifiers) override;
+	IGL_INLINE virtual bool key_down(int key, int modifiers) override;
+	IGL_INLINE virtual bool key_up(int key, int modifiers) override;
 			
 	//Draw menu methods
 	void Draw_menu_for_cores(igl::opengl::ViewerCore& core, igl::opengl::ViewerData& data);
@@ -87,7 +90,7 @@ public:
 	void Draw_menu_for_views();
 	void Draw_menu_for_clustering();
 	void Draw_menu_for_user_interface();
-	void Draw_menu_for_minimizer_settings();
+	void Draw_menu_for_energy_settings();
 	void Draw_menu_for_output_settings();
 	void Draw_menu_for_colors();
 	void Draw_menu_for_text_results();
