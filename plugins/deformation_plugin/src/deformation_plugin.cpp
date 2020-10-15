@@ -23,7 +23,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	IsChoosingCluster = false;
 	isModelLoaded = false;
 	isUpdateAll = true;
-	minimizer_settings = true;
+	energy_timing_settings = true;
 	show_text = true;
 	clusteringType = app_utils::ClusteringType::NoClustering;
 	clusteringMSE = 0.1;
@@ -123,27 +123,6 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	if (ImGui::Checkbox("Show text", &show_text) && show_text)
 		Outputs_Settings = false;
 
-	if (ImGui::Combo("Clustering", 
-		(int *)(&clusteringType), "No Clustering\0Clust Normals\0Clust Spheres\0\0") ||
-		ImGui::DragFloat("clustering MSE", &clusteringMSE, 0.001f, 0.001f, 100.0f) ||
-		ImGui::DragFloat("ratio clustering", &clusteringRatio, 0.001f, 0.0f, 1.0f)) 
-	{
-		if (clusteringType == app_utils::ClusteringType::NormalClustering) 
-		{
-			for (auto& out : Outputs)
-				out.clustering(clusteringRatio,clusteringMSE, true);
-		}
-		else if (clusteringType == app_utils::ClusteringType::SphereClustering) 
-		{
-			for (auto& out : Outputs)
-				out.clustering(clusteringRatio,clusteringMSE, false);
-		}
-		else 
-		{
-			for (auto& out : Outputs)
-				out.clusters_indices.clear();
-		}
-	}
 	if (ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "No Highlight\0Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0")) {
 		if(highlightFacesType == app_utils::HighlightFaces::GLOBAL_NORMALS ||
 			highlightFacesType == app_utils::HighlightFaces::LOCAL_NORMALS)
@@ -157,6 +136,8 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		highlightFacesType == app_utils::HighlightFaces::GLOBAL_SPHERE ||
 		highlightFacesType == app_utils::HighlightFaces::LOCAL_SPHERE)
 		ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
+	
+	Draw_menu_for_clustering();
 
 	if (ImGui::Combo("View cores", (int *)(&view), app_utils::build_view_names_list(Outputs.size()))) 
 	{
@@ -190,7 +171,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	Draw_menu_for_models(viewer->data(inputModelID));
 	Draw_menu_for_output_settings();
 	Draw_menu_for_text_results();
-	if (minimizer_settings)
+	if (energy_timing_settings)
 		Draw_menu_for_minimizer_settings();
 }
 
@@ -217,15 +198,48 @@ void deformation_plugin::Draw_menu_for_colors()
 	}
 }
 
+void deformation_plugin::Draw_menu_for_clustering()
+{
+	if (ImGui::CollapsingHeader("Clustering"))
+	{
+		bool AnyChange = false;
+		if (ImGui::Combo("Type", (int *)(&clusteringType), "No Clustering\0Clust Normals\0Clust Spheres\0\0"))
+			AnyChange = true;
+		if (ImGui::DragFloat("Tolerance", &clusteringMSE, 0.001f, 0.001f, 100.0f))
+			AnyChange = true;
+		if (clusteringType == app_utils::ClusteringType::SphereClustering && 
+			ImGui::DragFloat("Ratio [cent/rad]", &clusteringRatio, 0.001f, 0.0f, 1.0f))
+			AnyChange = true;
+		if(AnyChange)
+		{
+			if (clusteringType == app_utils::ClusteringType::NormalClustering)
+			{
+				for (auto& out : Outputs)
+					out.clustering(clusteringRatio, clusteringMSE, true);
+			}
+			else if (clusteringType == app_utils::ClusteringType::SphereClustering)
+			{
+				for (auto& out : Outputs)
+					out.clustering(clusteringRatio, clusteringMSE, false);
+			}
+			else
+			{
+				for (auto& out : Outputs)
+					out.clusters_indices.clear();
+			}
+		}
+	}
+}
+
 void deformation_plugin::Draw_menu_for_Minimizer()
 {
 	if (ImGui::CollapsingHeader("Minimizer", ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		if (ImGui::Button("Run one iter"))
 			run_one_minimizer_iter();
-		if (ImGui::Checkbox(isMinimizerRunning ? "On" : "Off", &isMinimizerRunning))
+		if (ImGui::Checkbox("Run Minimizer", &isMinimizerRunning))
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
-		ImGui::Checkbox("Minimizer settings", &minimizer_settings);
+		ImGui::Checkbox("Energy&Timing settings", &energy_timing_settings);
 		ImGui::Text("Show:");
 		ImGui::Checkbox("Norm", &showFacesNorm);
 		ImGui::SameLine();
@@ -396,83 +410,101 @@ void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data)
 void deformation_plugin::Draw_menu_for_minimizer_settings()
 {
 	ImGui::SetNextWindowPos(ImVec2(200, 550), ImGuiCond_FirstUseEver);
-	ImGui::Begin("minimizer settings", NULL, ImGuiWindowFlags_AlwaysAutoResize);
-	//add outputs buttons
+	ImGui::Begin("Energies & Timing", NULL, ImGuiWindowFlags_AlwaysAutoResize);
+	int id = 0;
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
 	if (ImGui::Button("Add Output"))
 		add_output();
 	ImGui::PopStyleColor();
-	int id = 0;
 
 	//add automatic lambda change
-	for (auto&out : Outputs) {
-		ImGui::PushID(id++);
-		const int  i64_zero = 0, i64_max = 100000.0;
-		ImGui::Text(("ID " + std::to_string(out.CoreID)).c_str());
-		ImGui::SameLine();
-		if (ImGui::Checkbox(out.activeMinimizer->isAutoLambdaRunning ? "On" : "Off", &out.activeMinimizer->isAutoLambdaRunning))
-		{
-			out.newtonMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
-			out.adamMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
-			out.gradientDescentMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
+	if (ImGui::BeginTable("Lambda table", 8, ImGuiTableFlags_Resizable))
+	{
+		ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed);
+		ImGui::TableSetupColumn("On/Off", ImGuiTableColumnFlags_WidthFixed);
+		ImGui::TableSetupColumn("Start from iter", ImGuiTableColumnFlags_WidthFixed);
+		ImGui::TableSetupColumn("Stop at", ImGuiTableColumnFlags_WidthFixed);
+		ImGui::TableSetupColumn("number of iter per lambda reduction", ImGuiTableColumnFlags_WidthFixed);
+		ImGui::TableSetupColumn("Curr iter", ImGuiTableColumnFlags_WidthFixed);
+		ImGui::TableSetupColumn("Time per iter [ms]", ImGuiTableColumnFlags_WidthFixed);
+		ImGui::TableSetupColumn("Avg time [ms]", ImGuiTableColumnFlags_WidthFixed);
+		ImGui::TableAutoHeaders();
+		ImGui::Separator();
+		ImGui::TableNextRow();
+		ImGui::PushItemWidth(80);
+		for (auto&out : Outputs) {
+			ImGui::PushID(id++);
+			const int  i64_zero = 0, i64_max = 100000.0;
+			ImGui::Text((std::to_string(out.CoreID)).c_str());
+			ImGui::TableNextCell();
+			if (ImGui::Checkbox("##On/Off", &out.activeMinimizer->isAutoLambdaRunning))
+			{
+				out.newtonMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
+				out.adamMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
+				out.gradientDescentMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
+			}
+			ImGui::TableNextCell();
+			if (ImGui::DragInt("##From", &(out.activeMinimizer->autoLambda_from), 1, i64_zero, i64_max))
+			{
+				out.newtonMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
+				out.adamMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
+				out.gradientDescentMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
+			}
+			ImGui::TableNextCell();
+			if (ImGui::DragInt("##count", &(out.activeMinimizer->autoLambda_count), 1, i64_zero, i64_max, "2^%d"))
+			{
+				out.newtonMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
+				out.adamMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
+				out.gradientDescentMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
+			}
+			ImGui::TableNextCell();
+			if (ImGui::DragInt("##jump", &(out.activeMinimizer->autoLambda_jump), 1, i64_zero, i64_max))
+			{
+				out.newtonMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
+				out.adamMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
+				out.gradientDescentMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
+			}
+			ImGui::TableNextCell();
+			ImGui::Text(std::to_string(out.activeMinimizer->getNumiter()).c_str());
+			ImGui::TableNextCell();
+			ImGui::Text(std::to_string((int)out.activeMinimizer->timer_curr).c_str());
+			ImGui::TableNextCell();
+			ImGui::Text(std::to_string((int)out.activeMinimizer->timer_avg).c_str());
+			ImGui::PopID();
+			ImGui::TableNextRow();
 		}
-		ImGui::SameLine();
-		if (ImGui::DragInt("From Iter", &(out.activeMinimizer->autoLambda_from), 1, i64_zero, i64_max))
-		{
-			out.newtonMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
-			out.adamMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
-			out.gradientDescentMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
-		}
-		ImGui::SameLine();
-		if (ImGui::DragInt("count", &(out.activeMinimizer->autoLambda_count), 1, i64_zero, i64_max))
-		{
-			out.newtonMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
-			out.adamMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
-			out.gradientDescentMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
-		}
-		ImGui::SameLine();
-		if (ImGui::DragInt("jump", &(out.activeMinimizer->autoLambda_jump), 1, i64_zero, i64_max))
-		{
-			out.newtonMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
-			out.adamMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
-			out.gradientDescentMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
-		}
-		ImGui::SameLine();
-		ImGui::Text(("Iter " + std::to_string(out.activeMinimizer->getNumiter())).c_str());
-		ImGui::SameLine();
-		ImGui::Text(("currTime " + std::to_string((int)out.activeMinimizer->timer_curr) + "ms").c_str());
-		ImGui::SameLine();
-		ImGui::Text(("avgTime " + std::to_string((int)out.activeMinimizer->timer_avg) + "ms").c_str());
-		ImGui::PopID();
+		ImGui::PopItemWidth();
 	}
+	ImGui::EndTable();
 
+
+	
 	if (Outputs.size() != 0) {
-		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 3, ImGuiTableFlags_Resizable))
+		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 2, ImGuiTableFlags_Resizable))
 		{
-
-			ImGui::TableSetupColumn("Outputs", ImGuiTableColumnFlags_WidthFixed);
-			ImGui::TableSetupColumn("##col1", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed);
 			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
 				ImGui::TableSetupColumn(obj->name.c_str(), ImGuiTableColumnFlags_WidthFixed);
 			}
 			ImGui::TableSetupColumn("shift eigen values", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableAutoHeaders();
-
 			ImGui::Separator();
 
 			ImGui::TableNextRow();
-			for (int i = 0; i < Outputs.size(); i++) {
+			for (int i = 0; i < Outputs.size(); i++) 
+			{
 				ImGui::Text(("Output " + std::to_string(Outputs[i].CoreID)).c_str());
-
-				if (ImGui::Button("Remove"))
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+				ImGui::PushID(id++);
+				if (Outputs.size() > 1 && ImGui::Button("Remove")) {
+					std::cout << i << "\n";
 					remove_output(i);
-
+				}
+				ImGui::PopID();
+				ImGui::PopStyleColor();
 				ImGui::TableNextCell();
-				ImGui::Text("Weight");
-				ImGui::TableNextCell();
-
-
-				ImGui::PushItemWidth(100);
+				
+				ImGui::PushItemWidth(80);
 				for (auto& obj : Outputs[i].totalObjective->objectiveList) {
 					ImGui::PushID(id++);
 					ImGui::DragFloat("##w", &(obj->w), 0.05f, 0.0f, 100000.0f);
@@ -557,9 +589,9 @@ void deformation_plugin::Draw_menu_for_minimizer_settings()
 				ImGui::DragFloat("##ShiftEigenValues", &(Outputs[i].totalObjective->Shift_eigen_values), 0.05f, 0.0f, 100000.0f);
 				ImGui::TableNextCell();
 				ImGui::PopItemWidth();
-			}
-			ImGui::EndTable();
+			}	
 		}
+		ImGui::EndTable();
 
 		static bool show = false;
 		if (ImGui::Button("More info")) {
@@ -573,6 +605,9 @@ void deformation_plugin::Draw_menu_for_minimizer_settings()
 			ImGui::PopItemWidth();
 		}
 	}
+	
+	
+
 	//close the window
 	ImGui::End();
 }
@@ -590,8 +625,8 @@ void deformation_plugin::Draw_menu_for_output_settings()
 			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoMove
 		);
-		ImGui::Checkbox("Update all models together", &isUpdateAll);
 		ImGui::SetWindowPos(out.text_position);
+		ImGui::Checkbox("Update all models together", &isUpdateAll);
 		Draw_menu_for_cores(viewer->core(out.CoreID), viewer->data(out.ModelID));
 		Draw_menu_for_models(viewer->data(out.ModelID));
 		ImGui::End();
@@ -732,10 +767,7 @@ void deformation_plugin::remove_output(const int output_index)
 	viewer->erase_core(1 + output_index);
 	viewer->erase_mesh(1 + output_index);
 	Outputs.erase(Outputs.begin() + output_index);
-	//Update the scene
-	viewer->core(inputCoreID).align_camera_center(InputModel().V, InputModel().F);
-	for (int i = 0; i < Outputs.size(); i++)
-		viewer->core(Outputs[i].CoreID).align_camera_center(OutputModel(i).V, OutputModel(i).F);
+	
 	core_size = 1.0 / (Outputs.size() + 1.0);
 	int frameBufferWidth, frameBufferHeight;
 	glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);

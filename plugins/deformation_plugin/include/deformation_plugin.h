@@ -16,7 +16,7 @@ private:
 	float neighbor_distance, brush_radius;
 	int brush_index = -1;
 	bool isUpdateAll;
-	bool isMinimizerRunning, minimizer_settings, IsMouseDraggingAnyWindow;
+	bool isMinimizerRunning, energy_timing_settings, IsMouseDraggingAnyWindow;
 	int faceColoring_type;
 	app_utils::MinimizerType minimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
@@ -85,6 +85,7 @@ public:
 	void Draw_menu_for_cores(igl::opengl::ViewerCore& core, igl::opengl::ViewerData& data);
 	void Draw_menu_for_models(igl::opengl::ViewerData& data);
 	void Draw_menu_for_Minimizer();
+	void Draw_menu_for_clustering();
 	void Draw_menu_for_minimizer_settings();
 	void Draw_menu_for_output_settings();
 	void Draw_menu_for_colors();
