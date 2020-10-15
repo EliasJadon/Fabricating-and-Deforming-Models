@@ -41,7 +41,6 @@ private:
 	bool show_text;
 	float core_size, clusteringMSE, clusteringRatio;
 	app_utils::ClusteringType clusteringType;
-	float texture_scaling_output;
 	Eigen::Vector3f intersec_point;
 	bool Outputs_Settings;
 	app_utils::HighlightFaces highlightFacesType;
@@ -58,9 +57,6 @@ private:
 	app_utils::View view;
 	app_utils::MouseMode mouse_mode;
 	int clustering_outputIndex;
-
-	float texture_scaling_input;
-	
 	bool IsTranslate,EraseOrInsert, IsChoosingCluster;
 	int Translate_Index, Model_Translate_ID, Core_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
@@ -86,7 +82,7 @@ public:
 	IGL_INLINE virtual bool key_pressed(unsigned int key, int modifiers) override;
 			
 	//Draw menu methods
-	void Draw_menu_for_cores(igl::opengl::ViewerCore& core);
+	void Draw_menu_for_cores(igl::opengl::ViewerCore& core, igl::opengl::ViewerData& data);
 	void Draw_menu_for_models(igl::opengl::ViewerData& data);
 	void Draw_menu_for_Minimizer();
 	void Draw_menu_for_minimizer_settings();

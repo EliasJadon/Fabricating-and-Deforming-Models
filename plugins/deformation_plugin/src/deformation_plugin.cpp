@@ -35,7 +35,6 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	mouse_mode = app_utils::MouseMode::FACE_CLUSTERING_0;
 	view = app_utils::View::HORIZONTAL;
 	Max_Distortion = 5;
-	texture_scaling_input = texture_scaling_output = 1;
 	down_mouse_x = down_mouse_y = -1;
 	Vertex_Energy_color = RED_COLOR;
 	Highlighted_face_color = Eigen::Vector3f(153 / 255.0f, 0, 153 / 255.0f);
@@ -186,9 +185,8 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
 	if (ImGui::Button("Add Cluster"))
 		faceClusters.push_back(FaceClusters(faceClusters.size()));
-	ImGui::Checkbox("Update all cores together", &isUpdateAll);	
 	Draw_menu_for_Minimizer();
-	Draw_menu_for_cores(viewer->core(inputCoreID));
+	Draw_menu_for_cores(viewer->core(inputCoreID), viewer->data(inputModelID));
 	Draw_menu_for_models(viewer->data(inputModelID));
 	Draw_menu_for_output_settings();
 	Draw_menu_for_text_results();
@@ -273,24 +271,15 @@ void deformation_plugin::Draw_menu_for_Minimizer()
 	}
 }
 
-void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core)
+void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core, igl::opengl::ViewerData& data)
 {
 	if (!Outputs_Settings)
 		return;
 	ImGui::PushID(core.id);
-	std::stringstream ss;
-	std::string name = (core.id == inputCoreID) ? "Input Core" : "Output Core " + std::to_string(core.id);
-	ss << name;
-	if (!ImGui::CollapsingHeader(ss.str().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader(("Core " + std::to_string(core.id)).c_str()))
 	{
-		int data_id;
-		for (int i = 0; i < Outputs.size(); i++)
-			if (core.id == Outputs[i].CoreID)
-				data_id = Outputs[i].ModelID;
-		if (core.id == inputCoreID)
-			data_id = inputModelID;
 		if (ImGui::Button("Center object", ImVec2(-1, 0)))
-			core.align_camera_center(viewer->data_list[data_id].V, viewer->data_list[data_id].F);
+			core.align_camera_center(data.V, data.F);
 		if (ImGui::Button("Snap canonical view", ImVec2(-1, 0)))
 			viewer->snap_to_canonical_quaternion();
 		// Zoom & Lightining factor
@@ -301,7 +290,7 @@ void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core)
 		int rotation_type = static_cast<int>(core.rotation_type);
 		static Eigen::Quaternionf trackball_angle = Eigen::Quaternionf::Identity();
 		static bool orthographic = true;
-		if (ImGui::Combo("Camera Type", &rotation_type, "Trackball\0Two Axes\0002D Mode\0\0"))
+		if (ImGui::Combo("Camera Type", &rotation_type, "Trackball\0Two Axes\02D Mode\0\0"))
 		{
 			using RT = igl::opengl::ViewerCore::RotationType;
 			auto new_type = static_cast<RT>(rotation_type);
@@ -323,9 +312,13 @@ void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core)
 			}
 		}
 		// Orthographic view
-		ImGui::Checkbox("Orthographic view", &(core.orthographic));
+		if(ImGui::Checkbox("Orthographic view", &(core.orthographic)) && isUpdateAll)
+			for (auto& c : viewer->core_list)
+				c.orthographic = core.orthographic;
 		ImGui::PopItemWidth();
-		ImGui::ColorEdit4("Background", core.background_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		if (ImGui::ColorEdit4("Background", core.background_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && isUpdateAll)
+			for (auto& c : viewer->core_list)
+				c.background_color = core.background_color;
 	}
 	ImGui::PopID();
 }
@@ -334,7 +327,6 @@ void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data)
 {
 	if (!Outputs_Settings)
 		return;
-	// Helper for setting viewport specific mesh options
 	auto make_checkbox = [&](const char *label, unsigned int &option) {
 		bool temp = option;
 		bool res = ImGui::Checkbox(label, &temp);
@@ -342,45 +334,61 @@ void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data)
 		return res;
 	};
 	ImGui::PushID(data.id);
-	std::stringstream ss;
-	if (data.id == inputModelID)
-		ss << modelName;
-	else
-		ss << modelName + " " + std::to_string(data.id) + " (Param.)";
-
-	if (!ImGui::CollapsingHeader(ss.str().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader((modelName + " " + std::to_string(data.id)).c_str()))
 	{
-		float w = ImGui::GetContentRegionAvailWidth();
-		float p = ImGui::GetStyle().FramePadding.x;
-		if (data.id == inputModelID)
-			ImGui::SliderFloat("texture", &texture_scaling_input, 0.01, 100, std::to_string(texture_scaling_input).c_str(), 1);
-		else
-			ImGui::SliderFloat("texture", &texture_scaling_output, 0.01, 100, std::to_string(texture_scaling_output).c_str(), 1);
 		if (ImGui::Checkbox("Face-based", &(data.face_based)))
+		{
 			data.dirty = igl::opengl::MeshGL::DIRTY_ALL;
-		make_checkbox("Show texture", data.show_texture);
-		if (ImGui::Checkbox("Invert normals", &(data.invert_normals)))
-			data.dirty |= igl::opengl::MeshGL::DIRTY_NORMAL;
-		make_checkbox("Show overlay", data.show_overlay);
-		make_checkbox("Show overlay depth", data.show_overlay_depth);
-		ImGui::ColorEdit4("Line color", data.line_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+			if(isUpdateAll)
+			{
+				for (auto& d : viewer->data_list)
+				{
+					d.dirty = igl::opengl::MeshGL::DIRTY_ALL;
+					d.face_based = data.face_based;
+				}
+			}
+		}
+		if (make_checkbox("Show texture", data.show_texture) && isUpdateAll)
+			for (auto& d : viewer->data_list)
+				d.show_texture = data.show_texture;
+		if (ImGui::Checkbox("Invert normals", &(data.invert_normals))) {
+			if (isUpdateAll)
+			{
+				for (auto& d : viewer->data_list)
+				{
+					d.dirty |= igl::opengl::MeshGL::DIRTY_NORMAL;
+					d.invert_normals = data.invert_normals;
+				}
+			}
+			else
+				data.dirty |= igl::opengl::MeshGL::DIRTY_NORMAL;
+		}
+		if (make_checkbox("Show overlay", data.show_overlay) && isUpdateAll)
+			for (auto& d : viewer->data_list)
+				d.show_overlay = data.show_overlay;
+		if (make_checkbox("Show overlay depth", data.show_overlay_depth) && isUpdateAll)
+			for (auto& d : viewer->data_list)
+				d.show_overlay_depth = data.show_overlay_depth;
+		if (ImGui::ColorEdit4("Line color", data.line_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel) && isUpdateAll)
+			for (auto& d : viewer->data_list)
+				d.line_color = data.line_color;
 		ImGui::PushItemWidth(ImGui::GetWindowWidth() * 0.3f);
-		ImGui::DragFloat("Shininess", &(data.shininess), 0.05f, 0.0f, 100.0f);
+		if (ImGui::DragFloat("Shininess", &(data.shininess), 0.05f, 0.0f, 100.0f) && isUpdateAll)
+			for (auto& d : viewer->data_list)
+				d.shininess = data.shininess;
 		ImGui::PopItemWidth();
 		if (make_checkbox("Wireframe", data.show_lines) && isUpdateAll)
-		{
-			viewer->data(inputModelID).show_lines = data.show_lines;
-			for (auto&out : Outputs)
-				viewer->data(out.ModelID).show_lines = data.show_lines;
-		}
+			for (auto& d : viewer->data_list)
+				d.show_lines = data.show_lines;
 		if (make_checkbox("Fill", data.show_faces) && isUpdateAll)
-		{
-			viewer->data(inputModelID).show_faces = data.show_faces;
-			for (auto&out : Outputs)
-				viewer->data(out.ModelID).show_faces = data.show_faces;
-		}
-		ImGui::Checkbox("Show vertex labels", &(data.show_vertid));
-		ImGui::Checkbox("Show faces labels", &(data.show_faceid));
+			for(auto& d: viewer->data_list)
+				d.show_faces = data.show_faces;
+		if (ImGui::Checkbox("Show vertex labels", &(data.show_vertid)) && isUpdateAll)
+			for (auto& d : viewer->data_list)
+				d.show_vertid = data.show_vertid;
+		if (ImGui::Checkbox("Show faces labels", &(data.show_faceid)) && isUpdateAll)
+			for (auto& d : viewer->data_list)
+				d.show_faceid = data.show_faceid;
 	}
 	ImGui::PopID();
 }
@@ -582,8 +590,9 @@ void deformation_plugin::Draw_menu_for_output_settings()
 			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoMove
 		);
+		ImGui::Checkbox("Update all models together", &isUpdateAll);
 		ImGui::SetWindowPos(out.text_position);
-		Draw_menu_for_cores(viewer->core(out.CoreID));
+		Draw_menu_for_cores(viewer->core(out.CoreID), viewer->data(out.ModelID));
 		Draw_menu_for_models(viewer->data(out.ModelID));
 		ImGui::End();
 	}
@@ -658,6 +667,8 @@ void deformation_plugin::clear_sellected_faces_and_vertices()
 
 void deformation_plugin::update_parameters_for_all_cores() 
 {
+	if (!isUpdateAll)
+		return;
 	for (auto& core : viewer->core_list) 
 	{
 		int output_index = -1;
@@ -1199,8 +1210,7 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 {
 	follow_and_mark_selected_faces();
 	Update_view();
-	if (isUpdateAll)
-		update_parameters_for_all_cores();
+	update_parameters_for_all_cores();
 	for (auto& out : Outputs)
 		if (out.activeMinimizer->progressed)
 			update_data_from_minimizer();
