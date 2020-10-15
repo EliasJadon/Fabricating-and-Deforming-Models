@@ -5,47 +5,13 @@
 #include "objective_functions/BendingEdge.h"
 #include "objective_functions/BendingNormal.h"
 
-#define HIGH 3
-#define LOW -3
-#define JUMP 0.01f
-#define ARRAY_OUTPUT_SIZE (int)((HIGH - LOW) / JUMP) + 1
-
 Minimizer::Minimizer(const int solverID)
 	:
 	solverID(solverID),
 	parameters_mutex(std::make_unique<std::mutex>()),
 	data_mutex(std::make_unique<std::shared_timed_mutex>()),
 	param_cv(std::make_unique<std::condition_variable>())
-{
-	lineSearch_alfa.resize(ARRAY_OUTPUT_SIZE, 1);
-	lineSearch_value.resize(ARRAY_OUTPUT_SIZE, 1);
-	lineSearch_gradientNorm.resize(ARRAY_OUTPUT_SIZE, 1);
-#ifdef SAVE_DATA_IN_MATLAB
-	// Launch MATLAB
-	igl::matlab::mlinit(&engine);
-	igl::matlab::mleval(&engine, "desktop");
-#endif
-#ifdef SAVE_DATA_IN_CSV
-	//save data in csv files
-	std::string path = OptimizationUtils::
-		() + "CSV_Output\\" + "Solver" + std::to_string(solverID) + "\\";
-	mkdir((OptimizationUtils::RDSPath() + "CSV_Output\\").c_str());
-	mkdir(path.c_str());
-	SearchDirInfo.open(path + "SearchDirInfo.csv");
-	solverInfo.open(path + "solverInfo.csv");
-	hessianInfo.open(path + "hessianInfo.csv");
-#endif
-}
-
-Minimizer::~Minimizer() {
-#ifdef SAVE_DATA_IN_CSV
-	//close csv files
-	SearchDirInfo.close();
-	solverInfo.close();
-	hessianInfo.close();
-	std::cout << ">> csv " + std::to_string(solverID) + " files has been closed!" << std::endl;
-#endif
-}
+{ }
 
 void Minimizer::init(
 	std::shared_ptr<ObjectiveFunction> objective, 
@@ -93,14 +59,16 @@ int Minimizer::run()
 	return 0;
 }
 
-void Minimizer::update_lambda(int* lambda_counter) {
+void Minimizer::update_lambda(int* lambda_counter) 
+{
 	if (isAutoLambdaRunning &&
 		numIteration >= autoLambda_from &&
 		(*lambda_counter) < autoLambda_count &&
 		numIteration % autoLambda_jump == 0)
 	{
 		std::shared_ptr<TotalObjective> totalObjective = std::dynamic_pointer_cast<TotalObjective>(objective);
-		for (auto& obj : totalObjective->objectiveList) {
+		for (auto& obj : totalObjective->objectiveList) 
+		{
 			std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 			std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 			std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
@@ -118,250 +86,28 @@ void Minimizer::update_lambda(int* lambda_counter) {
 	}
 }
 
-void Minimizer::run_one_iteration(const int steps,int* lambda_counter, const bool showGraph) {
+void Minimizer::run_one_iteration(
+	const int steps,
+	int* lambda_counter, 
+	const bool showGraph) 
+{
 	OptimizationUtils::Timer t(&timer_sum, &timer_curr);
-	std::cout << "gfd" << endl;
 	numIteration = steps;
 	timer_avg = timer_sum / numIteration;
 	update_lambda(lambda_counter);
 	step();
-#if defined SAVE_DATA_IN_CSV || defined SAVE_DATA_IN_MATLAB
-	prepareData();
-#endif
+	linesearch();
+	update_external_data();
+}
+
+void Minimizer::linesearch()
+{
 	if (lineSearch_type == OptimizationUtils::LineSearch::GRADIENT_NORM)
 		gradNorm_linesearch();
 	else if (lineSearch_type == OptimizationUtils::LineSearch::FUNCTION_VALUE)
 		value_linesearch();
 	else if (lineSearch_type == OptimizationUtils::LineSearch::CONSTANT_STEP)
 		constant_linesearch();
-	update_external_data();
-
-#ifdef SAVE_DATA_IN_MATLAB
-	sendDataToMatlab(showGraph);
-#endif 
-#ifdef SAVE_DATA_IN_CSV
-	saveSolverInfo(steps, solverInfo);
-	saveHessianInfo(steps, hessianInfo);
-	saveSearchDirInfo(steps, SearchDirInfo);
-#endif 
-}
-
-void Minimizer::saveSolverInfo(int numIteration, std::ofstream& solverInfo) {
-	//show only once the objective's function data
-	std::shared_ptr<TotalObjective> totalObj = std::dynamic_pointer_cast<TotalObjective>(objective);
-	if (!numIteration) {
-		solverInfo << "Obj name,weight," << std::endl;
-		for (auto& obj : totalObj->objectiveList) 
-			solverInfo << obj->name << "," << obj->w << ","<< std::endl;
-		solverInfo << std::endl << std::endl << ",," << totalObj->name << ",,,";
-		for (auto& obj : totalObj->objectiveList) 
-			solverInfo << obj->name << ",,,";
-		solverInfo << std::endl << "Round,,value,grad,";
-		for (auto& obj : totalObj->objectiveList)
-			solverInfo << ",value,grad,";
-		solverInfo << std::endl;
-	}
-	solverInfo << numIteration << ",," << totalObj->energy_value << "," << totalObj->gradient_norm << ",,";
-	for (auto& obj : totalObj->objectiveList)
-		solverInfo << obj->energy_value << "," << obj->gradient_norm << ",,";
-	solverInfo << std::endl;
-}
-
-void Minimizer::prepareData() {
-	NewtonMinimizer* newtonMinimizer = dynamic_cast<NewtonMinimizer*>(this);
-	assert(newtonMinimizer != NULL && "could not calculate matrix with gradient descent mode");
-	CurrHessian = newtonMinimizer->get_Hessian();
-	
-	X_before = X;
-	//calculate values in the search direction vector
-	int counter;
-	double alpha = 0;
-	for (alpha = LOW, counter = 0; alpha <= HIGH; alpha += JUMP, counter++) {
-		Eigen::VectorXd curr_x = X + alpha * p;
-		Eigen::VectorXd grad;
-		objective->updateX(curr_x);
-		objective->gradient(grad, false);
-		lineSearch_alfa(counter, 0) = alpha;
-		lineSearch_value(counter, 0) = objective->value(false);
-		lineSearch_gradientNorm(counter, 0) = grad.norm();
-	}
-	objective->updateX(X);
-}
-
-#ifdef SAVE_DATA_IN_MATLAB
-void Minimizer::sendDataToMatlab(const bool show_graph) {
-	auto N = [&](std::string name) { return name + std::to_string(solverID); };
-	NewtonSolver* newtonSolver = dynamic_cast<NewtonSolver*>(this);
-
-	// Launch MATLAB
-	igl::matlab::mlinit(&engine);
-	igl::matlab::mleval(&engine, "desktop");
-	
-	// Send matrix to matlab
-	igl::matlab::mlsetmatrix(&engine, N("H"), CurrHessian);
-	igl::matlab::mleval(&engine, N("H") + N(" = full(H") + ")");
-	igl::matlab::mlsetmatrix(&engine, N("g"), Eigen::MatrixXd(g));
-	igl::matlab::mlsetmatrix(&engine, N("p"), Eigen::MatrixXd(p));
-	
-	igl::matlab::mlsetscalar(&engine, N("MSE"), newtonSolver->get_MSE());
-	igl::matlab::mleval(&engine, N("Matlab_MSE")+ N(" = sum((H")+ N(" * (H") + N("\\(-g") + N(")) + g") + ").^2)");
-	
-	
-	igl::matlab::mlsetmatrix(&engine, N("X_before"), Eigen::MatrixXd(X_before));
-	igl::matlab::mlsetmatrix(&engine, N("X_After"), Eigen::MatrixXd(X));
-	igl::matlab::mlsetmatrix(&engine, N("lineSearch_alfa"), Eigen::MatrixXd(lineSearch_alfa));
-	igl::matlab::mlsetmatrix(&engine, N("lineSearch_value"), Eigen::MatrixXd(lineSearch_value));
-	igl::matlab::mlsetmatrix(&engine, N("lineSearch_gradientNorm"), Eigen::MatrixXd(lineSearch_gradientNorm));
-	igl::matlab::mlsetscalar(&engine, N("chosen_alfa"), step_size);
-	igl::matlab::mlsetscalar(&engine, N("line_search_iter"), cur_iter);
-
-	if (show_graph) {
-		//open figure & set position
-		igl::matlab::mleval(&engine, N("f") + " = figure");
-		igl::matlab::mleval(&engine, N("f") + ".Position = get(groot, 'Screensize')");
-
-		std::string linesearch_Name = (lineSearch_type == OptimizationUtils::LineSearch::GradientNorm) ?
-			"Gradient Norm: " :
-			"Function value: ";
-
-		//plot first graph
-		igl::matlab::mleval(&engine, "subplot(2, 2, 1)");
-		igl::matlab::mleval(&engine, N("ln") + " = plot(" + N("lineSearch_alfa") + "," + N("lineSearch_value") + ")");
-		igl::matlab::mleval(&engine, N("ax") + " = gca");
-		igl::matlab::mleval(&engine, N("ax") + ".XAxisLocation = 'origin'");
-		igl::matlab::mleval(&engine, N("ax") + ".YAxisLocation = 'origin';");
-		igl::matlab::mleval(&engine, N("ln") + ".LineWidth = 2");
-		igl::matlab::mleval(&engine, N("ln") + ".Color = [0.0 0.0 1.0]");
-		igl::matlab::mleval(&engine, N("ln") + ".MarkerEdgeColor = 'b'");
-		igl::matlab::mleval(&engine, "xlabel('alfa')");
-		igl::matlab::mleval(&engine, "ylabel('function values')");
-		igl::matlab::mleval(&engine,
-			"title(['" +
-			linesearch_Name +
-			"\\alpha = ',num2str(" + N("chosen_alfa") + ") , '  ,  iteration = ',num2str(" + N("line_search_iter") + ")])");
-
-		//plot second graph
-		igl::matlab::mleval(&engine, "subplot(2, 2, 2)");
-		igl::matlab::mleval(&engine, N("ln") + " = plot(" + N("lineSearch_alfa") + "," + N("lineSearch_augmentedValue") + ")");
-		igl::matlab::mleval(&engine, N("ax") + " = gca");
-		igl::matlab::mleval(&engine, N("ax") + ".XAxisLocation = 'origin'");
-		igl::matlab::mleval(&engine, N("ax") + ".YAxisLocation = 'origin';");
-		igl::matlab::mleval(&engine, N("ln") + ".LineWidth = 2");
-		igl::matlab::mleval(&engine, N("ln") + ".Color = [0.0 1.0 0.0]");
-		igl::matlab::mleval(&engine, N("ln") + ".MarkerEdgeColor = 'g'");
-		igl::matlab::mleval(&engine, "xlabel('alfa')");
-		igl::matlab::mleval(&engine, "ylabel('augmented function values')");
-		igl::matlab::mleval(&engine,
-			"title(['" +
-			linesearch_Name +
-			"\\alpha = ',num2str(" + N("chosen_alfa") + ") , '  ,  iteration = ',num2str(" + N("line_search_iter") + ")])");
-
-
-		//plot third graph
-		igl::matlab::mleval(&engine, "subplot(2, 2, 3)");
-		igl::matlab::mleval(&engine, N("ln") + " = plot(" + N("lineSearch_alfa") + "," + N("lineSearch_gradientNorm") + ")");
-		igl::matlab::mleval(&engine, N("ax") + " = gca");
-		igl::matlab::mleval(&engine, N("ax") + ".XAxisLocation = 'origin'");
-		igl::matlab::mleval(&engine, N("ax") + ".YAxisLocation = 'origin';");
-		igl::matlab::mleval(&engine, N("ln") + ".LineWidth = 2");
-		igl::matlab::mleval(&engine, N("ln") + ".Color = [1.0 0.0 0.0]");
-		igl::matlab::mleval(&engine, N("ln") + ".MarkerEdgeColor = 'r'");
-		igl::matlab::mleval(&engine, "xlabel('alfa')");
-		igl::matlab::mleval(&engine, "ylabel('Gradient norm values')");
-		igl::matlab::mleval(&engine,
-			"title(['" +
-			linesearch_Name +
-			"\\alpha = ',num2str(" + N("chosen_alfa") + ") , '  ,  iteration = ',num2str(" + N("line_search_iter") + ")])");
-
-
-		//plot fourth graph
-		igl::matlab::mleval(&engine, "subplot(2, 2, 4)");
-		igl::matlab::mleval(&engine, N("ln") + " = plot(" + N("lineSearch_alfa") + "," + N("lineSearch_value") + ")");
-		igl::matlab::mleval(&engine, N("ax") + " = gca");
-		igl::matlab::mleval(&engine, N("ax") + ".XAxisLocation = 'origin'");
-		igl::matlab::mleval(&engine, N("ax") + ".YAxisLocation = 'origin';");
-		igl::matlab::mleval(&engine, N("ln") + ".LineWidth = 2");
-		igl::matlab::mleval(&engine, N("ln") + ".Color = [0.0 0.0 1.0]");
-		igl::matlab::mleval(&engine, N("ln") + ".MarkerEdgeColor = 'b'");
-		igl::matlab::mleval(&engine, "hold on");
-		igl::matlab::mleval(&engine, N("ln") + " = plot(" + N("lineSearch_alfa") + "," + N("lineSearch_augmentedValue") + ")");
-		igl::matlab::mleval(&engine, N("ln") + ".LineWidth = 2");
-		igl::matlab::mleval(&engine, N("ln") + ".Color = [0.0 1.0 0.0]");
-		igl::matlab::mleval(&engine, N("ln") + ".MarkerEdgeColor = 'g'");
-		igl::matlab::mleval(&engine, N("ln") + " = plot(" + N("lineSearch_alfa") + "," + N("lineSearch_gradientNorm") + ")");
-		igl::matlab::mleval(&engine, N("ln") + ".LineWidth = 2");
-		igl::matlab::mleval(&engine, N("ln") + ".Color = [1.0 0.0 0.0]");
-		igl::matlab::mleval(&engine, N("ln") + ".MarkerEdgeColor = 'r'");
-		igl::matlab::mleval(&engine, "hold off");
-		igl::matlab::mleval(&engine, "xlabel('alfa')");
-		igl::matlab::mleval(&engine, "ylabel('values')");
-		igl::matlab::mleval(&engine,
-			"title(['" +
-			linesearch_Name +
-			"\\alpha = ',num2str(" + N("chosen_alfa") + ") , '  ,  iteration = ',num2str(" + N("line_search_iter") + ")])");
-
-
-		//clear unused variables
-		igl::matlab::mleval(&engine, "clear " + N("f") + " " + N("ln") + " " + N("ax"));
-	}
-	
-	//clear unused variables
-	igl::matlab::mleval(&engine, "clear " + N("lineSearch_alfa") + " " + N("lineSearch_value"));
-	igl::matlab::mleval(&engine, "clear " + N("lineSearch_augmentedValue") + " " + N("lineSearch_gradientNorm"));
-	igl::matlab::mleval(&engine, "clear " + N("chosen_alfa")+" " + N("line_search_iter"));
-}
-#endif
-
-void Minimizer::saveHessianInfo(int numIteration, std::ofstream& hessianInfo) {
-	//show only once the objective's function data
-	if (!numIteration) {
-		std::shared_ptr<TotalObjective> t = std::dynamic_pointer_cast<TotalObjective>(objective);
-		hessianInfo << "Obj name,weight," << std::endl; 
-		for (auto& obj : t->objectiveList)
-			hessianInfo << obj->name << "," << obj->w << "," << std::endl; 
-		hessianInfo << std::endl;
-	}
-		
-	//output the hessian
-	hessianInfo << ("Round " + std::to_string(numIteration)).c_str() << std::endl;
-	for (int i = 0; i < CurrHessian.rows(); i++) {
-		for (int j = 0; j < CurrHessian.cols(); j++)
-			hessianInfo << CurrHessian.coeff(i, j) << ",";
-		hessianInfo << "," << g(i) << std::endl;
-	}
-	hessianInfo << std::endl;
-}
-
-void Minimizer::saveSearchDirInfo(int numIteration, std::ofstream& SearchDirInfo) {
-	//show only once the objective's function data
-	if (!numIteration) {
-		std::shared_ptr<TotalObjective> t = std::dynamic_pointer_cast<TotalObjective>(objective);
-		SearchDirInfo << "Obj name,weight,";
-		SearchDirInfo << std::endl;
-		for (auto& obj : t->objectiveList)
-			SearchDirInfo << obj->name << "," << obj->w << "," << std::endl;
-		SearchDirInfo << std::endl << "Round" << std::endl;
-	}
-		
-	//add the alfa values as one row
-	SearchDirInfo << numIteration << ",alfa,";
-	for (int i = 0; i < ARRAY_OUTPUT_SIZE; i++)
-		SearchDirInfo << lineSearch_alfa(i, 0) << ",";
-	SearchDirInfo << std::endl;
-
-	//add the total objective's values as one row
-	SearchDirInfo << ",value,";
-	for (int i = 0; i < ARRAY_OUTPUT_SIZE; i++)
-		SearchDirInfo << lineSearch_value(i, 0) << ",";
-	SearchDirInfo << std::endl;
-
-	//add the solver's choice of alfa
-	if (lineSearch_type == OptimizationUtils::LineSearch::GRADIENT_NORM)
-		SearchDirInfo << ",line search type,Gradient norm," << std::endl;
-	else
-		SearchDirInfo << ",line search type,Function value," << std::endl;
-	SearchDirInfo << ",Chosen alfa," << step_size << "," << std::endl;
-	SearchDirInfo << ",LineSearch iter," << cur_iter << "," << std::endl;
 }
 
 void Minimizer::value_linesearch()
@@ -369,13 +115,15 @@ void Minimizer::value_linesearch()
 	step_size = 1;
 	double new_energy = currentEnergy;
 	cur_iter = 0; int MAX_STEP_SIZE_ITER = 50;
-	while (cur_iter++ < MAX_STEP_SIZE_ITER) {
+	while (cur_iter++ < MAX_STEP_SIZE_ITER) 
+	{
 		Eigen::VectorXd curr_x = X + step_size * p;
 		objective->updateX(curr_x);
 		new_energy = objective->value(false);
 		if (new_energy >= currentEnergy)
 			step_size /= 2;
-		else {
+		else 
+		{
 			X = curr_x;
 			break;
 		}
@@ -393,24 +141,21 @@ void Minimizer::gradNorm_linesearch()
 {
 	step_size = 1;
 	Eigen::VectorXd grad;
-
 	objective->updateX(X);
 	objective->gradient(grad,false);
 	double current_GradNrom = grad.norm();
 	double new_GradNrom = current_GradNrom;
-
 	cur_iter = 0; int MAX_STEP_SIZE_ITER = 50;
-
-	while (cur_iter++ < MAX_STEP_SIZE_ITER) {
+	while (cur_iter++ < MAX_STEP_SIZE_ITER) 
+	{
 		Eigen::VectorXd curr_x = X + step_size * p;
-
 		objective->updateX(curr_x);
 		objective->gradient(grad,false);
 		new_GradNrom = grad.norm();
-		
 		if (new_GradNrom >= current_GradNrom)
 			step_size /= 2;
-		else {
+		else 
+		{
 			X = curr_x;
 			break;
 		}
@@ -435,7 +180,11 @@ void Minimizer::update_external_data()
 	progressed = true;
 }
 
-void Minimizer::get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center, Eigen::VectorXd& radius, Eigen::MatrixXd& norm)
+void Minimizer::get_data(
+	Eigen::MatrixXd& X, 
+	Eigen::MatrixXd& center, 
+	Eigen::VectorXd& radius, 
+	Eigen::MatrixXd& norm)
 {
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
 	X = Eigen::Map<Eigen::MatrixXd>(ext_x.data(), ext_x.rows() / 3, 3);

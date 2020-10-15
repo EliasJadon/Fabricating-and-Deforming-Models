@@ -5,22 +5,13 @@
 #include <shared_mutex>
 #include <igl/flip_avoiding_line_search.h>
 #include <Eigen/SparseCholesky>
-#include <igl/matlab_format.h>
 #include <fstream>
 
-//#define SAVE_DATA_IN_CSV
-//#define SAVE_DATA_IN_MATLAB
-
-#ifdef SAVE_DATA_IN_MATLAB
-	#include <igl/matlab/MatlabWorkspace.h>
-	#include <igl/matlab/matlabinterface.h>
-#endif
 
 class Minimizer
 {
 public:
 	Minimizer(const int solverID);
-	~Minimizer();
 	int run();
 	
 	void run_one_iteration(const int steps,int* lambda_counter , const bool showGraph);
@@ -55,7 +46,7 @@ public:
 	
 	double timer_curr=0, timer_sum = 0, timer_avg = 0;
 
-	OptimizationUtils::LineSearch lineSearch_type = OptimizationUtils::LineSearch::GRADIENT_NORM;
+	OptimizationUtils::LineSearch lineSearch_type;
 	double constantStep_LineSearch;
 	inline int getNumiter() {
 		return this->numIteration;
@@ -68,53 +59,30 @@ protected:
 	void give_parameter_update_slot();
 	// Updating the data after a step has been done
 	void update_external_data();
-
 	// Descent direction evaluated in step
 	Eigen::VectorXd p;
-	
 	// Current energy, gradient and hessian
 	Eigen::VectorXd g;
-
-	// Synchronization structures
-	std::atomic_bool params_ready_to_update = {false};
-	std::atomic_bool wait_for_param_update = {false};
-	std::atomic_bool halt = {false};
-	
-	std::unique_ptr<std::shared_timed_mutex> data_mutex;
 	double currentEnergy;
 	int numIteration = 0;
 private:
-#ifdef SAVE_DATA_IN_MATLAB
-	// Matlab instance
-	Engine *engine;
-#endif
 	int solverID;
-	// energy output from the last step
-	
 	virtual void step() = 0;
+
+	void linesearch();
 	void value_linesearch();
 	void gradNorm_linesearch();
 	void constant_linesearch();
 	virtual void internal_init() = 0;
-	void prepareData();
-	void saveSearchDirInfo(int numIteration, std::ofstream& SearchDirInfo);
-	void saveSolverInfo(int numIteration, std::ofstream& solverInfo);
-	void saveHessianInfo(int numIteration, std::ofstream& hessianInfo);
-#ifdef SAVE_DATA_IN_MATLAB
-	void sendDataToMatlab(const bool show_graph);
-#endif
-	//CSV output
-	Eigen::SparseMatrix<double> CurrHessian;
-	Eigen::MatrixXd 
-		lineSearch_alfa,
-		lineSearch_value, 
-		lineSearch_gradientNorm;
 	double step_size;
 	int cur_iter;
-	Eigen::VectorXd X_before;
-	std::ofstream SearchDirInfo, solverInfo, hessianInfo;
 
 	// Mutex stuff
+	std::unique_ptr<std::shared_timed_mutex> data_mutex;
 	std::unique_ptr<std::mutex> parameters_mutex;
 	std::unique_ptr<std::condition_variable> param_cv;
+	// Synchronization structures
+	std::atomic_bool params_ready_to_update = { false };
+	std::atomic_bool wait_for_param_update = { false };
+	std::atomic_bool halt = { false };
 };
