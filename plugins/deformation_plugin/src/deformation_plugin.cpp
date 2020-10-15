@@ -11,8 +11,6 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	if (!_viewer)
 		return;
 	brush_radius = 0.3;
-	showSphereEdges = showNormEdges = showTriangleCenters = showSphereCenters = false;
-	showFacesNorm = false;
 	typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
 	isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
@@ -24,7 +22,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	isModelLoaded = false;
 	isUpdateAll = true;
 	energy_timing_settings = true;
-	show_text = true;
+	show_energy_results = true;
 	clusteringType = app_utils::ClusteringType::NoClustering;
 	clusteringMSE = 0.1;
 	clusteringRatio = 0.5;
@@ -48,7 +46,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	model_color = GREY_COLOR;
 	text_color = BLACK_COLOR;
 	for (int i = 0; i < 5; i++)
-		faceClusters.push_back(FaceClusters(faceClusters.size()));
+		facesGroups.push_back(FacesGroup(facesGroups.size()));
 	//update input viewer
 	inputCoreID = viewer->core_list[0].id;
 	viewer->core(inputCoreID).background_color = Eigen::Vector4f(1, 1, 1, 0);
@@ -118,10 +116,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0)))
 		viewer->open_dialog_save_mesh();
 
-	if (ImGui::Checkbox("Outputs settings", &Outputs_Settings) && Outputs_Settings)
-		show_text = false;
-	if (ImGui::Checkbox("Show text", &show_text) && show_text)
-		Outputs_Settings = false;
+	
 
 	if (ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "No Highlight\0Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0")) {
 		if(highlightFacesType == app_utils::HighlightFaces::GLOBAL_NORMALS ||
@@ -137,35 +132,9 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		highlightFacesType == app_utils::HighlightFaces::LOCAL_SPHERE)
 		ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
 	
+	Draw_menu_for_views();
 	Draw_menu_for_clustering();
-
-	if (ImGui::Combo("View cores", (int *)(&view), app_utils::build_view_names_list(Outputs.size()))) 
-	{
-		// That's how you get the current width/height of the frame buffer (for example, after the window was resized)
-		int frameBufferWidth, frameBufferHeight;
-		glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
-		post_resize(frameBufferWidth, frameBufferHeight);
-	}
-	if (view == app_utils::View::HORIZONTAL || 
-		view == app_utils::View::VERTICAL) 
-	{
-		if (ImGui::SliderFloat("Core Size", &core_size, 0, 1.0 / Outputs.size(), std::to_string(core_size).c_str(), 1)) 
-		{
-			int frameBufferWidth, frameBufferHeight;
-			glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
-			post_resize(frameBufferWidth, frameBufferHeight);
-		}
-	}
-	ImGui::Combo("Mouse Mode", (int *)(&mouse_mode), app_utils::build_clusters_names_list(faceClusters.size()));
-	if (mouse_mode == app_utils::MouseMode::CLEAR) 
-	{
-		clear_sellected_faces_and_vertices();
-		mouse_mode = app_utils::MouseMode::CLEAR;
-	}
-	if(mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0)
-		ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
-	if (ImGui::Button("Add Cluster"))
-		faceClusters.push_back(FaceClusters(faceClusters.size()));
+	Draw_menu_for_user_interface();
 	Draw_menu_for_Minimizer();
 	Draw_menu_for_cores(viewer->core(inputCoreID), viewer->data(inputModelID));
 	Draw_menu_for_models(viewer->data(inputModelID));
@@ -195,6 +164,51 @@ void deformation_plugin::Draw_menu_for_colors()
 		ImGui::ColorEdit3("Model color", model_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Vertex Energy color", Vertex_Energy_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit4("text color", text_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+	}
+}
+
+void deformation_plugin::Draw_menu_for_views()
+{
+	if (ImGui::CollapsingHeader("Screen options"))
+	{
+		if (ImGui::Checkbox("Show Outputs settings", &Outputs_Settings) && Outputs_Settings)
+			show_energy_results = false;
+		if (ImGui::Checkbox("Show energy results", &show_energy_results) && show_energy_results)
+			Outputs_Settings = false;
+		if (ImGui::Combo("View type", (int *)(&view), app_utils::build_view_names_list(Outputs.size())))
+		{
+			int frameBufferWidth, frameBufferHeight;
+			glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
+			post_resize(frameBufferWidth, frameBufferHeight);
+		}
+		if (view == app_utils::View::HORIZONTAL ||
+			view == app_utils::View::VERTICAL)
+		{
+			if (ImGui::SliderFloat("Core Size", &core_size, 0, 1.0 / Outputs.size(), std::to_string(core_size).c_str(), 1))
+			{
+				int frameBufferWidth, frameBufferHeight;
+				glfwGetFramebufferSize(viewer->window, &frameBufferWidth, &frameBufferHeight);
+				post_resize(frameBufferWidth, frameBufferHeight);
+			}
+		}
+	}
+}
+
+void deformation_plugin::Draw_menu_for_user_interface()
+{
+	if (ImGui::CollapsingHeader("User Interface"))
+	{
+		ImGui::Button("Help");
+		ImGui::Combo("Mouse Mode", (int *)(&mouse_mode), app_utils::build_groups_names_list(facesGroups));
+		if (mouse_mode == app_utils::MouseMode::CLEAR)
+		{
+			clear_sellected_faces_and_vertices();
+			mouse_mode = app_utils::MouseMode::CLEAR;
+		}
+		if (mouse_mode >= app_utils::MouseMode::FACE_CLUSTERING_0)
+			ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
+		if (ImGui::Button("Add Group"))
+			facesGroups.push_back(FacesGroup(facesGroups.size()));
 	}
 }
 
@@ -240,14 +254,7 @@ void deformation_plugin::Draw_menu_for_Minimizer()
 		if (ImGui::Checkbox("Run Minimizer", &isMinimizerRunning))
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
 		ImGui::Checkbox("Energy&Timing settings", &energy_timing_settings);
-		ImGui::Text("Show:");
-		ImGui::Checkbox("Norm", &showFacesNorm);
-		ImGui::SameLine();
-		ImGui::Checkbox("Norm Edges", &showNormEdges);
-		ImGui::Checkbox("Sphere", &showSphereCenters);
-		ImGui::SameLine();
-		ImGui::Checkbox("Sphere Edges", &showSphereEdges);
-		ImGui::Checkbox("Face Centers", &showTriangleCenters);
+		
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
 			change_minimizer_type(minimizer_type);
 		}
@@ -290,7 +297,7 @@ void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core, igl:
 	if (!Outputs_Settings)
 		return;
 	ImGui::PushID(core.id);
-	if (ImGui::CollapsingHeader(("Core " + std::to_string(core.id)).c_str()))
+	if (ImGui::CollapsingHeader(("Core " + std::to_string(data.id)).c_str()))
 	{
 		if (ImGui::Button("Center object", ImVec2(-1, 0)))
 			core.align_camera_center(data.V, data.F);
@@ -413,7 +420,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings()
 	ImGui::Begin("Energies & Timing", NULL, ImGuiWindowFlags_AlwaysAutoResize);
 	int id = 0;
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
-	if (ImGui::Button("Add Output"))
+	if (ImGui::Button(("Add one more " + modelName).c_str()))
 		add_output();
 	ImGui::PopStyleColor();
 
@@ -435,7 +442,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings()
 		for (auto&out : Outputs) {
 			ImGui::PushID(id++);
 			const int  i64_zero = 0, i64_max = 100000.0;
-			ImGui::Text((std::to_string(out.CoreID)).c_str());
+			ImGui::Text((modelName + std::to_string(out.ModelID)).c_str());
 			ImGui::TableNextCell();
 			if (ImGui::Checkbox("##On/Off", &out.activeMinimizer->isAutoLambdaRunning))
 			{
@@ -480,7 +487,7 @@ void deformation_plugin::Draw_menu_for_minimizer_settings()
 
 	
 	if (Outputs.size() != 0) {
-		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 2, ImGuiTableFlags_Resizable))
+		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 3, ImGuiTableFlags_Resizable))
 		{
 			ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed);
 			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
@@ -493,17 +500,8 @@ void deformation_plugin::Draw_menu_for_minimizer_settings()
 			ImGui::TableNextRow();
 			for (int i = 0; i < Outputs.size(); i++) 
 			{
-				ImGui::Text(("Output " + std::to_string(Outputs[i].CoreID)).c_str());
-				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
-				ImGui::PushID(id++);
-				if (Outputs.size() > 1 && ImGui::Button("Remove")) {
-					std::cout << i << "\n";
-					remove_output(i);
-				}
-				ImGui::PopID();
-				ImGui::PopStyleColor();
+				ImGui::Text((modelName + std::to_string(Outputs[i].ModelID)).c_str());
 				ImGui::TableNextCell();
-				
 				ImGui::PushItemWidth(80);
 				for (auto& obj : Outputs[i].totalObjective->objectiveList) {
 					ImGui::PushID(id++);
@@ -588,7 +586,14 @@ void deformation_plugin::Draw_menu_for_minimizer_settings()
 				}
 				ImGui::DragFloat("##ShiftEigenValues", &(Outputs[i].totalObjective->Shift_eigen_values), 0.05f, 0.0f, 100000.0f);
 				ImGui::TableNextCell();
+				ImGui::PushID(id++);
+				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+				if (Outputs.size() > 1 && ImGui::Button("Remove"))
+					remove_output(i);
+				ImGui::PopStyleColor();
+				ImGui::PopID();
 				ImGui::PopItemWidth();
+				ImGui::TableNextRow();
 			}	
 		}
 		ImGui::EndTable();
@@ -605,9 +610,6 @@ void deformation_plugin::Draw_menu_for_minimizer_settings()
 			ImGui::PopItemWidth();
 		}
 	}
-	
-	
-
 	//close the window
 	ImGui::End();
 }
@@ -629,13 +631,32 @@ void deformation_plugin::Draw_menu_for_output_settings()
 		ImGui::Checkbox("Update all models together", &isUpdateAll);
 		Draw_menu_for_cores(viewer->core(out.CoreID), viewer->data(out.ModelID));
 		Draw_menu_for_models(viewer->data(out.ModelID));
+
+		ImGui::Text("Show:");
+		if (ImGui::Checkbox("Norm", &(out.showFacesNorm)) && isUpdateAll)
+			for (auto&oi : Outputs)
+				oi.showFacesNorm = out.showFacesNorm;
+		ImGui::SameLine();
+		if (ImGui::Checkbox("Norm Edges", &(out.showNormEdges)) && isUpdateAll)
+			for (auto&oi : Outputs)
+				oi.showNormEdges = out.showNormEdges;
+		if (ImGui::Checkbox("Sphere", &(out.showSphereCenters)) && isUpdateAll)
+			for (auto&oi : Outputs)
+				oi.showSphereCenters = out.showSphereCenters;
+		ImGui::SameLine();
+		if (ImGui::Checkbox("Sphere Edges", &(out.showSphereEdges)) && isUpdateAll)
+			for (auto&oi : Outputs)
+				oi.showSphereEdges = out.showSphereEdges;
+		if (ImGui::Checkbox("Face Centers", &(out.showTriangleCenters)) && isUpdateAll)
+			for (auto&oi : Outputs)
+				oi.showTriangleCenters = out.showTriangleCenters;
 		ImGui::End();
 	}
 }
 
 void deformation_plugin::Draw_menu_for_text_results()
 {
-	if (!show_text)
+	if (!show_energy_results)
 		return;
 	for (auto& out : Outputs)
 	{
@@ -692,7 +713,7 @@ void deformation_plugin::Draw_menu_for_text_results()
 void deformation_plugin::clear_sellected_faces_and_vertices() 
 {
 	selected_fixed_faces.clear();
-	for (auto& c : faceClusters)
+	for (auto& c : facesGroups)
 		c.faces.clear();
 	selected_vertices.clear();
 	UpdateVerticesHandles();
@@ -858,12 +879,12 @@ void deformation_plugin::brush_erase_or_insert()
 		{ //insert
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
 			for (int fi : brush_faces)
-				if (!(find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), fi) != faceClusters[clusterIndex].faces.end()))
-					faceClusters[clusterIndex].faces.insert(fi);
+				if (!(find(facesGroups[clusterIndex].faces.begin(), facesGroups[clusterIndex].faces.end(), fi) != facesGroups[clusterIndex].faces.end()))
+					facesGroups[clusterIndex].faces.insert(fi);
 		}
 		else
 		{ //erase
-			for (FaceClusters& clusterI : faceClusters)
+			for (FacesGroup& clusterI : facesGroups)
 				for (int fi : brush_faces)
 					clusterI.faces.erase(fi);
 		}
@@ -991,18 +1012,18 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		if (f != -1) 
 		{
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
-			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end()) 
+			if (find(facesGroups[clusterIndex].faces.begin(), facesGroups[clusterIndex].faces.end(), f) != facesGroups[clusterIndex].faces.end()) 
 			{
 				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
 				for (int currF : neigh)
-					faceClusters[clusterIndex].faces.erase(currF);
+					facesGroups[clusterIndex].faces.erase(currF);
 			}
 			else 
 			{
 				std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
 				for (int currF : neigh)
-					if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), currF) == faceClusters[clusterIndex].faces.end())
-						faceClusters[clusterIndex].faces.insert(currF);
+					if (find(facesGroups[clusterIndex].faces.begin(), facesGroups[clusterIndex].faces.end(), currF) == facesGroups[clusterIndex].faces.end())
+						facesGroups[clusterIndex].faces.insert(currF);
 			}
 			UpdateClustersHandles();
 		}
@@ -1048,7 +1069,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 		if (f != -1) 
 		{
 			int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
-			if (find(faceClusters[clusterIndex].faces.begin(), faceClusters[clusterIndex].faces.end(), f) != faceClusters[clusterIndex].faces.end())
+			if (find(facesGroups[clusterIndex].faces.begin(), facesGroups[clusterIndex].faces.end(), f) != facesGroups[clusterIndex].faces.end())
 				EraseOrInsert = true; //erase
 			else 
 				EraseOrInsert = false; // insert
@@ -1136,8 +1157,10 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		highlightFacesType = app_utils::HighlightFaces::LOCAL_NORMALS;
 		neighbor_distance = 0.03;
 		change_minimizer_type(app_utils::MinimizerType::ADAM_MINIMIZER);
-		showFacesNorm = true;
-		showSphereEdges = showNormEdges = showTriangleCenters = showSphereCenters = false;
+		for (auto&out : Outputs) {
+			out.showFacesNorm = true;
+			out.showSphereEdges = out.showNormEdges = out.showTriangleCenters = out.showSphereCenters = false;
+		}
 		for (OptimizationOutput& out : Outputs) 
 		{
 			for (auto& obj : out.totalObjective->objectiveList) 
@@ -1162,9 +1185,11 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		highlightFacesType = app_utils::HighlightFaces::LOCAL_SPHERE;
 		neighbor_distance = 0.3;
 		change_minimizer_type(app_utils::MinimizerType::ADAM_MINIMIZER);
-		showSphereCenters = true;
-		showSphereEdges = showNormEdges = 
-			showTriangleCenters = showFacesNorm = false;
+		for (auto&out : Outputs) {
+			out.showSphereCenters = true;
+			out.showSphereEdges = out.showNormEdges =
+				out.showTriangleCenters = out.showFacesNorm = false;
+		}
 		for (OptimizationOutput& out : Outputs) 
 		{
 			for (auto& obj : out.totalObjective->objectiveList) 
@@ -1222,7 +1247,7 @@ void deformation_plugin::draw_brush_sphere()
 	Eigen::MatrixXd c(1, 3);
 	if (EraseOrInsert == false) { //insert
 		int clusterIndex = mouse_mode - app_utils::MouseMode::FACE_CLUSTERING_0;
-		c.row(0) = faceClusters[clusterIndex].color.cast<double>();
+		c.row(0) = facesGroups[clusterIndex].color.cast<double>();
 	}
 	else if (EraseOrInsert == true) { //erase
 		c.row(0) << 1, 1, 1; // white color for erasing
@@ -1267,15 +1292,15 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 		OutputModel(oi).clear_edges();
 		OutputModel(oi).point_size = 10;
 			
-		if (showFacesNorm && Outputs[oi].getFacesNorm().size() != 0)
+		if (Outputs[oi].showFacesNorm && Outputs[oi].getFacesNorm().size() != 0)
 			OutputModel(oi).add_points(Outputs[oi].getFacesNorm(), Outputs[oi].color_per_face_norm);
-		if (showTriangleCenters && Outputs[oi].getCenterOfFaces().size() != 0)
+		if (Outputs[oi].showTriangleCenters && Outputs[oi].getCenterOfFaces().size() != 0)
 			OutputModel(oi).add_points(Outputs[oi].getCenterOfFaces(), Outputs[oi].color_per_vertex_center);
-		if (showSphereCenters && Outputs[oi].getCenterOfSphere().size() != 0)
+		if (Outputs[oi].showSphereCenters && Outputs[oi].getCenterOfSphere().size() != 0)
 			OutputModel(oi).add_points(Outputs[oi].getCenterOfSphere(), Outputs[oi].color_per_sphere_center);
-		if (showSphereEdges && Outputs[oi].getCenterOfFaces().size() != 0)
+		if (Outputs[oi].showSphereEdges && Outputs[oi].getCenterOfFaces().size() != 0)
 			OutputModel(oi).add_edges(Outputs[oi].getCenterOfFaces(), Outputs[oi].getSphereEdges(), Outputs[oi].color_per_sphere_edge);
-		if (showNormEdges && Outputs[oi].getCenterOfFaces().size() != 0)
+		if (Outputs[oi].showNormEdges && Outputs[oi].getCenterOfFaces().size() != 0)
 			OutputModel(oi).add_edges(Outputs[oi].getCenterOfFaces(), Outputs[oi].getFacesNorm(), Outputs[oi].color_per_norm_edge);
 	}
 	return ImGuiMenu::pre_draw();
@@ -1321,9 +1346,9 @@ void deformation_plugin::UpdateCentersHandles()
 
 void deformation_plugin::UpdateClustersHandles() 
 {
-	std::vector < std::vector<int>> ind(faceClusters.size());
-	for (int ci = 0; ci < faceClusters.size(); ci++)
-		for (int fi : faceClusters[ci].faces)
+	std::vector < std::vector<int>> ind(facesGroups.size());
+	for (int ci = 0; ci < facesGroups.size(); ci++)
+		for (int fi : facesGroups[ci].faces)
 			ind[ci].push_back(fi);
 	for (int i = 0; i < Outputs.size(); i++)
 		if (isModelLoaded) 
@@ -1388,7 +1413,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color, centers_sphere_edge_color, centers_norm_edge_color, face_norm_color);
 		UpdateEnergyColors(i);
 		//Mark the cluster faces
-		for (FaceClusters cluster : faceClusters)
+		for (FacesGroup cluster : facesGroups)
 			for (int fi : cluster.faces)
 				Outputs[i].updateFaceColors(fi, cluster.color);
 		//Mark the fixed faces

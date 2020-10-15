@@ -43,6 +43,69 @@
 #define BLACK_COLOR Eigen::Vector3f(0, 0, 0)
 #define M_PI 3.14159
 
+class FacesGroup {
+public:
+	Eigen::Vector3f color;
+	std::string name;
+	std::set<int> faces;
+
+	FacesGroup(const int index) {
+		auto put_color = [&](const float r, const float g, const float b) {
+			this->color << r / 255.0f, g / 255.0f, b / 255.0f;
+		};
+		faces.clear();
+		if (index == 0)
+		{
+			put_color(255, 255, 0);//Yellow
+			name = "Group Yellow";
+		}
+		else if (index == 1)
+		{
+			put_color(0, 0, 255); //Blue
+			name = "Group Blue";
+		}
+		else if (index == 2)
+		{
+			put_color(0, 255, 0); //Green
+			name = "Group Green";
+		}
+		else if (index == 3)
+		{
+			put_color(255, 0, 0); //red
+			name = "Group Red";
+		}
+		else if (index == 4)
+		{
+			put_color(128, 128, 128); //Gray
+			name = "Group Gray";
+		}
+		else if (index == 5)
+		{
+			put_color(128, 0, 128); //Purple
+			name = "Group Purple";
+		}
+		else if (index == 6)
+		{
+			put_color(255, 165, 0); //orange
+			name = "Group Orange";
+		}
+		else if (index == 7)
+		{
+			put_color(210, 105, 30); //chocolate
+			name = "Group Chocolate";
+		}
+		else if (index == 8)
+		{
+			put_color(0, 0, 0); //black
+			name = "Group Black";
+		}
+		else {
+			put_color(255, 255, 255); //black
+			name = "Group white";
+		}
+	}
+};
+
 namespace app_utils
 {
 	enum ClusteringType {
@@ -146,7 +209,7 @@ namespace app_utils
 		return comboList;
 	}
 
-	static char* build_clusters_names_list(const int size) {
+	static char* build_groups_names_list(const std::vector<FacesGroup> fgs) {
 		std::string cStr("");
 		cStr += "None";
 		cStr += '\0';
@@ -156,10 +219,8 @@ namespace app_utils
 		cStr += '\0';
 		cStr += "Fix Face";
 		cStr += '\0';
-		for (int i = 0; i < size; i++) {
-			std::string sts;
-			sts = "Cluster " + std::to_string(i);
-			cStr += sts.c_str();
+		for (FacesGroup fg : fgs) {
+			cStr += fg.name.c_str();
 			cStr += '\0';
 		}
 		cStr += '\0';
@@ -259,40 +320,6 @@ public:
 	}
 };
 
-class FaceClusters { 
-public:
-	Eigen::Vector3f color;
-	std::string name;
-	std::set<int> faces;
-
-	FaceClusters(const int index) {
-		auto put_color = [&](const float r, const float g, const float b) {
-			this->color << r / 255.0f, g / 255.0f, b / 255.0f;
-		};
-		name = "Cluster " + std::to_string(index);
-		faces.clear();
-		if (index == 0)
-			put_color(255, 255, 0);
-		else if (index == 1)
-			put_color(204, 102, 0); 
-		else if (index == 2)
-			put_color(255, 51, 51); 
-		else if (index == 3)
-			put_color(102, 204, 0);
-		else if (index == 4)
-			put_color(51, 255, 255);
-		else if (index == 5)
-			put_color(0, 76, 153);
-		else if (index == 6)
-			put_color(255, 0, 255); 
-		else if (index == 7)
-			put_color(204, 0, 102); 
-		else if (index == 8)
-			put_color(96, 96, 96);
-		
-	}
-};
-
 class OptimizationOutput {
 private:
 	Eigen::MatrixXd center_of_faces;
@@ -321,7 +348,8 @@ public:
 	Eigen::MatrixXd color_per_sphere_edge, color_per_norm_edge;
 	int ModelID, CoreID;
 	ImVec2 window_position, window_size, text_position;
-	
+	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCenters, showFacesNorm;
+
 	//Constructor & initialization
 	OptimizationOutput(
 		igl::opengl::glfw::Viewer* viewer, 
@@ -342,6 +370,8 @@ public:
 		adamMinimizer->lineSearch_type = linesearchType;
 		updateActiveMinimizer(minimizer_type);
 		totalObjective = std::make_shared<TotalObjective>();
+		showFacesNorm = showSphereEdges = showNormEdges = 
+			showTriangleCenters = showSphereCenters = false;
 	}
 
 	~OptimizationOutput() = default;

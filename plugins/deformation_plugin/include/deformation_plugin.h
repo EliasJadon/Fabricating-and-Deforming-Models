@@ -11,7 +11,6 @@ private:
 	OptimizationUtils::InitAuxVariables typeAuxVar;
 	bool isLoadNeeded;
 	bool isModelLoaded;
-	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCenters, showFacesNorm;
 	float Max_Distortion;
 	float neighbor_distance, brush_radius;
 	int brush_index = -1;
@@ -38,14 +37,14 @@ private:
 		Dragged_vertex_color,
 		Vertex_Energy_color,
 		text_color;
-	bool show_text;
+	bool show_energy_results;
 	float core_size, clusteringMSE, clusteringRatio;
 	app_utils::ClusteringType clusteringType;
 	Eigen::Vector3f intersec_point;
 	bool Outputs_Settings;
 	app_utils::HighlightFaces highlightFacesType;
 	std::set<int> selected_fixed_faces, selected_vertices;
-	std::vector<FaceClusters> faceClusters;
+	std::vector<FacesGroup> facesGroups;
 	std::vector<OptimizationOutput> Outputs;
 	int cluster_index = -1;
 	//Basic (necessary) parameteres
@@ -85,7 +84,9 @@ public:
 	void Draw_menu_for_cores(igl::opengl::ViewerCore& core, igl::opengl::ViewerData& data);
 	void Draw_menu_for_models(igl::opengl::ViewerData& data);
 	void Draw_menu_for_Minimizer();
+	void Draw_menu_for_views();
 	void Draw_menu_for_clustering();
+	void Draw_menu_for_user_interface();
 	void Draw_menu_for_minimizer_settings();
 	void Draw_menu_for_output_settings();
 	void Draw_menu_for_colors();
