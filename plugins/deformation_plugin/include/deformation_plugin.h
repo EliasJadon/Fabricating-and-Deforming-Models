@@ -43,7 +43,7 @@ private:
 	Eigen::Vector3f intersec_point;
 	bool Outputs_Settings;
 	app_utils::HighlightFaces highlightFacesType;
-	std::set<int> selected_fixed_faces, selected_vertices;
+	std::set<int> UserInterface_FixedFaces, UserIterface_FixedVertices;
 	std::vector<FacesGroup> facesGroups;
 	std::vector<OptimizationOutput> Outputs;
 	int cluster_index = -1;
@@ -57,7 +57,7 @@ private:
 	app_utils::UserInterfaceOptions UserInterface_option;
 	int UserInterface_groupNum;
 	int clustering_outputIndex;
-	bool IsTranslate,EraseOrInsert, IsChoosingCluster;
+	bool IsTranslate,EraseOrInsert, IsChoosingGroups;
 	int Translate_Index, Model_Translate_ID, Core_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
 

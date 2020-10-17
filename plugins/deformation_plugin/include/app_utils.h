@@ -136,7 +136,8 @@ namespace app_utils
 		NONE,
 		FIX_VERTICES,
 		FIX_FACES,
-		GROUPING
+		GROUPING_BY_BRUSH,
+		GROUPING_BY_ADJ
 	};
 	enum MinimizerType {
 		NEWTON = 0,
