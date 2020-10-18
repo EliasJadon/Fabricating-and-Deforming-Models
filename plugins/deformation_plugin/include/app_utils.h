@@ -125,7 +125,6 @@ namespace app_utils
 		OUTPUT_ONLY_0
 	};
 	enum HighlightFaces {
-		NO_HIGHLIGHT = 0,
 		HOVERED_FACE,
 		LOCAL_SPHERE,
 		GLOBAL_SPHERE,

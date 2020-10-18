@@ -10,13 +10,13 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	ImGuiMenu::init(_viewer);
 	if (!_viewer)
 		return;
-	brush_radius = 0.3;
+	neighbor_distance = brush_radius = 0.3;
 	typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
 	isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
 	Outputs_Settings = false;
-	highlightFacesType = app_utils::HighlightFaces::NO_HIGHLIGHT;
+	highlightFacesType = app_utils::HighlightFaces::LOCAL_NORMALS;
 	IsTranslate = false;
 	IsChoosingGroups = false;
 	isModelLoaded = false;
@@ -46,7 +46,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	Dragged_vertex_color = Dragged_face_color = GREEN_COLOR;
 	model_color = GREY_COLOR;
 	text_color = BLACK_COLOR;
-	for (int i = 0; i < 5; i++)
+	for (int i = 0; i < 9; i++)
 		facesGroups.push_back(FacesGroup(facesGroups.size()));
 	//update input viewer
 	inputCoreID = viewer->core_list[0].id;
@@ -182,22 +182,18 @@ void deformation_plugin::Draw_menu_for_user_interface()
 {
 	if (ImGui::CollapsingHeader("User Interface"))
 	{
-		ImGui::Button("Help");
-		if (ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "No Highlight\0Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0")) {
-			if (highlightFacesType == app_utils::HighlightFaces::GLOBAL_NORMALS ||
-				highlightFacesType == app_utils::HighlightFaces::LOCAL_NORMALS)
-				neighbor_distance = 0.03;
-			if (highlightFacesType == app_utils::HighlightFaces::GLOBAL_SPHERE ||
-				highlightFacesType == app_utils::HighlightFaces::LOCAL_SPHERE)
-				neighbor_distance = 0.3;
-		}
-		ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
-		ImGui::Combo("Group Color", (int *)(&UserInterface_groupNum), app_utils::build_groups_names_list(facesGroups));
+		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
+			ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
+		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
+			ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
+		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH)
+			ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
+		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH ||
+			UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
+			ImGui::Combo("Group Color", (int *)(&UserInterface_groupNum), app_utils::build_groups_names_list(facesGroups));
+		
 		if (ImGui::Button("Clear sellected faces & vertices"))
 			clear_sellected_faces_and_vertices();
-		ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
-		if (ImGui::Button("Add Group"))
-			facesGroups.push_back(FacesGroup(facesGroups.size()));
 	}
 }
 
@@ -995,9 +991,6 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		if (f != -1) 
 		{
 			std::vector<int> neigh = Outputs[0].getNeigh(highlightFacesType, InputModel().F, f, neighbor_distance);
-			for (int currF : neigh)
-				cout << currF << " ";
-			cout << endl;
 			if (EraseOrInsert)
 				for (int currF : neigh)
 					facesGroups[UserInterface_groupNum].faces.erase(currF);
@@ -1411,8 +1404,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		for (int fi : UserInterface_FixedFaces)
 			Outputs[i].updateFaceColors(fi, Fixed_face_color);
 		//Mark the highlighted face & neighbors
-		if (curr_highlighted_face != -1 && 
-			highlightFacesType != app_utils::HighlightFaces::NO_HIGHLIGHT) 
+		if (curr_highlighted_face != -1) 
 		{
 			std::vector<int> neigh = Outputs[i].getNeigh(highlightFacesType,InputModel().F, curr_highlighted_face, neighbor_distance);
 			for (int fi : neigh)
