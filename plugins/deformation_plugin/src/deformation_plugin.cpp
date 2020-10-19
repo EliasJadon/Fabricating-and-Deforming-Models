@@ -15,14 +15,14 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
-	Outputs_Settings = false;
+	outputs_window = false;
 	highlightFacesType = app_utils::HighlightFaces::LOCAL_NORMALS;
 	IsTranslate = false;
 	IsChoosingGroups = false;
 	isModelLoaded = false;
 	isUpdateAll = true;
-	energy_timing_settings = true;
-	show_energy_results = true;
+	energies_window = true;
+	results_window = true;
 	clusteringType = app_utils::ClusteringType::NoClustering;
 	clusteringMSE = 0.1;
 	clusteringRatio = 0.5;
@@ -40,7 +40,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	Neighbors_Highlighted_face_color = Eigen::Vector3f(1, 102 / 255.0f, 1);
 	center_sphere_color = Eigen::Vector3f(0, 1, 1);
 	center_vertex_color = Eigen::Vector3f(128 / 255.0f, 128 / 255.0f, 128 / 255.0f);
-	centers_sphere_edge_color = centers_norm_edge_color = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);;
+	Color_sphere_edges = Color_normal_edge = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);;
 	face_norm_color = Eigen::Vector3f(0, 1, 1);
 	Fixed_vertex_color = Fixed_face_color = BLUE_COLOR;
 	Dragged_vertex_color = Dragged_face_color = GREEN_COLOR;
@@ -99,6 +99,14 @@ void deformation_plugin::load_new_model(const std::string modelpath)
 
 IGL_INLINE void deformation_plugin::draw_viewer_menu()
 {
+	if (isModelLoaded && UserInterface_option != app_utils::UserInterfaceOptions::NONE)
+	{
+		CollapsingHeader_user_interface();
+		Draw_output_window();
+		Draw_results_window();
+		Draw_energies_window();
+		return;
+	}
 	float w = ImGui::GetContentRegionAvailWidth();
 	float p = ImGui::GetStyle().FramePadding.x;
 	if (ImGui::Button("Load##Mesh", ImVec2((w - p) / 2.f, 0)))
@@ -116,49 +124,62 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	ImGui::SameLine();
 	if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0)))
 		viewer->open_dialog_save_mesh();
+	
+	if (ImGui::Checkbox("Outputs window", &outputs_window) && outputs_window)
+		results_window = false;
+	if (ImGui::Checkbox("Results window", &results_window) && results_window)
+		outputs_window = false;
+	ImGui::Checkbox("Energy window", &energies_window);
 
-	Draw_menu_for_views();
-	Draw_menu_for_clustering();
-	Draw_menu_for_user_interface();
-	Draw_menu_for_Minimizer();
-	Draw_menu_for_cores(viewer->core(inputCoreID), viewer->data(inputModelID));
-	Draw_menu_for_models(viewer->data(inputModelID));
-	Draw_menu_for_output_settings();
-	Draw_menu_for_text_results();
-	Draw_menu_for_energy_settings();
+	CollapsingHeader_face_coloring();
+	CollapsingHeader_screen();
+	CollapsingHeader_clustering();
+	CollapsingHeader_minimizer();
+	CollapsingHeader_cores(viewer->core(inputCoreID), viewer->data(inputModelID));
+	CollapsingHeader_models(viewer->data(inputModelID));
+	CollapsingHeader_colors();
+
+	Draw_output_window();
+	Draw_results_window();
+	Draw_energies_window();
 }
 
-void deformation_plugin::Draw_menu_for_colors()
-
+void deformation_plugin::CollapsingHeader_colors()
 {
-	ImVec2 screen_pos = ImGui::GetCursorScreenPos();
-	if (!ImGui::CollapsingHeader("colors", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("colors"))
 	{
-		ImGui::ColorEdit3("Highlighted face color", Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Center sphere color", center_sphere_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Center vertex color", center_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Centers sphere edge color", centers_sphere_edge_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Centers norm edge color", centers_norm_edge_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Face norm color", face_norm_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Neighbors Highlighted face color", Neighbors_Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Fixed face color", Fixed_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Dragged face color", Dragged_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Fixed vertex color", Fixed_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Dragged vertex color", Dragged_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Model color", model_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Vertex Energy color", Vertex_Energy_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit4("text color", text_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Highlighted face", Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Center sphere", center_sphere_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Center vertex", center_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Sphere edge", Color_sphere_edges.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Normal edge", Color_normal_edge.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Face norm", face_norm_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Neighbors Highlighted face", Neighbors_Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Fixed face", Fixed_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Dragged face", Dragged_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Fixed vertex", Fixed_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Dragged vertex", Dragged_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Model", model_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Vertex Energy", Vertex_Energy_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit4("Text", text_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 	}
 }
 
-void deformation_plugin::Draw_menu_for_views()
+void deformation_plugin::CollapsingHeader_face_coloring()
+{
+	if (ImGui::CollapsingHeader("Face coloring"))
+	{
+		ImGui::Combo("type", (int *)(&faceColoring_type), app_utils::build_color_energies_list(Outputs[0].totalObjective));
+		ImGui::PushItemWidth(80 * menu_scaling());
+		ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
+		ImGui::PopItemWidth();
+	}
+}
+
+void deformation_plugin::CollapsingHeader_screen()
 {
 	if (ImGui::CollapsingHeader("Screen options"))
 	{
-		if (ImGui::Checkbox("Show Outputs settings", &Outputs_Settings) && Outputs_Settings)
-			show_energy_results = false;
-		if (ImGui::Checkbox("Show energy results", &show_energy_results) && show_energy_results)
-			Outputs_Settings = false;
 		if (ImGui::Combo("View type", (int *)(&view), app_utils::build_view_names_list(Outputs.size())))
 		{
 			int frameBufferWidth, frameBufferHeight;
@@ -178,9 +199,9 @@ void deformation_plugin::Draw_menu_for_views()
 	}
 }
 
-void deformation_plugin::Draw_menu_for_user_interface()
+void deformation_plugin::CollapsingHeader_user_interface()
 {
-	if (ImGui::CollapsingHeader("User Interface"))
+	if (!ImGui::CollapsingHeader("User Interface"))
 	{
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
 			ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
@@ -191,13 +212,12 @@ void deformation_plugin::Draw_menu_for_user_interface()
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH ||
 			UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
 			ImGui::Combo("Group Color", (int *)(&UserInterface_groupNum), app_utils::build_groups_names_list(facesGroups));
-		
 		if (ImGui::Button("Clear sellected faces & vertices"))
 			clear_sellected_faces_and_vertices();
 	}
 }
 
-void deformation_plugin::Draw_menu_for_clustering()
+void deformation_plugin::CollapsingHeader_clustering()
 {
 	if (ImGui::CollapsingHeader("Clustering"))
 	{
@@ -230,21 +250,16 @@ void deformation_plugin::Draw_menu_for_clustering()
 	}
 }
 
-void deformation_plugin::Draw_menu_for_Minimizer()
+void deformation_plugin::CollapsingHeader_minimizer()
 {
-	if (ImGui::CollapsingHeader("Minimizer", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader("Minimizer"))
 	{
 		if (ImGui::Button("Run one iter"))
 			run_one_minimizer_iter();
 		if (ImGui::Checkbox("Run Minimizer", &isMinimizerRunning))
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
-		ImGui::Checkbox("Energy&Timing settings", &energy_timing_settings);
-		
-		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0")) {
+		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0"))
 			change_minimizer_type(minimizer_type);
-		}
-		if (ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0Minus Normal\0\0"))
-			init_minimizer_thread();
 		std::shared_ptr<NewtonMinimizer> newtonMinimizer = std::dynamic_pointer_cast<NewtonMinimizer>(Outputs[0].activeMinimizer);
 		if (newtonMinimizer != NULL) {
 			bool PD = newtonMinimizer->getPositiveDefiniteChecker();
@@ -253,6 +268,9 @@ void deformation_plugin::Draw_menu_for_Minimizer()
 				std::dynamic_pointer_cast<NewtonMinimizer>(o.activeMinimizer)->SwitchPositiveDefiniteChecker(PD);
 			}
 		}
+		if (ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0Minus Normal\0\0"))
+			init_minimizer_thread();
+		
 		if (ImGui::Combo("line search", (int *)(&linesearch_type), "Gradient Norm\0Function Value\0Constant Step\0\0")) {
 			for (auto& o : Outputs) {
 				o.newtonMinimizer->lineSearch_type = linesearch_type;
@@ -267,7 +285,6 @@ void deformation_plugin::Draw_menu_for_Minimizer()
 				o.gradientDescentMinimizer->constantStep_LineSearch = constantStep_LineSearch;
 			}
 		}
-		ImGui::Combo("Face coloring", (int *)(&faceColoring_type), app_utils::build_color_energies_list(Outputs[0].totalObjective));
 		float w = ImGui::GetContentRegionAvailWidth(), p = ImGui::GetStyle().FramePadding.x;
 		if (ImGui::Button("Check gradients", ImVec2((w - p) / 2.f, 0)))
 			checkGradients();
@@ -277,9 +294,9 @@ void deformation_plugin::Draw_menu_for_Minimizer()
 	}
 }
 
-void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core, igl::opengl::ViewerData& data)
+void deformation_plugin::CollapsingHeader_cores(igl::opengl::ViewerCore& core, igl::opengl::ViewerData& data)
 {
-	if (!Outputs_Settings)
+	if (!outputs_window)
 		return;
 	ImGui::PushID(core.id);
 	if (ImGui::CollapsingHeader(("Core " + std::to_string(data.id)).c_str()))
@@ -317,7 +334,6 @@ void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core, igl:
 				core.set_rotation_type(new_type);
 			}
 		}
-		// Orthographic view
 		if(ImGui::Checkbox("Orthographic view", &(core.orthographic)) && isUpdateAll)
 			for (auto& c : viewer->core_list)
 				c.orthographic = core.orthographic;
@@ -329,9 +345,9 @@ void deformation_plugin::Draw_menu_for_cores(igl::opengl::ViewerCore& core, igl:
 	ImGui::PopID();
 }
 
-void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data)
+void deformation_plugin::CollapsingHeader_models(igl::opengl::ViewerData& data)
 {
-	if (!Outputs_Settings)
+	if (!outputs_window)
 		return;
 	auto make_checkbox = [&](const char *label, unsigned int &option) {
 		bool temp = option;
@@ -399,9 +415,9 @@ void deformation_plugin::Draw_menu_for_models(igl::opengl::ViewerData& data)
 	ImGui::PopID();
 }
 
-void deformation_plugin::Draw_menu_for_energy_settings()
+void deformation_plugin::Draw_energies_window()
 {
-	if (!energy_timing_settings)
+	if (!energies_window)
 		return;
 	ImGui::SetNextWindowPos(ImVec2(200, 550), ImGuiCond_FirstUseEver);
 	ImGui::Begin("Energies & Timing", NULL, ImGuiWindowFlags_AlwaysAutoResize);
@@ -584,26 +600,14 @@ void deformation_plugin::Draw_menu_for_energy_settings()
 			}	
 		}
 		ImGui::EndTable();
-
-		static bool show = false;
-		if (ImGui::Button("More info")) {
-			show = !show;
-		}
-		if (show) {
-			//add more features
-			Draw_menu_for_colors();
-			ImGui::PushItemWidth(80 * menu_scaling());
-			ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
-			ImGui::PopItemWidth();
-		}
 	}
 	//close the window
 	ImGui::End();
 }
 
-void deformation_plugin::Draw_menu_for_output_settings()
+void deformation_plugin::Draw_output_window()
 {
-	if (!Outputs_Settings)
+	if (!outputs_window)
 		return;
 	for (auto& out : Outputs) 
 	{
@@ -616,8 +620,8 @@ void deformation_plugin::Draw_menu_for_output_settings()
 		);
 		ImGui::SetWindowPos(out.text_position);
 		ImGui::Checkbox("Update all models together", &isUpdateAll);
-		Draw_menu_for_cores(viewer->core(out.CoreID), viewer->data(out.ModelID));
-		Draw_menu_for_models(viewer->data(out.ModelID));
+		CollapsingHeader_cores(viewer->core(out.CoreID), viewer->data(out.ModelID));
+		CollapsingHeader_models(viewer->data(out.ModelID));
 
 		ImGui::Text("Show:");
 		if (ImGui::Checkbox("Norm", &(out.showFacesNorm)) && isUpdateAll)
@@ -641,9 +645,9 @@ void deformation_plugin::Draw_menu_for_output_settings()
 	}
 }
 
-void deformation_plugin::Draw_menu_for_text_results()
+void deformation_plugin::Draw_results_window()
 {
-	if (!show_energy_results)
+	if (!results_window)
 		return;
 	for (auto& out : Outputs)
 	{
@@ -684,8 +688,11 @@ void deformation_plugin::Draw_menu_for_text_results()
 			ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" energy ") + std::to_string(out.totalObjective->energy_value)).c_str());
 			ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" gradient ") + std::to_string(out.totalObjective->gradient_norm)).c_str());
 			for (auto& obj : out.totalObjective->objectiveList) {
-				ImGui::TextColored(c, (std::string(obj->name) + std::string(" energy ") + std::to_string(obj->energy_value)).c_str());
-				ImGui::TextColored(c, (std::string(obj->name) + std::string(" gradient ") + std::to_string(obj->gradient_norm)).c_str());
+				if (obj->w)
+				{
+					ImGui::TextColored(c, (std::string(obj->name) + std::string(" energy ") + std::to_string(obj->energy_value)).c_str());
+					ImGui::TextColored(c, (std::string(obj->name) + std::string(" gradient ") + std::to_string(obj->gradient_norm)).c_str());
+				}
 			}
 			if (IsChoosingGroups) {
 				double r = out.getRadiusOfSphere(curr_highlighted_face);
@@ -1394,7 +1401,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		return;
 	for (int i = 0; i < Outputs.size(); i++) 
 	{
-		Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color, centers_sphere_edge_color, centers_norm_edge_color, face_norm_color);
+		Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color, Color_sphere_edges, Color_normal_edge, face_norm_color);
 		UpdateEnergyColors(i);
 		//Mark the cluster faces
 		for (FacesGroup cluster : facesGroups)

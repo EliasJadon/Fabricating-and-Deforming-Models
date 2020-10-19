@@ -8,14 +8,15 @@
 class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
+	bool CollapsingHeader_curr[8], CollapsingHeader_prev[8];
+	bool outputs_window, results_window, energies_window;
 	OptimizationUtils::InitAuxVariables typeAuxVar;
-	bool isLoadNeeded;
-	bool isModelLoaded;
+	bool isLoadNeeded, isModelLoaded;
 	float Max_Distortion;
 	float neighbor_distance, brush_radius;
 	int brush_index = -1;
 	bool isUpdateAll;
-	bool isMinimizerRunning, energy_timing_settings, IsMouseDraggingAnyWindow;
+	bool isMinimizerRunning, IsMouseDraggingAnyWindow;
 	int faceColoring_type;
 	app_utils::MinimizerType minimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
@@ -27,8 +28,8 @@ private:
 		center_sphere_color,
 		center_vertex_color,
 		face_norm_color,
-		centers_sphere_edge_color,
-		centers_norm_edge_color,
+		Color_sphere_edges,
+		Color_normal_edge,
 		Neighbors_Highlighted_face_color,
 		Fixed_face_color,
 		Fixed_vertex_color,
@@ -37,11 +38,10 @@ private:
 		Dragged_vertex_color,
 		Vertex_Energy_color,
 		text_color;
-	bool show_energy_results;
+	
 	float core_size, clusteringMSE, clusteringRatio;
 	app_utils::ClusteringType clusteringType;
 	Eigen::Vector3f intersec_point;
-	bool Outputs_Settings;
 	app_utils::HighlightFaces highlightFacesType;
 	std::set<int> UserInterface_FixedFaces, UserIterface_FixedVertices;
 	std::vector<FacesGroup> facesGroups;
@@ -65,7 +65,6 @@ private:
 	std::thread minimizer_thread;
 
 public:
-	//Constructor & initialization
 	deformation_plugin();
 	~deformation_plugin(){}
 
@@ -83,17 +82,20 @@ public:
 	IGL_INLINE virtual bool key_down(int key, int modifiers) override;
 	IGL_INLINE virtual bool key_up(int key, int modifiers) override;
 			
-	//Draw menu methods
-	void Draw_menu_for_cores(igl::opengl::ViewerCore& core, igl::opengl::ViewerData& data);
-	void Draw_menu_for_models(igl::opengl::ViewerData& data);
-	void Draw_menu_for_Minimizer();
-	void Draw_menu_for_views();
-	void Draw_menu_for_clustering();
-	void Draw_menu_for_user_interface();
-	void Draw_menu_for_energy_settings();
-	void Draw_menu_for_output_settings();
-	void Draw_menu_for_colors();
-	void Draw_menu_for_text_results();
+	//Draw Collapsing Headers
+	void CollapsingHeader_cores(igl::opengl::ViewerCore& core, igl::opengl::ViewerData& data);
+	void CollapsingHeader_models(igl::opengl::ViewerData& data);
+	void CollapsingHeader_minimizer();
+	void CollapsingHeader_screen();
+	void CollapsingHeader_face_coloring();
+	void CollapsingHeader_clustering();
+	void CollapsingHeader_user_interface();
+	void CollapsingHeader_colors();
+	
+	//Draw window
+	void Draw_results_window();
+	void Draw_energies_window();
+	void Draw_output_window();
 
 	//Pick faces & vertices and highlight them
 	int pick_face(Eigen::Vector3f& intersec_point,const bool update=false, const bool update_clusters=false);
