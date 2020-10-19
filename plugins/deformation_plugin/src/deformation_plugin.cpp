@@ -664,7 +664,7 @@ void deformation_plugin::Draw_output_window()
 			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoMove
 		);
-		ImGui::SetWindowPos(out.text_position);
+		ImGui::SetWindowPos(out.results_window_position);
 		ImGui::Checkbox("Update all models together", &isUpdateAll);
 		CollapsingHeader_cores(viewer->core(out.CoreID), viewer->data(out.ModelID));
 		CollapsingHeader_models(viewer->data(out.ModelID));
@@ -712,7 +712,7 @@ void deformation_plugin::Draw_results_window()
 			ImGuiWindowFlags_NoInputs |
 			ImGuiWindowFlags_NoFocusOnAppearing |
 			ImGuiWindowFlags_NoBringToFrontOnFocus);
-		ImGui::SetWindowPos(out.text_position);
+		ImGui::SetWindowPos(out.results_window_position);
 		ImGui::SetWindowSize(out.window_size);
 		ImGui::SetWindowCollapsed(false);
 		
@@ -867,7 +867,7 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 		{
 			Outputs[i].window_position = ImVec2(w - w * (Outputs.size() - i) * core_size, 0);
 			Outputs[i].window_size = ImVec2(w * core_size, h);
-			Outputs[i].text_position = Outputs[i].window_position;
+			Outputs[i].results_window_position = Outputs[i].window_position;
 		}
 	}
 	if (view == app_utils::View::VERTICAL) 
@@ -877,7 +877,7 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 		{
 			Outputs[i].window_position = ImVec2(0, (Outputs.size() - i - 1) * h * core_size);
 			Outputs[i].window_size = ImVec2(w, h * core_size);
-			Outputs[i].text_position = ImVec2(w*0.8, h - Outputs[i].window_position[1] - Outputs[i].window_size[1]);
+			Outputs[i].results_window_position = ImVec2(w*0.8, h - Outputs[i].window_position[1] - Outputs[i].window_size[1]);
 		}
 	}
 	if (view == app_utils::View::INPUT_ONLY) 
@@ -887,7 +887,7 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 		{
 			o.window_position = ImVec2(w, h);
 			o.window_size = ImVec2(0, 0);
-			o.text_position = o.window_position;
+			o.results_window_position = o.window_position;
 		}
 	}
  	if (view >= app_utils::View::OUTPUT_ONLY_0) 
@@ -897,12 +897,12 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 		{
  			o.window_position = ImVec2(w, h);
  			o.window_size = ImVec2(0, 0);
- 			o.text_position = o.window_position;
+ 			o.results_window_position = o.window_position;
  		}
  		// what does this means?
  		Outputs[view - app_utils::View::OUTPUT_ONLY_0].window_position = ImVec2(0, 0);
  		Outputs[view - app_utils::View::OUTPUT_ONLY_0].window_size = ImVec2(w, h);
- 		Outputs[view - app_utils::View::OUTPUT_ONLY_0].text_position = ImVec2(w*0.8, 0);
+ 		Outputs[view - app_utils::View::OUTPUT_ONLY_0].results_window_position = ImVec2(w*0.8, 0);
  	}		
 	for (auto& o : Outputs)
 		viewer->core(o.CoreID).viewport = Eigen::Vector4f(o.window_position[0], o.window_position[1], o.window_size[0]+1, o.window_size[1]+1);
