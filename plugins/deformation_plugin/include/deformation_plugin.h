@@ -8,9 +8,9 @@
 class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
-	bool CollapsingHeader_curr[8], CollapsingHeader_prev[8];
+	bool CollapsingHeader_curr[7], CollapsingHeader_prev[7], CollapsingHeader_change;
 	bool outputs_window, results_window, energies_window;
-	OptimizationUtils::InitAuxVariables typeAuxVar;
+	OptimizationUtils::InitSphereAuxiliaryVariables typeSphereAuxVar;
 	bool isLoadNeeded, isModelLoaded;
 	float Max_Distortion;
 	float neighbor_distance, brush_radius;
@@ -91,6 +91,7 @@ public:
 	void CollapsingHeader_clustering();
 	void CollapsingHeader_user_interface();
 	void CollapsingHeader_colors();
+	void CollapsingHeader_update();
 	
 	//Draw window
 	void Draw_results_window();

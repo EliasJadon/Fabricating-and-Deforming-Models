@@ -14,9 +14,9 @@
 
 namespace OptimizationUtils
 {
-	enum InitAuxVariables {
-		SPHERE = 0,
-		MESH_CENTER,
+	enum InitSphereAuxiliaryVariables {
+		LEAST_SQUARE_SPHERE = 0,
+		MODEL_CENTER_POINT,
 		MINUS_NORMALS
 	};
 

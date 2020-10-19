@@ -810,18 +810,18 @@ public:
 		color_per_norm_edge.row(fi) = color.cast<double>();
 	}
 
-	void initMinimizers(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,const OptimizationUtils::InitAuxVariables& typeAuxVar){
+	void initMinimizers(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F,const OptimizationUtils::InitSphereAuxiliaryVariables& typeAuxVar){
 		Eigen::VectorXd initVertices = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
 		Eigen::MatrixX3d normals;
 		igl::per_face_normals((Eigen::MatrixX3d)V, (Eigen::MatrixX3i)F, normals);
 		Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size());
 		Eigen::MatrixXd center0;
 		Eigen::VectorXd Radius0;
-		if (typeAuxVar == OptimizationUtils::InitAuxVariables::SPHERE)
+		if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE)
 			OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
-		else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MESH_CENTER)
+		else if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::MODEL_CENTER_POINT)
 			OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
-		else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MINUS_NORMALS) {
+		else if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::MINUS_NORMALS) {
 			//OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
 			this->center_of_faces = OptimizationUtils::center_per_triangle(V, F);
 			Radius0.resize(F.rows());

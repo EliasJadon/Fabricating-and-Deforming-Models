@@ -10,8 +10,11 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	ImGuiMenu::init(_viewer);
 	if (!_viewer)
 		return;
+	for (int i = 0; i < 7; i++)
+		CollapsingHeader_prev[i] = CollapsingHeader_curr[i] = false;
+	CollapsingHeader_change = false;
 	neighbor_distance = brush_radius = 0.3;
-	typeAuxVar = OptimizationUtils::InitAuxVariables::SPHERE;
+	typeSphereAuxVar = OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE;
 	isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
@@ -28,7 +31,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	clusteringRatio = 0.5;
 	faceColoring_type = 1;
 	curr_highlighted_face = -1;
-	minimizer_type = app_utils::MinimizerType::NEWTON;
+	minimizer_type = app_utils::MinimizerType::ADAM_MINIMIZER;
 	linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 	UserInterface_groupNum = 0;
 	UserInterface_option = app_utils::UserInterfaceOptions::NONE;
@@ -138,16 +141,41 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	CollapsingHeader_cores(viewer->core(inputCoreID), viewer->data(inputModelID));
 	CollapsingHeader_models(viewer->data(inputModelID));
 	CollapsingHeader_colors();
+	
 
 	Draw_output_window();
 	Draw_results_window();
 	Draw_energies_window();
+	CollapsingHeader_update();
+}
+
+void deformation_plugin::CollapsingHeader_update()
+{
+	CollapsingHeader_change = false;
+	int changed_index = -1;
+	for (int i = 0; i < 7; i++)
+	{
+		if (CollapsingHeader_curr[i] && !CollapsingHeader_prev[i])
+		{
+			changed_index = i;
+			CollapsingHeader_change = true;
+		}
+	}
+	if (CollapsingHeader_change)
+	{
+		for (int i = 0; i < 7; i++)
+			CollapsingHeader_prev[i] = CollapsingHeader_curr[i] = false;
+		CollapsingHeader_prev[changed_index] = CollapsingHeader_curr[changed_index] = true;
+	}
 }
 
 void deformation_plugin::CollapsingHeader_colors()
 {
+	if (CollapsingHeader_change)
+		ImGui::SetNextTreeNodeOpen(CollapsingHeader_curr[0]);
 	if (ImGui::CollapsingHeader("colors"))
 	{
+		CollapsingHeader_curr[0] = true;
 		ImGui::ColorEdit3("Highlighted face", Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Center sphere", center_sphere_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Center vertex", center_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
@@ -167,8 +195,11 @@ void deformation_plugin::CollapsingHeader_colors()
 
 void deformation_plugin::CollapsingHeader_face_coloring()
 {
+	if (CollapsingHeader_change)
+		ImGui::SetNextTreeNodeOpen(CollapsingHeader_curr[1]);
 	if (ImGui::CollapsingHeader("Face coloring"))
 	{
+		CollapsingHeader_curr[1] = true;
 		ImGui::Combo("type", (int *)(&faceColoring_type), app_utils::build_color_energies_list(Outputs[0].totalObjective));
 		ImGui::PushItemWidth(80 * menu_scaling());
 		ImGui::DragFloat("Max Distortion", &Max_Distortion, 0.05f, 0.01f, 10000.0f);
@@ -178,8 +209,11 @@ void deformation_plugin::CollapsingHeader_face_coloring()
 
 void deformation_plugin::CollapsingHeader_screen()
 {
+	if (CollapsingHeader_change)
+		ImGui::SetNextTreeNodeOpen(CollapsingHeader_curr[2]);
 	if (ImGui::CollapsingHeader("Screen options"))
 	{
+		CollapsingHeader_curr[2] = true;
 		if (ImGui::Combo("View type", (int *)(&view), app_utils::build_view_names_list(Outputs.size())))
 		{
 			int frameBufferWidth, frameBufferHeight;
@@ -219,10 +253,13 @@ void deformation_plugin::CollapsingHeader_user_interface()
 
 void deformation_plugin::CollapsingHeader_clustering()
 {
+	if (CollapsingHeader_change)
+		ImGui::SetNextTreeNodeOpen(CollapsingHeader_curr[3]);
 	if (ImGui::CollapsingHeader("Clustering"))
 	{
+		CollapsingHeader_curr[3] = true;
 		bool AnyChange = false;
-		if (ImGui::Combo("Type", (int *)(&clusteringType), "No Clustering\0Clust Normals\0Clust Spheres\0\0"))
+		if (ImGui::Combo("Type", (int *)(&clusteringType), "None\0Normals\0Spheres\0\0"))
 			AnyChange = true;
 		if (ImGui::DragFloat("Tolerance", &clusteringMSE, 0.001f, 0.001f, 100.0f))
 			AnyChange = true;
@@ -252,8 +289,11 @@ void deformation_plugin::CollapsingHeader_clustering()
 
 void deformation_plugin::CollapsingHeader_minimizer()
 {
+	if (CollapsingHeader_change)
+		ImGui::SetNextTreeNodeOpen(CollapsingHeader_curr[4]);
 	if (ImGui::CollapsingHeader("Minimizer"))
 	{
+		CollapsingHeader_curr[4] = true;
 		if (ImGui::Button("Run one iter"))
 			run_one_minimizer_iter();
 		if (ImGui::Checkbox("Run Minimizer", &isMinimizerRunning))
@@ -268,7 +308,7 @@ void deformation_plugin::CollapsingHeader_minimizer()
 				std::dynamic_pointer_cast<NewtonMinimizer>(o.activeMinimizer)->SwitchPositiveDefiniteChecker(PD);
 			}
 		}
-		if (ImGui::Combo("init Aux Var", (int *)(&typeAuxVar), "Sphere\0Mesh Center\0Minus Normal\0\0"))
+		if (ImGui::Combo("init sphere var", (int *)(&typeSphereAuxVar), "Sphere Fit\0Mesh Center\0Minus Normal\0\0"))
 			init_minimizer_thread();
 		
 		if (ImGui::Combo("line search", (int *)(&linesearch_type), "Gradient Norm\0Function Value\0Constant Step\0\0")) {
@@ -299,8 +339,11 @@ void deformation_plugin::CollapsingHeader_cores(igl::opengl::ViewerCore& core, i
 	if (!outputs_window)
 		return;
 	ImGui::PushID(core.id);
+	if (CollapsingHeader_change)
+		ImGui::SetNextTreeNodeOpen(CollapsingHeader_curr[5]);
 	if (ImGui::CollapsingHeader(("Core " + std::to_string(data.id)).c_str()))
 	{
+		CollapsingHeader_curr[5] = true;
 		if (ImGui::Button("Center object", ImVec2(-1, 0)))
 			core.align_camera_center(data.V, data.F);
 		if (ImGui::Button("Snap canonical view", ImVec2(-1, 0)))
@@ -356,8 +399,11 @@ void deformation_plugin::CollapsingHeader_models(igl::opengl::ViewerData& data)
 		return res;
 	};
 	ImGui::PushID(data.id);
+	if (CollapsingHeader_change)
+		ImGui::SetNextTreeNodeOpen(CollapsingHeader_curr[6]);
 	if (ImGui::CollapsingHeader((modelName + " " + std::to_string(data.id)).c_str()))
 	{
+		CollapsingHeader_curr[6] = true;
 		if (ImGui::Checkbox("Face-based", &(data.face_based)))
 		{
 			data.dirty = igl::opengl::MeshGL::DIRTY_ALL;
@@ -1698,7 +1744,7 @@ void deformation_plugin::init_minimizer_thread()
 {
 	stop_minimizer_thread();
 	for (int i = 0; i < Outputs.size(); i++)
-		Outputs[i].initMinimizers(OutputModel(i).V, OutputModel(i).F, typeAuxVar);
+		Outputs[i].initMinimizers(OutputModel(i).V, OutputModel(i).F, typeSphereAuxVar);
 }
 
 void deformation_plugin::run_one_minimizer_iter() 
