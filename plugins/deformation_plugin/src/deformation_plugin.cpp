@@ -18,14 +18,13 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
-	outputs_window = false;
+	energies_window = results_window = outputs_window = true;
 	highlightFacesType = app_utils::HighlightFaces::LOCAL_NORMALS;
 	IsTranslate = false;
 	IsChoosingGroups = false;
 	isModelLoaded = false;
 	isUpdateAll = true;
-	energies_window = true;
-	results_window = true;
+	
 	clusteringType = app_utils::ClusteringType::NoClustering;
 	clusteringMSE = 0.1;
 	clusteringRatio = 0.5;
@@ -127,13 +126,9 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	ImGui::SameLine();
 	if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0)))
 		viewer->open_dialog_save_mesh();
-	
-	if (ImGui::Checkbox("Outputs window", &outputs_window) && outputs_window)
-		results_window = false;
-	if (ImGui::Checkbox("Results window", &results_window) && results_window)
-		outputs_window = false;
+	ImGui::Checkbox("Outputs window", &outputs_window);
+	ImGui::Checkbox("Results window", &results_window);
 	ImGui::Checkbox("Energy window", &energies_window);
-
 	CollapsingHeader_face_coloring();
 	CollapsingHeader_screen();
 	CollapsingHeader_clustering();
@@ -141,8 +136,6 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	CollapsingHeader_cores(viewer->core(inputCoreID), viewer->data(inputModelID));
 	CollapsingHeader_models(viewer->data(inputModelID));
 	CollapsingHeader_colors();
-	
-
 	Draw_output_window();
 	Draw_results_window();
 	Draw_energies_window();
@@ -664,7 +657,7 @@ void deformation_plugin::Draw_output_window()
 			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoMove
 		);
-		ImGui::SetWindowPos(out.results_window_position);
+		ImGui::SetWindowPos(out.outputs_window_position);
 		ImGui::Checkbox("Update all models together", &isUpdateAll);
 		CollapsingHeader_cores(viewer->core(out.CoreID), viewer->data(out.ModelID));
 		CollapsingHeader_models(viewer->data(out.ModelID));
@@ -713,7 +706,7 @@ void deformation_plugin::Draw_results_window()
 			ImGuiWindowFlags_NoFocusOnAppearing |
 			ImGuiWindowFlags_NoBringToFrontOnFocus);
 		ImGui::SetWindowPos(out.results_window_position);
-		ImGui::SetWindowSize(out.window_size);
+		ImGui::SetWindowSize(out.screen_size);
 		ImGui::SetWindowCollapsed(false);
 		
 		if (clusteringType != app_utils::ClusteringType::NoClustering && out.clusters_indices.size())
@@ -865,9 +858,10 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 		viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, w - w * Outputs.size() * core_size, h);
 		for (int i = 0; i < Outputs.size(); i++) 
 		{
-			Outputs[i].window_position = ImVec2(w - w * (Outputs.size() - i) * core_size, 0);
-			Outputs[i].window_size = ImVec2(w * core_size, h);
-			Outputs[i].results_window_position = Outputs[i].window_position;
+			Outputs[i].screen_position = ImVec2(w - w * (Outputs.size() - i) * core_size, 0);
+			Outputs[i].screen_size = ImVec2(w * core_size, h);
+			Outputs[i].results_window_position = Outputs[i].screen_position;
+			Outputs[i].outputs_window_position = ImVec2(w - w * (Outputs.size() - (i + 1)) * core_size - 200, 0);
 		}
 	}
 	if (view == app_utils::View::VERTICAL) 
@@ -875,9 +869,10 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 		viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, Outputs.size() * h * core_size, w, h - Outputs.size() * h * core_size);
 		for (int i = 0; i < Outputs.size(); i++) 
 		{
-			Outputs[i].window_position = ImVec2(0, (Outputs.size() - i - 1) * h * core_size);
-			Outputs[i].window_size = ImVec2(w, h * core_size);
-			Outputs[i].results_window_position = ImVec2(w*0.8, h - Outputs[i].window_position[1] - Outputs[i].window_size[1]);
+			Outputs[i].screen_position = ImVec2(0, (Outputs.size() - i - 1) * h * core_size);
+			Outputs[i].screen_size = ImVec2(w, h * core_size);
+			Outputs[i].outputs_window_position = ImVec2(w-205, h - Outputs[i].screen_position[1] - Outputs[i].screen_size[1]);
+			Outputs[i].results_window_position = ImVec2(0, Outputs[i].outputs_window_position[1]);
 		}
 	}
 	if (view == app_utils::View::INPUT_ONLY) 
@@ -885,9 +880,10 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 		viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, w, h);
 		for (auto&o : Outputs) 
 		{
-			o.window_position = ImVec2(w, h);
-			o.window_size = ImVec2(0, 0);
-			o.results_window_position = o.window_position;
+			o.screen_position = ImVec2(w, h);
+			o.screen_size = ImVec2(0, 0);
+			o.results_window_position = o.screen_position;
+			//o.outputs_window_position = 
 		}
 	}
  	if (view >= app_utils::View::OUTPUT_ONLY_0) 
@@ -895,17 +891,17 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
  		viewer->core(inputCoreID).viewport = Eigen::Vector4f(0, 0, 0, 0);
  		for (auto&o : Outputs) 
 		{
- 			o.window_position = ImVec2(w, h);
- 			o.window_size = ImVec2(0, 0);
- 			o.results_window_position = o.window_position;
+ 			o.screen_position = ImVec2(w, h);
+ 			o.screen_size = ImVec2(0, 0);
+ 			o.results_window_position = o.screen_position;
  		}
  		// what does this means?
- 		Outputs[view - app_utils::View::OUTPUT_ONLY_0].window_position = ImVec2(0, 0);
- 		Outputs[view - app_utils::View::OUTPUT_ONLY_0].window_size = ImVec2(w, h);
+ 		Outputs[view - app_utils::View::OUTPUT_ONLY_0].screen_position = ImVec2(0, 0);
+ 		Outputs[view - app_utils::View::OUTPUT_ONLY_0].screen_size = ImVec2(w, h);
  		Outputs[view - app_utils::View::OUTPUT_ONLY_0].results_window_position = ImVec2(w*0.8, 0);
  	}		
 	for (auto& o : Outputs)
-		viewer->core(o.CoreID).viewport = Eigen::Vector4f(o.window_position[0], o.window_position[1], o.window_size[0]+1, o.window_size[1]+1);
+		viewer->core(o.CoreID).viewport = Eigen::Vector4f(o.screen_position[0], o.screen_position[1], o.screen_size[0]+1, o.screen_size[1]+1);
 }
 
 void deformation_plugin::brush_erase_or_insert() 

@@ -343,7 +343,7 @@ public:
 	Eigen::MatrixXd color_per_face_norm;
 	Eigen::MatrixXd color_per_sphere_edge, color_per_norm_edge;
 	int ModelID, CoreID;
-	ImVec2 window_position, window_size, results_window_position;
+	ImVec2 screen_position, screen_size, results_window_position, outputs_window_position;
 	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCenters, showFacesNorm;
 
 	//Constructor & initialization
