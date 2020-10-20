@@ -43,7 +43,6 @@ private:
 	app_utils::HighlightFaces highlightFacesType;
 	std::vector<OptimizationOutput> Outputs;
 	int cluster_index = -1;
-	//Basic (necessary) parameteres
 	float prev_camera_zoom;
 	Eigen::Vector3f prev_camera_translation;
 	Eigen::Quaternionf prev_trackball_angle;
@@ -52,8 +51,8 @@ private:
 	app_utils::View view;
 	app_utils::UserInterfaceOptions UserInterface_option;
 	int UserInterface_groupNum;
-	bool IsTranslate,EraseOrInsert, IsChoosingGroups;
-	int Translate_Index, Model_Translate_ID, Core_Translate_ID, down_mouse_x, down_mouse_y;
+	bool EraseOrInsert, IsChoosingGroups;
+	int Output_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
 	std::thread minimizer_thread;
 public:
@@ -106,6 +105,8 @@ public:
 	//Basic Methods
 	igl::opengl::ViewerData& InputModel();
 	igl::opengl::ViewerData& OutputModel(const int index);
+	igl::opengl::ViewerCore& InputCore();
+	igl::opengl::ViewerCore& OutputCore(const int index);
 
 	void change_minimizer_type(app_utils::MinimizerType type);
 	void draw_brush_sphere();

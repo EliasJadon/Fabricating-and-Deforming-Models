@@ -245,12 +245,15 @@ namespace app_utils
 		return comboList;
 	}
 
-	static Eigen::RowVector3d get_face_avg(const igl::opengl::glfw::Viewer *viewer, const int Model_Translate_ID,const int Translate_Index){
+	static Eigen::RowVector3d get_face_avg(
+		const igl::opengl::ViewerData& model,
+		const int Translate_Index)
+	{
 		Eigen::RowVector3d avg; avg << 0, 0, 0;
-		Eigen::RowVector3i face = viewer->data(Model_Translate_ID).F.row(Translate_Index);
-		avg += viewer->data(Model_Translate_ID).V.row(face[0]);
-		avg += viewer->data(Model_Translate_ID).V.row(face[1]);
-		avg += viewer->data(Model_Translate_ID).V.row(face[2]);
+		Eigen::RowVector3i face = model.F.row(Translate_Index);
+		avg += model.V.row(face[0]);
+		avg += model.V.row(face[1]);
+		avg += model.V.row(face[2]);
 		avg /= 3;
 		return avg;
 	}
@@ -349,6 +352,8 @@ public:
 		color_per_sphere_edge,
 		color_per_norm_edge;
 	int ModelID, CoreID;
+	bool UserInterface_IsTranslate;
+	int UserInterface_TranslateIndex;
 	ImVec2 screen_position, screen_size, results_window_position, outputs_window_position;
 	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCenters, showFacesNorm;
 
@@ -376,6 +381,7 @@ public:
 			showTriangleCenters = showSphereCenters = false;
 		for (int i = 0; i < 9; i++)
 			facesGroups.push_back(FacesGroup(facesGroups.size()));
+		UserInterface_IsTranslate = false;
 	}
 
 	~OptimizationOutput() = default;
