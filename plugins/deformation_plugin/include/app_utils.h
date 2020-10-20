@@ -121,8 +121,8 @@ namespace app_utils
 	enum View {
 		HORIZONTAL = 0,
 		VERTICAL,
-		INPUT_ONLY,
-		OUTPUT_ONLY_0
+		SHOW_INPUT_SCREEN_ONLY,
+		SHOW_OUTPUT_SCREEN_ONLY_0
 	};
 	enum HighlightFaces {
 		HOVERED_FACE,
@@ -323,6 +323,8 @@ private:
 	Eigen::MatrixXd facesNorm;
 	Eigen::VectorXd radius_of_sphere;
 public:
+	std::set<int> UserInterface_FixedFaces, UserIterface_FixedVertices;
+	std::vector<FacesGroup> facesGroups;
 	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
 	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
 	std::shared_ptr<AdamMinimizer> adamMinimizer;
@@ -337,11 +339,15 @@ public:
 	std::vector<int> *CentersInd; //pointer to indices in constraitPositional
 	Eigen::MatrixX3d *CentersPosDeformed; //pointer to positions in constraitPositional
 	std::vector < std::vector<int>> *ClustersSphereInd, *ClustersNormInd;
-	Eigen::MatrixXd color_per_face, Vertices_output;
-	Eigen::MatrixXd color_per_sphere_center;
-	Eigen::MatrixXd color_per_vertex_center;
-	Eigen::MatrixXd color_per_face_norm;
-	Eigen::MatrixXd color_per_sphere_edge, color_per_norm_edge;
+	Eigen::MatrixXd fixed_vertices_positions;
+	Eigen::MatrixXd 
+		color_per_face,
+		color_per_vertex,
+		color_per_sphere_center,
+		color_per_vertex_center,
+		color_per_face_norm,
+		color_per_sphere_edge,
+		color_per_norm_edge;
 	int ModelID, CoreID;
 	ImVec2 screen_position, screen_size, results_window_position, outputs_window_position;
 	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCenters, showFacesNorm;
@@ -368,6 +374,8 @@ public:
 		totalObjective = std::make_shared<TotalObjective>();
 		showFacesNorm = showSphereEdges = showNormEdges = 
 			showTriangleCenters = showSphereCenters = false;
+		for (int i = 0; i < 9; i++)
+			facesGroups.push_back(FacesGroup(facesGroups.size()));
 	}
 
 	~OptimizationOutput() = default;

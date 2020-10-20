@@ -14,15 +14,14 @@ private:
 	bool isLoadNeeded, isModelLoaded;
 	float Max_Distortion;
 	float neighbor_distance, brush_radius;
-	int brush_index = -1;
+	int Brush_face_index, Brush_output_index;
 	bool isUpdateAll;
 	bool isMinimizerRunning, IsMouseDraggingAnyWindow;
 	int faceColoring_type;
 	app_utils::MinimizerType minimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
 	float constantStep_LineSearch;
-	Eigen::MatrixXd Vertices_Input, color_per_vertex;
-	int curr_highlighted_face;
+	int curr_highlighted_face, curr_highlighted_output;
 	Eigen::Vector3f
 		Highlighted_face_color,
 		center_sphere_color,
@@ -38,13 +37,10 @@ private:
 		Dragged_vertex_color,
 		Vertex_Energy_color,
 		text_color;
-	
 	float core_size, clusteringMSE, clusteringRatio;
 	app_utils::ClusteringType clusteringType;
 	Eigen::Vector3f intersec_point;
 	app_utils::HighlightFaces highlightFacesType;
-	std::set<int> UserInterface_FixedFaces, UserIterface_FixedVertices;
-	std::vector<FacesGroup> facesGroups;
 	std::vector<OptimizationOutput> Outputs;
 	int cluster_index = -1;
 	//Basic (necessary) parameteres
@@ -56,14 +52,10 @@ private:
 	app_utils::View view;
 	app_utils::UserInterfaceOptions UserInterface_option;
 	int UserInterface_groupNum;
-	int clustering_outputIndex;
 	bool IsTranslate,EraseOrInsert, IsChoosingGroups;
 	int Translate_Index, Model_Translate_ID, Core_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
-
-	// Minimizer thread
 	std::thread minimizer_thread;
-
 public:
 	deformation_plugin();
 	~deformation_plugin(){}
@@ -99,14 +91,14 @@ public:
 	void Draw_output_window();
 
 	//Pick faces & vertices and highlight them
-	int pick_face(Eigen::Vector3f& intersec_point,const bool update=false, const bool update_clusters=false);
+	bool pick_face(int* output_index, int* face_index, Eigen::Vector3f& intersec_point,const bool update=false);
 	int pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR, Eigen::Vector3f& intersec_point);
-	int pick_vertex(const bool update = false);
+	bool pick_vertex(int* output_index, int* vertex_index, const bool update = false);
 	int pick_vertex_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
 	void follow_and_mark_selected_faces();
-	void UpdateVerticesHandles();
-	void UpdateCentersHandles();
-	void UpdateClustersHandles();
+	void update_ext_fixed_vertices();
+	void update_ext_fixed_faces();
+	void update_ext_fixed_group_faces();
 	void UpdateEnergyColors(const int index);
 	void update_parameters_for_all_cores();
 	void clear_sellected_faces_and_vertices();
