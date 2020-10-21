@@ -56,6 +56,7 @@ private:
 	ImGuiMenu menu;
 	std::thread minimizer_thread;
 	ImVec2 energies_window_position, global_screen_size;
+	int UserInterface_colorInputModelIndex;
 public:
 	deformation_plugin();
 	~deformation_plugin(){}

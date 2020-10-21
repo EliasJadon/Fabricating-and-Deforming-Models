@@ -227,6 +227,26 @@ namespace app_utils
 		return comboList;
 	}
 
+	static char* build_inputColoring_list(const int size) {
+		std::string cStr("");
+		cStr += "None";
+		cStr += '\0';
+		for (int i = 0; i < size; i++) {
+			cStr += "Output ";
+			cStr += std::to_string(i).c_str();
+			cStr += '\0';
+		}
+		cStr += '\0';
+		
+		int listLength = cStr.length();
+		char* comboList = new char[listLength];
+		for (unsigned int i = 0; i < listLength; i++)
+			comboList[i] = cStr.at(i);
+		cout << comboList << endl;
+
+		return comboList;
+	}
+
 	static char* build_color_energies_list(const std::shared_ptr<TotalObjective>& totalObjective) {
 		std::string cStr("");
 		cStr += "No colors";

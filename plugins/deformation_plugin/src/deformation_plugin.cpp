@@ -29,19 +29,19 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	IsChoosingGroups = false;
 	isModelLoaded = false;
 	isUpdateAll = true;
-	
+	UserInterface_colorInputModelIndex = 0;
 	clusteringType = app_utils::ClusteringType::NoClustering;
 	clusteringMSE = 0.1;
 	clusteringRatio = 0.5;
 	faceColoring_type = 1;
-	curr_highlighted_output = curr_highlighted_face = -1;
+	curr_highlighted_output = curr_highlighted_face = NOT_FOUND;
 	minimizer_type = app_utils::MinimizerType::ADAM_MINIMIZER;
 	linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 	UserInterface_groupNum = 0;
 	UserInterface_option = app_utils::UserInterfaceOptions::NONE;
 	view = app_utils::View::HORIZONTAL;
 	Max_Distortion = 5;
-	down_mouse_x = down_mouse_y = -1;
+	down_mouse_x = down_mouse_y = NOT_FOUND;
 	Vertex_Energy_color = RED_COLOR;
 	Highlighted_face_color = Eigen::Vector3f(153 / 255.0f, 0, 153 / 255.0f);
 	Neighbors_Highlighted_face_color = Eigen::Vector3f(1, 102 / 255.0f, 1);
@@ -148,7 +148,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 void deformation_plugin::CollapsingHeader_update()
 {
 	CollapsingHeader_change = false;
-	int changed_index = -1;
+	int changed_index = NOT_FOUND;
 	for (int i = 0; i < 7; i++)
 	{
 		if (CollapsingHeader_curr[i] && !CollapsingHeader_prev[i])
@@ -233,6 +233,8 @@ void deformation_plugin::CollapsingHeader_user_interface()
 {
 	if (!ImGui::CollapsingHeader("User Interface"))
 	{
+		ImGui::Combo("Coloring Input model like", (int*)(&UserInterface_colorInputModelIndex), app_utils::build_inputColoring_list(Outputs.size()));
+		
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
 			ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
@@ -763,11 +765,11 @@ void deformation_plugin::update_parameters_for_all_cores()
 		return;
 	for (auto& core : viewer->core_list) 
 	{
-		int output_index = -1;
+		int output_index = NOT_FOUND;
 		for (int i = 0; i < Outputs.size(); i++)
 			if (core.id == Outputs[i].CoreID)
 				output_index = i;
-		if (output_index == -1) 
+		if (output_index == NOT_FOUND)
 		{
 			if (this->prev_camera_zoom != core.camera_zoom ||
 				this->prev_camera_translation != core.camera_translation ||
@@ -933,7 +935,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 {
 	if (!isModelLoaded || IsMouseDraggingAnyWindow)
 		return true;	
-	if (clusteringType != app_utils::ClusteringType::NoClustering && cluster_index != -1)
+	if (clusteringType != app_utils::ClusteringType::NoClustering && cluster_index != NOT_FOUND)
 	{
 		Eigen::Vector3f _;
 		int face_index, output_index;
@@ -947,7 +949,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 					if (face_index == *it) 
 					{
 						//found
-						if (cluster_index != ci && cluster_index != -1) 
+						if (cluster_index != ci && cluster_index != NOT_FOUND)
 						{
 							Outputs[output_index].clusters_indices[cluster_index].push_back(*it);
 							Outputs[output_index].clusters_indices[ci].erase(it);
@@ -1024,12 +1026,12 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 	for (auto&out : Outputs)
 		out.UserInterface_IsTranslate = false;
 	IsMouseDraggingAnyWindow = false;
-	cluster_index = -1;
+	cluster_index = NOT_FOUND;
 
 	if (IsChoosingGroups) 
 	{
 		IsChoosingGroups = false;
-		curr_highlighted_output = curr_highlighted_face = -1;
+		curr_highlighted_output = curr_highlighted_face = NOT_FOUND;
 		Eigen::Vector3f _;
 		int face_index, output_index;
 		if (pick_face(&output_index, &face_index, _))
@@ -1303,16 +1305,24 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 		if (out.activeMinimizer->progressed)
 			update_data_from_minimizer();
 	//Update the model's faces colors in the screens
+	InputModel().set_colors(model_color.cast <double>().replicate(1, InputModel().F.rows()).transpose());
 	for (int i = 0; i < Outputs.size(); i++) {
 		if (Outputs[i].color_per_face.size()) {
-			InputModel().set_colors(Outputs[0].color_per_face);
 			OutputModel(i).set_colors(Outputs[i].color_per_face);
+			if ((UserInterface_colorInputModelIndex - 1) == i)
+				InputModel().set_colors(Outputs[i].color_per_face);
 		}
 	}
 	//Update the model's vertex colors in screens
+	InputModel().points.resize(0, 0);
 	for (int i = 0; i < Outputs.size(); i++) {
 		OutputModel(i).point_size = 10;
 		OutputModel(i).set_points(Outputs[i].fixed_vertices_positions, Outputs[i].color_per_vertex);
+		if ((UserInterface_colorInputModelIndex - 1) == i)
+		{
+			InputModel().point_size = 10;
+			InputModel().set_points(Outputs[i].fixed_vertices_positions, Outputs[i].color_per_vertex);
+		}
 	}
 	
 	draw_brush_sphere();
@@ -1549,14 +1559,14 @@ int deformation_plugin::pick_face_per_core(
 	}
 	Eigen::RowVector3d pt;
 	Eigen::Matrix4f modelview = viewer->core(CoreID).view;
-	int vi = -1;
+	int vi = NOT_FOUND;
 	std::vector<igl::Hit> hits;
 	igl::unproject_in_mesh(Eigen::Vector2f(x, y), viewer->core(CoreID).view,
 		viewer->core(CoreID).proj, viewer->core(CoreID).viewport, V, F, pt, hits);
 	Eigen::Vector3f s, dir;
 	igl::unproject_ray(Eigen::Vector2f(x, y), viewer->core(CoreID).view,
 		viewer->core(CoreID).proj, viewer->core(CoreID).viewport, s, dir);
-	int fi = -1;
+	int fi = NOT_FOUND;
 	if (hits.size() > 0) 
 	{
 		fi = hits[0].id;
