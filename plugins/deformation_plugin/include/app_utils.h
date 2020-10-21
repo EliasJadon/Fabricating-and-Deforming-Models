@@ -346,7 +346,7 @@ private:
 	Eigen::MatrixXd facesNorm;
 	Eigen::VectorXd radius_of_sphere;
 public:
-	std::set<int> UserInterface_FixedFaces, UserIterface_FixedVertices;
+	std::set<int> UserInterface_FixedFaces, UserInterface_FixedVertices;
 	std::vector<FacesGroup> UserInterface_facesGroups;
 	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
 	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
