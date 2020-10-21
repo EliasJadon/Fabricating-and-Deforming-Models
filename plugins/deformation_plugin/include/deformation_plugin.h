@@ -57,6 +57,7 @@ private:
 	std::thread minimizer_thread;
 	ImVec2 energies_window_position, global_screen_size;
 	int UserInterface_colorInputModelIndex;
+	bool UserInterface_UpdateAllOutputs;
 public:
 	deformation_plugin();
 	~deformation_plugin(){}

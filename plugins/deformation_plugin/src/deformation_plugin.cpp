@@ -18,6 +18,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	for (int i = 0; i < 7; i++)
 		CollapsingHeader_prev[i] = CollapsingHeader_curr[i] = false;
 	Brush_face_index = Brush_output_index = NOT_FOUND;
+	UserInterface_UpdateAllOutputs = false;
 	CollapsingHeader_change = false;
 	neighbor_distance = brush_radius = 0.3;
 	typeSphereAuxVar = OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE;
@@ -234,7 +235,7 @@ void deformation_plugin::CollapsingHeader_user_interface()
 	if (!ImGui::CollapsingHeader("User Interface"))
 	{
 		ImGui::Combo("Coloring Input", (int*)(&UserInterface_colorInputModelIndex), app_utils::build_inputColoring_list(Outputs.size()));
-		
+		ImGui::Checkbox("Update All", &UserInterface_UpdateAllOutputs);
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
 			ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
@@ -919,13 +920,25 @@ void deformation_plugin::brush_erase_or_insert()
 		if (EraseOrInsert == INSERT) 
 		{
 			for (int fi : brush_faces)
-				Outputs[Brush_output_index].UserInterface_facesGroups[UserInterface_groupNum].faces.insert(fi);
+			{
+				if (UserInterface_UpdateAllOutputs)
+					for (auto& out : Outputs)
+						out.UserInterface_facesGroups[UserInterface_groupNum].faces.insert(fi);
+				else
+					Outputs[Brush_output_index].UserInterface_facesGroups[UserInterface_groupNum].faces.insert(fi);
+			}
 		}
 		else
 		{
-			for (FacesGroup& clusterI : Outputs[Brush_output_index].UserInterface_facesGroups)
-				for (int fi : brush_faces)
-					clusterI.faces.erase(fi);
+			if (UserInterface_UpdateAllOutputs)
+				for (auto& out : Outputs)
+					for (FacesGroup& clusterI : out.UserInterface_facesGroups)
+						for (int fi : brush_faces)
+							clusterI.faces.erase(fi);
+			else
+				for (FacesGroup& clusterI : Outputs[Brush_output_index].UserInterface_facesGroups)
+					for (int fi : brush_faces)
+						clusterI.faces.erase(fi);
 		}
 		update_ext_fixed_group_faces();
 	}
@@ -1038,12 +1051,29 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		{
 			std::vector<int> neigh = Outputs[output_index].getNeigh(highlightFacesType, InputModel().F, face_index, neighbor_distance);
 			if (EraseOrInsert == ERASE)
-				for (int currF : neigh)
-					Outputs[output_index].UserInterface_facesGroups[UserInterface_groupNum].faces.erase(currF);
+			{
+				if (UserInterface_UpdateAllOutputs)
+					for (auto& out : Outputs)
+						for (FacesGroup& clusterI : out.UserInterface_facesGroups)
+							for (int currF : neigh)
+								clusterI.faces.erase(currF);
+				else
+					for (FacesGroup& clusterI : Outputs[output_index].UserInterface_facesGroups)
+						for (int currF : neigh)
+							clusterI.faces.erase(currF);
+			}
 			else if (EraseOrInsert == INSERT)
-				for (int currF : neigh)
-					Outputs[output_index].UserInterface_facesGroups[UserInterface_groupNum].faces.insert(currF);
-			
+			{
+				if (UserInterface_UpdateAllOutputs)
+					for (auto& out : Outputs)
+						for (int currF : neigh)
+							out.UserInterface_facesGroups[UserInterface_groupNum].faces.insert(currF);
+				else
+					for (int currF : neigh)
+						Outputs[output_index].UserInterface_facesGroups[UserInterface_groupNum].faces.insert(currF);
+
+			}
+				
 			update_ext_fixed_group_faces();
 		}
 	}
