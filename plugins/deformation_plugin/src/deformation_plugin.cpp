@@ -233,7 +233,7 @@ void deformation_plugin::CollapsingHeader_user_interface()
 {
 	if (!ImGui::CollapsingHeader("User Interface"))
 	{
-		ImGui::Combo("Coloring Input model like", (int*)(&UserInterface_colorInputModelIndex), app_utils::build_inputColoring_list(Outputs.size()));
+		ImGui::Combo("Coloring Input", (int*)(&UserInterface_colorInputModelIndex), app_utils::build_inputColoring_list(Outputs.size()));
 		
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
 			ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
@@ -939,14 +939,14 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 	{
 		Eigen::Vector3f _;
 		int face_index, output_index;
-		pick_face(&output_index, &face_index, _);
-		if (Outputs[output_index].clusters_indices.size()) 
+		
+		if (pick_face(&output_index, &face_index, _) && output_index != NOT_FOUND && Outputs[output_index].clusters_indices.size())
 		{
 			for (int ci = 0; ci < Outputs[output_index].clusters_indices.size(); ci++)
 			{
 				for (auto& it = Outputs[output_index].clusters_indices[ci].begin(); it != Outputs[output_index].clusters_indices[ci].end(); ++it)
 				{
-					if (face_index == *it) 
+					if (face_index == *it)
 					{
 						//found
 						if (cluster_index != ci && cluster_index != NOT_FOUND)
@@ -1057,7 +1057,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 	down_mouse_x = viewer->current_mouse_x;
 	down_mouse_y = viewer->current_mouse_y;
 	
-	if (clusteringType != app_utils::ClusteringType::NoClustering && button == GLFW_MOUSE_BUTTON_LEFT)
+	if (clusteringType != app_utils::ClusteringType::NoClustering && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
 	{
 		Eigen::Vector3f _;
 		int face_index,output_index;
