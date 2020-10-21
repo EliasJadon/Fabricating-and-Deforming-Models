@@ -243,7 +243,7 @@ void deformation_plugin::CollapsingHeader_user_interface()
 			ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH ||
 			UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
-			ImGui::Combo("Group Color", (int *)(&UserInterface_groupNum), app_utils::build_groups_names_list(Outputs[0].facesGroups));
+			ImGui::Combo("Group Color", (int *)(&UserInterface_groupNum), app_utils::build_groups_names_list(Outputs[0].UserInterface_facesGroups));
 		if (ImGui::Button("Clear sellected faces & vertices"))
 			clear_sellected_faces_and_vertices();
 	}
@@ -750,7 +750,7 @@ void deformation_plugin::clear_sellected_faces_and_vertices()
 	for (auto&o : Outputs)
 	{
 		o.UserInterface_FixedFaces.clear();
-		for (auto& c : o.facesGroups)
+		for (auto& c : o.UserInterface_facesGroups)
 			c.faces.clear();
 		o.UserIterface_FixedVertices.clear();
 	}
@@ -919,11 +919,11 @@ void deformation_plugin::brush_erase_or_insert()
 		if (EraseOrInsert == INSERT) 
 		{
 			for (int fi : brush_faces)
-				Outputs[Brush_output_index].facesGroups[UserInterface_groupNum].faces.insert(fi);
+				Outputs[Brush_output_index].UserInterface_facesGroups[UserInterface_groupNum].faces.insert(fi);
 		}
 		else
 		{
-			for (FacesGroup& clusterI : Outputs[Brush_output_index].facesGroups)
+			for (FacesGroup& clusterI : Outputs[Brush_output_index].UserInterface_facesGroups)
 				for (int fi : brush_faces)
 					clusterI.faces.erase(fi);
 		}
@@ -1039,10 +1039,10 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 			std::vector<int> neigh = Outputs[output_index].getNeigh(highlightFacesType, InputModel().F, face_index, neighbor_distance);
 			if (EraseOrInsert == ERASE)
 				for (int currF : neigh)
-					Outputs[output_index].facesGroups[UserInterface_groupNum].faces.erase(currF);
+					Outputs[output_index].UserInterface_facesGroups[UserInterface_groupNum].faces.erase(currF);
 			else if (EraseOrInsert == INSERT)
 				for (int currF : neigh)
-					Outputs[output_index].facesGroups[UserInterface_groupNum].faces.insert(currF);
+					Outputs[output_index].UserInterface_facesGroups[UserInterface_groupNum].faces.insert(currF);
 			
 			update_ext_fixed_group_faces();
 		}
@@ -1286,7 +1286,7 @@ void deformation_plugin::draw_brush_sphere()
 	//prepare color
 	Eigen::MatrixXd c(1, 3);
 	if (EraseOrInsert == INSERT) {
-		c.row(0) = Outputs[Brush_output_index].facesGroups[UserInterface_groupNum].color.cast<double>();
+		c.row(0) = Outputs[Brush_output_index].UserInterface_facesGroups[UserInterface_groupNum].color.cast<double>();
 	}
 	else if (EraseOrInsert == ERASE) { 
 		c.row(0) << 1, 1, 1; // white color for erasing
@@ -1378,9 +1378,9 @@ void deformation_plugin::update_ext_fixed_group_faces()
 {
 	for (auto&out : Outputs)
 	{
-		std::vector < std::vector<int>> ind(out.facesGroups.size());
-		for (int ci = 0; ci < out.facesGroups.size(); ci++)
-			for (int fi : out.facesGroups[ci].faces)
+		std::vector < std::vector<int>> ind(out.UserInterface_facesGroups.size());
+		for (int ci = 0; ci < out.UserInterface_facesGroups.size(); ci++)
+			for (int fi : out.UserInterface_facesGroups[ci].faces)
 				ind[ci].push_back(fi);
 		if (isModelLoaded)
 		{
@@ -1438,8 +1438,8 @@ void deformation_plugin::follow_and_mark_selected_faces()
 	{
 		Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color, Color_sphere_edges, Color_normal_edge, face_norm_color);
 		UpdateEnergyColors(i);
-		//Mark the cluster faces
-		for (FacesGroup cluster : Outputs[i].facesGroups)
+		//Mark the Groups faces
+		for (FacesGroup cluster : Outputs[i].UserInterface_facesGroups)
 			for (int fi : cluster.faces)
 				Outputs[i].updateFaceColors(fi, cluster.color);
 		//Mark the fixed faces

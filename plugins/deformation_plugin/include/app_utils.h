@@ -347,7 +347,7 @@ private:
 	Eigen::VectorXd radius_of_sphere;
 public:
 	std::set<int> UserInterface_FixedFaces, UserIterface_FixedVertices;
-	std::vector<FacesGroup> facesGroups;
+	std::vector<FacesGroup> UserInterface_facesGroups;
 	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
 	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
 	std::shared_ptr<AdamMinimizer> adamMinimizer;
@@ -400,7 +400,7 @@ public:
 		showFacesNorm = showSphereEdges = showNormEdges = 
 			showTriangleCenters = showSphereCenters = false;
 		for (int i = 0; i < 9; i++)
-			facesGroups.push_back(FacesGroup(facesGroups.size()));
+			UserInterface_facesGroups.push_back(FacesGroup(UserInterface_facesGroups.size()));
 		UserInterface_IsTranslate = false;
 	}
 
