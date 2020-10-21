@@ -461,14 +461,14 @@ void deformation_plugin::Draw_energies_window()
 {
 	if (!energies_window)
 		return;
-	ImGui::SetNextWindowPos(ImVec2(200, 550), ImGuiCond_FirstUseEver);
+	ImGui::SetNextWindowPos(energies_window_position);
 	ImGui::Begin("Energies & Timing", NULL, ImGuiWindowFlags_AlwaysAutoResize);
 	int id = 0;
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.6f, 0.0f, 1.0f));
 	if (ImGui::Button(("Add one more " + modelName).c_str()))
 		add_output();
 	ImGui::PopStyleColor();
-
+	
 	//add automatic lambda change
 	if (ImGui::BeginTable("Lambda table", 8, ImGuiTableFlags_Resizable))
 	{
@@ -510,7 +510,7 @@ void deformation_plugin::Draw_energies_window()
 				out.gradientDescentMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
 			}
 			ImGui::TableNextCell();
-			if (ImGui::DragInt("##jump", &(out.activeMinimizer->autoLambda_jump), 1, i64_zero, i64_max))
+			if (ImGui::DragInt("##jump", &(out.activeMinimizer->autoLambda_jump), 1, 1, i64_max))
 			{
 				out.newtonMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
 				out.adamMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
@@ -526,10 +526,8 @@ void deformation_plugin::Draw_energies_window()
 			ImGui::TableNextRow();
 		}
 		ImGui::PopItemWidth();
+		ImGui::EndTable();
 	}
-	ImGui::EndTable();
-
-
 	
 	if (Outputs.size() != 0) {
 		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 3, ImGuiTableFlags_Resizable))
@@ -640,9 +638,11 @@ void deformation_plugin::Draw_energies_window()
 				ImGui::PopItemWidth();
 				ImGui::TableNextRow();
 			}	
+			ImGui::EndTable();
 		}
-		ImGui::EndTable();
 	}
+	ImVec2 w_size = ImGui::GetWindowSize();
+	energies_window_position = ImVec2(0.5 * global_screen_size[0] - 0.5 * w_size[0], global_screen_size[1] - w_size[1]);
 	//close the window
 	ImGui::End();
 }
@@ -653,14 +653,14 @@ void deformation_plugin::Draw_output_window()
 		return;
 	for (auto& out : Outputs) 
 	{
-		ImGui::SetNextWindowSize(ImVec2(200, 300), ImGuiCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(200, 300));
+		ImGui::SetNextWindowPos(out.outputs_window_position);
 		ImGui::Begin(("Output settings " + std::to_string(out.CoreID)).c_str(),
 			NULL,
 			ImGuiWindowFlags_NoTitleBar |
 			ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoMove
 		);
-		ImGui::SetWindowPos(out.outputs_window_position);
 		ImGui::Checkbox("Update all models together", &isUpdateAll);
 		CollapsingHeader_cores(viewer->core(out.CoreID), viewer->data(out.ModelID));
 		CollapsingHeader_models(viewer->data(out.ModelID));
@@ -904,7 +904,9 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
  		Outputs[view - app_utils::View::SHOW_OUTPUT_SCREEN_ONLY_0].results_window_position = ImVec2(w*0.8, 0);
  	}		
 	for (auto& o : Outputs)
-		viewer->core(o.CoreID).viewport = Eigen::Vector4f(o.screen_position[0], o.screen_position[1], o.screen_size[0]+1, o.screen_size[1]+1);
+		viewer->core(o.CoreID).viewport = Eigen::Vector4f(o.screen_position[0], o.screen_position[1], o.screen_size[0] + 1, o.screen_size[1] + 1);
+	energies_window_position = ImVec2(0.1 * w, 0.8 * h);
+	global_screen_size = ImVec2(w, h);
 }
 
 void deformation_plugin::brush_erase_or_insert() 
