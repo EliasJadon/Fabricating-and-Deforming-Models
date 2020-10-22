@@ -714,8 +714,9 @@ public:
 		}
 	}
 
-	void translateCenterOfSphere(const int fi, const Eigen::Vector3d translateValue) {
+	void translateFaces(const int fi, const Eigen::Vector3d translateValue) {
 		this->center_of_sphere.row(fi) += translateValue;
+		this->faces_normals.row(fi) += translateValue;
 	}
 
 	Eigen::MatrixXd getCenterOfFaces() {

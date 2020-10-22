@@ -991,9 +991,9 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			Eigen::Vector3f translation = app_utils::computeTranslation(mouse_x, down_mouse_x, mouse_y, down_mouse_y, face_avg_pt, OutputCore(Output_Translate_ID));
 			if (UserInterface_UpdateAllOutputs)
 				for (auto& o : Outputs)
-					o.translateCenterOfSphere(out.UserInterface_TranslateIndex, translation.cast<double>());
+					o.translateFaces(out.UserInterface_TranslateIndex, translation.cast<double>());
 			else
-				out.translateCenterOfSphere(out.UserInterface_TranslateIndex, translation.cast<double>());
+				out.translateFaces(out.UserInterface_TranslateIndex, translation.cast<double>());
 			down_mouse_x = mouse_x;
 			down_mouse_y = mouse_y;
 			update_ext_fixed_faces();
