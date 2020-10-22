@@ -9,7 +9,7 @@ class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
 	bool CollapsingHeader_curr[7], CollapsingHeader_prev[7], CollapsingHeader_change;
-	bool outputs_window, results_window, energies_window;
+	bool tips_window, outputs_window, results_window, energies_window;
 	OptimizationUtils::InitSphereAuxiliaryVariables typeSphereAuxVar;
 	bool isLoadNeeded, isModelLoaded;
 	float Max_Distortion;
@@ -55,7 +55,7 @@ private:
 	int Output_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
 	std::thread minimizer_thread;
-	ImVec2 energies_window_position, global_screen_size;
+	ImVec2 tips_window_position, tips_window_size, energies_window_position, global_screen_size;
 	int UserInterface_colorInputModelIndex;
 	bool UserInterface_UpdateAllOutputs;
 public:
@@ -91,6 +91,7 @@ public:
 	void Draw_results_window();
 	void Draw_energies_window();
 	void Draw_output_window();
+	void Draw_tips_window();
 
 	//Pick faces & vertices and highlight them
 	bool pick_face(int* output_index, int* face_index, Eigen::Vector3f& intersec_point,const bool update=false);

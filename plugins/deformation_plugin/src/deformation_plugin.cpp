@@ -25,7 +25,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
-	energies_window = results_window = outputs_window = true;
+	energies_window = results_window = outputs_window = tips_window = true;
 	neighborType = app_utils::NeighborType::LOCAL_NORMALS;
 	IsChoosingGroups = false;
 	isModelLoaded = false;
@@ -105,6 +105,7 @@ void deformation_plugin::load_new_model(const std::string modelpath)
 
 IGL_INLINE void deformation_plugin::draw_viewer_menu()
 {
+	Draw_tips_window();
 	if (isModelLoaded && UserInterface_option != app_utils::UserInterfaceOptions::NONE)
 	{
 		CollapsingHeader_user_interface();
@@ -650,6 +651,46 @@ void deformation_plugin::Draw_energies_window()
 	ImGui::End();
 }
 
+void deformation_plugin::Draw_tips_window()
+{
+	if (!tips_window)
+		return;
+	ImGui::SetNextWindowSize(tips_window_size);
+	ImGui::SetNextWindowPos(tips_window_position);
+	ImGui::Begin("Tips & shortcuts",
+		NULL,
+		ImGuiWindowFlags_NoTitleBar |
+		ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove
+	);
+
+	ImGui::SetWindowFontScale(3);
+	ImGui::Text("Hello :)");
+	ImGui::Text("You have some useful Tips for using this interface in the folowing paraghraphs.");
+	ImGui::Text("\n\nHow to start:");
+	ImGui::Text("\t1. Choose .OFF or .OBJ 3D model by \"Load\" button (see shortcuts also)");
+	ImGui::Text("\t2. Choose Physical mode (Planar or Spherical):");
+	ImGui::Text("\t\t2.1. Choose \"Neighbor type\" under \"user interface\" header (you need to ***hold*** '2' first on the keyboard)");
+	ImGui::Text("\t\t\t\"local normals\" or \"global normals\" or \"curr face\" -  for planar mode");
+	ImGui::Text("\t\t\t\"local spheres\" or \"global spheres\" or \"curr face\" -  for spherical mode");
+	ImGui::Text("\t\t2.2. Show normals or spheres centers (optional)");
+	ImGui::Text("\t\t2.2. update the weight for the suitable energy (you need to choose only one from the 4 ???)");
+	ImGui::Text("\t3. update minimizer settings");
+	ImGui::Text("\t4. Run the solver (see also shortcuts)");
+	ImGui::Text("\t5. you can change lambda manually from the energies window or automatically");
+	ImGui::Text("\t6. you can add external energies (see user energy paraghraph).");
+	ImGui::Text("\t7. Finally, you can cluster the final results");
+
+	ImGui::Text("\n\nUser external energies:");
+	ImGui::Text("\n\nShortcuts:");
+
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
+	if (ImGui::Button("Close"))
+		tips_window = false;
+	ImGui::PopStyleColor();
+	ImGui::End();
+}
+
 void deformation_plugin::Draw_output_window()
 {
 	if (!outputs_window)
@@ -910,6 +951,8 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 		viewer->core(o.CoreID).viewport = Eigen::Vector4f(o.screen_position[0], o.screen_position[1], o.screen_size[0] + 1, o.screen_size[1] + 1);
 	energies_window_position = ImVec2(0.1 * w, 0.8 * h);
 	global_screen_size = ImVec2(w, h);
+	tips_window_position = ImVec2(0.1 * w, 0.1 * h);
+	tips_window_size = ImVec2(0.8 * w, 0.8 * h);
 }
 
 void deformation_plugin::brush_erase_or_insert() 
