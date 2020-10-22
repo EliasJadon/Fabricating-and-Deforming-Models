@@ -40,7 +40,7 @@ private:
 	float core_size, clusteringMSE, clusteringRatio;
 	app_utils::ClusteringType clusteringType;
 	Eigen::Vector3f intersec_point;
-	app_utils::HighlightFaces highlightFacesType;
+	app_utils::NeighborType neighborType;
 	std::vector<OptimizationOutput> Outputs;
 	int cluster_index = -1;
 	float prev_camera_zoom;

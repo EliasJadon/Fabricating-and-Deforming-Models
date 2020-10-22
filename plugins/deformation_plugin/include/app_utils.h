@@ -125,8 +125,8 @@ namespace app_utils
 		SHOW_INPUT_SCREEN_ONLY,
 		SHOW_OUTPUT_SCREEN_ONLY_0
 	};
-	enum HighlightFaces {
-		HOVERED_FACE,
+	enum NeighborType {
+		CURR_FACE,
 		LOCAL_SPHERE,
 		GLOBAL_SPHERE,
 		LOCAL_NORMALS,
@@ -754,17 +754,17 @@ public:
 		return Neighbors;
 	}
 
-	std::vector<int> getNeigh(const app_utils::HighlightFaces type,const Eigen::MatrixXi& F,const int fi, const float distance) {
+	std::vector<int> getNeigh(const app_utils::NeighborType type,const Eigen::MatrixXi& F,const int fi, const float distance) {
 		std::vector<int> neigh;
-		if (type == app_utils::HighlightFaces::HOVERED_FACE)
+		if (type == app_utils::NeighborType::CURR_FACE)
 			return neigh;
-		if(type == app_utils::HighlightFaces::GLOBAL_NORMALS)
+		if(type == app_utils::NeighborType::GLOBAL_NORMALS)
 			return GlobNeighNorms(fi, distance);
-		if(type == app_utils::HighlightFaces::GLOBAL_SPHERE)
+		if(type == app_utils::NeighborType::GLOBAL_SPHERE)
 			return GlobNeighSphereCenters(fi, distance);
-		if(type == app_utils::HighlightFaces::LOCAL_NORMALS)
+		if(type == app_utils::NeighborType::LOCAL_NORMALS)
 			neigh = GlobNeighNorms(fi, distance);
-		else if(type == app_utils::HighlightFaces::LOCAL_SPHERE)
+		else if(type == app_utils::NeighborType::LOCAL_SPHERE)
 			neigh = GlobNeighSphereCenters(fi, distance);
 		
 		std::vector<int> result; result.push_back(fi);

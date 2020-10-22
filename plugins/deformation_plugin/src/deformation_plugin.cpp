@@ -26,7 +26,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
 	energies_window = results_window = outputs_window = true;
-	highlightFacesType = app_utils::HighlightFaces::LOCAL_NORMALS;
+	neighborType = app_utils::NeighborType::LOCAL_NORMALS;
 	IsChoosingGroups = false;
 	isModelLoaded = false;
 	isUpdateAll = true;
@@ -237,7 +237,7 @@ void deformation_plugin::CollapsingHeader_user_interface()
 		ImGui::Combo("Coloring Input", (int*)(&UserInterface_colorInputModelIndex), app_utils::build_inputColoring_list(Outputs.size()));
 		ImGui::Checkbox("Update All", &UserInterface_UpdateAllOutputs);
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
-			ImGui::Combo("Highlight type", (int *)(&highlightFacesType), "Hovered Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
+			ImGui::Combo("Neighbor type", (int *)(&neighborType), "Curr Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
 			ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH)
@@ -1061,7 +1061,7 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		int face_index, output_index;
 		if (pick_face(&output_index, &face_index, _))
 		{
-			std::vector<int> neigh = Outputs[output_index].getNeigh(highlightFacesType, InputModel().F, face_index, neighbor_distance);
+			std::vector<int> neigh = Outputs[output_index].getNeigh(neighborType, InputModel().F, face_index, neighbor_distance);
 			if (EraseOrInsert == ERASE)
 			{
 				if (UserInterface_UpdateAllOutputs)
@@ -1235,7 +1235,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	}
 	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) 
 	{
-		highlightFacesType = app_utils::HighlightFaces::LOCAL_NORMALS;
+		neighborType = app_utils::NeighborType::LOCAL_NORMALS;
 		for (auto&out : Outputs) {
 			out.showFacesNorm = true;
 			out.showSphereEdges = out.showNormEdges = out.showTriangleCenters = out.showSphereCenters = false;
@@ -1245,23 +1245,23 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			for (auto& obj : out.totalObjective->objectiveList) 
 			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-				std::shared_ptr<GroupSpheres> GS = std::dynamic_pointer_cast<GroupSpheres>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				std::shared_ptr<GroupNormals> CN = std::dynamic_pointer_cast<GroupNormals>(obj);
+				std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
+				std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
 				if(ABN != NULL)
 					ABN->w = 1.6;
-				if (CN != NULL)
-					CN->w = 0.05;
 				if (AS != NULL)
 					AS->w = 0;
-				if (GS != NULL)
-					GS->w = 0;
+				if (BN != NULL)
+					BN->w = 0;
+				if (BE != NULL)
+					BE->w = 0;
 			}
 		}
 	}
 	if (isModelLoaded && (key == 'w' || key == 'W') && modifiers == 1) 
 	{
-		highlightFacesType = app_utils::HighlightFaces::LOCAL_SPHERE;
+		neighborType = app_utils::NeighborType::LOCAL_SPHERE;
 		for (auto&out : Outputs) {
 			out.showSphereCenters = true;
 			out.showSphereEdges = out.showNormEdges =
@@ -1272,18 +1272,17 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			for (auto& obj : out.totalObjective->objectiveList) 
 			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-				std::shared_ptr<GroupSpheres> GS = std::dynamic_pointer_cast<GroupSpheres>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				std::shared_ptr<GroupNormals> CN = std::dynamic_pointer_cast<GroupNormals>(obj);
-
-				if(AS != NULL)
-					AS->w = 1.6;
-				if (GS != NULL)
-					GS->w = 0.05;
+				std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
+				std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
 				if (ABN != NULL)
 					ABN->w = 0;
-				if (CN != NULL)
-					CN->w = 0;
+				if (AS != NULL)
+					AS->w = 1.6;
+				if (BN != NULL)
+					BN->w = 0;
+				if (BE != NULL)
+					BE->w = 0;
 			}
 		}
 	}
@@ -1508,7 +1507,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		//Mark the highlighted face & neighbors
 		if (curr_highlighted_face != NOT_FOUND && curr_highlighted_output == i)
 		{
-			std::vector<int> neigh = Outputs[i].getNeigh(highlightFacesType,InputModel().F, curr_highlighted_face, neighbor_distance);
+			std::vector<int> neigh = Outputs[i].getNeigh(neighborType,InputModel().F, curr_highlighted_face, neighbor_distance);
 			for (int fi : neigh)
 				Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
 			Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
