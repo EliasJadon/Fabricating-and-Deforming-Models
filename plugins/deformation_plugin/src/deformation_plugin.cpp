@@ -1236,8 +1236,6 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) 
 	{
 		highlightFacesType = app_utils::HighlightFaces::LOCAL_NORMALS;
-		neighbor_distance = 0.03;
-		change_minimizer_type(app_utils::MinimizerType::ADAM_MINIMIZER);
 		for (auto&out : Outputs) {
 			out.showFacesNorm = true;
 			out.showSphereEdges = out.showNormEdges = out.showTriangleCenters = out.showSphereCenters = false;
@@ -1247,25 +1245,23 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			for (auto& obj : out.totalObjective->objectiveList) 
 			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-				std::shared_ptr<ClusterSpheres> CS = std::dynamic_pointer_cast<ClusterSpheres>(obj);
+				std::shared_ptr<GroupSpheres> GS = std::dynamic_pointer_cast<GroupSpheres>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				std::shared_ptr<ClusterNormals> CN = std::dynamic_pointer_cast<ClusterNormals>(obj);
+				std::shared_ptr<GroupNormals> CN = std::dynamic_pointer_cast<GroupNormals>(obj);
 				if(ABN != NULL)
 					ABN->w = 1.6;
 				if (CN != NULL)
 					CN->w = 0.05;
 				if (AS != NULL)
 					AS->w = 0;
-				if (CS != NULL)
-					CS->w = 0;
+				if (GS != NULL)
+					GS->w = 0;
 			}
 		}
 	}
 	if (isModelLoaded && (key == 'w' || key == 'W') && modifiers == 1) 
 	{
 		highlightFacesType = app_utils::HighlightFaces::LOCAL_SPHERE;
-		neighbor_distance = 0.3;
-		change_minimizer_type(app_utils::MinimizerType::ADAM_MINIMIZER);
 		for (auto&out : Outputs) {
 			out.showSphereCenters = true;
 			out.showSphereEdges = out.showNormEdges =
@@ -1276,14 +1272,14 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			for (auto& obj : out.totalObjective->objectiveList) 
 			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-				std::shared_ptr<ClusterSpheres> CS = std::dynamic_pointer_cast<ClusterSpheres>(obj);
+				std::shared_ptr<GroupSpheres> GS = std::dynamic_pointer_cast<GroupSpheres>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				std::shared_ptr<ClusterNormals> CN = std::dynamic_pointer_cast<ClusterNormals>(obj);
+				std::shared_ptr<GroupNormals> CN = std::dynamic_pointer_cast<GroupNormals>(obj);
 
 				if(AS != NULL)
 					AS->w = 1.6;
-				if (CS != NULL)
-					CS->w = 0.05;
+				if (GS != NULL)
+					GS->w = 0.05;
 				if (ABN != NULL)
 					ABN->w = 0;
 				if (CN != NULL)
@@ -1417,19 +1413,26 @@ void deformation_plugin::change_minimizer_type(app_utils::MinimizerType type)
 void deformation_plugin::update_ext_fixed_faces() 
 {
 	for (auto&out : Outputs) {
-		std::vector<int> CurrCentersInd; CurrCentersInd.clear();
-		Eigen::MatrixX3d CurrCentersPos;
+		std::vector<int> CurrFacesInd; CurrFacesInd.clear();
+		Eigen::MatrixX3d CurrCentersPos, CurrFacesNormals;
 		for (auto fi : out.UserInterface_FixedFaces)
-			CurrCentersInd.push_back(fi);
-		CurrCentersPos = Eigen::MatrixX3d::Zero(CurrCentersInd.size(), 3);
+			CurrFacesInd.push_back(fi);
+		CurrCentersPos = Eigen::MatrixX3d::Zero(CurrFacesInd.size(), 3);
+		CurrFacesNormals = Eigen::MatrixX3d::Zero(CurrFacesInd.size(), 3);
 		int idx = 0;
-		for (auto ci : CurrCentersInd)
+		for (auto ci : CurrFacesInd)
+		{
 			if (out.getCenterOfSphere().size() != 0)
-				CurrCentersPos.row(idx++) = out.getCenterOfSphere().row(ci);
+				CurrCentersPos.row(idx) = out.getCenterOfSphere().row(ci);
+			if (out.getFacesNormals().size() != 0)
+				CurrFacesNormals.row(idx) = out.getFacesNormals().row(ci);
+			idx++;
+		}
+			
 		//Finally, we update the handles in the constraints positional object
 		if (isModelLoaded) {
-			*(out.CentersInd) = CurrCentersInd;
-			*(out.CentersPosDeformed) = CurrCentersPos;
+			out.Energy_FixChosenNormals->updateExtConstraints(CurrFacesInd, CurrFacesNormals);
+			out.Energy_FixChosenSpheres->updateExtConstraints(CurrFacesInd, CurrCentersPos);
 		}
 	}
 }
@@ -1444,8 +1447,8 @@ void deformation_plugin::update_ext_fixed_group_faces()
 				ind[ci].push_back(fi);
 		if (isModelLoaded)
 		{
-			*(out.ClustersSphereInd) = ind;
-			*(out.ClustersNormInd) = ind;
+			out.Energy_GroupNormals->updateExtConstraints(ind);
+			out.Energy_GroupSpheres->updateExtConstraints(ind);
 		}
 	}
 }
@@ -1470,10 +1473,7 @@ void deformation_plugin::update_ext_fixed_vertices()
 		set_vertices_for_mesh(OutputModel(i).V, i);
 		//Finally, we update the handles in the constraints positional object
 		if (isModelLoaded)
-		{
-			*(Outputs[i].HandlesInd) = CurrHandlesInd;
-			*(Outputs[i].HandlesPosDeformed) = CurrHandlesPosDeformed;
-		}
+			Outputs[i].Energy_FixChosenVertices->updateExtConstraints(CurrHandlesInd, CurrHandlesPosDeformed);
 	}
 }
 
@@ -1594,8 +1594,6 @@ bool deformation_plugin::pick_face(
 	{
 		Output_Translate_ID = *output_index;
 	}
-	cout << "*output_index = " << *output_index << endl;
-	cout << "*face_index = " << *face_index << endl;
 	return (*face_index != NOT_FOUND);
 }
 
@@ -1855,28 +1853,34 @@ void deformation_plugin::initializeMinimizer(const int index)
 	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>();
 	fixAllVertices->init_mesh(V, F);
 	fixAllVertices->init();
+
+	//Add User Interface Energies
+	std::shared_ptr <FixChosenNormals> fixChosenNormals = std::make_shared<FixChosenNormals>();
+	fixChosenNormals->numV = V.rows();
+	fixChosenNormals->numF = F.rows();
+	fixChosenNormals->init();
+	Outputs[index].Energy_FixChosenNormals = fixChosenNormals;
 	std::shared_ptr <FixChosenVertices> fixChosenVertices = std::make_shared<FixChosenVertices>();
 	fixChosenVertices->numV = V.rows();
 	fixChosenVertices->numF = F.rows();
 	fixChosenVertices->init();
-	Outputs[index].HandlesInd = &(fixChosenVertices->ConstrainedVerticesInd);
-	Outputs[index].HandlesPosDeformed = &(fixChosenVertices->ConstrainedVerticesPos);
+	Outputs[index].Energy_FixChosenVertices = fixChosenVertices;
 	std::shared_ptr< FixChosenSpheres> fixChosenSpheres = std::make_shared<FixChosenSpheres>();
 	fixChosenSpheres->numV = V.rows();
 	fixChosenSpheres->numF = F.rows();
 	fixChosenSpheres->init();
-	Outputs[index].CentersInd = &(fixChosenSpheres->ConstrainedCentersInd);
-	Outputs[index].CentersPosDeformed = &(fixChosenSpheres->ConstrainedCentersPos);
-	std::shared_ptr< ClusterSpheres> clusterSpheres = std::make_shared<ClusterSpheres>();
-	clusterSpheres->numV = V.rows();
-	clusterSpheres->numF = F.rows();
-	clusterSpheres->init();
-	Outputs[index].ClustersSphereInd = &(clusterSpheres->ClustersInd);
-	std::shared_ptr< ClusterNormals> clusterNormals = std::make_shared<ClusterNormals>();
-	clusterNormals->numV = V.rows();
-	clusterNormals->numF = F.rows();
-	clusterNormals->init();
-	Outputs[index].ClustersNormInd = &(clusterNormals->ClustersInd);
+	Outputs[index].Energy_FixChosenSpheres = fixChosenSpheres;
+	std::shared_ptr< GroupSpheres> groupSpheres = std::make_shared<GroupSpheres>();
+	groupSpheres->numV = V.rows();
+	groupSpheres->numF = F.rows();
+	groupSpheres->init();
+	Outputs[index].Energy_GroupSpheres = groupSpheres;
+	std::shared_ptr< GroupNormals> groupNormals = std::make_shared<GroupNormals>();
+	groupNormals->numV = V.rows();
+	groupNormals->numF = F.rows();
+	groupNormals->init();
+	Outputs[index].Energy_GroupNormals = groupNormals;
+
 	//init total objective
 	Outputs[index].totalObjective->objectiveList.clear();
 	Outputs[index].totalObjective->init_mesh(V, F);
@@ -1893,9 +1897,10 @@ void deformation_plugin::initializeMinimizer(const int index)
 		add_obj(stvk);
 	add_obj(fixAllVertices);
 	add_obj(fixChosenVertices);
+	add_obj(fixChosenNormals);
 	add_obj(fixChosenSpheres);
-	add_obj(clusterSpheres);
-	add_obj(clusterNormals);
+	add_obj(groupSpheres);
+	add_obj(groupNormals);
 	Outputs[index].totalObjective->init();
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
 	init_minimizer_thread();

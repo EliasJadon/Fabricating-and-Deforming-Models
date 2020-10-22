@@ -3,7 +3,7 @@
 FixChosenSpheres::FixChosenSpheres()
 {
     name = "Fix Chosen Spheres";
-	w = 0.05;
+	w = 500;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
@@ -17,28 +17,42 @@ void FixChosenSpheres::init()
 	std::cout << "\t" << name << " initialization" << std::endl;
 	if(numV==0 || numF == 0)
 		throw name + " must define members numV & numF before init()!";
+	startC_x = (3 * numV) + (3 * numF) + (0 * numF);
+	startC_y = (3 * numV) + (3 * numF) + (1 * numF);
+	startC_z = (3 * numV) + (3 * numF) + (2 * numF);
 	init_hessian();
+}
+
+void FixChosenSpheres::updateExtConstraints(
+	std::vector<int>& CCentersInd,
+	Eigen::MatrixX3d& CCentersPos)
+{
+	m.lock();
+	ConstrainedCentersInd = CCentersInd;
+	ConstrainedCentersPos = CCentersPos;
+	m.unlock();
 }
 
 void FixChosenSpheres::updateX(const Eigen::VectorXd& X)
 {
+	m.lock();
+	Eigen::MatrixX3d CurrConstrainedCentersPos;
 	CurrConstrainedCentersPos.resizeLike(ConstrainedCentersPos);
 	for (int i = 0; i < ConstrainedCentersInd.size(); i++)
 	{
-		int startC = 3 * numV + 3 * numF;
 		CurrConstrainedCentersPos.row(i) <<
-			X(ConstrainedCentersInd[i] + (0 * numF) + startC),	//X-coordinate
-			X(ConstrainedCentersInd[i] + (1 * numF) + startC),	//Y-coordinate
-			X(ConstrainedCentersInd[i] + (2 * numF) + startC);	//Z-coordinate
+			X(ConstrainedCentersInd[i] + startC_x),	//X-coordinate
+			X(ConstrainedCentersInd[i] + startC_y),	//Y-coordinate
+			X(ConstrainedCentersInd[i] + startC_z);	//Z-coordinate
 	}
+	diff = (CurrConstrainedCentersPos - ConstrainedCentersPos);
+	currConstrainedCentersInd = ConstrainedCentersInd;
+	m.unlock();
 }
 
 double FixChosenSpheres::value(const bool update)
 {
-	if (CurrConstrainedCentersPos.rows() != ConstrainedCentersPos.rows()) {
-		return 0;
-	}
-	double E = (ConstrainedCentersPos - CurrConstrainedCentersPos).squaredNorm();
+	double E = diff.squaredNorm();
 	if (update) {
 		energy_value = E;
 	}
@@ -49,18 +63,12 @@ void FixChosenSpheres::gradient(Eigen::VectorXd& g, const bool update)
 {
 	g.conservativeResize(numV * 3 + numF * 7);
 	g.setZero();
-
-	if (CurrConstrainedCentersPos.rows() == ConstrainedCentersPos.rows()) {
-		Eigen::MatrixX3d diff = (CurrConstrainedCentersPos - ConstrainedCentersPos);
-		for (int i = 0; i < ConstrainedCentersInd.size(); i++)
-		{
-			int startC = 3 * numV + 3 * numF;
-			g(ConstrainedCentersInd[i] + (0 * numF) + startC) = 2 * diff(i, 0); //X-coordinate
-			g(ConstrainedCentersInd[i] + (1 * numF) + startC) = 2 * diff(i, 1); //Y-coordinate
-			g(ConstrainedCentersInd[i] + (2 * numF) + startC) = 2 * diff(i, 2); //Z-coordinate
-		}
+	for (int i = 0; i < currConstrainedCentersInd.size(); i++)
+	{
+		g(currConstrainedCentersInd[i] + startC_x) = 2 * diff(i, 0); //X-coordinate
+		g(currConstrainedCentersInd[i] + startC_y) = 2 * diff(i, 1); //Y-coordinate
+		g(currConstrainedCentersInd[i] + startC_z) = 2 * diff(i, 2); //Z-coordinate
 	}
-
 	if(update)
 		gradient_norm = g.norm();
 }
@@ -68,12 +76,11 @@ void FixChosenSpheres::gradient(Eigen::VectorXd& g, const bool update)
 void FixChosenSpheres::hessian()
 {
 	fill(SS.begin(), SS.end(), 0);
-	for (int i = 0; i < ConstrainedCentersInd.size(); i++)
+	for (int i = 0; i < currConstrainedCentersInd.size(); i++)
 	{
-		int startC = 3 * numV + 3 * numF;
-		SS[ConstrainedCentersInd[i] + (0 * numF) + startC] = 2;
-		SS[ConstrainedCentersInd[i] + (1 * numF) + startC] = 2;
-		SS[ConstrainedCentersInd[i] + (2 * numF) + startC] = 2;
+		SS[currConstrainedCentersInd[i] + startC_x] = 2;
+		SS[currConstrainedCentersInd[i] + startC_y] = 2;
+		SS[currConstrainedCentersInd[i] + startC_z] = 2;
 	}
 }
 

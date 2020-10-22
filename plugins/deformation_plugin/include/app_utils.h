@@ -22,8 +22,8 @@
 #include "../../libs/optimization_lib/include/minimizers/GradientDescentMinimizer.h"
 #include "../../libs/optimization_lib/include/minimizers/AdamMinimizer.h"
 
-#include "../../libs/optimization_lib/include/objective_functions/ClusterSpheres.h"
-#include "../../libs/optimization_lib/include/objective_functions/ClusterNormals.h"
+#include "../../libs/optimization_lib/include/objective_functions/GroupSpheres.h"
+#include "../../libs/optimization_lib/include/objective_functions/GroupNormals.h"
 #include "../../libs/optimization_lib/include/objective_functions/FixChosenSpheres.h"
 #include "../../libs/optimization_lib/include/objective_functions/STVK.h"
 #include "../../libs/optimization_lib/include/objective_functions/SymmetricDirichlet.h"
@@ -33,6 +33,7 @@
 #include "../../libs/optimization_lib/include/objective_functions/AuxSpherePerHinge.h"
 #include "../../libs/optimization_lib/include/objective_functions/BendingNormal.h"
 #include "../../libs/optimization_lib/include/objective_functions/FixChosenVertices.h"
+#include "../../libs/optimization_lib/include/objective_functions/FixChosenNormals.h"
 
 #define RED_COLOR Eigen::Vector3f(1, 0, 0)
 #define BLUE_COLOR Eigen::Vector3f(0, 0, 1)
@@ -343,9 +344,15 @@ class OptimizationOutput {
 private:
 	Eigen::MatrixXd center_of_faces;
 	Eigen::MatrixXd center_of_sphere;
-	Eigen::MatrixXd facesNorm;
+	Eigen::MatrixXd faces_normals;
 	Eigen::VectorXd radius_of_sphere;
 public:
+	std::shared_ptr <FixChosenVertices> Energy_FixChosenVertices;
+	std::shared_ptr <FixChosenNormals> Energy_FixChosenNormals;
+	std::shared_ptr< FixChosenSpheres> Energy_FixChosenSpheres;
+	std::shared_ptr< GroupSpheres> Energy_GroupSpheres;
+	std::shared_ptr< GroupNormals> Energy_GroupNormals;
+
 	std::set<int> UserInterface_FixedFaces, UserInterface_FixedVertices;
 	std::vector<FacesGroup> UserInterface_facesGroups;
 	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
@@ -357,11 +364,6 @@ public:
 	float prev_camera_zoom;
 	Eigen::Vector3f prev_camera_translation;
 	Eigen::Quaternionf prev_trackball_angle;
-	std::vector<int> *HandlesInd; //pointer to indices in constraitPositional
-	Eigen::MatrixX3d *HandlesPosDeformed; //pointer to positions in constraitPositional
-	std::vector<int> *CentersInd; //pointer to indices in constraitPositional
-	Eigen::MatrixX3d *CentersPosDeformed; //pointer to positions in constraitPositional
-	std::vector < std::vector<int>> *ClustersSphereInd, *ClustersNormInd;
 	Eigen::MatrixXd fixed_vertices_positions;
 	Eigen::MatrixXd 
 		color_per_face,
@@ -416,7 +418,7 @@ public:
 		this->center_of_faces = OptimizationUtils::center_per_triangle(V, F);
 		this->center_of_sphere = center_of_sphere;
 		this->radius_of_sphere = radius_of_sphere;
-		this->facesNorm = norm;
+		this->faces_normals = norm;
 	}
 
 	double getRadiusOfSphere(int index) {
@@ -432,7 +434,7 @@ public:
 		
 		int numFaces;
 		if (isNormal)
-			numFaces = facesNorm.rows();
+			numFaces = faces_normals.rows();
 		else
 			numFaces = center_of_sphere.rows();
 		//Do 5 rounds of K-means clustering alg.
@@ -453,7 +455,7 @@ public:
 				{
 					double currMSE;
 					if (isNormal) {
-						currMSE = (facesNorm.row(fi) - clusters_val[ci]).squaredNorm();
+						currMSE = (faces_normals.row(fi) - clusters_val[ci]).squaredNorm();
 					}
 					else {
 						currMSE = (ratio*((center_of_sphere.row(fi) - clusters_center[ci]).norm()) + (1 - ratio)*abs(radius_of_sphere(fi) - clusters_radius[ci]));
@@ -473,7 +475,7 @@ public:
 				{
 					clusters_ind.push_back({ fi });
 					if(isNormal)
-						clusters_val.push_back(facesNorm.row(fi));
+						clusters_val.push_back(faces_normals.row(fi));
 					else {
 						clusters_center.push_back(center_of_sphere.row(fi));
 						clusters_radius.push_back(radius_of_sphere(fi));
@@ -512,7 +514,7 @@ public:
 					avg.resize(3);
 					avg << 0, 0, 0;
 					for (int currf : clusters_ind[ci]) {
-						avg += facesNorm.row(currf);
+						avg += faces_normals.row(currf);
 					}
 					avg /= clusters_ind[ci].size();
 					clusters_val[ci] = avg;
@@ -574,7 +576,7 @@ public:
 							avg.resize(3);
 							avg << 0, 0, 0;
 							for (int currf : (*ind1)) {
-								avg += facesNorm.row(currf);
+								avg += faces_normals.row(currf);
 							}
 							avg /= ind1->size();
 							*val1 = avg;
@@ -633,8 +635,8 @@ public:
 		int numFaces;
 		if (isNormal) {
 			clusters_val.clear();
-			clusters_val.push_back(facesNorm.row(0));
-			numFaces = facesNorm.rows();
+			clusters_val.push_back(faces_normals.row(0));
+			numFaces = faces_normals.rows();
 		}
 		else {
 			clusters_center.clear();
@@ -659,7 +661,7 @@ public:
 			{
 				double currMSE;
 				if (isNormal) {
-					currMSE = (facesNorm.row(fi) - clusters_val[ci]).squaredNorm();
+					currMSE = (faces_normals.row(fi) - clusters_val[ci]).squaredNorm();
 				}
 				else {
 					currMSE = (ratio*((center_of_sphere.row(fi) - clusters_center[ci]).norm()) + (1-ratio)*abs(radius_of_sphere(fi) - clusters_radius[ci]));
@@ -679,7 +681,7 @@ public:
 					avg.resize(3);
 					avg << 0, 0, 0;
 					for (int currf : clusters_ind[argmin]) {
-						avg += facesNorm.row(currf);
+						avg += faces_normals.row(currf);
 					}
 					avg /= clusters_ind[argmin].size();
 					clusters_val[argmin] << avg;
@@ -703,7 +705,7 @@ public:
 			{
 				clusters_ind.push_back({ fi });
 				if(isNormal)
-					clusters_val.push_back(facesNorm.row(fi));
+					clusters_val.push_back(faces_normals.row(fi));
 				else {
 					clusters_center.push_back(center_of_sphere.row(fi));
 					clusters_radius.push_back(radius_of_sphere(fi));
@@ -720,8 +722,12 @@ public:
 		return center_of_faces;
 	}
 
+	Eigen::MatrixXd getFacesNormals() {
+		return faces_normals;
+	}
+
 	Eigen::MatrixXd getFacesNorm() {
-		return center_of_faces + facesNorm;
+		return center_of_faces + faces_normals;
 	}
 
 	std::vector<int> GlobNeighSphereCenters(const int fi,const float distance) {
@@ -742,8 +748,8 @@ public:
 
 	std::vector<int> GlobNeighNorms(const int fi,const float distance) {
 		std::vector<int> Neighbors; Neighbors.clear();
-		for (int i = 0; i < facesNorm.rows(); i++)
-			if ((facesNorm.row(fi) - facesNorm.row(i)).squaredNorm() < distance)
+		for (int i = 0; i < faces_normals.rows(); i++)
+			if ((faces_normals.row(fi) - faces_normals.row(i)).squaredNorm() < distance)
 				Neighbors.push_back(i);
 		return Neighbors;
 	}
