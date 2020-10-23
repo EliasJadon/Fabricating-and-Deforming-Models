@@ -664,7 +664,7 @@ void deformation_plugin::Draw_tips_window()
 		ImGuiWindowFlags_NoMove
 	);
 
-	ImGui::SetWindowFontScale(3);
+	ImGui::SetWindowFontScale(2);
 	ImGui::Text("Hello :)");
 	ImGui::Text("You have some useful Tips for using this interface in the folowing paraghraphs.");
 	ImGui::Text("\nHow to start:");
