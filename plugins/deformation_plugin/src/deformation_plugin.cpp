@@ -667,22 +667,47 @@ void deformation_plugin::Draw_tips_window()
 	ImGui::SetWindowFontScale(3);
 	ImGui::Text("Hello :)");
 	ImGui::Text("You have some useful Tips for using this interface in the folowing paraghraphs.");
-	ImGui::Text("\n\nHow to start:");
+	ImGui::Text("\nHow to start:");
 	ImGui::Text("\t1. Choose .OFF or .OBJ 3D model by \"Load\" button (see shortcuts also)");
-	ImGui::Text("\t2. Choose Physical mode (Planar or Spherical):");
-	ImGui::Text("\t\t2.1. Choose \"Neighbor type\" under \"user interface\" header (you need to ***hold*** '2' first on the keyboard)");
-	ImGui::Text("\t\t\t\"local normals\" or \"global normals\" or \"curr face\" -  for planar mode");
-	ImGui::Text("\t\t\t\"local spheres\" or \"global spheres\" or \"curr face\" -  for spherical mode");
+	ImGui::Text("\t2. Choose Physical={Planar, Spherical} mode (see shortcuts also):");
+	ImGui::Text("\t\t2.1. Choose \"Neighbor type\" under \"user interface\" header");
+	ImGui::Text("\t\t     (you need to ***hold*** '2' first on the keyboard)");
+	ImGui::Text("\t\t\t\"Local Normals\"\t- for planar mode");
+	ImGui::Text("\t\t\t\"Global Normals\"\t- for planar mode");
+	ImGui::Text("\t\t\t\"Local Spheres\"\t-  for spherical mode");
+	ImGui::Text("\t\t\t\"Global Spheres\"\t-  for spherical mode");
+	ImGui::Text("\t\t\t\"Curr Face\"\t- for both");
 	ImGui::Text("\t\t2.2. Show normals or spheres centers (optional)");
-	ImGui::Text("\t\t2.2. update the weight for the suitable energy (you need to choose only one from the 4 ???)");
-	ImGui::Text("\t3. update minimizer settings");
+	ImGui::Text("\t\t2.2. update the weight for the suitable energy");
+	ImGui::Text("\t\t     (you need to choose only one energy from  the first for in the table)");
+	ImGui::Text("\t3. Optional - Update minimizer settings");
+	ImGui::Text("\t   e.g. line-search, Newton\\adam\\Gradient descent, etc");
 	ImGui::Text("\t4. Run the solver (see also shortcuts)");
-	ImGui::Text("\t5. you can change lambda manually from the energies window or automatically");
-	ImGui::Text("\t6. you can add external energies (see user energy paraghraph).");
-	ImGui::Text("\t7. Finally, you can cluster the final results");
+	ImGui::Text("\t5. Optional - You can change lambda manually from the energies window ");
+	ImGui::Text("\t   by \"*\" button or \"\\\" button");
+	ImGui::Text("\t   Or change it automatically by the first table in \"Energies Window\"");
+	ImGui::Text("\t6. Optional - You can add external energies (see user energy paraghraph).");
+	ImGui::Text("\t7. Optional - Finally, You can cluster the final results");
 
 	ImGui::Text("\n\nUser external energies:");
+	ImGui::Text("Pay attention, Left-click for adding");
+	ImGui::Text("               Right-click for removing");
+	ImGui::Text("\t- Fix vertices - ***Hold*** '1' and then choose vertices by the mouse");
+	ImGui::Text("\t- Choose Groups by Brush - ***Hold*** '2' and then choose vertices by the mouse");
+	ImGui::Text("\t                           you can scroll to change the size of the brush!");
+	ImGui::Text("\t- Choose Groups by Neighbors - ***Hold*** '3' and then choose vertices by the mouse");
+	ImGui::Text("\t                               you can scroll to change the neighbor distance!");
+	
+	ImGui::Text("\t- Fix Faces - ***Hold*** '4' and then choose vertices by the mouse");
+
+
 	ImGui::Text("\n\nShortcuts:");
+	ImGui::Text("\t- Shift + space - Run the solver (which replace step 4 in the above list)");
+	ImGui::Text("\t- Shift + C - clear all chosen vertices and faces");
+	ImGui::Text("\t- Shift + A - load island.off model (which replace step 1 in the above list)");
+	ImGui::Text("\t- Shift + S - load spot.off model (which replace step 1 in the above list)");
+	ImGui::Text("\t- Shift + Q - set planar mode (which replace step 2 in the above list)");
+	ImGui::Text("\t- Shift + W - set spherical mode (which replace step 2 in the above list)");
 
 	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
 	if (ImGui::Button("Close"))
