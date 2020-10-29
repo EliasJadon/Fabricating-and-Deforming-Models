@@ -4,7 +4,7 @@ project(plugins)
 
 # set variable value
 file(GLOB SOURCES
-	deformation_plugin/src/deformation_plugin.cpp
+	deformation_plugin/src/*.cpp
 	deformation_plugin/include/*.h)
 	
 add_library(${PROJECT_NAME} ${SOURCES})

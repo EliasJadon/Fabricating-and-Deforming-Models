@@ -3,7 +3,7 @@
 #ifndef RDS_PLUGINS_BASIC_MENU_H
 #define RDS_PLUGINS_BASIC_MENU_H
 
-#include "app_utils.h"
+#include "optimization_output.h"
 
 class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
