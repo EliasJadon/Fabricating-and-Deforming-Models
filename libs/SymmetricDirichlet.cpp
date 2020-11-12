@@ -1,6 +1,8 @@
 ﻿#include "SymmetricDirichlet.h"
 
+extern int printCuda();
 SymmetricDirichlet::SymmetricDirichlet() {
+	printCuda();
 	name = "Symmetric Dirichlet";
 	w = 0.6;
 	std::cout << "\t" << name << " constructor" << std::endl;
