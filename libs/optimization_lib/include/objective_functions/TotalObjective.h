@@ -5,6 +5,7 @@ class TotalObjective : public ObjectiveFunction
 {
 private:
 	virtual void init_hessian() override;
+	int variables_size;
 public:
 	TotalObjective();
 	~TotalObjective();
