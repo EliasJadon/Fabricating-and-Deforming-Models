@@ -1,28 +1,17 @@
-cmake_minimum_required(VERSION 3.5)
-# set the project name
+cmake_minimum_required(VERSION 3.9 FATAL_ERROR)
 project(MappingsLab)
 
-# set variable value
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+
+option(LIBIGL_WITH_OPENGL       "Use OpenGL" ON)
+option(LIBIGL_WITH_OPENGL_GLFW  "Use GLFW"   ON)
+option(LIBIGL_WITH_OPENGL_GLFW_IMGUI "Use ImGui" ON)
+option(LIBIGL_WITH_MATLAB 	    "Use MATLAB" ON)
+option(LIBIGL_USE_STATIC_LIBRARY "Use LibIGL as static library" ON)
 
 find_package(MKL)
-
-# libigl
-option(LIBIGL_WITH_OPENGL            "Use OpenGL"                    ON)
-option(LIBIGL_WITH_OPENGL_GLFW       "Use GLFW"                      ON)
-option(LIBIGL_WITH_OPENGL_GLFW_IMGUI "Use ImGui"                     ON)
-option(LIBIGL_WITH_MATLAB 			 "Use MATLAB"           ON)
-option(OPTIMIZATION_USE_PARDISO 		"Use PARDISO"           ON)
-option(LIBIGL_USE_STATIC_LIBRARY "Use LibIGL as static library" ON)
-option(BUILD_TESTS 			 		"Build tests"          		 OFF)
 find_package(LIBIGL REQUIRED QUIET)
 
-# libraries and plugins
-add_subdirectory("libs/optimization_lib")
+add_subdirectory("libs")
 add_subdirectory("plugins")
-
-# applications
 add_subdirectory("apps")
-if(BUILD_TESTS)
-	add_subdirectory("tests")
-endif()
