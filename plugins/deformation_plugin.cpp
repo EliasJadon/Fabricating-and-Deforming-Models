@@ -563,11 +563,11 @@ void deformation_plugin::Draw_energies_window()
 						if (BN != NULL)
 							ImGui::Combo("Function", (int*)(&(BN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (ABN != NULL)
-							ImGui::Combo("Function", (int*)(&(ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+							ImGui::Combo("Function", (int*)(&(Cuda::AuxBendingNormal::functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (AS != NULL)
 							ImGui::Combo("Function", (int*)(&(AS->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 
-						if (BE != NULL && BE->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+						if (BE != NULL && BE->functionType == FunctionType::SIGMOID) {
 
 							ImGui::Text(("2^" + std::to_string(int(log2(BE->planarParameter)))).c_str());
 							ImGui::SameLine();
@@ -581,7 +581,7 @@ void deformation_plugin::Draw_energies_window()
 								BE->planarParameter /= 2;
 							}
 						}
-						if (BN != NULL && BN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+						if (BN != NULL && BN->functionType == FunctionType::SIGMOID) {
 							ImGui::Text(("2^" + std::to_string(int(log2(BN->planarParameter)))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -594,24 +594,24 @@ void deformation_plugin::Draw_energies_window()
 								BN->planarParameter /= 2;
 							}
 						}
-						if (ABN != NULL && ABN->functionType == OptimizationUtils::FunctionType::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(ABN->planarParameter)))).c_str());
+						if (ABN != NULL && Cuda::AuxBendingNormal::functionType == FunctionType::SIGMOID) {
+							ImGui::Text(("2^" + std::to_string(int(log2(Cuda::AuxBendingNormal::planarParameter)))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								ABN->planarParameter = (ABN->planarParameter * 2) > 1 ? 1 : ABN->planarParameter * 2;
+								Cuda::AuxBendingNormal::planarParameter = (Cuda::AuxBendingNormal::planarParameter * 2) > 1 ? 1 : Cuda::AuxBendingNormal::planarParameter * 2;
 							}
 							ImGui::SameLine();
 							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								ABN->planarParameter /= 2;
+								Cuda::AuxBendingNormal::planarParameter /= 2;
 							}
 							const double  f64_zero = 0, f64_max = 100000.0;
-							ImGui::DragScalar("w1", ImGuiDataType_Double, &(ABN->w1), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w2", ImGuiDataType_Double, &(ABN->w2), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ABN->w3), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(Cuda::AuxBendingNormal::w1), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w2", ImGuiDataType_Double, &(Cuda::AuxBendingNormal::w2), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w3", ImGuiDataType_Double, &(Cuda::AuxBendingNormal::w3), 0.05f, &f64_zero, &f64_max);
 						}
-						if (AS != NULL && AS->functionType == OptimizationUtils::FunctionType::SIGMOID) {
+						if (AS != NULL && AS->functionType == FunctionType::SIGMOID) {
 							ImGui::Text(("2^" + std::to_string(int(log2(AS->planarParameter)))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -1896,16 +1896,16 @@ void deformation_plugin::initializeMinimizer(const int index)
 		return;
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
-	std::shared_ptr <BendingEdge> bendingEdge = std::make_unique<BendingEdge>(OptimizationUtils::FunctionType::SIGMOID);
+	std::shared_ptr <BendingEdge> bendingEdge = std::make_unique<BendingEdge>(FunctionType::SIGMOID);
 	bendingEdge->init_mesh(V, F);
 	bendingEdge->init();
-	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
+	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(FunctionType::SIGMOID);
 	auxBendingNormal->init_mesh(V, F);
 	auxBendingNormal->init();
-	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(OptimizationUtils::FunctionType::SIGMOID);
+	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(FunctionType::SIGMOID);
 	auxSpherePerHinge->init_mesh(V, F);
 	auxSpherePerHinge->init();
-	std::shared_ptr <BendingNormal> bendingNormal = std::make_unique<BendingNormal>(OptimizationUtils::FunctionType::SIGMOID);
+	std::shared_ptr <BendingNormal> bendingNormal = std::make_unique<BendingNormal>(FunctionType::SIGMOID);
 	bendingNormal->init_mesh(V, F);
 	bendingNormal->init();
 	std::shared_ptr <SymmetricDirichlet> SymmDirich = std::make_unique<SymmetricDirichlet>();

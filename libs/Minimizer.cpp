@@ -76,7 +76,7 @@ void Minimizer::update_lambda(int* lambda_counter)
 			if (ASH)
 				ASH->planarParameter /= 2;
 			if (ABN)
-				ABN->planarParameter /= 2;
+				Cuda::AuxBendingNormal::planarParameter /= 2;
 			if (BE)
 				BE->planarParameter /= 2;
 			if (BN)

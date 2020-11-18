@@ -20,12 +20,6 @@ namespace OptimizationUtils
 		MINUS_NORMALS
 	};
 
-	enum FunctionType {
-		QUADRATIC = 0,
-		EXPONENTIAL = 1,
-		SIGMOID = 2
-	};
-
 	enum LineSearch {
 		GRADIENT_NORM,
 		FUNCTION_VALUE,

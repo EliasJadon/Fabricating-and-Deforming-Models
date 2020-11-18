@@ -1,5 +1,6 @@
 #pragma once
 #include "ObjectiveFunction.h"
+#include "cudaLibrary/CudaBasics.h"
 
 class AuxSpherePerHinge : public ObjectiveFunction
 {	
@@ -24,10 +25,10 @@ private:
 	
 public:
 	std::vector<double> w_aux = { 1,100 }; // w1 = 1, w2 = 100;
-	OptimizationUtils::FunctionType functionType;
+	FunctionType functionType;
 	double planarParameter;
 
-	AuxSpherePerHinge(OptimizationUtils::FunctionType type);
+	AuxSpherePerHinge(FunctionType type);
 	~AuxSpherePerHinge();
 	virtual void init() override;
 	virtual void updateX(const Eigen::VectorXd& X) override;

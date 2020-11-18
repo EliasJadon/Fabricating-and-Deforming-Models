@@ -1,9 +1,12 @@
 ﻿#include "AuxBendingNormal.h"
 #include <unsupported/Eigen/MatrixFunctions>
 #include <igl/triangle_triangle_adjacency.h>
+#include "cudaLibrary/Cuda_AuxBendingNormal.cuh"
 
-AuxBendingNormal::AuxBendingNormal(OptimizationUtils::FunctionType type) {
-	functionType = type;
+#define USING_CUDA
+
+AuxBendingNormal::AuxBendingNormal(FunctionType type) {
+	Cuda::AuxBendingNormal::functionType = type;
 	name = "Aux Bending Normal";
 	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
@@ -31,8 +34,98 @@ void AuxBendingNormal::init()
 	}
 	
 	d_normals.resize(num_hinges);
-	planarParameter = 1;
+	Cuda::AuxBendingNormal::planarParameter = 1;
+	Efi.setZero();
 	init_hessian();
+	internalInitCuda();
+}
+
+
+void AuxBendingNormal::internalInitCuda() {
+	unsigned int numF = restShapeF.rows();
+	unsigned int numV = restShapeV.rows();
+	unsigned int numH = num_hinges;
+
+	Cuda::AuxBendingNormal::num_faces = numF;
+	Cuda::AuxBendingNormal::num_vertices = numV;
+	Cuda::AuxBendingNormal::num_hinges = numH;
+
+	//update host buffers
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::CurrV,numV);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::CurrN,numF);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::restAreaPerFace,numF);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::restAreaPerHinge,numH);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::d_normals,numH);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::Energy1,numH);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::Energy2,numF);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::Energy3,numF);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::hinges_faceIndex,numH);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x0_GlobInd,numH);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x1_GlobInd,numH);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x2_GlobInd,numH);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x3_GlobInd,numH);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x0_LocInd,numH);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x1_LocInd,numH);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x2_LocInd,numH);
+	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x3_LocInd,numH);
+
+	//init host buffers...
+	for (int v = 0; v < restShapeV.rows(); v++) {
+		Cuda::AuxBendingNormal::CurrV.host_arr[v] = Cuda::rowVector(0, 0, 0);
+	}
+	for (int f = 0; f < restShapeF.rows(); f++) {
+		Cuda::AuxBendingNormal::CurrN.host_arr[f] = Cuda::rowVector(0, 0, 0);
+		Cuda::AuxBendingNormal::restAreaPerFace.host_arr[f] = restAreaPerFace[f];
+	}
+	for (int h = 0; h < num_hinges; h++) {
+		Cuda::AuxBendingNormal::restAreaPerHinge.host_arr[h] = restAreaPerHinge[h];
+		Cuda::AuxBendingNormal::d_normals.host_arr[h] = 0;
+		Cuda::AuxBendingNormal::hinges_faceIndex.host_arr[h] = Cuda::hinge(hinges_faceIndex[h][0], hinges_faceIndex[h][1]);
+		Cuda::AuxBendingNormal::x0_GlobInd.host_arr[h] = x0_GlobInd[h];
+		Cuda::AuxBendingNormal::x1_GlobInd.host_arr[h] = x1_GlobInd[h];
+		Cuda::AuxBendingNormal::x2_GlobInd.host_arr[h] = x2_GlobInd[h];
+		Cuda::AuxBendingNormal::x3_GlobInd.host_arr[h] = x3_GlobInd[h];
+		Cuda::AuxBendingNormal::x0_LocInd.host_arr[h] = Cuda::hinge(x0_LocInd(h, 0), x0_LocInd(h, 1));
+		Cuda::AuxBendingNormal::x1_LocInd.host_arr[h] = Cuda::hinge(x1_LocInd(h, 0), x1_LocInd(h, 1));
+		Cuda::AuxBendingNormal::x2_LocInd.host_arr[h] = Cuda::hinge(x2_LocInd(h, 0), x2_LocInd(h, 1));
+		Cuda::AuxBendingNormal::x3_LocInd.host_arr[h] = Cuda::hinge(x3_LocInd(h, 0), x3_LocInd(h, 1));
+	}
+
+	//init GPU...
+	//allocate mem on the GPU
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::CurrV);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::CurrN);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::restAreaPerFace);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::restAreaPerHinge);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::d_normals);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::Energy1);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::Energy2);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::Energy3);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::hinges_faceIndex);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x0_GlobInd);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x1_GlobInd);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x2_GlobInd);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x3_GlobInd);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x0_LocInd);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x1_LocInd);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x2_LocInd);
+	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x3_LocInd);
+
+	// Copy input vectors from host memory to GPU buffers.
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::CurrV);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::CurrN);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerFace);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerHinge);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::d_normals);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::hinges_faceIndex);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x0_GlobInd);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x1_GlobInd);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x2_GlobInd);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x3_GlobInd);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x0_LocInd);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x1_LocInd);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x2_LocInd);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x3_LocInd);
 }
 
 void AuxBendingNormal::updateX(const Eigen::VectorXd& X)
@@ -48,12 +141,20 @@ void AuxBendingNormal::updateX(const Eigen::VectorXd& X)
 	assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
 	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0,3 * restShapeV.rows()).data(), restShapeV.rows(), 3);
 	CurrN = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(3 * restShapeV.rows(),3 * restShapeF.rows()).data(), restShapeF.rows(), 3);
-	
+
+#ifdef USING_CUDA
+	for (int v = 0; v < restShapeV.rows(); v++)
+		Cuda::AuxBendingNormal::CurrV.host_arr[v] = Cuda::rowVector(CurrV(v, 0), CurrV(v, 1), CurrV(v, 2));
+	for (int f = 0; f < restShapeF.rows(); f++)
+		Cuda::AuxBendingNormal::CurrN.host_arr[f] = Cuda::rowVector(CurrN(f, 0), CurrN(f, 1), CurrN(f, 2));
+	Cuda::AuxBendingNormal::updateX();
+#elif
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi](0);
 		int f1 = hinges_faceIndex[hi](1);
 		d_normals(hi) = (CurrN.row(f1) - CurrN.row(f0)).squaredNorm();
 	}
+#endif
 }
 
 void AuxBendingNormal::calculateHinges() {
@@ -202,61 +303,61 @@ void AuxBendingNormal::calculateHinges() {
 }
 
 Eigen::VectorXd AuxBendingNormal::Phi(Eigen::VectorXd x) {
-	if(functionType == OptimizationUtils::FunctionType::QUADRATIC)
+	if(Cuda::AuxBendingNormal::functionType == FunctionType::QUADRATIC)
 		return x.cwiseAbs2();
-	else if (functionType == OptimizationUtils::FunctionType::EXPONENTIAL) {
+	else if (Cuda::AuxBendingNormal::functionType == FunctionType::EXPONENTIAL) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			res(i) = std::exp(x(i)*x(i));
 		}
 		return res;
 	}
-	else if (functionType == OptimizationUtils::FunctionType::SIGMOID) {
+	else if (Cuda::AuxBendingNormal::functionType == FunctionType::SIGMOID) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			double x2 = pow(x(i), 2);
-			res(i) = x2/(x2+planarParameter);
+			res(i) = x2/(x2+ Cuda::AuxBendingNormal::planarParameter);
 		}
 		return res;
 	}
 }
 
 Eigen::VectorXd AuxBendingNormal::dPhi_dm(Eigen::VectorXd x) {
-	if (functionType == OptimizationUtils::FunctionType::QUADRATIC)
+	if (Cuda::AuxBendingNormal::functionType == FunctionType::QUADRATIC)
 		return 2 * x;
-	else if (functionType == OptimizationUtils::FunctionType::EXPONENTIAL) {
+	else if (Cuda::AuxBendingNormal::functionType == FunctionType::EXPONENTIAL) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			res(i) = 2 * x(i) * std::exp(x(i)*x(i));
 		}
 		return res;
 	}
-	else if (functionType == OptimizationUtils::FunctionType::SIGMOID) {
+	else if (Cuda::AuxBendingNormal::functionType == FunctionType::SIGMOID) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
-			res(i) = (2*x(i)*planarParameter) / 
-				pow(x(i)*x(i) + planarParameter, 2);
+			res(i) = (2*x(i)* Cuda::AuxBendingNormal::planarParameter) /
+				pow(x(i)*x(i) + Cuda::AuxBendingNormal::planarParameter, 2);
 		}
 		return res;
 	}
 }
 
 Eigen::VectorXd AuxBendingNormal::d2Phi_dmdm(Eigen::VectorXd x) {
-	if (functionType == OptimizationUtils::FunctionType::QUADRATIC)
+	if (Cuda::AuxBendingNormal::functionType == FunctionType::QUADRATIC)
 		return Eigen::VectorXd::Constant(x.rows(),2);
-	else if (functionType == OptimizationUtils::FunctionType::EXPONENTIAL) {
+	else if (Cuda::AuxBendingNormal::functionType == FunctionType::EXPONENTIAL) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			res(i) = (4 * x(i)*x(i) + 2) * std::exp(x(i)*x(i));
 		}
 		return res;
 	}
-	else if (functionType == OptimizationUtils::FunctionType::SIGMOID) {
+	else if (Cuda::AuxBendingNormal::functionType == FunctionType::SIGMOID) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			double x2 = pow(x(i), 2);
-			res(i) = (2* planarParameter)*(-3*x2+ planarParameter) / 
-				pow(x2 + planarParameter,3);
+			res(i) = (2* Cuda::AuxBendingNormal::planarParameter)*(-3*x2+ Cuda::AuxBendingNormal::planarParameter) /
+				pow(x2 + Cuda::AuxBendingNormal::planarParameter,3);
 		}
 		return res;
 	}
@@ -287,15 +388,12 @@ double AuxBendingNormal::value(const bool update)
 	}
 
 	double value =
-		w1 * Energy1.transpose()*restAreaPerHinge +
-		w2 * Energy2 +
-		w3 * Energy3;
+		Cuda::AuxBendingNormal::w1 * Energy1.transpose()*restAreaPerHinge +
+		Cuda::AuxBendingNormal::w2 * Energy2 +
+		Cuda::AuxBendingNormal::w3 * Energy3;
 
-	if (update) {
-		//TODO: calculate Efi (for coloring the faces)
-		Efi.setZero();
+	if (update)
 		energy_value = value;
-	}
 	return value;
 }
 
@@ -309,7 +407,7 @@ void AuxBendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi](0);
 		int f1 = hinges_faceIndex[hi](1);
-		Eigen::Matrix<double, 1, 6> dE_dx = w1*restAreaPerHinge(hi)* dphi_dm(hi) * dm_dN(hi).transpose();
+		Eigen::Matrix<double, 1, 6> dE_dx = Cuda::AuxBendingNormal::w1*restAreaPerHinge(hi)* dphi_dm(hi) * dm_dN(hi).transpose();
 		for (int xyz = 0; xyz < 3; ++xyz) {
 			g[f0 + (3 * restShapeV.rows()) + (xyz * restShapeF.rows())] += dE_dx(xyz);
 			g[f1 + (3 * restShapeV.rows()) + (xyz * restShapeF.rows())] += dE_dx(3 + xyz);
@@ -320,7 +418,7 @@ void AuxBendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 	for (int fi = 0; fi < restShapeF.rows(); fi++)
 		for (int xyz = 0; xyz < 3; ++xyz)
 			g[fi + (3 * restShapeV.rows()) + (xyz * restShapeF.rows())] += 
-			w2 * 4 * (CurrN.row(fi).squaredNorm() - 1)*CurrN(fi, xyz);
+			Cuda::AuxBendingNormal::w2 * 4 * (CurrN.row(fi).squaredNorm() - 1)*CurrN(fi, xyz);
 		
 	//Energy 3: per face
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
@@ -345,7 +443,7 @@ void AuxBendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 			2 * CurrN.row(fi) * e10*e10(0) + 2 * CurrN.row(fi) * e21*e21(0) + 2 * CurrN.row(fi) * e02*e02(0),//Nx
 			2 * CurrN.row(fi) * e10*e10(1) + 2 * CurrN.row(fi) * e21*e21(1) + 2 * CurrN.row(fi) * e02*e02(1),//Ny
 			2 * CurrN.row(fi) * e10*e10(2) + 2 * CurrN.row(fi) * e21*e21(2) + 2 * CurrN.row(fi) * e02*e02(2);//Nz
-		dE_dx *= w3;
+		dE_dx *= Cuda::AuxBendingNormal::w3;
 
 		for (int xyz = 0; xyz < 3; ++xyz) {
 			g[x0 + (xyz * restShapeV.rows())] += dE_dx(xyz);
@@ -403,7 +501,7 @@ void AuxBendingNormal::hessian() {
 			phi_m(hi) * m2_nn +
 			m_n * phi2_mm(hi) * m_n.transpose();
 		dE_dx *= restAreaPerHinge(hi);
-		dE_dx *= w1;
+		dE_dx *= Cuda::AuxBendingNormal::w1;
 
 		for (int fk = 0; fk < 2; fk++) {
 			for (int fj = 0; fj < 2; fj++) {
@@ -432,7 +530,7 @@ void AuxBendingNormal::hessian() {
 			4 * (CurrN.row(fi).squaredNorm() - 1) + 8 * pow(CurrN(fi, 0), 2), 8 * CurrN(fi, 0)*CurrN(fi, 1)										, 8 * CurrN(fi, 0)*CurrN(fi, 2),
 			8 * CurrN(fi, 0)*CurrN(fi, 1)									, 4 * (CurrN.row(fi).squaredNorm() - 1) + 8 * pow(CurrN(fi, 1), 2)	, 8 * CurrN(fi, 1)*CurrN(fi, 2),
 			8 * CurrN(fi, 0)*CurrN(fi, 2)									, 8 * CurrN(fi, 1)*CurrN(fi, 2)										, 4 * (CurrN.row(fi).squaredNorm() - 1) + 8 * pow(CurrN(fi, 2), 2);
-		dE_dx *= w2;
+		dE_dx *= Cuda::AuxBendingNormal::w2;
 
 		for (int xyz1 = 0; xyz1 < 3; ++xyz1) {
 			for (int xyz2 = 0; xyz2 < 3; ++xyz2) {
@@ -529,7 +627,7 @@ void AuxBendingNormal::hessian() {
 			d_x0Nx, d_y0Nx, d_z0Nx, d_x1Nx, d_y1Nx, d_z1Nx, d_x2Nx, d_y2Nx, d_z2Nx, d_NxNx, d_NxNy, d_NxNz,
 			d_x0Ny, d_y0Ny, d_z0Ny, d_x1Ny, d_y1Ny, d_z1Ny, d_x2Ny, d_y2Ny, d_z2Ny, d_NxNy, d_NyNy, d_NyNz,
 			d_x0Nz, d_y0Nz, d_z0Nz, d_x1Nz, d_y1Nz, d_z1Nz, d_x2Nz, d_y2Nz, d_z2Nz, d_NxNz, d_NyNz, d_NzNz;
-		dE_dx *= w3;
+		dE_dx *= Cuda::AuxBendingNormal::w3;
 
 		
 		for (int xyz1 = 0; xyz1 < 3; ++xyz1) {

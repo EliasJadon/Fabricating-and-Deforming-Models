@@ -1,5 +1,6 @@
 #pragma once
 #include "ObjectiveFunction.h"
+#include "cudaLibrary/CudaBasics.h"
 
 /******************************************************
  Element that defines a preferred angle between 2 triangles
@@ -42,10 +43,10 @@ private:
 	Eigen::Matrix<double, 4, 3> d0_dx(int hi);
 	int BendingEdge::x_index(int i, int hi);
 public:
-	OptimizationUtils::FunctionType functionType;
+	FunctionType functionType;
 	float planarParameter;
 
-	BendingEdge(OptimizationUtils::FunctionType type);
+	BendingEdge(FunctionType type);
 	~BendingEdge();
 	virtual void init() override;
 	virtual void updateX(const Eigen::VectorXd& X) override;

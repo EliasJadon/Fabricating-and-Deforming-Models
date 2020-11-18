@@ -5,6 +5,7 @@
 #include <atomic>
 #include <vector>
 #include <mutex>
+#include <iostream>
 #include "CudaBasics.h"
 
 

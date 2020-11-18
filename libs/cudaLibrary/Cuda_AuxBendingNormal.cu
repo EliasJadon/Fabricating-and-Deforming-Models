@@ -2,130 +2,116 @@
 #include "device_launch_parameters.h"
 #include <math.h>
 #include <stdio.h>
+#include <vector>
 #include <iostream>
 #include <atomic>
 #include <mutex>
-#include "Cuda_AuxBendingNormal.h"
+#include "Cuda_AuxBendingNormal.cuh"
 
 namespace Cuda {
 	namespace AuxBendingNormal {
-		void init(int numvertices, int numfaces, int numhinges)
+		//dynamic variables
+		double w1 = 1, w2 = 100, w3 = 100;
+		FunctionType functionType;
+		double planarParameter;
+		Array<rowVector> CurrV, CurrN; //Eigen::MatrixX3d
+		Array<double> d_normals;
+		//help variables - dynamic
+		Array<double> Energy1, Energy2, Energy3;
+		
+		//Static variables
+		Array<double> restAreaPerFace, restAreaPerHinge; //Eigen::VectorXd
+		int num_hinges, num_faces, num_vertices;
+		Array<hinge> hinges_faceIndex; //std::vector<Eigen::Vector2d> //num_hinges*2
+		Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; //Eigen::VectorXi //num_hinges
+		Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
+		
+		__global__ void updateXKernel(
+			double* d_normals, 
+			const rowVector* Normals, 
+			const hinge* Hinges_Findex, 
+			const int size)
 		{
-			num_faces = numfaces;
-			num_vertices = numvertices;
-			num_hinges = numhinges;
+			int hi = blockIdx.x;
+			if (hi < size)
+			{
+				int f0 = Hinges_Findex[hi].f0;
+				int f1 = Hinges_Findex[hi].f1;
+				double diffX = Normals[f1].x - Normals[f0].x;
+				double diffY = Normals[f1].y - Normals[f0].y;
+				double diffZ = Normals[f1].z - Normals[f0].z;
+				d_normals[hi] = diffX * diffX + diffY * diffY + diffZ * diffZ;
+			}
+		}
 
-			CurrV.size = num_vertices;
-			CurrN.size = num_faces;
-			restAreaPerFace.size = num_faces;
-			restAreaPerHinge.size = num_hinges;
-			d_normals.size = num_hinges;
-			hinges_faceIndex.size = num_hinges;
-			x0_GlobInd.size = x1_GlobInd.size = x2_GlobInd.size = x3_GlobInd.size 
-				= x0_LocInd.size = x1_LocInd.size = x2_LocInd.size = x3_LocInd.size = num_hinges;
+		void value() {
+			////per hinge
+			//Eigen::VectorXd Energy1 = Phi(d_normals);
+
+			////per face
+			//double Energy2 = 0; // (||N||^2 - 1)^2
+			//for (int fi = 0; fi < restShapeF.rows(); fi++) {
+			//	Energy2 += pow(CurrN.row(fi).squaredNorm() - 1, 2);
+			//}
+
+			//double Energy3 = 0; // (N^T*(x1-x0))^2 + (N^T*(x2-x1))^2 + (N^T*(x0-x2))^2
+			//for (int fi = 0; fi < restShapeF.rows(); fi++) {
+			//	int x0 = restShapeF(fi, 0);
+			//	int x1 = restShapeF(fi, 1);
+			//	int x2 = restShapeF(fi, 2);
+			//	Eigen::VectorXd e21 = CurrV.row(x2) - CurrV.row(x1);
+			//	Eigen::VectorXd e10 = CurrV.row(x1) - CurrV.row(x0);
+			//	Eigen::VectorXd e02 = CurrV.row(x0) - CurrV.row(x2);
+			//	Energy3 += pow(CurrN.row(fi) * e21, 2);
+			//	Energy3 += pow(CurrN.row(fi) * e10, 2);
+			//	Energy3 += pow(CurrN.row(fi) * e02, 2);
+			//}
+
+			//double value =
+			//	Cuda::AuxBendingNormal::w1 * Energy1.transpose() * restAreaPerHinge +
+			//	Cuda::AuxBendingNormal::w2 * Energy2 +
+			//	Cuda::AuxBendingNormal::w3 * Energy3;
+		}
+		void updateX() {
+			MemCpyHostToDevice(CurrV);
+			MemCpyHostToDevice(CurrN);
+
+			// Launch a kernel on the GPU with one thread for each element.
+			updateXKernel <<<num_hinges, 1>>> (
+				d_normals.cuda_arr, 
+				CurrN.cuda_arr, 
+				hinges_faceIndex.cuda_arr, 
+				num_hinges);
 			
-			//alocate mem on the CPU
-			Host_allocateMem(CurrV);
-			Host_allocateMem(CurrN);
-			Host_allocateMem(restAreaPerFace);
-			Host_allocateMem(restAreaPerHinge);
-			Host_allocateMem(d_normals);
-			Host_allocateMem(hinges_faceIndex);
-			Host_allocateMem(x0_GlobInd);
-			Host_allocateMem(x1_GlobInd);
-			Host_allocateMem(x2_GlobInd);
-			Host_allocateMem(x3_GlobInd);
-			Host_allocateMem(x0_LocInd);
-			Host_allocateMem(x1_LocInd);
-			Host_allocateMem(x2_LocInd);
-			Host_allocateMem(x3_LocInd);
-
-			//allocate mem on the GPU
-			Cuda_allocateMem(CurrV);
-			Cuda_allocateMem(CurrN);
-			Cuda_allocateMem(restAreaPerFace);
-			Cuda_allocateMem(restAreaPerHinge);
-			Cuda_allocateMem(d_normals);
-			Cuda_allocateMem(hinges_faceIndex);
-			Cuda_allocateMem(x0_GlobInd);
-			Cuda_allocateMem(x1_GlobInd);
-			Cuda_allocateMem(x2_GlobInd);
-			Cuda_allocateMem(x3_GlobInd);
-			Cuda_allocateMem(x0_LocInd);
-			Cuda_allocateMem(x1_LocInd);
-			Cuda_allocateMem(x2_LocInd);
-			Cuda_allocateMem(x3_LocInd);
-
-			//TODO: init host buffers...
-
-			// Copy input vectors from host memory to GPU buffers.
-			Cuda_MemcpyHostToDevice(CurrV);
-			Cuda_MemcpyHostToDevice(CurrN);
-			Cuda_MemcpyHostToDevice(restAreaPerFace);
-			Cuda_MemcpyHostToDevice(restAreaPerHinge);
-			Cuda_MemcpyHostToDevice(d_normals);
-			Cuda_MemcpyHostToDevice(hinges_faceIndex);
-			Cuda_MemcpyHostToDevice(x0_GlobInd);
-			Cuda_MemcpyHostToDevice(x1_GlobInd);
-			Cuda_MemcpyHostToDevice(x2_GlobInd);
-			Cuda_MemcpyHostToDevice(x3_GlobInd);
-			Cuda_MemcpyHostToDevice(x0_LocInd);
-			Cuda_MemcpyHostToDevice(x1_LocInd);
-			Cuda_MemcpyHostToDevice(x2_LocInd);
-			Cuda_MemcpyHostToDevice(x3_LocInd);
-		}
-
-		template <typename T>
-		void Host_allocateMem(Array<T> a) {
-			if (a.size <= 0) {
-				std::cout << "Host: The size of the array isn't initialized yet!\n";
-				Host_freeMemory();
-				Cuda_freeMemory();
+			// cudaDeviceSynchronize waits for the kernel to finish, and returns
+			// any errors encountered during the launch.
+			if (cudaDeviceSynchronize() != cudaSuccess) {
+				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
 				exit(1);
 			}
-			a.host_arr = (T*)malloc(a.size * sizeof(T));
-			if (a.host_arr == NULL) {
-				std::cout << "Host allocation failed!\n";
-				Host_freeMemory();
-				Cuda_freeMemory();
-				exit(1);
-			}
-		}
 
-		template <typename T>
-		void Cuda_allocateMem(Array<T> a) {
-			if (a.size <= 0) {
-				std::cout << "Cuda: The size of the array isn't initialized yet!\n";
-				Host_freeMemory();
-				Cuda_freeMemory();
-				exit(1);
-			}
-			cudaError_t cudaStatus;
-			cudaStatus = cudaMalloc((void**)& a.cuda_arr, a.size * sizeof(T));
-			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMalloc failed!");
-				Host_freeMemory();
-				Cuda_freeMemory();
-				exit(1);
-			}
-		}
-
-		template <typename T>
-		void Cuda_MemcpyHostToDevice(Array<T> a) {
-			if (a.size <= 0) {
-				std::cout << "Cuda: The size of the array isn't initialized yet!\n";
-				Host_freeMemory();
-				Cuda_freeMemory();
-				exit(1);
-			}
-			cudaError_t cudaStatus;
-			cudaStatus = cudaMemcpy(a.cuda_arr, a.host_arr, a.size * sizeof(T), cudaMemcpyHostToDevice);
-			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMemcpyHostToDevice failed!");
-				Host_freeMemory();
-				Cuda_freeMemory();
-				exit(1);
-			}
+			////For Debugging...
+			//MemCpyDeviceToHost(d_normals);
+			//for (int hi = 0; hi < num_hinges; hi++) {
+			//	int f0 = hinges_faceIndex.host_arr[hi].f0;
+			//	int f1 = hinges_faceIndex.host_arr[hi].f1;
+			//	double diffX = CurrN.host_arr[f1].x - CurrN.host_arr[f0].x;
+			//	double diffY = CurrN.host_arr[f1].y - CurrN.host_arr[f0].y;
+			//	double diffZ = CurrN.host_arr[f1].z - CurrN.host_arr[f0].z;
+			//	double expected = diffX * diffX + diffY * diffY + diffZ * diffZ;
+			//	double epsilon = 1e-3;
+			//	double diff = d_normals.host_arr[hi] - expected;
+			//	if (diff > epsilon || diff < -epsilon) {
+			//		std::cout << "Error at index" << hi << std::endl;
+			//		std::cout << "Expected = " << expected << std::endl;
+			//		std::cout << "d_normals.host_arr[hi] = " << d_normals.host_arr[hi] << std::endl;
+			//		std::cout << "diff = " << diff << std::endl;
+			//		exit(1);
+			//	}
+			//	else {
+			//		std::cout << "okay!\n";
+			//	}
+			//}
 		}
 
 		void Host_freeMemory() {
@@ -145,9 +131,8 @@ namespace Cuda {
 			free(x3_LocInd.host_arr);
 		}
 
-		void Cuda_freeMemory() {
+		void Device_freeMemory() {
 			cudaGetErrorString(cudaGetLastError());
-
 			cudaFree(CurrV.cuda_arr);
 			cudaFree(CurrN.cuda_arr);
 			cudaFree(restAreaPerFace.cuda_arr);
@@ -163,6 +148,5 @@ namespace Cuda {
 			cudaFree(x2_LocInd.cuda_arr);
 			cudaFree(x3_LocInd.cuda_arr);
 		}
-
 	}
 }

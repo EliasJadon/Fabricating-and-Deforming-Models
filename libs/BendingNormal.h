@@ -1,5 +1,6 @@
 #pragma once
 #include "ObjectiveFunction.h"
+#include "cudaLibrary/CudaBasics.h"
 
 class BendingNormal : public ObjectiveFunction
 {	
@@ -27,10 +28,10 @@ private:
 
 	int x_GlobInd(int index, int hi);
 public:
-	OptimizationUtils::FunctionType functionType;
+	FunctionType functionType;
 	float planarParameter;
 
-	BendingNormal(OptimizationUtils::FunctionType type);
+	BendingNormal(FunctionType type);
 	~BendingNormal();
 	virtual void init() override;
 	virtual void updateX(const Eigen::VectorXd& X) override;
