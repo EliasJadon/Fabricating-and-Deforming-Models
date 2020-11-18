@@ -51,23 +51,23 @@ void AuxBendingNormal::internalInitCuda() {
 	Cuda::AuxBendingNormal::num_hinges = numH;
 
 	//update host buffers
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::CurrV,numV);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::CurrN,numF);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::restAreaPerFace,numF);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::restAreaPerHinge,numH);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::d_normals,numH);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::Energy1,numH);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::Energy2,numF);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::Energy3,numF);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::hinges_faceIndex,numH);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x0_GlobInd,numH);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x1_GlobInd,numH);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x2_GlobInd,numH);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x3_GlobInd,numH);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x0_LocInd,numH);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x1_LocInd,numH);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x2_LocInd,numH);
-	Cuda::AuxBendingNormal::allocHostMem(Cuda::AuxBendingNormal::x3_LocInd,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::CurrV,numV);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::CurrN,numF);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::restAreaPerFace,numF);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::restAreaPerHinge,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::d_normals,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::Energy1,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::Energy2,numF);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::Energy3,numF);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::hinges_faceIndex,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x0_GlobInd,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x1_GlobInd,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x2_GlobInd,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x3_GlobInd,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x0_LocInd,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x1_LocInd,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x2_LocInd,numH);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x3_LocInd,numH);
 
 	//init host buffers...
 	for (int v = 0; v < restShapeV.rows(); v++) {
@@ -91,32 +91,15 @@ void AuxBendingNormal::internalInitCuda() {
 		Cuda::AuxBendingNormal::x3_LocInd.host_arr[h] = Cuda::hinge(x3_LocInd(h, 0), x3_LocInd(h, 1));
 	}
 
-	//init GPU...
-	//allocate mem on the GPU
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::CurrV);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::CurrN);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::restAreaPerFace);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::restAreaPerHinge);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::d_normals);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::Energy1);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::Energy2);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::Energy3);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::hinges_faceIndex);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x0_GlobInd);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x1_GlobInd);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x2_GlobInd);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x3_GlobInd);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x0_LocInd);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x1_LocInd);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x2_LocInd);
-	Cuda::AuxBendingNormal::Device_allocateMem(Cuda::AuxBendingNormal::x3_LocInd);
-
 	// Copy input vectors from host memory to GPU buffers.
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::CurrV);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::CurrN);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerFace);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerHinge);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::d_normals);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::Energy1);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::Energy2);
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::Energy3);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::hinges_faceIndex);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x0_GlobInd);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x1_GlobInd);

@@ -24,10 +24,21 @@ namespace Cuda {
 		
 		extern void Host_freeMemory();
 		extern void Device_freeMemory();
+		extern void init();
+		extern void updateX();
 
-		template <typename T> void Device_allocateMem(Array<T>& a) {
-			if (a.size <= 0) {
-				std::cout << "Cuda: The size of the array isn't initialized yet!\n";
+		template<typename T>
+		void AllocateMemory(Cuda::Array<T>& a, const unsigned int size) {
+			if (size <= 0) {
+				std::cout << "Cuda: the size isn't positive!\n";
+				Host_freeMemory();
+				Device_freeMemory();
+				exit(1);
+			}
+			a.size = size;
+			a.host_arr = new T[size];
+			if (a.host_arr == NULL) {
+				std::cout << "Host: Allocation Failed!!!\n";
 				Host_freeMemory();
 				Device_freeMemory();
 				exit(1);
@@ -35,19 +46,13 @@ namespace Cuda {
 			cudaError_t cudaStatus;
 			cudaStatus = cudaMalloc((void**)& a.cuda_arr, a.size * sizeof(T));
 			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMalloc failed!");
+				std::cout << "Device: Allocation Failed!!!\n";
 				Host_freeMemory();
 				Device_freeMemory();
 				exit(1);
 			}
 		}
 		template <typename T> void MemCpyHostToDevice(Array<T>& a) {
-			if (a.size <= 0) {
-				std::cout << "Cuda: The size of the array isn't initialized yet!\n";
-				Host_freeMemory();
-				Device_freeMemory();
-				exit(1);
-			}
 			cudaError_t cudaStatus;
 			cudaStatus = cudaMemcpy(a.cuda_arr, a.host_arr, a.size * sizeof(T), cudaMemcpyHostToDevice);
 			if (cudaStatus != cudaSuccess) {
@@ -58,12 +63,6 @@ namespace Cuda {
 			}
 		}
 		template <typename T> void MemCpyDeviceToHost(Array<T>& a) {
-			if (a.size <= 0) {
-				std::cout << "Cuda: The size of the array isn't initialized yet!\n";
-				Host_freeMemory();
-				Device_freeMemory();
-				exit(1);
-			}
 			cudaError_t cudaStatus;
 			// Copy output vector from GPU buffer to host memory.
 			cudaStatus = cudaMemcpy(a.host_arr, a.cuda_arr, a.size * sizeof(T), cudaMemcpyDeviceToHost);
@@ -74,20 +73,6 @@ namespace Cuda {
 				exit(1);
 			}
 		}
-
-		extern void init();
-		extern void updateX();
-
-		template<typename T>
-		void allocHostMem(Cuda::Array<T>& a, const unsigned int size) {
-			a.size = size;
-			a.host_arr = new T[size];
-			if (a.host_arr == NULL) {
-				std::cout << "Host: Allocation Failed!!!\n";
-				exit(1);
-			}
-		}
-
-
+		
 	}
 }
