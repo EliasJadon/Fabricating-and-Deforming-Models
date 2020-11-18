@@ -22,33 +22,34 @@ namespace Cuda {
 		extern Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
 		
 		
-		extern void Host_freeMemory();
-		extern void Device_freeMemory();
 		extern void init();
 		extern void updateX();
+		extern void FreeAllVariables();
 
+		template<typename T>
+		void FreeMemory(Cuda::Array<T>& a) {
+			delete[] a.host_arr;
+			cudaFree(a.cuda_arr);
+		}
 		template<typename T>
 		void AllocateMemory(Cuda::Array<T>& a, const unsigned int size) {
 			if (size <= 0) {
 				std::cout << "Cuda: the size isn't positive!\n";
-				Host_freeMemory();
-				Device_freeMemory();
+				FreeAllVariables();
 				exit(1);
 			}
 			a.size = size;
 			a.host_arr = new T[size];
 			if (a.host_arr == NULL) {
 				std::cout << "Host: Allocation Failed!!!\n";
-				Host_freeMemory();
-				Device_freeMemory();
+				FreeAllVariables();
 				exit(1);
 			}
 			cudaError_t cudaStatus;
 			cudaStatus = cudaMalloc((void**)& a.cuda_arr, a.size * sizeof(T));
 			if (cudaStatus != cudaSuccess) {
 				std::cout << "Device: Allocation Failed!!!\n";
-				Host_freeMemory();
-				Device_freeMemory();
+				FreeAllVariables();
 				exit(1);
 			}
 		}
@@ -57,8 +58,7 @@ namespace Cuda {
 			cudaStatus = cudaMemcpy(a.cuda_arr, a.host_arr, a.size * sizeof(T), cudaMemcpyHostToDevice);
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMemcpyHostToDevice failed!");
-				Host_freeMemory();
-				Device_freeMemory();
+				FreeAllVariables();
 				exit(1);
 			}
 		}
@@ -68,8 +68,7 @@ namespace Cuda {
 			cudaStatus = cudaMemcpy(a.host_arr, a.cuda_arr, a.size * sizeof(T), cudaMemcpyDeviceToHost);
 			if (cudaStatus != cudaSuccess) {
 				fprintf(stderr, "cudaMemcpyDeviceToHost failed!");
-				Host_freeMemory();
-				Device_freeMemory();
+				FreeAllVariables();
 				exit(1);
 			}
 		}

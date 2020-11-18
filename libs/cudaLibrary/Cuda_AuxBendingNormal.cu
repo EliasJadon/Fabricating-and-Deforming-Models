@@ -72,6 +72,8 @@ namespace Cuda {
 			//	Cuda::AuxBendingNormal::w2 * Energy2 +
 			//	Cuda::AuxBendingNormal::w3 * Energy3;
 		}
+
+
 		void updateX() {
 			MemCpyHostToDevice(CurrV);
 			MemCpyHostToDevice(CurrN);
@@ -90,70 +92,49 @@ namespace Cuda {
 				exit(1);
 			}
 
-			//For Debugging...
-			MemCpyDeviceToHost(d_normals);
-			for (int hi = 0; hi < num_hinges; hi++) {
-				int f0 = hinges_faceIndex.host_arr[hi].f0;
-				int f1 = hinges_faceIndex.host_arr[hi].f1;
-				double diffX = CurrN.host_arr[f1].x - CurrN.host_arr[f0].x;
-				double diffY = CurrN.host_arr[f1].y - CurrN.host_arr[f0].y;
-				double diffZ = CurrN.host_arr[f1].z - CurrN.host_arr[f0].z;
-				double expected = diffX * diffX + diffY * diffY + diffZ * diffZ;
-				double epsilon = 1e-3;
-				double diff = d_normals.host_arr[hi] - expected;
-				if (diff > epsilon || diff < -epsilon) {
-					std::cout << "Error at index" << hi << std::endl;
-					std::cout << "Expected = " << expected << std::endl;
-					std::cout << "d_normals.host_arr[hi] = " << d_normals.host_arr[hi] << std::endl;
-					std::cout << "diff = " << diff << std::endl;
-					exit(1);
-				}
-				else {
-					std::cout << "okay!\n";
-				}
-			}
+			////For Debugging...
+			//MemCpyDeviceToHost(d_normals);
+			//for (int hi = 0; hi < num_hinges; hi++) {
+			//	int f0 = hinges_faceIndex.host_arr[hi].f0;
+			//	int f1 = hinges_faceIndex.host_arr[hi].f1;
+			//	double diffX = CurrN.host_arr[f1].x - CurrN.host_arr[f0].x;
+			//	double diffY = CurrN.host_arr[f1].y - CurrN.host_arr[f0].y;
+			//	double diffZ = CurrN.host_arr[f1].z - CurrN.host_arr[f0].z;
+			//	double expected = diffX * diffX + diffY * diffY + diffZ * diffZ;
+			//	double epsilon = 1e-3;
+			//	double diff = d_normals.host_arr[hi] - expected;
+			//	if (diff > epsilon || diff < -epsilon) {
+			//		std::cout << "Error at index" << hi << std::endl;
+			//		std::cout << "Expected = " << expected << std::endl;
+			//		std::cout << "d_normals.host_arr[hi] = " << d_normals.host_arr[hi] << std::endl;
+			//		std::cout << "diff = " << diff << std::endl;
+			//		exit(1);
+			//	}
+			//	else {
+			//		std::cout << "okay!\n";
+			//	}
+			//}
 		}
 
-		void Host_freeMemory() {
-			delete[] CurrV.host_arr;
-			delete[] CurrV.host_arr;
-			delete[] CurrN.host_arr;
-			delete[] restAreaPerFace.host_arr;
-			delete[] restAreaPerHinge.host_arr;
-			delete[] d_normals.host_arr;
-			delete[] Energy1.host_arr;
-			delete[] Energy2.host_arr;
-			delete[] Energy3.host_arr;
-			delete[] hinges_faceIndex.host_arr;
-			delete[] x0_GlobInd.host_arr;
-			delete[] x1_GlobInd.host_arr;
-			delete[] x2_GlobInd.host_arr;
-			delete[] x3_GlobInd.host_arr;
-			delete[] x0_LocInd.host_arr;
-			delete[] x1_LocInd.host_arr;
-			delete[] x2_LocInd.host_arr;
-			delete[] x3_LocInd.host_arr;
-		}
-
-		void Device_freeMemory() {
+		void FreeAllVariables() {
 			cudaGetErrorString(cudaGetLastError());
-			cudaFree(CurrV.cuda_arr);
-			cudaFree(CurrN.cuda_arr);
-			cudaFree(restAreaPerFace.cuda_arr);
-			cudaFree(restAreaPerHinge.cuda_arr);
-			cudaFree(d_normals.cuda_arr);
-			cudaFree(Energy1.cuda_arr);
-			cudaFree(Energy2.cuda_arr);
-			cudaFree(Energy3.cuda_arr);
-			cudaFree(hinges_faceIndex.cuda_arr);
-			cudaFree(x0_GlobInd.cuda_arr);
-			cudaFree(x1_GlobInd.cuda_arr);
-			cudaFree(x2_GlobInd.cuda_arr);
-			cudaFree(x3_GlobInd.cuda_arr);
-			cudaFree(x0_LocInd.cuda_arr);
-			cudaFree(x1_LocInd.cuda_arr);
-			cudaFree(x2_LocInd.cuda_arr);
-			cudaFree(x3_LocInd.cuda_arr);
+			FreeMemory(CurrV);
+			FreeMemory(CurrN);
+			FreeMemory(restAreaPerFace);
+			FreeMemory(restAreaPerHinge);
+			FreeMemory(d_normals);
+			FreeMemory(Energy1);
+			FreeMemory(Energy2);
+			FreeMemory(Energy3);
+			FreeMemory(hinges_faceIndex);
+			FreeMemory(x0_GlobInd);
+			FreeMemory(x1_GlobInd);
+			FreeMemory(x2_GlobInd);
+			FreeMemory(x3_GlobInd);
+			FreeMemory(x0_LocInd);
+			FreeMemory(x1_LocInd);
+			FreeMemory(x2_LocInd);
+			FreeMemory(x3_LocInd);
 		}
 	}
 }
