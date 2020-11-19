@@ -9,28 +9,19 @@ enum FunctionType {
 namespace Cuda {
 	struct hinge {
 		int f0, f1;
-		hinge() {
-			this->f0 = -1;
-			this->f1 = -1;
-		}
-		hinge(int f0, int f1) {
-			this->f0 = f0;
-			this->f1 = f1;
-		}
 	};
-	struct rowVector {
-		double x, y, z;
-		rowVector() {
-			this->x = 0;
-			this->y = 0;
-			this->z = 0;
-		}
-		rowVector(double x, double y, double z) {
-			this->x = x;
-			this->y = y;
-			this->z = z;
-		}
+	extern hinge newHinge(int f0, int f1);
+
+	template <typename T> struct rowVector{
+		T x, y, z;
 	};
+	template <typename T> rowVector<T> newRowVector(T x, T y, T z) {
+		rowVector<T> a;
+		a.x = x;
+		a.y = y;
+		a.z = z;
+		return a;
+	}
 	template <typename T> struct Array {
 		unsigned int size;
 		T* host_arr;

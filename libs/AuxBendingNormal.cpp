@@ -50,7 +50,7 @@ void AuxBendingNormal::internalInitCuda() {
 	Cuda::AuxBendingNormal::num_vertices = numV;
 	Cuda::AuxBendingNormal::num_hinges = numH;
 
-	//update host buffers
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::restShapeF, numF);
 	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::CurrV,numV);
 	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::CurrN,numF);
 	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::restAreaPerFace,numF);
@@ -71,27 +71,29 @@ void AuxBendingNormal::internalInitCuda() {
 
 	//init host buffers...
 	for (int v = 0; v < restShapeV.rows(); v++) {
-		Cuda::AuxBendingNormal::CurrV.host_arr[v] = Cuda::rowVector(0, 0, 0);
+		Cuda::AuxBendingNormal::CurrV.host_arr[v] = Cuda::newRowVector<double>(0, 0, 0);
 	}
 	for (int f = 0; f < restShapeF.rows(); f++) {
-		Cuda::AuxBendingNormal::CurrN.host_arr[f] = Cuda::rowVector(0, 0, 0);
+		Cuda::AuxBendingNormal::restShapeF.host_arr[f] = Cuda::newRowVector<int>(restShapeF(f, 0), restShapeF(f, 1), restShapeF(f, 2));
+		Cuda::AuxBendingNormal::CurrN.host_arr[f] = Cuda::newRowVector<double>(0, 0, 0);
 		Cuda::AuxBendingNormal::restAreaPerFace.host_arr[f] = restAreaPerFace[f];
 	}
 	for (int h = 0; h < num_hinges; h++) {
 		Cuda::AuxBendingNormal::restAreaPerHinge.host_arr[h] = restAreaPerHinge[h];
 		Cuda::AuxBendingNormal::d_normals.host_arr[h] = 0;
-		Cuda::AuxBendingNormal::hinges_faceIndex.host_arr[h] = Cuda::hinge(hinges_faceIndex[h][0], hinges_faceIndex[h][1]);
+		Cuda::AuxBendingNormal::hinges_faceIndex.host_arr[h] = Cuda::newHinge(hinges_faceIndex[h][0], hinges_faceIndex[h][1]);
 		Cuda::AuxBendingNormal::x0_GlobInd.host_arr[h] = x0_GlobInd[h];
 		Cuda::AuxBendingNormal::x1_GlobInd.host_arr[h] = x1_GlobInd[h];
 		Cuda::AuxBendingNormal::x2_GlobInd.host_arr[h] = x2_GlobInd[h];
 		Cuda::AuxBendingNormal::x3_GlobInd.host_arr[h] = x3_GlobInd[h];
-		Cuda::AuxBendingNormal::x0_LocInd.host_arr[h] = Cuda::hinge(x0_LocInd(h, 0), x0_LocInd(h, 1));
-		Cuda::AuxBendingNormal::x1_LocInd.host_arr[h] = Cuda::hinge(x1_LocInd(h, 0), x1_LocInd(h, 1));
-		Cuda::AuxBendingNormal::x2_LocInd.host_arr[h] = Cuda::hinge(x2_LocInd(h, 0), x2_LocInd(h, 1));
-		Cuda::AuxBendingNormal::x3_LocInd.host_arr[h] = Cuda::hinge(x3_LocInd(h, 0), x3_LocInd(h, 1));
+		Cuda::AuxBendingNormal::x0_LocInd.host_arr[h] = Cuda::newHinge(x0_LocInd(h, 0), x0_LocInd(h, 1));
+		Cuda::AuxBendingNormal::x1_LocInd.host_arr[h] = Cuda::newHinge(x1_LocInd(h, 0), x1_LocInd(h, 1));
+		Cuda::AuxBendingNormal::x2_LocInd.host_arr[h] = Cuda::newHinge(x2_LocInd(h, 0), x2_LocInd(h, 1));
+		Cuda::AuxBendingNormal::x3_LocInd.host_arr[h] = Cuda::newHinge(x3_LocInd(h, 0), x3_LocInd(h, 1));
 	}
 
 	// Copy input vectors from host memory to GPU buffers.
+	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::restShapeF);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::CurrV);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::CurrN);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerFace);
@@ -127,11 +129,11 @@ void AuxBendingNormal::updateX(const Eigen::VectorXd& X)
 
 #ifdef USING_CUDA
 	for (int v = 0; v < restShapeV.rows(); v++)
-		Cuda::AuxBendingNormal::CurrV.host_arr[v] = Cuda::rowVector(CurrV(v, 0), CurrV(v, 1), CurrV(v, 2));
+		Cuda::AuxBendingNormal::CurrV.host_arr[v] = Cuda::newRowVector<double>(CurrV(v, 0), CurrV(v, 1), CurrV(v, 2));
 	for (int f = 0; f < restShapeF.rows(); f++)
-		Cuda::AuxBendingNormal::CurrN.host_arr[f] = Cuda::rowVector(CurrN(f, 0), CurrN(f, 1), CurrN(f, 2));
+		Cuda::AuxBendingNormal::CurrN.host_arr[f] = Cuda::newRowVector<double>(CurrN(f, 0), CurrN(f, 1), CurrN(f, 2));
 	Cuda::AuxBendingNormal::updateX();
-#elif
+#else
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi](0);
 		int f1 = hinges_faceIndex[hi](1);
@@ -348,6 +350,9 @@ Eigen::VectorXd AuxBendingNormal::d2Phi_dmdm(Eigen::VectorXd x) {
 
 double AuxBendingNormal::value(const bool update)
 {
+#ifdef USING_CUDA
+	double value = Cuda::AuxBendingNormal::value();
+#else
 	//per hinge
 	Eigen::VectorXd Energy1 = Phi(d_normals);
 	
@@ -375,6 +380,9 @@ double AuxBendingNormal::value(const bool update)
 		Cuda::AuxBendingNormal::w2 * Energy2 +
 		Cuda::AuxBendingNormal::w3 * Energy3;
 
+	std::cout << "value1 = " << value1 << std::endl;
+	std::cout << "value = " << value << std::endl;
+#endif
 	if (update)
 		energy_value = value;
 	return value;

@@ -6,10 +6,17 @@
 #include <vector>
 #include <mutex>
 #include <iostream>
-#include "CudaBasics.h"
+#include "CudaBasics.cuh"
 
 
 namespace Cuda {
+	hinge newHinge(int f0, int f1) {
+		hinge a;
+		a.f0 = f0;
+		a.f1 = f1;
+		return a;
+	}
+
 	__global__ void addKernel(int* c, const int* a, const int* b, const int size)
 	{
 		int index = threadIdx.x + blockIdx.x * blockDim.x;

@@ -1,5 +1,5 @@
 #pragma once
-#include "CudaBasics.h"
+#include "CudaBasics.cuh"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
@@ -9,12 +9,13 @@ namespace Cuda {
 		extern double w1, w2, w3;
 		extern FunctionType functionType; //OptimizationUtils::FunctionType /*QUADRATIC = 0,EXPONENTIAL = 1,SIGMOID = 2*/
 		extern double planarParameter;
-		extern Array<rowVector> CurrV, CurrN; //Eigen::MatrixX3d
+		extern Array<rowVector<double>> CurrV, CurrN; //Eigen::MatrixX3d
 		extern Array<double> d_normals;
 
 		extern Array<double> Energy1, Energy2, Energy3;
 
 		//Static variables
+		extern Array<rowVector<int>> restShapeF;
 		extern Array<double> restAreaPerFace, restAreaPerHinge; //Eigen::VectorXd
 		extern int num_hinges, num_faces, num_vertices;
 		extern Array<hinge> hinges_faceIndex; //std::vector<Eigen::Vector2d> //num_hinges*2
@@ -24,6 +25,7 @@ namespace Cuda {
 		
 		extern void init();
 		extern void updateX();
+		extern double value();
 		extern void FreeAllVariables();
 
 		template<typename T>

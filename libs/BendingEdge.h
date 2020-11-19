@@ -1,6 +1,6 @@
 #pragma once
 #include "ObjectiveFunction.h"
-#include "cudaLibrary/CudaBasics.h"
+#include "cudaLibrary/CudaBasics.cuh"
 
 /******************************************************
  Element that defines a preferred angle between 2 triangles

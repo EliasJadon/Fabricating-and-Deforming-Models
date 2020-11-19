@@ -14,12 +14,13 @@ namespace Cuda {
 		double w1 = 1, w2 = 100, w3 = 100;
 		FunctionType functionType;
 		double planarParameter;
-		Array<rowVector> CurrV, CurrN; //Eigen::MatrixX3d
+		Array<rowVector<double>> CurrV, CurrN; //Eigen::MatrixX3d
 		Array<double> d_normals;
 		//help variables - dynamic
 		Array<double> Energy1, Energy2, Energy3;
 		
 		//Static variables
+		Array<rowVector<int>> restShapeF;
 		Array<double> restAreaPerFace, restAreaPerHinge; //Eigen::VectorXd
 		int num_hinges, num_faces, num_vertices;
 		Array<hinge> hinges_faceIndex; //std::vector<Eigen::Vector2d> //num_hinges*2
@@ -28,7 +29,7 @@ namespace Cuda {
 		
 		__global__ void updateXKernel(
 			double* d_normals, 
-			const rowVector* Normals, 
+			const rowVector<double>* Normals, 
 			const hinge* Hinges_Findex, 
 			const int size)
 		{
@@ -44,47 +45,183 @@ namespace Cuda {
 			}
 		}
 
-		void value() {
-			////per hinge
-			//Eigen::VectorXd Energy1 = Phi(d_normals);
 
-			////per face
-			//double Energy2 = 0; // (||N||^2 - 1)^2
-			//for (int fi = 0; fi < restShapeF.rows(); fi++) {
-			//	Energy2 += pow(CurrN.row(fi).squaredNorm() - 1, 2);
-			//}
 
-			//double Energy3 = 0; // (N^T*(x1-x0))^2 + (N^T*(x2-x1))^2 + (N^T*(x0-x2))^2
-			//for (int fi = 0; fi < restShapeF.rows(); fi++) {
-			//	int x0 = restShapeF(fi, 0);
-			//	int x1 = restShapeF(fi, 1);
-			//	int x2 = restShapeF(fi, 2);
-			//	Eigen::VectorXd e21 = CurrV.row(x2) - CurrV.row(x1);
-			//	Eigen::VectorXd e10 = CurrV.row(x1) - CurrV.row(x0);
-			//	Eigen::VectorXd e02 = CurrV.row(x0) - CurrV.row(x2);
-			//	Energy3 += pow(CurrN.row(fi) * e21, 2);
-			//	Energy3 += pow(CurrN.row(fi) * e10, 2);
-			//	Energy3 += pow(CurrN.row(fi) * e02, 2);
-			//}
+		__global__ void Energy1Kernel(
+			double* result, 
+			const double* x,
+			const double* area,
+			const double planarParameter,
+			const FunctionType functionType,
+			const int size)
+		{
+			int hi = blockIdx.x;
+			if (hi < size)
+			{
+				if (functionType == FunctionType::SIGMOID) {
+					double x2 = x[hi] * x[hi];
+					result[hi] = x2 / (x2 + planarParameter);
+				}
+				else if (functionType == FunctionType::QUADRATIC)
+					result[hi] = x[hi] * x[hi];
+				else if (functionType == FunctionType::EXPONENTIAL)
+					result[hi] = 0;
 
-			//double value =
-			//	Cuda::AuxBendingNormal::w1 * Energy1.transpose() * restAreaPerHinge +
-			//	Cuda::AuxBendingNormal::w2 * Energy2 +
-			//	Cuda::AuxBendingNormal::w3 * Energy3;
+				result[hi] *= area[hi];
+			}
+		}
+
+		__global__ void Energy2Kernel(
+			double* result, 
+			const rowVector<double>* Normals,
+			const int size)
+		{
+			int fi = blockIdx.x;
+			if (fi < size)
+			{
+				double x2 = Normals[fi].x * Normals[fi].x;
+				double y2 = Normals[fi].y * Normals[fi].y;
+				double z2 = Normals[fi].z * Normals[fi].z;
+				double sqrN = x2 + y2 + z2 - 1;
+				result[fi] = sqrN * sqrN;
+			}
+		}
+
+		template<typename T> __device__ rowVector<T> addVectors(
+			rowVector<T> a, 
+			rowVector<T> b) 
+		{
+			rowVector<T> result;
+			result.x = a.x + b.x;
+			result.y = a.y + b.y;
+			result.z = a.z + b.z;
+			return result;
+		}
+		template<typename T> __device__ rowVector<T> subVectors(
+			const rowVector<T> a,
+			const rowVector<T> b) 
+		{
+			rowVector<T> result;
+			result.x = a.x - b.x;
+			result.y = a.y - b.y;
+			result.z = a.z - b.z;
+			return result;
+		}
+		template<typename T> __device__ T mulVectors(rowVector<T> a, rowVector<T> b) 
+		{
+			return  
+				a.x * b.x +
+				a.y * b.y +
+				a.z * b.z;
+		}
+
+		__global__ void Energy3Kernel(
+			double* result, 
+			const rowVector<int>* restShapeF,
+			const rowVector<double>* Vertices,
+			const rowVector<double>* Normals,
+			const int size)
+		{
+			int fi = blockIdx.x;
+			if (fi < size)
+			{
+				// (N^T*(x1-x0))^2 + (N^T*(x2-x1))^2 + (N^T*(x0-x2))^2
+				int x0 = restShapeF[fi].x;
+				int x1 = restShapeF[fi].y;
+				int x2 = restShapeF[fi].z;
+
+				rowVector<double> e21 = subVectors(Vertices[x2], Vertices[x1]);
+				rowVector<double> e10 = subVectors(Vertices[x1], Vertices[x0]);
+				rowVector<double> e02 = subVectors(Vertices[x0], Vertices[x2]);
+				double d1 = mulVectors(Normals[fi], e21);
+				double d2 = mulVectors(Normals[fi], e10);
+				double d3 = mulVectors(Normals[fi], e02);
+				result[fi] = d1 * d1 + d2 * d2 + d3 * d3;
+			}
+		}
+
+
+		/*Energy1Kernel << <num_hinges, 1 >> > (
+			Energy1.cuda_arr,
+			d_normals.cuda_arr,
+			restAreaPerHinge.cuda_arr,
+			planarParameter,
+			functionType,
+			num_hinges);
+		Energy2Kernel << <num_faces, 1 >> > (
+			Energy2.cuda_arr,
+			CurrN.cuda_arr,
+			num_faces);
+		Energy3Kernel << <num_faces, 1 >> > (
+			Energy3.cuda_arr,
+			restShapeF.cuda_arr,
+			CurrV.cuda_arr,
+			CurrN.cuda_arr,
+			num_faces);*/
+
+		double value() {
+			//Energy1
+			Energy1Kernel <<<num_hinges, 1 >>> (
+				Energy1.cuda_arr,
+				d_normals.cuda_arr,
+				restAreaPerHinge.cuda_arr,
+				planarParameter,
+				functionType,
+				num_hinges);
+			if (cudaDeviceSynchronize() != cudaSuccess) {
+				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
+				exit(1);
+			}
+			MemCpyDeviceToHost(Energy1);
+
+			//Energy2
+			Energy2Kernel <<<num_faces, 1 >>> (
+				Energy2.cuda_arr,
+				CurrN.cuda_arr,
+				num_faces);
+			if (cudaDeviceSynchronize() != cudaSuccess) {
+				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
+				exit(1);
+			}
+			MemCpyDeviceToHost(Energy2);
+			
+			//Energy3
+			Energy3Kernel <<<num_faces, 1 >>> (
+				Energy3.cuda_arr,
+				restShapeF.cuda_arr,
+				CurrV.cuda_arr,
+				CurrN.cuda_arr,
+				num_faces);
+			if (cudaDeviceSynchronize() != cudaSuccess) {
+				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
+				exit(1);
+			}
+			MemCpyDeviceToHost(Energy3);
+			
+			double T1 = 0, T2 = 0, T3 = 0;
+			for (int i = 0; i < Energy1.size; i++)
+				T1 += Energy1.host_arr[i];
+			for (int i = 0; i < Energy2.size; i++)
+				T2 += Energy2.host_arr[i];
+			for (int i = 0; i < Energy3.size; i++)
+				T3 += Energy3.host_arr[i];
+
+			double value =
+				Cuda::AuxBendingNormal::w1 * T1 +
+				Cuda::AuxBendingNormal::w2 * T2 +
+				Cuda::AuxBendingNormal::w3 * T3;
+			return value;
 		}
 
 
 		void updateX() {
 			MemCpyHostToDevice(CurrV);
 			MemCpyHostToDevice(CurrN);
-
-			// Launch a kernel on the GPU with one thread for each element.
 			updateXKernel <<<num_hinges, 1>>> (
 				d_normals.cuda_arr, 
 				CurrN.cuda_arr, 
 				hinges_faceIndex.cuda_arr, 
 				num_hinges);
-			
 			// cudaDeviceSynchronize waits for the kernel to finish, and returns
 			// any errors encountered during the launch.
 			if (cudaDeviceSynchronize() != cudaSuccess) {
@@ -118,6 +255,7 @@ namespace Cuda {
 
 		void FreeAllVariables() {
 			cudaGetErrorString(cudaGetLastError());
+			FreeMemory(restShapeF);
 			FreeMemory(CurrV);
 			FreeMemory(CurrN);
 			FreeMemory(restAreaPerFace);
