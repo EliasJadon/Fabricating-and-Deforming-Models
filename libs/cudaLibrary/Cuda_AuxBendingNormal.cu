@@ -47,15 +47,15 @@ namespace Cuda {
 
 
 
-		__global__ void Energy1Kernel(
+		__device__ void Energy1Kernel(
 			double* result, 
 			const double* x,
 			const double* area,
 			const double planarParameter,
 			const FunctionType functionType,
+			const int hi,
 			const int size)
 		{
-			int hi = blockIdx.x;
 			if (hi < size)
 			{
 				if (functionType == FunctionType::SIGMOID) {
@@ -71,12 +71,12 @@ namespace Cuda {
 			}
 		}
 
-		__global__ void Energy2Kernel(
+		__device__ void Energy2Kernel(
 			double* result, 
 			const rowVector<double>* Normals,
+			const int fi,
 			const int size)
 		{
-			int fi = blockIdx.x;
 			if (fi < size)
 			{
 				double x2 = Normals[fi].x * Normals[fi].x;
@@ -115,14 +115,14 @@ namespace Cuda {
 				a.z * b.z;
 		}
 
-		__global__ void Energy3Kernel(
+		__device__ void Energy3Kernel(
 			double* result, 
 			const rowVector<int>* restShapeF,
 			const rowVector<double>* Vertices,
 			const rowVector<double>* Normals,
+			const int fi,
 			const int size)
 		{
-			int fi = blockIdx.x;
 			if (fi < size)
 			{
 				// (N^T*(x1-x0))^2 + (N^T*(x2-x1))^2 + (N^T*(x0-x2))^2
@@ -141,63 +141,74 @@ namespace Cuda {
 		}
 
 
-		/*Energy1Kernel << <num_hinges, 1 >> > (
-			Energy1.cuda_arr,
-			d_normals.cuda_arr,
-			restAreaPerHinge.cuda_arr,
-			planarParameter,
-			functionType,
-			num_hinges);
-		Energy2Kernel << <num_faces, 1 >> > (
-			Energy2.cuda_arr,
-			CurrN.cuda_arr,
-			num_faces);
-		Energy3Kernel << <num_faces, 1 >> > (
-			Energy3.cuda_arr,
-			restShapeF.cuda_arr,
-			CurrV.cuda_arr,
-			CurrN.cuda_arr,
-			num_faces);*/
-
+		__global__ void EnergyKernel(
+			double* Energy1,
+			double* Energy2,
+			double* Energy3,
+			const double * d_normals,
+			const rowVector<double> * CurrV,
+			const rowVector<double> * CurrN,
+			const rowVector<int> * restShapeF,
+			const double * restAreaPerHinge,
+			const double planarParameter,
+			const FunctionType functionType,
+			const int num_hinges,
+			const int num_faces) 
+		{
+			int index = blockIdx.x;
+			//0	,..., F-1,		==> Call Energy(3)
+			//F	,..., 2F-1,		==> Call Energy(2)
+			//2F,..., 2F+h-1	==> Call Energy(1)
+			if (index < num_faces) {
+				Energy3Kernel(
+					Energy3,
+					restShapeF,
+					CurrV,
+					CurrN,
+					index,
+					num_faces);
+			}
+			else if (index < (2*num_faces)) {
+				Energy2Kernel(
+					Energy2,
+					CurrN,
+					index - num_faces,
+					num_faces);
+			}
+			else {
+				Energy1Kernel(
+					Energy1,
+					d_normals,
+					restAreaPerHinge,
+					planarParameter,
+					functionType,
+					index - (2 * num_faces),
+					num_hinges);
+			}			
+		}
+		
 		double value() {
-			//Energy1
-			Energy1Kernel <<<num_hinges, 1 >>> (
+			EnergyKernel <<<num_hinges + num_faces + num_faces, 1 >>> (
 				Energy1.cuda_arr,
+				Energy2.cuda_arr,
+				Energy3.cuda_arr,
 				d_normals.cuda_arr,
+				CurrV.cuda_arr,
+				CurrN.cuda_arr,
+				restShapeF.cuda_arr,
 				restAreaPerHinge.cuda_arr,
 				planarParameter,
 				functionType,
-				num_hinges);
+				num_hinges,
+				num_faces);
 			if (cudaDeviceSynchronize() != cudaSuccess) {
 				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
 				exit(1);
 			}
 			MemCpyDeviceToHost(Energy1);
-
-			//Energy2
-			Energy2Kernel <<<num_faces, 1 >>> (
-				Energy2.cuda_arr,
-				CurrN.cuda_arr,
-				num_faces);
-			if (cudaDeviceSynchronize() != cudaSuccess) {
-				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
-				exit(1);
-			}
 			MemCpyDeviceToHost(Energy2);
-			
-			//Energy3
-			Energy3Kernel <<<num_faces, 1 >>> (
-				Energy3.cuda_arr,
-				restShapeF.cuda_arr,
-				CurrV.cuda_arr,
-				CurrN.cuda_arr,
-				num_faces);
-			if (cudaDeviceSynchronize() != cudaSuccess) {
-				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
-				exit(1);
-			}
 			MemCpyDeviceToHost(Energy3);
-			
+
 			double T1 = 0, T2 = 0, T3 = 0;
 			for (int i = 0; i < Energy1.size; i++)
 				T1 += Energy1.host_arr[i];
@@ -206,11 +217,10 @@ namespace Cuda {
 			for (int i = 0; i < Energy3.size; i++)
 				T3 += Energy3.host_arr[i];
 
-			double value =
+			return
 				Cuda::AuxBendingNormal::w1 * T1 +
 				Cuda::AuxBendingNormal::w2 * T2 +
 				Cuda::AuxBendingNormal::w3 * T3;
-			return value;
 		}
 
 

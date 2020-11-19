@@ -124,16 +124,26 @@ void AuxBendingNormal::updateX(const Eigen::VectorXd& X)
 	//		Nz(0), ... ,Nz(#F-1)
 	//	  ]
 	assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
-	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0,3 * restShapeV.rows()).data(), restShapeV.rows(), 3);
-	CurrN = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(3 * restShapeV.rows(),3 * restShapeF.rows()).data(), restShapeF.rows(), 3);
-
+	
 #ifdef USING_CUDA
-	for (int v = 0; v < restShapeV.rows(); v++)
-		Cuda::AuxBendingNormal::CurrV.host_arr[v] = Cuda::newRowVector<double>(CurrV(v, 0), CurrV(v, 1), CurrV(v, 2));
-	for (int f = 0; f < restShapeF.rows(); f++)
-		Cuda::AuxBendingNormal::CurrN.host_arr[f] = Cuda::newRowVector<double>(CurrN(f, 0), CurrN(f, 1), CurrN(f, 2));
+	int numV = restShapeV.rows();
+	int num2V = 2 * numV;
+	int numF = restShapeF.rows();
+	int startNx = 3 * numV;
+	int startNy = 3 * numV + numF;
+	int startNz = 3 * numV + 2 * numF;
+
+	for (int v = 0; v < numV; v++)
+		Cuda::AuxBendingNormal::CurrV.host_arr[v] =
+		Cuda::newRowVector<double>(X[v], X[v + numV], X[v + num2V]);
+	for (int f = 0; f < numF; f++)
+		Cuda::AuxBendingNormal::CurrN.host_arr[f] =
+		Cuda::newRowVector<double>(X[f + startNx], X[f + startNy], X[f + startNz]);
 	Cuda::AuxBendingNormal::updateX();
-#else
+//#else
+	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, 3 * restShapeV.rows()).data(), restShapeV.rows(), 3);
+	CurrN = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(3 * restShapeV.rows(), 3 * restShapeF.rows()).data(), restShapeF.rows(), 3);
+
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi](0);
 		int f1 = hinges_faceIndex[hi](1);
@@ -351,8 +361,8 @@ Eigen::VectorXd AuxBendingNormal::d2Phi_dmdm(Eigen::VectorXd x) {
 double AuxBendingNormal::value(const bool update)
 {
 #ifdef USING_CUDA
-	double value = Cuda::AuxBendingNormal::value();
-#else
+	double value1 = Cuda::AuxBendingNormal::value();
+//#else
 	//per hinge
 	Eigen::VectorXd Energy1 = Phi(d_normals);
 	
