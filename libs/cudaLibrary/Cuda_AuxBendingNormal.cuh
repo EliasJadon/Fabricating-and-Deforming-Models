@@ -27,6 +27,7 @@ namespace Cuda {
 		extern void init();
 		extern void updateX();
 		extern double value();
+		extern void gradient();
 		extern void FreeAllVariables();
 
 		template<typename T>

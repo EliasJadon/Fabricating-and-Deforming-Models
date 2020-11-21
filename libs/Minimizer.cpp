@@ -128,6 +128,7 @@ void Minimizer::value_linesearch()
 			break;
 		}
 	}
+	std::cout << "cur_iter = " << cur_iter << std::endl;
 }
 
 void Minimizer::constant_linesearch()

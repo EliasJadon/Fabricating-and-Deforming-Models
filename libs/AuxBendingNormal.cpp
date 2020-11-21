@@ -398,12 +398,14 @@ double AuxBendingNormal::value(const bool update)
 void AuxBendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 {
 #ifdef USING_CUDA
-	g.conservativeResize(restShapeV.size() + 7 * restShapeF.rows());
-	g.setZero();
-
+	//g.conservativeResize(restShapeV.size() + 7 * restShapeF.rows());
+	Cuda::AuxBendingNormal::gradient();
+	/*for (int i = 0; i < Cuda::AuxBendingNormal::grad.size; i++) {
+		g(i) = Cuda::AuxBendingNormal::grad.host_arr[i];
+	}
 	if (update)
-		gradient_norm = g.norm();
-#else
+		gradient_norm = g.norm();*/
+//#else
 	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
 	g.setZero();
 	
@@ -458,6 +460,14 @@ void AuxBendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 		}
 	}
 
+
+	Eigen::VectorXd compareG(restShapeV.size() + 7 * restShapeF.rows());
+	for (int i = 0; i < Cuda::AuxBendingNormal::grad.size; i++) {
+		compareG(i) = Cuda::AuxBendingNormal::grad.host_arr[i];
+	}
+	std::cout << "g.norm() = " << g.norm() << std::endl;
+	std::cout << "compareG.norm() = " << compareG.norm() << std::endl;
+	
 	if (update)
 		gradient_norm = g.norm();
 #endif

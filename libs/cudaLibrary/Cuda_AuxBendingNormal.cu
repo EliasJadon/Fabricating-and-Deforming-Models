@@ -298,100 +298,193 @@ namespace Cuda {
 		}
 
 
-		//__device__ void gradient1Kernel(
-		//	double* grad,
-		//	const rowVector<double>* CurrN,
-		//	const double* d_normals,
-		//	const double* restAreaPerHinge,
-		//	const double planarParameter,
-		//	const FunctionType functionType,
-		//	const double w1,
-		//	const int hi,
-		//	const int thread,
-		//	const int num_faces,
-		//	const int num_vertices)
-		//{
-		//	int f0 = hinges_faceIndex.cuda_arr[hi].f0;
-		//	int f1 = hinges_faceIndex.cuda_arr[hi].f1;
-		//	double coeff = w1 * restAreaPerHinge[hi] * dPhi_dm(d_normals[hi], planarParameter, functionType);
+		__device__ void gradient1Kernel(
+			double* grad,
+			const hinge* hinges_faceIndex,
+			const rowVector<double>* CurrN,
+			const double* d_normals,
+			const double* restAreaPerHinge,
+			const double planarParameter,
+			const FunctionType functionType,
+			const double w1,
+			const int hi,
+			const int thread,
+			const int num_faces,
+			const int num_vertices)
+		{
+			int f0 = hinges_faceIndex[hi].f0;
+			int f1 = hinges_faceIndex[hi].f1;
+			double coeff = w1 * restAreaPerHinge[hi] * dPhi_dm(d_normals[hi], planarParameter, functionType);
 
-		//	if (thread == 0) {
-		//		grad[f0 + (3 * num_vertices)] += coeff * 2 * (CurrN[f0].x - CurrN[f1].x);	//n0.x;
-		//	}
-		//	else if (thread == 1) {
-		//		grad[f1 + (3 * num_vertices)] += coeff * 2 * (CurrN[f1].x - CurrN[f0].x);	//n1.x
-		//	}
-		//	else if (thread == 2) {
-		//		grad[f0 + (3 * num_vertices) + num_faces] += coeff * 2 * (CurrN[f0].y - CurrN[f1].y);	//n0.y
-		//	}
-		//	else if (thread == 3) {
-		//		grad[f1 + (3 * num_vertices) + num_faces] += coeff * 2 * (CurrN[f1].y - CurrN[f0].y);	//n1.y
-		//	}
-		//	else if (thread == 4) {
-		//		grad[f0 + (3 * num_vertices) + (2 * num_faces)] += coeff * 2 * (CurrN[f0].z - CurrN[f1].z);	//n0.z
-		//	}
-		//	else if (thread == 5) {
-		//		grad[f1 + (3 * num_vertices) + (2 * num_faces)] += coeff * 2 * (CurrN[f1].z - CurrN[f0].z);	//n1.z
-		//	}
-		//}
-		//__device__ void gradient2Kernel(
-		//	double* grad,
-		//	const rowVector<double>* CurrN,
-		//	const int fi,
-		//	const int thread)
-		//{
-		//	double coeff = w2 * 4 * (mulVectors(CurrN[fi], CurrN[fi]) - 1);
-		//	if (thread == 0) {		//N.x
-		//		grad[fi + (3 * num_vertices)] += coeff * CurrN[fi].x;
-		//	}
-		//	else if (thread == 1) { //N.y
-		//		grad[fi + (3 * num_vertices) + num_faces] += coeff * CurrN[fi].y;
-		//	}
-		//	else if (thread == 2) { //N.z
-		//		grad[fi + (3 * num_vertices) + (2 * num_faces)] += coeff * CurrN[fi].z;
-		//	}
-		//}
-		//__device__ void gradient3Kernel(
-		//	double* result,
-		//	const rowVector<int>* restShapeF,
-		//	const rowVector<double>* CurrV,
-		//	const rowVector<double>* CurrN,
-		//	const int fi,
-		//	const double w3,
-		//	const int num_vertices)
-		//{
-		//	int x0 = restShapeF[fi].x;
-		//	int x1 = restShapeF[fi].y;
-		//	int x2 = restShapeF[fi].z;
-		//	rowVector<double> e21 = subVectors(CurrV[x2], CurrV[x1]);
-		//	rowVector<double> e10 = subVectors(CurrV[x1], CurrV[x0]);
-		//	rowVector<double> e02 = subVectors(CurrV[x0], CurrV[x2]);
-		//	double N02 = mulVectors(CurrN[fi], e02);
-		//	double N10 = mulVectors(CurrN[fi], e10);
-		//	double N21 = mulVectors(CurrN[fi], e21);
-		//	double coeff = 2 * w3;
-		//	int num_2verices = 2 * num_vertices;
-		//	int num_3verices_fi = fi + num_2verices + num_vertices;
+			if (thread == 0) { //n0.x;
+				atomicAdd(
+					&grad[f0 + (3 * num_vertices)], 
+					coeff * 2 * (CurrN[f0].x - CurrN[f1].x),
+					0);
+			}
+			else if (thread == 1) { //n1.x
+				atomicAdd(
+					&grad[f1 + (3 * num_vertices)],
+					coeff * 2 * (CurrN[f1].x - CurrN[f0].x),
+					0);	
+			}
+			else if (thread == 2) {//n0.y
+				atomicAdd(
+					&grad[f0 + (3 * num_vertices) + num_faces],
+					coeff * 2 * (CurrN[f0].y - CurrN[f1].y),
+					0);	
+			}
+			else if (thread == 3) { //n1.y
+				atomicAdd(
+					&grad[f1 + (3 * num_vertices) + num_faces],
+					coeff * 2 * (CurrN[f1].y - CurrN[f0].y),
+					0);	
+			}
+			else if (thread == 4) { //n0.z
+				atomicAdd(
+					&grad[f0 + (3 * num_vertices) + (2 * num_faces)],
+					coeff * 2 * (CurrN[f0].z - CurrN[f1].z),
+					0);	
+			}
+			else if (thread == 5) { //n1.z
+				atomicAdd(
+					&grad[f1 + (3 * num_vertices) + (2 * num_faces)],
+					coeff * 2 * (CurrN[f1].z - CurrN[f0].z),
+					0);	
+			}
+		}
+		__device__ void gradient2Kernel(
+			double* grad,
+			const rowVector<double>* CurrN,
+			const int fi,
+			const int thread,
+			const double w2,
+			const int num_vertices,
+			const int num_faces)
+		{
+			double coeff = w2 * 4 * (mulVectors(CurrN[fi], CurrN[fi]) - 1);
+			if (thread == 0) { //N.x
+				atomicAdd(
+					&grad[fi + (3 * num_vertices)],
+					coeff * CurrN[fi].x,
+					0);
+			}
+			else if (thread == 1) { //N.y
+				atomicAdd(
+					&grad[fi + (3 * num_vertices) + num_faces],
+					coeff * CurrN[fi].y,
+					0);
+			}
+			else if (thread == 2) { //N.z
+				atomicAdd(
+					&grad[fi + (3 * num_vertices) + (2 * num_faces)],
+					coeff * CurrN[fi].z,
+					0);
+			}
+		}
+		__device__ void gradient3Kernel(
+			double* grad,
+			const rowVector<int>* restShapeF,
+			const rowVector<double>* CurrV,
+			const rowVector<double>* CurrN,
+			const int fi,
+			const int thread,
+			const double w3,
+			const int num_vertices,
+			const int num_faces)
+		{
+			int x0 = restShapeF[fi].x;
+			int x1 = restShapeF[fi].y;
+			int x2 = restShapeF[fi].z;
+			rowVector<double> e21 = subVectors(CurrV[x2], CurrV[x1]);
+			rowVector<double> e10 = subVectors(CurrV[x1], CurrV[x0]);
+			rowVector<double> e02 = subVectors(CurrV[x0], CurrV[x2]);
+			double N02 = mulVectors(CurrN[fi], e02);
+			double N10 = mulVectors(CurrN[fi], e10);
+			double N21 = mulVectors(CurrN[fi], e21);
+			double coeff = 2 * w3;
+			int num_2verices = 2 * num_vertices;
+			int num_3verices_fi = fi + num_2verices + num_vertices;
 
-		//	grad.cuda_arr[x0]				+= coeff * CurrN[fi].x * (N02 - N10);//x0
-		//	grad.cuda_arr[x0 + num_vertices]+= coeff * CurrN[fi].y * (N02 - N10);//y0
-		//	grad.cuda_arr[x0 + num_2verices]+= coeff * CurrN[fi].z * (N02 - N10);//z0
-
-		//	grad.cuda_arr[x1]				+= coeff * CurrN[fi].x * (N10 - N21);//x1
-		//	grad.cuda_arr[x1 + num_vertices]+= coeff * CurrN[fi].y * (N10 - N21);//y1
-		//	grad.cuda_arr[x1 + num_2verices]+= coeff * CurrN[fi].z * (N10 - N21);//z1
-
-		//	grad.cuda_arr[x2]				+= coeff * CurrN[fi].x * (N21 - N02);//x2
-		//	grad.cuda_arr[x2 + num_vertices]+= coeff * CurrN[fi].y * (N21 - N02);//y2
-		//	grad.cuda_arr[x2 + num_2verices]+= coeff * CurrN[fi].z * (N21 - N02);//z2
-
-		//	grad.cuda_arr[num_3verices_fi]					+= coeff * (N10 * e10.x + N21 * e21.x + N02 * e02.x);//Nx
-		//	grad.cuda_arr[num_3verices_fi + num_faces]		+= coeff * (N10 * e10.y + N21 * e21.y + N02 * e02.y);//Ny
-		//	grad.cuda_arr[num_3verices_fi + (2 * num_faces)]+= coeff * (N10 * e10.z + N21 * e21.z + N02 * e02.z);//Nz
-		//}
+			switch (thread) {
+			case 0: //x0
+				atomicAdd(
+					&grad[x0],
+					coeff * CurrN[fi].x * (N02 - N10),
+					0);
+				break;
+			case 1: //y0
+				atomicAdd(
+					&grad[x0 + num_vertices],
+					coeff * CurrN[fi].y * (N02 - N10),
+					0);
+				break;
+			case 2: //z0
+				atomicAdd(
+					&grad[x0 + num_2verices],
+					coeff * CurrN[fi].z * (N02 - N10),
+					0);
+				break;
+			case 3: //x1
+				atomicAdd(
+					&grad[x1],
+					coeff * CurrN[fi].x * (N10 - N21),
+					0);
+				break;
+			case 4: //y1
+				atomicAdd(
+					&grad[x1 + num_vertices],
+					coeff * CurrN[fi].y * (N10 - N21),
+					0);
+				break;
+			case 5: //z1
+				atomicAdd(
+					&grad[x1 + num_2verices],
+					coeff * CurrN[fi].z * (N10 - N21),
+					0);
+				break;
+			case 6: //x2
+				atomicAdd(
+					&grad[x2],
+					coeff * CurrN[fi].x * (N21 - N02),
+					0);
+				break;
+			case 7: //y2
+				atomicAdd(
+					&grad[x2 + num_vertices],
+					coeff * CurrN[fi].y * (N21 - N02),
+					0);
+				break;
+			case 8: //z2
+				atomicAdd(
+					&grad[x2 + num_2verices],
+					coeff * CurrN[fi].z * (N21 - N02),
+					0);
+				break;
+			case 9: //Nx
+				atomicAdd(
+					&grad[num_3verices_fi],
+					coeff * (N10 * e10.x + N21 * e21.x + N02 * e02.x),
+					0);
+				break;
+			case 10: //Ny
+				atomicAdd(
+					&grad[num_3verices_fi + num_faces],
+					coeff * (N10 * e10.y + N21 * e21.y + N02 * e02.y),
+					0);
+				break;
+			case 11: //Nz
+				atomicAdd(
+					&grad[num_3verices_fi + (2 * num_faces)],
+					coeff * (N10 * e10.z + N21 * e21.z + N02 * e02.z),
+					0);
+				break;
+			}
+		}
 
 		__global__ void gradientKernel(
 			double* grad,
+			const hinge* hinges_faceIndex,
 			const double* d_normals,
 			const rowVector<double>* CurrV,
 			const rowVector<double>* CurrN,
@@ -402,47 +495,89 @@ namespace Cuda {
 			const int num_hinges,
 			const int num_faces,
 			const int num_vertices,
-			const double w1)
+			const double w1,
+			const double w2,
+			const double w3)
 		{
-			//int Bl_index = blockIdx.x;
-			//int Th_Index = threadIdx.x;
-			////0	,..., F-1,		==> Call Energy(3)
-			////F	,..., 2F-1,		==> Call Energy(2)
-			////2F,..., 2F+h-1	==> Call Energy(1)
-			//if (Bl_index < num_faces) {
-			//	/*gradient3Kernel(
-			//		Energy3.cuda_arr,
-			//		restShapeF.cuda_arr,
-			//		CurrV.cuda_arr,
-			//		CurrN.cuda_arr,
-			//		Bl_index,
-			//		Th_Index,
-			//		num_faces);*/
-			//}
-			//else if (Bl_index < (2 * num_faces)) {
-			//	gradient2Kernel(grad, CurrN, Bl_index - num_faces, Th_Index);
-			//}
-			//else {
-			//	gradient1Kernel(
-			//		grad,
-			//		CurrN,
-			//		d_normals,
-			//		restAreaPerHinge,
-			//		planarParameter,
-			//		functionType,
-			//		w1,
-			//		Bl_index - (2 * num_faces),
-			//		Th_Index,
-			//		num_faces,
-			//		num_vertices);
-			//}
+			int Bl_index = blockIdx.x;
+			int Th_Index = threadIdx.x;
+			//0	,..., F-1,		==> Call Energy(3)
+			//F	,..., 2F-1,		==> Call Energy(2)
+			//2F,..., 2F+h-1	==> Call Energy(1)
+			if (Bl_index < num_faces) {
+				gradient3Kernel(
+					grad,
+					restShapeF,
+					CurrV,
+					CurrN,
+					Bl_index,
+					Th_Index,
+					w3,
+					num_vertices,
+					num_faces);
+			}
+			else if (Bl_index < (2 * num_faces)) {
+				gradient2Kernel(
+					grad, 
+					CurrN, 
+					Bl_index - num_faces, 
+					Th_Index,
+					w2,
+					num_vertices,
+					num_faces);
+			}
+			else {
+				gradient1Kernel(
+					grad,
+					hinges_faceIndex,
+					CurrN,
+					d_normals,
+					restAreaPerHinge,
+					planarParameter,
+					functionType,
+					w1,
+					Bl_index - (2 * num_faces),
+					Th_Index,
+					num_faces,
+					num_vertices);
+			}
+		}
+
+		template<typename T>
+		__global__ void setZeroKernel(T* vec)
+		{
+			int index = blockIdx.x;
+			vec[index] = 0;
 		}
 
 		void gradient()
 		{
-			//grad.setZero();????????????????
-
-
+			setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
+			if (cudaDeviceSynchronize() != cudaSuccess) {
+				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
+				exit(1);
+			}
+			gradientKernel << <num_hinges + num_faces + num_faces, 12 >> > (
+				grad.cuda_arr,
+				hinges_faceIndex.cuda_arr,
+				d_normals.cuda_arr,
+				CurrV.cuda_arr,
+				CurrN.cuda_arr,
+				restShapeF.cuda_arr,
+				restAreaPerHinge.cuda_arr,
+				planarParameter,
+				functionType,
+				num_hinges,
+				num_faces,
+				num_vertices,
+				w1,
+				w2,
+				w3);
+			if (cudaDeviceSynchronize() != cudaSuccess) {
+				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
+				exit(1);
+			}
+			MemCpyDeviceToHost(grad);
 
 
 			////Energy 1: per hinge
