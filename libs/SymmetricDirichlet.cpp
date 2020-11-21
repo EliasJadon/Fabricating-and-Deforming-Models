@@ -1,5 +1,5 @@
 ﻿#include "SymmetricDirichlet.h"
-#include "cudaLibrary/CudaBasics.h"
+#include "cudaLibrary/CudaBasics.cuh"
 
 
 SymmetricDirichlet::SymmetricDirichlet() {

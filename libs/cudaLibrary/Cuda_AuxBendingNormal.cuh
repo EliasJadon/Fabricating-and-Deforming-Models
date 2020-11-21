@@ -5,14 +5,15 @@
 
 namespace Cuda {
 	namespace AuxBendingNormal {
+		
 		//Dynamic variables
 		extern double w1, w2, w3;
 		extern FunctionType functionType; //OptimizationUtils::FunctionType /*QUADRATIC = 0,EXPONENTIAL = 1,SIGMOID = 2*/
 		extern double planarParameter;
 		extern Array<rowVector<double>> CurrV, CurrN; //Eigen::MatrixX3d
 		extern Array<double> d_normals;
-
-		extern Array<double> Energy1, Energy2, Energy3;
+		extern Array<double> grad;
+		extern Array<double> EnergyAtomic;
 
 		//Static variables
 		extern Array<rowVector<int>> restShapeF;

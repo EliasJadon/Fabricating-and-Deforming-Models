@@ -56,9 +56,8 @@ void AuxBendingNormal::internalInitCuda() {
 	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::restAreaPerFace,numF);
 	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::restAreaPerHinge,numH);
 	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::d_normals,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::Energy1,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::Energy2,numF);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::Energy3,numF);
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::grad, (3 * numV) + (7 * numF));
+	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::EnergyAtomic,1);
 	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::hinges_faceIndex,numH);
 	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x0_GlobInd,numH);
 	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x1_GlobInd,numH);
@@ -99,9 +98,6 @@ void AuxBendingNormal::internalInitCuda() {
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerFace);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerHinge);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::d_normals);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::Energy1);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::Energy2);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::Energy3);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::hinges_faceIndex);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x0_GlobInd);
 	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x1_GlobInd);
@@ -400,6 +396,13 @@ double AuxBendingNormal::value(const bool update)
 
 void AuxBendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 {
+#ifdef USING_CUDA
+	g.conservativeResize(restShapeV.size() + 7 * restShapeF.rows());
+	g.setZero();
+
+	if (update)
+		gradient_norm = g.norm();
+#else
 	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
 	g.setZero();
 	
@@ -456,6 +459,7 @@ void AuxBendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 
 	if (update)
 		gradient_norm = g.norm();
+#endif
 }
 
 Eigen::Matrix< double, 6, 1> AuxBendingNormal::dm_dN(int hi) {
@@ -487,6 +491,15 @@ Eigen::Matrix< double, 6, 6> AuxBendingNormal::d2m_dNdN(int hi) {
 }
 
 void AuxBendingNormal::hessian() {
+#ifdef USING_CUDA
+	II.clear();
+	JJ.clear();
+	SS.clear();
+
+	II.push_back(restShapeV.size() + 7 * restShapeF.rows() - 1);
+	JJ.push_back(restShapeV.size() + 7 * restShapeF.rows() - 1);
+	SS.push_back(0);
+#else
 	II.clear();
 	JJ.clear();
 	SS.clear();
@@ -670,6 +683,7 @@ void AuxBendingNormal::hessian() {
 	II.push_back(restShapeV.size() + 7 * restShapeF.rows() - 1);
 	JJ.push_back(restShapeV.size() + 7 * restShapeF.rows() - 1);
 	SS.push_back(0);
+#endif
 }
 
 void AuxBendingNormal::init_hessian()
