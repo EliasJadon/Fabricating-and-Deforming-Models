@@ -28,7 +28,6 @@ namespace Cuda {
 		T* cuda_arr;
 	};
 	extern void check_devices_properties();
-	extern void addWithCuda(int* c, const int* a, const int* b, unsigned int size);
 	extern void initCuda();
 	extern void StopCudaDevice();
 }

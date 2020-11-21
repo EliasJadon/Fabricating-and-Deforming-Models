@@ -3,17 +3,6 @@
 
 
 SymmetricDirichlet::SymmetricDirichlet() {
-	const int arraySize = 5;
-	const int a[arraySize] = { 1, 2, 3, 4, 5 };
-	const int b[arraySize] = { 10, 20, 30, 40, 50 };
-	int c[arraySize] = { 0 };
-	Cuda::initCuda();
-	// Add vectors in parallel.
-	Cuda::addWithCuda(c, a, b, arraySize);
-	printf("{1,2,3,4,5} + {10,20,30,40,50} = {%d,%d,%d,%d,%d}\n",
-		c[0], c[1], c[2], c[3], c[4]);
-
-
 	name = "Symmetric Dirichlet";
 	w = 0.6;
 	std::cout << "\t" << name << " constructor" << std::endl;

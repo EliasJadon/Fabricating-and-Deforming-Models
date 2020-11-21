@@ -29,24 +29,33 @@ namespace Cuda {
 		Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; //Eigen::VectorXi //num_hinges
 		Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
 		
-		__global__ void updateXKernel(
-			double* d_normals, 
-			const rowVector<double>* Normals, 
-			const hinge* Hinges_Findex, 
-			const int size)
+		template<typename T> __device__ rowVector<T> addVectors(
+			rowVector<T> a,
+			rowVector<T> b)
 		{
-			int hi = blockIdx.x;
-			if (hi < size)
-			{
-				int f0 = Hinges_Findex[hi].f0;
-				int f1 = Hinges_Findex[hi].f1;
-				double diffX = Normals[f1].x - Normals[f0].x;
-				double diffY = Normals[f1].y - Normals[f0].y;
-				double diffZ = Normals[f1].z - Normals[f0].z;
-				d_normals[hi] = diffX * diffX + diffY * diffY + diffZ * diffZ;
-			}
+			rowVector<T> result;
+			result.x = a.x + b.x;
+			result.y = a.y + b.y;
+			result.z = a.z + b.z;
+			return result;
 		}
-
+		template<typename T> __device__ rowVector<T> subVectors(
+			const rowVector<T> a,
+			const rowVector<T> b)
+		{
+			rowVector<T> result;
+			result.x = a.x - b.x;
+			result.y = a.y - b.y;
+			result.z = a.z - b.z;
+			return result;
+		}
+		template<typename T> __device__ T mulVectors(rowVector<T> a, rowVector<T> b)
+		{
+			return
+				a.x * b.x +
+				a.y * b.y +
+				a.z * b.z;
+		}
 		__device__ double atomicAdd(double* address, double val, int flag)
 		{
 			unsigned long long int* address_as_ull =
@@ -64,6 +73,24 @@ namespace Cuda {
 
 			return __longlong_as_double(old);
 		}
+
+		__global__ void updateXKernel(
+			double* d_normals, 
+			const rowVector<double>* Normals, 
+			const hinge* Hinges_Findex, 
+			const int size)
+		{
+			int hi = blockIdx.x;
+			if (hi < size)
+			{
+				int f0 = Hinges_Findex[hi].f0;
+				int f1 = Hinges_Findex[hi].f1;
+				rowVector<double> diff = subVectors(Normals[f1], Normals[f0]);
+				d_normals[hi] = mulVectors(diff, diff);
+			}
+		}
+
+		
 
 		__device__ void Energy1Kernel(
 			const double w1,
@@ -111,35 +138,6 @@ namespace Cuda {
 				atomicAdd(resAtomic, res, 0);
 			}
 		}
-
-		template<typename T> __device__ rowVector<T> addVectors(
-			rowVector<T> a, 
-			rowVector<T> b) 
-		{
-			rowVector<T> result;
-			result.x = a.x + b.x;
-			result.y = a.y + b.y;
-			result.z = a.z + b.z;
-			return result;
-		}
-		template<typename T> __device__ rowVector<T> subVectors(
-			const rowVector<T> a,
-			const rowVector<T> b) 
-		{
-			rowVector<T> result;
-			result.x = a.x - b.x;
-			result.y = a.y - b.y;
-			result.z = a.z - b.z;
-			return result;
-		}
-		template<typename T> __device__ T mulVectors(rowVector<T> a, rowVector<T> b) 
-		{
-			return  
-				a.x * b.x +
-				a.y * b.y +
-				a.z * b.z;
-		}
-
 		__device__ void Energy3Kernel(
 			const double w3,
 			double* resAtomic, 
@@ -168,8 +166,6 @@ namespace Cuda {
 				atomicAdd(resAtomic, res, 0);
 			}
 		}
-
-
 		__global__ void EnergyKernel(
 			double* resAtomic,
 			const double w1,
@@ -242,6 +238,7 @@ namespace Cuda {
 			MemCpyDeviceToHost(EnergyAtomic);
 			return EnergyAtomic.host_arr[0];
 		}
+
 
 
 		void updateX() {

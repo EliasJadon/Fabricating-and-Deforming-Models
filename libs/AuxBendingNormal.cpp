@@ -42,6 +42,7 @@ void AuxBendingNormal::init()
 
 
 void AuxBendingNormal::internalInitCuda() {
+	Cuda::initCuda();
 	unsigned int numF = restShapeF.rows();
 	unsigned int numV = restShapeV.rows();
 	unsigned int numH = num_hinges;
