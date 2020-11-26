@@ -4,9 +4,6 @@
 namespace Cuda {
 	namespace AdamMinimizer {
 		extern Array<double> v_adam, s_adam;
-		void step(
-			const double alpha_adam,
-			const double beta1_adam,
-			const double beta2_adam);
+		void step(const double,const double,const double);
 	}
 }

@@ -38,18 +38,18 @@ namespace Cuda {
 		for (int i = 0; i < nDevices; i++) {
 			cudaDeviceProp prop;
 			CheckErr(cudaGetDeviceProperties(&prop, i));
-			printf("Device Number: %d\n", i);
-			printf("  Device name: %s\n", prop.name);
-			printf("  Memory Clock Rate (KHz): %d\n", prop.memoryClockRate);
-			printf("  Memory Bus Width (bits): %d\n", prop.memoryBusWidth);
-			printf("  Peak Memory Bandwidth (GB/s): %f\n\n", 2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
-			printf("  prop.maxThreadsPerBlock = %d\n", prop.maxThreadsPerBlock);
-			printf("  prop.maxThreadsDim[0] = %d\n", prop.maxThreadsDim[0]);
-			printf("  prop.maxThreadsDim[1] = %d\n", prop.maxThreadsDim[1]);
-			printf("  prop.maxThreadsDim[2] = %d\n", prop.maxThreadsDim[2]);
-			printf("  prop.maxGridSize[0] = %d\n", prop.maxGridSize[0]);
-			printf("  prop.maxGridSize[1] = %d\n", prop.maxGridSize[1]);
-			printf("  prop.maxGridSize[2] = %d\n", prop.maxGridSize[2]);
+			std::cout << "Device Number: " << i << std::endl;
+			std::cout << "\tName: " << prop.name << std::endl;
+			std::cout << "\tMemory Clock Rate (KHz): " << prop.memoryClockRate << std::endl;
+			std::cout << "\tMemory Bus Width (bits): " << prop.memoryBusWidth << std::endl;
+			std::cout << "\tPeak Memory Bandwidth (GB/s): " << 2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6 << std::endl;
+			std::cout << "\tprop.maxThreadsPerBlock = " << prop.maxThreadsPerBlock << std::endl;
+			std::cout << "\tprop.maxThreadsDim[0] = " << prop.maxThreadsDim[0] << std::endl;
+			std::cout << "\tprop.maxThreadsDim[1] = " << prop.maxThreadsDim[1] << std::endl;
+			std::cout << "\tprop.maxThreadsDim[2] = " << prop.maxThreadsDim[2] << std::endl;
+			std::cout << "\tprop.maxGridSize[0] = " << prop.maxGridSize[0] << std::endl;
+			std::cout << "\tprop.maxGridSize[1] = " << prop.maxGridSize[1] << std::endl;
+			std::cout << "\tprop.maxGridSize[2] = " << prop.maxGridSize[2] << std::endl;
 		}
 	}
 

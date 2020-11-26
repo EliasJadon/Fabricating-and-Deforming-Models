@@ -3,7 +3,6 @@
 
 namespace Cuda {
 	namespace AuxBendingNormal {
-		
 		//Dynamic variables
 		extern double w1, w2, w3;
 		extern FunctionType functionType; //OptimizationUtils::FunctionType /*QUADRATIC = 0,EXPONENTIAL = 1,SIGMOID = 2*/
@@ -20,7 +19,6 @@ namespace Cuda {
 		extern Array<hinge> hinges_faceIndex; //std::vector<Eigen::Vector2d> //num_hinges*2
 		extern Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; //Eigen::VectorXi //num_hinges
 		extern Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
-		
 		
 		extern void init();
 		extern void updateX();
