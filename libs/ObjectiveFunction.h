@@ -1,6 +1,7 @@
 #pragma once
 #include "OptimizationUtils.h"
 #include "..//..//plugins/console_color.h"
+#include "cudaLibrary/Cuda_Basics.cuh"
 
 class ObjectiveFunction
 {

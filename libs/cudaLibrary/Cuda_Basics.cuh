@@ -1,6 +1,10 @@
 #pragma once
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
+#include <iostream>
+#include <math.h>
+
+#define USING_CUDA
 
 enum FunctionType {
 	QUADRATIC = 0,
@@ -62,24 +66,4 @@ namespace Cuda {
 	}
 
 	void copyArrays(Array<double>& a, const Array<double>& b);
-
-
-
-
-
-
-
-	namespace Minimizer {
-		extern Array<double> X, p, g, curr_x;
-		void linesearch_currX(const double step_size);
-		
-
-	}
-	namespace AdamMinimizer {
-		extern Array<double> v_adam, s_adam;
-		void step(
-			const double alpha_adam,
-			const double beta1_adam,
-			const double beta2_adam);
-	}
 }

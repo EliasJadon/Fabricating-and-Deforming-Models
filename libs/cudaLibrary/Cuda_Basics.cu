@@ -1,10 +1,4 @@
-#include <math.h>
-#include <stdio.h>
-#include <atomic>
-#include <vector>
-#include <mutex>
-#include <iostream>
-#include "CudaBasics.cuh"
+#include "Cuda_Basics.cuh"
 
 
 namespace Cuda {
@@ -68,67 +62,5 @@ namespace Cuda {
 		copyArraysKernel << <a.size, 1 >> > (a.cuda_arr, b.cuda_arr);
 		CheckErr(cudaDeviceSynchronize());
 	}
-
-
-	namespace Minimizer {
-		Array<double> X, p, g, curr_x;
-
-		__global__ void currXKernel(
-			double* curr_x,
-			const double* X,
-			const double* p,
-			const double step_size)
-		{
-			int index = blockIdx.x;
-			curr_x[index] = X[index] + step_size * p[index];
-		}
-
-		void linesearch_currX(const double step_size) {
-			currXKernel << <curr_x.size, 1 >> > (
-				curr_x.cuda_arr,
-				X.cuda_arr,
-				p.cuda_arr,
-				step_size);
-			CheckErr(cudaDeviceSynchronize());
-		}
-	}
-
-	namespace AdamMinimizer {
-		Array<double> v_adam, s_adam;
-
-		__global__ void stepKernel(
-			const double alpha_adam, 
-			const double beta1_adam,
-			const double beta2_adam,
-			const double* g,
-			double* v_adam,
-			double* s_adam,
-			double* p) 
-		{
-			int index = blockIdx.x;
-			v_adam[index] = beta1_adam * v_adam[index] + (1 - beta1_adam) * g[index];
-			double tmp = pow(g[index], 2);
-			s_adam[index] = beta2_adam * s_adam[index] + (1 - beta2_adam) * tmp; // element-wise square
-			tmp = sqrt(s_adam[index]) + 1e-8;
-			p[index] = -v_adam[index] / tmp;
-		}
-
-		void step(
-			const double alpha_adam, 
-			const double beta1_adam, 
-			const double beta2_adam) 
-		{
-			stepKernel << <v_adam.size, 1 >> > (
-				alpha_adam,
-				beta1_adam,
-				beta2_adam,
-				Minimizer::g.cuda_arr,
-				v_adam.cuda_arr,
-				s_adam.cuda_arr,
-				Minimizer::p.cuda_arr);
-			CheckErr(cudaDeviceSynchronize());
-		}
-	}
-
 }
 

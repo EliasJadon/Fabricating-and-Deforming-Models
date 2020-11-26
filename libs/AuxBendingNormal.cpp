@@ -1,9 +1,6 @@
 ﻿#include "AuxBendingNormal.h"
 #include <unsupported/Eigen/MatrixFunctions>
 #include <igl/triangle_triangle_adjacency.h>
-#include "cudaLibrary/Cuda_AuxBendingNormal.cuh"
-
-#define USING_CUDA
 
 AuxBendingNormal::AuxBendingNormal(FunctionType type) {
 	Cuda::AuxBendingNormal::functionType = type;

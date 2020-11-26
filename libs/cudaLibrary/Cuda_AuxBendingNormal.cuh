@@ -1,6 +1,5 @@
 #pragma once
-#include "CudaBasics.cuh"
-
+#include "Cuda_Basics.cuh"
 
 namespace Cuda {
 	namespace AuxBendingNormal {

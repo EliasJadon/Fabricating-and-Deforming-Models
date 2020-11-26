@@ -1,11 +1,5 @@
-#include <math.h>
-#include <stdio.h>
-#include <vector>
-#include <iostream>
-#include <atomic>
-#include <mutex>
-#include <string>
 #include "Cuda_AuxBendingNormal.cuh"
+#include "Cuda_Minimizer.cuh"
 
 namespace Cuda {
 	namespace AuxBendingNormal {
@@ -269,7 +263,7 @@ namespace Cuda {
 			updateVN<<<num_vertices+ num_faces,3>>>(
 				CurrN.cuda_arr,
 				CurrV.cuda_arr,
-				Minimizer::curr_x.cuda_arr,
+				Cuda::Minimizer::curr_x.cuda_arr,
 				num_vertices,
 				num_faces);
 

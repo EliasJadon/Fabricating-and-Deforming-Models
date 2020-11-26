@@ -5,10 +5,7 @@
 #include <igl/flip_avoiding_line_search.h>
 #include <Eigen/SparseCholesky>
 #include <fstream>
-#include "cudaLibrary/CudaBasics.cuh"
-#include "cudaLibrary/Cuda_AuxBendingNormal.cuh"
-
-#define USING_CUDA
+#include "cudaLibrary/Cuda_AdamMinimizer.cuh"
 
 class Minimizer
 {
