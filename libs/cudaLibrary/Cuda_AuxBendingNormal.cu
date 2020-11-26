@@ -66,6 +66,38 @@ namespace Cuda {
 			return __longlong_as_double(old);
 		}
 
+		template <unsigned int blockSize, typename T>
+		__device__ void warpReduce(volatile T* sdata, unsigned int tid) {
+			if (blockSize >= 64) sdata[tid] += sdata[tid + 32];
+			if (blockSize >= 32) sdata[tid] += sdata[tid + 16];
+			if (blockSize >= 16) sdata[tid] += sdata[tid + 8];
+			if (blockSize >= 8) sdata[tid] += sdata[tid + 4];
+			if (blockSize >= 4) sdata[tid] += sdata[tid + 2];
+			if (blockSize >= 2) sdata[tid] += sdata[tid + 1];
+		}
+
+		template <unsigned int blockSize, typename T>
+		__global__ void sumOfArray(T* g_idata, T* g_odata, unsigned int n) {
+			extern __shared__ T sdata[blockSize];
+			unsigned int tid = threadIdx.x;
+			unsigned int i = blockIdx.x * (blockSize * 2) + tid;
+			unsigned int gridSize = blockSize * 2 * gridDim.x;
+			sdata[tid] = 0;
+			while (i < n) { sdata[tid] += g_idata[i] + g_idata[i + blockSize]; i += gridSize; }
+			__syncthreads();
+
+			if (blockSize >= 1024) { if (tid < 512) { sdata[tid] += sdata[tid + 512]; } __syncthreads(); }
+			if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
+			if (blockSize >= 256) { if (tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
+			if (blockSize >= 128) { if (tid < 64) { sdata[tid] += sdata[tid + 64]; } __syncthreads(); }
+			if (tid < 32) warpReduce<blockSize, T>(sdata, tid);
+			if (tid == 0) g_odata[blockIdx.x] = sdata[0];
+		}
+
+
+
+
+
 		__global__ void updateXKernel(
 			double* d_normals, 
 			const rowVector<double>* Normals, 
@@ -84,7 +116,7 @@ namespace Cuda {
 
 		
 
-		__device__ void Energy1Kernel(
+		__device__ double Energy1Kernel(
 			const double w1,
 			double* resAtomic,
 			const double* x,
@@ -107,11 +139,12 @@ namespace Cuda {
 					res = 0;
 
 				res *= area[hi];
-				atomicAdd(resAtomic, res, 0);
+				//atomicAdd(resAtomic, res, 0);
+				return res;
 			}
 		}
 
-		__device__ void Energy2Kernel(
+		__device__ double Energy2Kernel(
 			const double w2,
 			double* resAtomic,
 			const rowVector<double>* Normals,
@@ -127,10 +160,11 @@ namespace Cuda {
 				double sqrN = x2 + y2 + z2 - 1;
 				res = sqrN * sqrN;
 				res *= w2;
-				atomicAdd(resAtomic, res, 0);
+				//atomicAdd(resAtomic, res, 0);
+				return res;
 			}
 		}
-		__device__ void Energy3Kernel(
+		__device__ double Energy3Kernel(
 			const double w3,
 			double* resAtomic, 
 			const rowVector<int>* restShapeF,
@@ -155,9 +189,12 @@ namespace Cuda {
 				double d3 = mulVectors(Normals[fi], e02);
 				res = d1 * d1 + d2 * d2 + d3 * d3;
 				res *= w3;
-				atomicAdd(resAtomic, res, 0);
+				//atomicAdd(resAtomic, res, 0);
+				return res;
 			}
 		}
+
+		template<unsigned int blockSize>
 		__global__ void EnergyKernel(
 			double* resAtomic,
 			const double w1,
@@ -173,56 +210,71 @@ namespace Cuda {
 			const int num_hinges,
 			const int num_faces) 
 		{
-			int index = blockIdx.x;
+			extern __shared__ double energy_value[blockSize];
+			unsigned int tid = threadIdx.x;
+			unsigned int Global_idx = blockIdx.x * blockSize + tid;
+			*resAtomic = 0;
+			__syncthreads();
+
 			//0	,..., F-1,		==> Call Energy(3)
 			//F	,..., 2F-1,		==> Call Energy(2)
 			//2F,..., 2F+h-1	==> Call Energy(1)
-			if (index < num_faces) {
-				Energy3Kernel(
+			if (Global_idx < num_faces) {
+				energy_value[tid] = Energy3Kernel(
 					w3,
 					resAtomic,
 					restShapeF,
 					CurrV,
 					CurrN,
-					index,
+					Global_idx,
 					num_faces);
 			}
-			else if (index < (2*num_faces)) {
-				Energy2Kernel(
+			else if (Global_idx < (2*num_faces)) {
+				energy_value[tid] = Energy2Kernel(
 					w2,
 					resAtomic,
 					CurrN,
-					index - num_faces,
+					Global_idx - num_faces,
 					num_faces);
 			}
-			else {
-				Energy1Kernel(
+			else if (Global_idx < ((2 * num_faces) + num_hinges)) {
+				energy_value[tid] = Energy1Kernel(
 					w1,
 					resAtomic,
 					d_normals,
 					restAreaPerHinge,
 					planarParameter,
 					functionType,
-					index - (2 * num_faces),
+					Global_idx - (2 * num_faces),
 					num_hinges);
-			}			
+			}
+			else {
+				energy_value[tid] = 0;
+			}
+			__syncthreads();
+
+			if (blockSize >= 1024) { if (tid < 512) { energy_value[tid] += energy_value[tid + 512]; } __syncthreads(); }
+			if (blockSize >= 512) { if (tid < 256) { energy_value[tid] += energy_value[tid + 256]; } __syncthreads(); }
+			if (blockSize >= 256) { if (tid < 128) { energy_value[tid] += energy_value[tid + 128]; } __syncthreads(); }
+			if (blockSize >= 128) { if (tid < 64) { energy_value[tid] += energy_value[tid + 64]; } __syncthreads(); }
+			if (tid < 32) warpReduce<blockSize, double>(energy_value, tid);
+			if (tid == 0) atomicAdd(resAtomic, energy_value[0], 0);
 		}
 		
 		double value() {
-			EnergyAtomic.host_arr[0] = 0;
-			MemCpyHostToDevice(EnergyAtomic);
-			EnergyKernel <<<num_hinges + num_faces + num_faces, 1 >> > (
-					EnergyAtomic.cuda_arr,
-					w1,w2,w3,
-					d_normals.cuda_arr,
-					CurrV.cuda_arr,
-					CurrN.cuda_arr,
-					restShapeF.cuda_arr,
-					restAreaPerHinge.cuda_arr,
-					planarParameter,
-					functionType,
-					num_hinges,
-					num_faces);
+			unsigned int s = num_hinges + num_faces + num_faces;
+			EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
+				EnergyAtomic.cuda_arr,
+				w1, w2, w3,
+				d_normals.cuda_arr,
+				CurrV.cuda_arr,
+				CurrN.cuda_arr,
+				restShapeF.cuda_arr,
+				restAreaPerHinge.cuda_arr,
+				planarParameter,
+				functionType,
+				num_hinges,
+				num_faces);
 			CheckErr(cudaDeviceSynchronize());
 			MemCpyDeviceToHost(EnergyAtomic);
 			return EnergyAtomic.host_arr[0];
