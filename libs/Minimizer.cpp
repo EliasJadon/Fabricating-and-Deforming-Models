@@ -195,7 +195,7 @@ void Minimizer::update_external_data(int steps)
 {
 	give_parameter_update_slot();
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
-	//if (steps % 10 == 0) {
+	if (steps % 100 == 0) {
 		Cuda::MemCpyDeviceToHost(Cuda::Minimizer::X);
 		for (int i = 0; i < 3 * V.rows(); i++)
 			ext_x[i] = Cuda::Minimizer::X.host_arr[i];
@@ -205,7 +205,7 @@ void Minimizer::update_external_data(int steps)
 			ext_center[i] = Cuda::Minimizer::X.host_arr[3 * V.rows() + 3 * F.rows() + i];
 		for (int i = 0; i < F.rows(); i++)
 			ext_radius[i] = Cuda::Minimizer::X.host_arr[3 * V.rows() + 6 * F.rows() + i];
-	//}
+	}
 	//ext_x =			X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows());
 	//ext_norm =		X.middleRows(3 * V.rows() + 0 * F.rows(), 3 * F.rows());
 	//ext_center =	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows());

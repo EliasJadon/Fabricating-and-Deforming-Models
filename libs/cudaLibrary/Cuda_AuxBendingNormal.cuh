@@ -7,8 +7,6 @@ namespace Cuda {
 		extern double w1, w2, w3;
 		extern FunctionType functionType; //OptimizationUtils::FunctionType /*QUADRATIC = 0,EXPONENTIAL = 1,SIGMOID = 2*/
 		extern double planarParameter;
-		extern Array<rowVector<double>> CurrV, CurrN; //Eigen::MatrixX3d
-		extern Array<double> d_normals;
 		extern Array<double> grad;
 		extern Array<double> EnergyAtomic;
 
@@ -21,7 +19,6 @@ namespace Cuda {
 		extern Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
 		
 		extern void init();
-		extern void updateX();
 		extern double value();
 		extern void gradient();
 		extern void FreeAllVariables();		
