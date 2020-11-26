@@ -25,7 +25,8 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
-	energies_window = results_window = outputs_window = tips_window = true;
+	energies_window = results_window = outputs_window = true;
+	tips_window = false;
 	neighborType = app_utils::NeighborType::LOCAL_NORMALS;
 	IsChoosingGroups = false;
 	isModelLoaded = false;

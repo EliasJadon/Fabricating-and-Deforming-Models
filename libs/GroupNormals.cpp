@@ -3,7 +3,8 @@
 GroupNormals::GroupNormals()
 {
     name = "Group Normals";
-	w = 0.05;
+	//w = 0.05;
+	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 

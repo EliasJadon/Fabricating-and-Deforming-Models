@@ -4,7 +4,8 @@
 
 SymmetricDirichlet::SymmetricDirichlet() {
 	name = "Symmetric Dirichlet";
-	w = 0.6;
+	//w = 0.6;
+	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 

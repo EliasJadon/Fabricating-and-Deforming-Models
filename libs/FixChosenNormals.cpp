@@ -3,7 +3,8 @@
 FixChosenNormals::FixChosenNormals()
 {
     name = "Fix Chosen Normals";
-	w = 500;
+	//w = 500;
+	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 

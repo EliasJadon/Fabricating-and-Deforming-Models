@@ -18,8 +18,8 @@ void TotalObjective::init()
 	//assume that each objective's member have been set outside
 	for (auto &objective : objectiveList)
 		objective->init();
-	for (auto& objective : objectiveList)
-		objective->updateX(Eigen::VectorXd::Random(variables_size));
+//	for (auto& objective : objectiveList)
+	//	objective->updateX(Eigen::VectorXd::Random(variables_size));
 	init_hessian();
 }
 

@@ -3,7 +3,8 @@
 FixChosenSpheres::FixChosenSpheres()
 {
     name = "Fix Chosen Spheres";
-	w = 500;
+	//w = 500;
+	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
