@@ -1,7 +1,6 @@
 #pragma once
 #include "CudaBasics.cuh"
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
+
 
 namespace Cuda {
 	namespace AuxBendingNormal {
@@ -28,54 +27,6 @@ namespace Cuda {
 		extern void updateX();
 		extern double value();
 		extern void gradient();
-		extern void FreeAllVariables();
-
-		template<typename T>
-		void FreeMemory(Cuda::Array<T>& a) {
-			delete[] a.host_arr;
-			cudaFree(a.cuda_arr);
-		}
-		template<typename T>
-		void AllocateMemory(Cuda::Array<T>& a, const unsigned int size) {
-			if (size <= 0) {
-				std::cout << "Cuda: the size isn't positive!\n";
-				FreeAllVariables();
-				exit(1);
-			}
-			a.size = size;
-			a.host_arr = new T[size];
-			if (a.host_arr == NULL) {
-				std::cout << "Host: Allocation Failed!!!\n";
-				FreeAllVariables();
-				exit(1);
-			}
-			cudaError_t cudaStatus;
-			cudaStatus = cudaMalloc((void**)& a.cuda_arr, a.size * sizeof(T));
-			if (cudaStatus != cudaSuccess) {
-				std::cout << "Device: Allocation Failed!!!\n";
-				FreeAllVariables();
-				exit(1);
-			}
-		}
-		template <typename T> void MemCpyHostToDevice(Array<T>& a) {
-			cudaError_t cudaStatus;
-			cudaStatus = cudaMemcpy(a.cuda_arr, a.host_arr, a.size * sizeof(T), cudaMemcpyHostToDevice);
-			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMemcpyHostToDevice failed!");
-				FreeAllVariables();
-				exit(1);
-			}
-		}
-		template <typename T> void MemCpyDeviceToHost(Array<T>& a) {
-			cudaError_t cudaStatus;
-			// Copy output vector from GPU buffer to host memory.
-			cudaStatus = cudaMemcpy(a.host_arr, a.cuda_arr, a.size * sizeof(T), cudaMemcpyDeviceToHost);
-			if (cudaStatus != cudaSuccess) {
-				fprintf(stderr, "cudaMemcpyDeviceToHost failed!");
-				FreeAllVariables();
-				exit(1);
-			}
-		}
-		
+		extern void FreeAllVariables();		
 	}
 }

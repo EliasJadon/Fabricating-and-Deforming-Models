@@ -1,4 +1,6 @@
 #pragma once
+#include "cuda_runtime.h"
+#include "device_launch_parameters.h"
 
 enum FunctionType {
 	QUADRATIC = 0,
@@ -27,7 +29,57 @@ namespace Cuda {
 		T* host_arr;
 		T* cuda_arr;
 	};
-	extern void check_devices_properties();
+	extern void view_device_properties();
 	extern void initCuda();
 	extern void StopCudaDevice();
+	void CheckErr(const cudaError_t cudaStatus, const int ID = 0);
+
+	template<typename T>
+	void FreeMemory(Cuda::Array<T>& a) {
+		delete[] a.host_arr;
+		cudaFree(a.cuda_arr);
+	}
+	template<typename T>
+	void AllocateMemory(Cuda::Array<T>& a, const unsigned int size) {
+		if (size <= 0) {
+			std::cout << "Cuda: the size isn't positive!\n";
+			exit(1);
+		}
+		a.size = size;
+		a.host_arr = new T[size];
+		if (a.host_arr == NULL) {
+			std::cout << "Host: Allocation Failed!!!\n";
+			exit(1);
+		}
+		CheckErr(cudaMalloc((void**)& a.cuda_arr, a.size * sizeof(T)));
+	}
+	template <typename T> void MemCpyHostToDevice(Array<T>& a) {
+		CheckErr(cudaMemcpy(a.cuda_arr, a.host_arr, a.size * sizeof(T), cudaMemcpyHostToDevice));
+	}
+	template <typename T> void MemCpyDeviceToHost(Array<T>& a) {
+		// Copy output vector from GPU buffer to host memory.
+		CheckErr(cudaMemcpy(a.host_arr, a.cuda_arr, a.size * sizeof(T), cudaMemcpyDeviceToHost));
+	}
+
+	void copyArrays(Array<double>& a, const Array<double>& b);
+
+
+
+
+
+
+
+	namespace Minimizer {
+		extern Array<double> X, p, g, curr_x;
+		void linesearch_currX(const double step_size);
+		
+
+	}
+	namespace AdamMinimizer {
+		extern Array<double> v_adam, s_adam;
+		void step(
+			const double alpha_adam,
+			const double beta1_adam,
+			const double beta2_adam);
+	}
 }

@@ -1,5 +1,3 @@
-#include "cuda_runtime.h"
-#include "device_launch_parameters.h"
 #include <math.h>
 #include <stdio.h>
 #include <vector>
@@ -231,29 +229,59 @@ namespace Cuda {
 					functionType,
 					num_hinges,
 					num_faces);
-			if (cudaDeviceSynchronize() != cudaSuccess) {
-					fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
-					exit(1);
-			}
+			CheckErr(cudaDeviceSynchronize());
 			MemCpyDeviceToHost(EnergyAtomic);
 			return EnergyAtomic.host_arr[0];
 		}
 
 
 
+		__global__ void updateVN(
+			rowVector<double>* CurrN,
+			rowVector<double>* CurrV,
+			double* curr_x,
+			const int num_vertices, 
+			const int num_faces) 
+		{
+			int index = blockIdx.x;
+			int thread = threadIdx.x;
+			if (index < num_faces) {
+				int f = index;
+				if (thread == 0)
+					CurrN[f].x = curr_x[f + (3 * num_vertices)];
+				else if (thread == 1)
+					CurrN[f].y = curr_x[f + (3 * num_vertices + num_faces)];
+				else if (thread == 2)
+					CurrN[f].z = curr_x[f + (3 * num_vertices + 2 * num_faces)];
+			}
+			else {
+				int v = index - num_faces;
+				if (thread == 0)
+					CurrV[v].x = curr_x[v];
+				if (thread == 1)
+					CurrV[v].y = curr_x[v + num_vertices];
+				if (thread == 2)
+					CurrV[v].z = curr_x[v + (2 * num_vertices)];
+			}
+		}
+
 		void updateX() {
-			MemCpyHostToDevice(CurrV);
-			MemCpyHostToDevice(CurrN);
+			updateVN<<<num_vertices+ num_faces,3>>>(
+				CurrN.cuda_arr,
+				CurrV.cuda_arr,
+				Minimizer::curr_x.cuda_arr,
+				num_vertices,
+				num_faces);
+
+			CheckErr(cudaDeviceSynchronize());
+
 			updateXKernel <<<num_hinges, 1>>> (
 				d_normals.cuda_arr, 
 				CurrN.cuda_arr, 
 				hinges_faceIndex.cuda_arr, 
 				num_hinges);
-			if (cudaDeviceSynchronize() != cudaSuccess) {
-				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
-				exit(1);
-			}
-
+			CheckErr(cudaDeviceSynchronize());
+			
 			////For Debugging...
 			//MemCpyDeviceToHost(d_normals);
 			//for (int hi = 0; hi < num_hinges; hi++) {
@@ -278,12 +306,6 @@ namespace Cuda {
 			//}
 		}
 
-
-
-
-
-
-
 		__device__ double dPhi_dm(
 			const double x, 
 			const double planarParameter,
@@ -296,7 +318,6 @@ namespace Cuda {
 			else if (functionType == FunctionType::EXPONENTIAL)
 				return 0;
 		}
-
 
 		__device__ void gradient1Kernel(
 			double* grad,
@@ -553,10 +574,8 @@ namespace Cuda {
 		void gradient()
 		{
 			setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
-			if (cudaDeviceSynchronize() != cudaSuccess) {
-				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
-				exit(1);
-			}
+			CheckErr(cudaDeviceSynchronize());
+
 			gradientKernel << <num_hinges + num_faces + num_faces, 12 >> > (
 				grad.cuda_arr,
 				hinges_faceIndex.cuda_arr,
@@ -573,11 +592,8 @@ namespace Cuda {
 				w1,
 				w2,
 				w3);
-			if (cudaDeviceSynchronize() != cudaSuccess) {
-				fprintf(stderr, "cudaDeviceSynchronize returned error code after launching addKernel!\n");
-				exit(1);
-			}
-			MemCpyDeviceToHost(grad);
+			CheckErr(cudaDeviceSynchronize());
+			//MemCpyDeviceToHost(grad);
 
 
 			////Energy 1: per hinge

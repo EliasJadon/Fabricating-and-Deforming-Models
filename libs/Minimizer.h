@@ -5,7 +5,10 @@
 #include <igl/flip_avoiding_line_search.h>
 #include <Eigen/SparseCholesky>
 #include <fstream>
+#include "cudaLibrary/CudaBasics.cuh"
+#include "cudaLibrary/Cuda_AuxBendingNormal.cuh"
 
+#define USING_CUDA
 
 class Minimizer
 {
@@ -39,7 +42,9 @@ public:
 	// External (interface) and internal working mesh
 	Eigen::VectorXd ext_x;
 	Eigen::VectorXd ext_center, ext_radius, ext_norm;
+#ifndef USING_CUDA
 	Eigen::VectorXd X;
+#endif
 	Eigen::MatrixX3i F;
 	Eigen::MatrixXd V;
 	
@@ -57,11 +62,14 @@ protected:
 	// Give the wrapper a chance to intersect gracefully
 	void give_parameter_update_slot();
 	// Updating the data after a step has been done
-	void update_external_data();
+	void update_external_data(int steps);
+#ifndef USING_CUDA
 	// Descent direction evaluated in step
 	Eigen::VectorXd p;
 	// Current energy, gradient and hessian
 	Eigen::VectorXd g;
+#endif
+	
 	double currentEnergy;
 	int numIteration = 0;
 private:

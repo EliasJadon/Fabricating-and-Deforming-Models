@@ -8,7 +8,7 @@
 AuxBendingNormal::AuxBendingNormal(FunctionType type) {
 	Cuda::AuxBendingNormal::functionType = type;
 	name = "Aux Bending Normal";
-	w = 0;
+	w = 1;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
@@ -51,23 +51,23 @@ void AuxBendingNormal::internalInitCuda() {
 	Cuda::AuxBendingNormal::num_vertices = numV;
 	Cuda::AuxBendingNormal::num_hinges = numH;
 
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::restShapeF, numF);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::CurrV,numV);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::CurrN,numF);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::restAreaPerFace,numF);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::restAreaPerHinge,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::d_normals,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::grad, (3 * numV) + (7 * numF));
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::EnergyAtomic,1);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::hinges_faceIndex,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x0_GlobInd,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x1_GlobInd,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x2_GlobInd,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x3_GlobInd,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x0_LocInd,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x1_LocInd,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x2_LocInd,numH);
-	Cuda::AuxBendingNormal::AllocateMemory(Cuda::AuxBendingNormal::x3_LocInd,numH);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::restShapeF, numF);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::CurrV,numV);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::CurrN,numF);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::restAreaPerFace,numF);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::restAreaPerHinge,numH);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::d_normals,numH);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::grad, (3 * numV) + (7 * numF));
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::EnergyAtomic,1);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::hinges_faceIndex,numH);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::x0_GlobInd,numH);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::x1_GlobInd,numH);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::x2_GlobInd,numH);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::x3_GlobInd,numH);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::x0_LocInd,numH);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::x1_LocInd,numH);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::x2_LocInd,numH);
+	Cuda::AllocateMemory(Cuda::AuxBendingNormal::x3_LocInd,numH);
 
 	//init host buffers...
 	for (int v = 0; v < restShapeV.rows(); v++) {
@@ -93,21 +93,21 @@ void AuxBendingNormal::internalInitCuda() {
 	}
 
 	// Copy input vectors from host memory to GPU buffers.
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::restShapeF);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::CurrV);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::CurrN);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerFace);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerHinge);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::d_normals);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::hinges_faceIndex);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x0_GlobInd);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x1_GlobInd);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x2_GlobInd);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x3_GlobInd);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x0_LocInd);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x1_LocInd);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x2_LocInd);
-	Cuda::AuxBendingNormal::MemCpyHostToDevice(Cuda::AuxBendingNormal::x3_LocInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::restShapeF);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::CurrV);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::CurrN);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerFace);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerHinge);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::d_normals);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::hinges_faceIndex);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::x0_GlobInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::x1_GlobInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::x2_GlobInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::x3_GlobInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::x0_LocInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::x1_LocInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::x2_LocInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::x3_LocInd);
 }
 
 void AuxBendingNormal::updateX(const Eigen::VectorXd& X)
@@ -120,10 +120,10 @@ void AuxBendingNormal::updateX(const Eigen::VectorXd& X)
 	//		Ny(0), ... ,Ny(#F-1),
 	//		Nz(0), ... ,Nz(#F-1)
 	//	  ]
-	assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
+	//assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
 	
 #ifdef USING_CUDA
-	int numV = restShapeV.rows();
+	/*int numV = restShapeV.rows();
 	int num2V = 2 * numV;
 	int numF = restShapeF.rows();
 	int startNx = 3 * numV;
@@ -136,8 +136,8 @@ void AuxBendingNormal::updateX(const Eigen::VectorXd& X)
 	for (int f = 0; f < numF; f++)
 		Cuda::AuxBendingNormal::CurrN.host_arr[f] =
 		Cuda::newRowVector<double>(X[f + startNx], X[f + startNy], X[f + startNz]);
-	Cuda::AuxBendingNormal::updateX();
-//#else
+	*/Cuda::AuxBendingNormal::updateX();
+#else
 	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, 3 * restShapeV.rows()).data(), restShapeV.rows(), 3);
 	CurrN = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(3 * restShapeV.rows(), 3 * restShapeF.rows()).data(), restShapeF.rows(), 3);
 
@@ -358,8 +358,8 @@ Eigen::VectorXd AuxBendingNormal::d2Phi_dmdm(Eigen::VectorXd x) {
 double AuxBendingNormal::value(const bool update)
 {
 #ifdef USING_CUDA
-	double value1 = Cuda::AuxBendingNormal::value();
-//#else
+	double value = Cuda::AuxBendingNormal::value();
+#else
 	//per hinge
 	Eigen::VectorXd Energy1 = Phi(d_normals);
 	
@@ -405,7 +405,7 @@ void AuxBendingNormal::gradient(Eigen::VectorXd& g, const bool update)
 	}
 	if (update)
 		gradient_norm = g.norm();*/
-//#else
+#else
 	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
 	g.setZero();
 	

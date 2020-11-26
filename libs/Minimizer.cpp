@@ -31,11 +31,29 @@ void Minimizer::init(
 	std::cout << "V.rows() = " << V.rows() << std::endl;
 	assert(X0.rows() == (3*V.rows()) && "X0 should contain the (x,y,z) coordinates for each vertice");
 	assert(norm0.rows() == (3*F.rows()) && "norm0 should contain the (x,y,z) coordinates for each face");
+#ifdef USING_CUDA
+	Cuda::initCuda();
+	unsigned int size = 3 * V.rows() + 7 * F.rows();
+	Cuda::AllocateMemory(Cuda::Minimizer::X, size);
+	Cuda::AllocateMemory(Cuda::Minimizer::p, size);
+	Cuda::AllocateMemory(Cuda::Minimizer::g, size);
+	Cuda::AllocateMemory(Cuda::Minimizer::curr_x, size);
+	for (int i = 0; i < 3 * V.rows(); i++)
+		Cuda::Minimizer::X.host_arr[i] = X0[i];
+	for (int i = 0; i < 3 * F.rows(); i++)
+		Cuda::Minimizer::X.host_arr[3 * V.rows() + i] = norm0[i];
+	for (int i = 0; i < 3 * F.rows(); i++)
+		Cuda::Minimizer::X.host_arr[3 * V.rows() + 3 * F.rows() + i] = center0[i];
+	for (int i = 0; i < F.rows(); i++)
+		Cuda::Minimizer::X.host_arr[3 * V.rows() + 6 * F.rows() + i] = Radius0[i];
+	Cuda::MemCpyHostToDevice(Cuda::Minimizer::X);
+#else
 	X.resize(3 * V.rows() + 7 * F.rows());
 	X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows()) = X0;
 	X.middleRows(3 * V.rows() + 0 * F.rows(), 3 * F.rows()) = norm0;
 	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows()) = center0;
 	X.middleRows(3 * V.rows() + 6 * F.rows(), 1 * F.rows()) = Radius0;
+#endif
 	ext_x = X0;
 	ext_center = center0;
 	ext_norm = norm0;
@@ -95,9 +113,9 @@ void Minimizer::run_one_iteration(
 	numIteration = steps;
 	timer_avg = timer_sum / numIteration;
 	update_lambda(lambda_counter);
-	step();
 	linesearch();
-	update_external_data();
+	step();
+	update_external_data(steps);
 }
 
 void Minimizer::linesearch()
@@ -117,14 +135,17 @@ void Minimizer::value_linesearch()
 	cur_iter = 0; int MAX_STEP_SIZE_ITER = 50;
 	while (cur_iter++ < MAX_STEP_SIZE_ITER) 
 	{
-		Eigen::VectorXd curr_x = X + step_size * p;
-		objective->updateX(curr_x);
+		//Eigen::VectorXd curr_x = X + step_size * p;
+		Cuda::Minimizer::linesearch_currX(step_size);
+
+		objective->updateX(Eigen::VectorXd::Zero(1));
 		new_energy = objective->value(false);
 		if (new_energy >= currentEnergy)
 			step_size /= 2;
 		else 
 		{
-			X = curr_x;
+			//X = curr_x;
+			Cuda::copyArrays(Cuda::Minimizer::X, Cuda::Minimizer::curr_x);
 			break;
 		}
 	}
@@ -133,14 +154,14 @@ void Minimizer::value_linesearch()
 
 void Minimizer::constant_linesearch()
 {
-	step_size = constantStep_LineSearch;
+	/*step_size = constantStep_LineSearch;
 	cur_iter = 0;
-	X = X + step_size * p;
+	X = X + step_size * p;*/
 }
 
 void Minimizer::gradNorm_linesearch()
 {
-	step_size = 1;
+	/*step_size = 1;
 	Eigen::VectorXd grad;
 	objective->updateX(X);
 	objective->gradient(grad,false);
@@ -160,7 +181,7 @@ void Minimizer::gradNorm_linesearch()
 			X = curr_x;
 			break;
 		}
-	}
+	}*/
 }
 
 void Minimizer::stop()
@@ -170,14 +191,25 @@ void Minimizer::stop()
 	release_parameter_update_slot();
 }
 
-void Minimizer::update_external_data()
+void Minimizer::update_external_data(int steps)
 {
 	give_parameter_update_slot();
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
-	ext_x =			X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows());
-	ext_norm =		X.middleRows(3 * V.rows() + 0 * F.rows(), 3 * F.rows());
-	ext_center =	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows());
-	ext_radius =	X.middleRows(3 * V.rows() + 6 * F.rows(), 1 * F.rows());
+	//if (steps % 10 == 0) {
+		Cuda::MemCpyDeviceToHost(Cuda::Minimizer::X);
+		for (int i = 0; i < 3 * V.rows(); i++)
+			ext_x[i] = Cuda::Minimizer::X.host_arr[i];
+		for (int i = 0; i < 3 * F.rows(); i++)
+			ext_norm[i] = Cuda::Minimizer::X.host_arr[3 * V.rows() + i];
+		for (int i = 0; i < 3 * F.rows(); i++)
+			ext_center[i] = Cuda::Minimizer::X.host_arr[3 * V.rows() + 3 * F.rows() + i];
+		for (int i = 0; i < F.rows(); i++)
+			ext_radius[i] = Cuda::Minimizer::X.host_arr[3 * V.rows() + 6 * F.rows() + i];
+	//}
+	//ext_x =			X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows());
+	//ext_norm =		X.middleRows(3 * V.rows() + 0 * F.rows(), 3 * F.rows());
+	//ext_center =	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows());
+	//ext_radius =	X.middleRows(3 * V.rows() + 6 * F.rows(), 1 * F.rows());
 	progressed = true;
 }
 
