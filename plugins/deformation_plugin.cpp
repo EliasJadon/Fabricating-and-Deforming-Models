@@ -524,9 +524,9 @@ void deformation_plugin::Draw_energies_window()
 			ImGui::TableNextCell();
 			ImGui::Text(std::to_string(out.activeMinimizer->getNumiter()).c_str());
 			ImGui::TableNextCell();
-			ImGui::Text(std::to_string((int)out.activeMinimizer->timer_curr).c_str());
+			ImGui::Text(std::to_string(out.activeMinimizer->timer_curr).c_str());
 			ImGui::TableNextCell();
-			ImGui::Text(std::to_string((int)out.activeMinimizer->timer_avg).c_str());
+			ImGui::Text(std::to_string(out.activeMinimizer->timer_avg).c_str());
 			ImGui::PopID();
 			ImGui::TableNextRow();
 		}
