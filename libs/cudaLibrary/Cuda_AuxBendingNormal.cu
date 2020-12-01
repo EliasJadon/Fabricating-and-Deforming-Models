@@ -518,7 +518,7 @@ namespace Cuda {
 
 			gradientKernel << <num_hinges + num_faces + num_faces, 12 >> > (
 				grad.cuda_arr,
-				Cuda::Minimizer::curr_x.cuda_arr,
+				Cuda::Minimizer::X.cuda_arr,
 				hinges_faceIndex.cuda_arr,
 				restShapeF.cuda_arr,
 				restAreaPerHinge.cuda_arr,

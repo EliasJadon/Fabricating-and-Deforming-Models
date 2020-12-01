@@ -47,6 +47,7 @@ void Minimizer::init(
 	for (int i = 0; i < F.rows(); i++)
 		Cuda::Minimizer::X.host_arr[3 * V.rows() + 6 * F.rows() + i] = Radius0[i];
 	Cuda::MemCpyHostToDevice(Cuda::Minimizer::X);
+	Cuda::copyArrays(Cuda::Minimizer::curr_x, Cuda::Minimizer::X);
 #else
 	X.resize(3 * V.rows() + 7 * F.rows());
 	X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows()) = X0;
@@ -113,8 +114,8 @@ void Minimizer::run_one_iteration(
 	numIteration = steps;
 	timer_avg = timer_sum / numIteration;
 	update_lambda(lambda_counter);
-	linesearch();
 	step();
+	linesearch();
 	update_external_data(steps);
 }
 
@@ -130,16 +131,17 @@ void Minimizer::linesearch()
 
 void Minimizer::value_linesearch()
 {
-	step_size = 1;
-	double new_energy = currentEnergy;
-	cur_iter = 0; int MAX_STEP_SIZE_ITER = 50;
+	currentEnergy = objective->value(true);
+	
+	step_size = 0.00390625;//1;
+	cur_iter = 0; 
+	int MAX_STEP_SIZE_ITER = 50;
 	while (cur_iter++ < MAX_STEP_SIZE_ITER) 
 	{
 		//Eigen::VectorXd curr_x = X + step_size * p;
 		Cuda::Minimizer::linesearch_currX(step_size);
 
-		objective->updateX(Eigen::VectorXd::Zero(1));
-		new_energy = objective->value(false);
+		double new_energy = objective->value(false);
 		if (new_energy >= currentEnergy)
 			step_size /= 2;
 		else 

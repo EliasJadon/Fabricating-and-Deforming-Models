@@ -23,13 +23,7 @@ public:
 	{}	
 	virtual void step() override {
 #ifdef USING_CUDA
-		Eigen::VectorXd _ = Eigen::VectorXd::Zero(1);
-		Cuda::copyArrays(Cuda::Minimizer::curr_x, Cuda::Minimizer::X);
-		objective->updateX(_);
-		currentEnergy = objective->value(true);
-		///////////objective->gradient(_, true);
 		Cuda::AuxBendingNormal::gradient();
-
 		Cuda::copyArrays(Cuda::Minimizer::g, Cuda::AuxBendingNormal::grad);
 		Cuda::AdamMinimizer::step(alpha_adam, beta1_adam, beta2_adam);
 #else

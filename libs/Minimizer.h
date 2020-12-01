@@ -6,6 +6,7 @@
 #include <Eigen/SparseCholesky>
 #include <fstream>
 #include "cudaLibrary/Cuda_AdamMinimizer.cuh"
+#include "cudaLibrary/Cuda_Minimizer.cuh"
 
 class Minimizer
 {
