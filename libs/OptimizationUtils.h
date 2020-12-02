@@ -47,6 +47,7 @@ namespace OptimizationUtils
 		Eigen::MatrixX3d B3;
 		igl::local_basis(V, F, B1, B2, B3);
 	}
+
 	
 	static void computeSurfaceGradientPerFace(const Eigen::MatrixX3d &V, const Eigen::MatrixX3i &F, Eigen::MatrixX3d &D1, Eigen::MatrixX3d &D2)
 	{

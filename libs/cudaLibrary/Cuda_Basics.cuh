@@ -19,10 +19,7 @@ namespace Cuda
 	{
 		int f0, f1;
 	};
-	template <typename T> struct rowVector
-	{
-		T x, y, z;
-	};
+	
 	template <typename T> struct Array 
 	{
 		unsigned int size;
@@ -37,15 +34,6 @@ namespace Cuda
 	extern void CheckErr(const cudaError_t cudaStatus, const int ID = 0);
 	extern void copyArrays(Array<double>& a, const Array<double>& b);
 	
-	template <typename T> rowVector<T> newRowVector(T x, T y, T z)
-	{
-		rowVector<T> a;
-		a.x = x;
-		a.y = y;
-		a.z = z;
-		return a;
-	}
-
 	template<typename T> void FreeMemory(Cuda::Array<T>& a) 
 	{
 		delete[] a.host_arr;

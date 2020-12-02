@@ -1,6 +1,7 @@
 #include "Cuda_AuxBendingNormal.cuh"
 #include "Cuda_Minimizer.cuh"
 
+
 namespace Cuda {
 	namespace AuxBendingNormal {
 		//dynamic variables
@@ -12,40 +13,38 @@ namespace Cuda {
 		Array<double> EnergyAtomic;
 		
 		//Static variables
-		Array<rowVector<int>> restShapeF;
+		Array<int3> restShapeF;
 		Array<double> restAreaPerFace, restAreaPerHinge; //Eigen::VectorXd
 		int num_hinges, num_faces, num_vertices;
 		Array<hinge> hinges_faceIndex; //std::vector<Eigen::Vector2d> //num_hinges*2
 		Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; //Eigen::VectorXi //num_hinges
 		Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
 		
-		template<typename T> __device__ rowVector<T> addVectors(
-			rowVector<T> a,
-			rowVector<T> b)
+		
+		__device__ double3 addVectors(double3 a, double3 b)
 		{
-			rowVector<T> result;
+			double3 result;
 			result.x = a.x + b.x;
 			result.y = a.y + b.y;
 			result.z = a.z + b.z;
 			return result;
 		}
-		template<typename T> __device__ rowVector<T> subVectors(
-			const rowVector<T> a,
-			const rowVector<T> b)
+		__device__ double3 subVectors(const double3 a, const double3 b)
 		{
-			rowVector<T> result;
+			double3 result;
 			result.x = a.x - b.x;
 			result.y = a.y - b.y;
 			result.z = a.z - b.z;
 			return result;
 		}
-		template<typename T> __device__ T mulVectors(rowVector<T> a, rowVector<T> b)
+		__device__ double mulVectors(const double3 a, const double3 b)
 		{
 			return
 				a.x * b.x +
 				a.y * b.y +
 				a.z * b.z;
 		}
+
 		__device__ double atomicAdd(double* address, double val, int flag)
 		{
 			unsigned long long int* address_as_ull =
@@ -107,17 +106,17 @@ namespace Cuda {
 			int f1 = hinges_faceIndex[hi].f1;
 			int startNy = startN + num_faces;
 			int startNz = startNy + num_faces;
-			rowVector<double> N0;
+			double3 N0;
 			N0.x = curr_x[f0 + startN];
 			N0.y = curr_x[f0 + startNy];
 			N0.z = curr_x[f0 + startNz];
-			rowVector<double> N1;
+			double3 N1;
 			N1.x = curr_x[f1 + startN];
 			N1.y = curr_x[f1 + startNy];
 			N1.z = curr_x[f1 + startNz];
-			rowVector<double> diff = subVectors(N1, N0);
+			double3 diff = subVectors(N1, N0);
 			double d_normals = mulVectors(diff, diff);
-
+			
 			double res;
 			if (functionType == FunctionType::SIGMOID) {
 				double x2 = d_normals * d_normals;
@@ -148,7 +147,7 @@ namespace Cuda {
 		}
 		__device__ double Energy3Kernel(
 			const double w3,
-			const rowVector<int>* restShapeF,
+			const int3* restShapeF,
 			const double* curr_x,
 			const int fi,
 			const int num_faces,
@@ -161,7 +160,7 @@ namespace Cuda {
 			int x2 = restShapeF[fi].z;
 
 			int num_vertices2 = 2 * num_vertices;
-			rowVector<double> V0,V1,V2;
+			double3 V0,V1,V2;
 			V0.x = curr_x[x0];
 			V0.y = curr_x[x0 + num_vertices];
 			V0.z = curr_x[x0 + num_vertices2];
@@ -172,15 +171,15 @@ namespace Cuda {
 			V2.y = curr_x[x2 + num_vertices];
 			V2.z = curr_x[x2 + num_vertices2];
 
-			rowVector<double> N;
+			double3 N;
 			int startNi = fi + startN;
 			N.x = curr_x[startNi];
 			N.y = curr_x[startNi + num_faces];
 			N.z = curr_x[startNi + 2 * num_faces];
 
-			rowVector<double> e21 = subVectors(V2, V1);
-			rowVector<double> e10 = subVectors(V1, V0);
-			rowVector<double> e02 = subVectors(V0, V2);
+			double3 e21 = subVectors(V2, V1);
+			double3 e10 = subVectors(V1, V0);
+			double3 e02 = subVectors(V0, V2);
 			double d1 = mulVectors(N, e21);
 			double d2 = mulVectors(N, e10);
 			double d3 = mulVectors(N, e02);
@@ -196,7 +195,7 @@ namespace Cuda {
 			const double w2,
 			const double w3,
 			const double* curr_x,
-			const rowVector<int> * restShapeF,
+			const int3 * restShapeF,
 			const double * restAreaPerHinge,
 			const hinge* hinges_faceIndex,
 			const double planarParameter,
@@ -316,15 +315,15 @@ namespace Cuda {
 			int startN1x = f1 + startN;
 			int startN1y = f1 + startNy;
 			int startN1z = f1 + startNz;
-			rowVector<double> N0;
+			double3 N0;
 			N0.x = curr_x[startN0x];
 			N0.y = curr_x[startN0y];
 			N0.z = curr_x[startN0z];
-			rowVector<double> N1;
+			double3 N1;
 			N1.x = curr_x[startN1x];
 			N1.y = curr_x[startN1y];
 			N1.z = curr_x[startN1z];
-			rowVector<double> diff = subVectors(N1, N0);
+			double3 diff = subVectors(N1, N0);
 			double d_normals = mulVectors(diff, diff);
 
 			double coeff = w1 * restAreaPerHinge[hi] * dPhi_dm(d_normals, planarParameter, functionType);
@@ -352,7 +351,7 @@ namespace Cuda {
 		{
 			int startNiy = startNi + num_faces;
 			int startNiz = startNiy + num_faces;
-			rowVector<double> N;
+			double3 N;
 			N.x = curr_x[startNi];
 			N.y = curr_x[startNiy];
 			N.z = curr_x[startNiz];
@@ -367,7 +366,7 @@ namespace Cuda {
 		}
 		__device__ void gradient3Kernel(
 			double* grad,
-			const rowVector<int>* restShapeF,
+			const int3* restShapeF,
 			const double* curr_x,
 			const int fi,
 			const int thread,
@@ -380,7 +379,7 @@ namespace Cuda {
 			int x1 = restShapeF[fi].y;
 			int x2 = restShapeF[fi].z;
 			int num_vertices2 = 2 * num_vertices;
-			rowVector<double> V0, V1, V2;
+			double3 V0, V1, V2;
 			V0.x = curr_x[x0];
 			V0.y = curr_x[x0 + num_vertices];
 			V0.z = curr_x[x0 + num_vertices2];
@@ -391,15 +390,15 @@ namespace Cuda {
 			V2.y = curr_x[x2 + num_vertices];
 			V2.z = curr_x[x2 + num_vertices2];
 
-			rowVector<double> N;
+			double3 N;
 			int startNi = fi + startN;
 			N.x = curr_x[startNi];
 			N.y = curr_x[startNi + num_faces];
 			N.z = curr_x[startNi + 2 * num_faces];
 
-			rowVector<double> e21 = subVectors(V2, V1);
-			rowVector<double> e10 = subVectors(V1, V0);
-			rowVector<double> e02 = subVectors(V0, V2);
+			double3 e21 = subVectors(V2, V1);
+			double3 e10 = subVectors(V1, V0);
+			double3 e02 = subVectors(V0, V2);
 			double N02 = mulVectors(N, e02);
 			double N10 = mulVectors(N, e10);
 			double N21 = mulVectors(N, e21);
@@ -451,7 +450,7 @@ namespace Cuda {
 			double* grad,
 			const double* curr_x,
 			const hinge* hinges_faceIndex,
-			const rowVector<int>* restShapeF,
+			const int3* restShapeF,
 			const double* restAreaPerHinge,
 			const double planarParameter,
 			const FunctionType functionType,

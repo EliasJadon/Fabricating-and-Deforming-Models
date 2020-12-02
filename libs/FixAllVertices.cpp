@@ -26,6 +26,7 @@ void FixAllVertices::internalInitCuda() {
 	unsigned int numV = restShapeV.rows();
 	Cuda::FixAllVertices::num_faces = numF;
 	Cuda::FixAllVertices::num_vertices = numV;
+	
 	//alocate memory on host & device
 	Cuda::AllocateMemory(Cuda::FixAllVertices::restShapeV, numV);
 	Cuda::AllocateMemory(Cuda::FixAllVertices::grad, (3 * numV) + (7 * numF));
@@ -35,7 +36,7 @@ void FixAllVertices::internalInitCuda() {
 		Cuda::FixAllVertices::grad.host_arr[i] = 0;
 	}
 	for (int v = 0; v < numV; v++) {
-		Cuda::FixAllVertices::restShapeV.host_arr[v] = Cuda::newRowVector<double>(restShapeV(v, 0), restShapeV(v, 1), restShapeV(v, 2));
+		Cuda::FixAllVertices::restShapeV.host_arr[v] = make_double3(restShapeV(v, 0), restShapeV(v, 1), restShapeV(v, 2));
 	}
 	// Copy input vectors from host memory to GPU buffers.
 	Cuda::MemCpyHostToDevice(Cuda::FixAllVertices::grad);

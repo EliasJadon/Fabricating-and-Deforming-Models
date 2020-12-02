@@ -4,7 +4,7 @@
 namespace Cuda {
 	namespace FixAllVertices {
 		Array<double> grad, EnergyAtomic;
-		Array<rowVector<double>> restShapeV;
+		Array<double3> restShapeV;
 		unsigned int num_faces, num_vertices;
 		
 		
@@ -42,7 +42,7 @@ namespace Cuda {
 		__global__ void EnergyKernel(
 			double* resAtomic,
 			const double* curr_x,
-			const rowVector<double>* restShapeV,
+			const double3* restShapeV,
 			const unsigned int num_vertices) 
 		{
 			//init data
@@ -97,7 +97,7 @@ namespace Cuda {
 		__global__ void gradientKernel(
 			double* grad,
 			const double* X,
-			const rowVector<double>* restShapeV,
+			const double3* restShapeV,
 			const unsigned int num_vertices,
 			const unsigned int size)
 		{

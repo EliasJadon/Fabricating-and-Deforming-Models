@@ -11,7 +11,7 @@ namespace Cuda {
 		extern Array<double> EnergyAtomic;
 
 		//Static variables
-		extern Array<rowVector<int>> restShapeF;
+		extern Array<int3> restShapeF;
 		extern Array<double> restAreaPerFace, restAreaPerHinge; //Eigen::VectorXd
 		extern int num_hinges, num_faces, num_vertices;
 		extern Array<hinge> hinges_faceIndex; //std::vector<Eigen::Vector2d> //num_hinges*2

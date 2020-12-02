@@ -67,7 +67,7 @@ void AuxBendingNormal::internalInitCuda() {
 		Cuda::AuxBendingNormal::grad.host_arr[i] = 0;
 	}
 	for (int f = 0; f < restShapeF.rows(); f++) {
-		Cuda::AuxBendingNormal::restShapeF.host_arr[f] = Cuda::newRowVector<int>(restShapeF(f, 0), restShapeF(f, 1), restShapeF(f, 2));
+		Cuda::AuxBendingNormal::restShapeF.host_arr[f] = make_int3(restShapeF(f, 0), restShapeF(f, 1), restShapeF(f, 2));
 		Cuda::AuxBendingNormal::restAreaPerFace.host_arr[f] = restAreaPerFace[f];
 	}
 	for (int h = 0; h < num_hinges; h++) {
