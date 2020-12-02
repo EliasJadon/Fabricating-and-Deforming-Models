@@ -6,6 +6,7 @@
 #include <Eigen/SparseCholesky>
 #include <fstream>
 #include "cudaLibrary/Cuda_AdamMinimizer.cuh"
+#include "cudaLibrary/Cuda_FixAllVertices.cuh"
 #include "cudaLibrary/Cuda_Minimizer.cuh"
 
 class Minimizer
@@ -18,7 +19,7 @@ public:
 	void stop();
 	void get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center, Eigen::VectorXd& radius, Eigen::MatrixXd& norm);
 	void init(
-		std::shared_ptr<ObjectiveFunction> objective,
+		std::shared_ptr<TotalObjective> Tobjective,
 		const Eigen::VectorXd& X0,
 		const Eigen::VectorXd& norm0,
 		const Eigen::VectorXd& center0,
@@ -27,7 +28,7 @@ public:
 		const Eigen::MatrixXd& V);
 	
 	// Pointer to the energy class
-	std::shared_ptr<ObjectiveFunction> objective;
+	std::shared_ptr<TotalObjective> totalObjective;
 
 	// Activity flags
 	std::atomic_bool is_running = {false};

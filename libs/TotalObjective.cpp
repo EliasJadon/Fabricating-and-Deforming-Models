@@ -44,7 +44,14 @@ double TotalObjective::value(const bool update)
 
 void TotalObjective::gradient(Eigen::VectorXd& g, const bool update)
 {
-	g.setZero(variables_size);
+	Cuda::AuxBendingNormal::gradient();
+	Cuda::FixAllVertices::gradient();
+	Cuda::Minimizer::TotalGradient(
+		objectiveList[1]->w,	//AuxBendingNormal
+		objectiveList[5]->w		//FixAllVertices
+	);
+
+	/*g.setZero(variables_size);
 	for (auto &objective : objectiveList) {
 		if (objective->w != 0)
 		{
@@ -55,7 +62,7 @@ void TotalObjective::gradient(Eigen::VectorXd& g, const bool update)
 	}
 
 	if(update)
-		gradient_norm = g.norm();
+		gradient_norm = g.norm();*/
 }
 
 void TotalObjective::hessian()

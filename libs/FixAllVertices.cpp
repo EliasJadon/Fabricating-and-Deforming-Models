@@ -42,15 +42,30 @@ void FixAllVertices::internalInitCuda() {
 	Cuda::MemCpyHostToDevice(Cuda::FixAllVertices::restShapeV);
 }
 
-void FixAllVertices::updateX(const Eigen::VectorXd& X)
+void FixAllVertices::updateX(const Eigen::VectorXd& ab)
 {
-	assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
-	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0,restShapeV.size()).data(), restShapeV.rows(), 3);
+	Cuda::MemCpyDeviceToHost(Cuda::Minimizer::curr_x);
+	assert(Cuda::Minimizer::curr_x.size == (restShapeV.size() + 7*restShapeF.rows()));
+	CurrV.resize(restShapeV.rows(), 3);
+	for (int v = 0; v < restShapeV.rows(); v++) {
+		CurrV(v, 0) = Cuda::Minimizer::curr_x.host_arr[v];
+		CurrV(v, 1) = Cuda::Minimizer::curr_x.host_arr[v + restShapeV.rows()];
+		CurrV(v, 2) = Cuda::Minimizer::curr_x.host_arr[v + 2 * restShapeV.rows()];
+	}
+	//CurrV = Eigen::Map<const Eigen::MatrixX3d>(Cuda::Minimizer::curr_x.host_arr.middleRows(0,restShapeV.size()).data(), restShapeV.rows(), 3);
 }
 
 double FixAllVertices::value(const bool update)
 {
-	double E = (CurrV - restShapeV).squaredNorm();
+	double E = Cuda::FixAllVertices::value();
+	///////////////////////////////////////////////////
+	// for debugging...
+	/*updateX(Eigen::VectorXd::Zero(1));
+	double oldE = (CurrV - restShapeV).squaredNorm();
+	std::cout << "oldE = \t" << oldE << std::endl;
+	std::cout << "E = \t" << E << std::endl;*/
+	///////////////////////////////////////////////////
+
 	if (update)
 		energy_value = E;
 	return E;
@@ -58,6 +73,10 @@ double FixAllVertices::value(const bool update)
 
 void FixAllVertices::gradient(Eigen::VectorXd& g, const bool update)
 {
+	///////////////////////////////////////////////////
+	// for debugging...
+	updateX(Eigen::VectorXd::Zero(1));
+
 	int n = restShapeV.rows();
 	g.conservativeResize(restShapeV.size()+ 7*restShapeF.rows());
 	g.setZero();
@@ -68,6 +87,7 @@ void FixAllVertices::gradient(Eigen::VectorXd& g, const bool update)
 		g(i + (1 * n)) = 2 * diff(i, 1); //Y-coordinate
 		g(i + (2 * n)) = 2 * diff(i, 2); //Z-coordinate
 	}
+	///////////////////////////////////////////////////
 	if(update)
 		gradient_norm = g.norm();
 }

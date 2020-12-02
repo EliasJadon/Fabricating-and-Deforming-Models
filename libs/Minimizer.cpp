@@ -14,7 +14,7 @@ Minimizer::Minimizer(const int solverID)
 { }
 
 void Minimizer::init(
-	std::shared_ptr<ObjectiveFunction> objective, 
+	std::shared_ptr<TotalObjective> Tobjective,
 	const Eigen::VectorXd& X0,
 	const Eigen::VectorXd& norm0,
 	const Eigen::VectorXd& center0,
@@ -26,7 +26,7 @@ void Minimizer::init(
 	this->F = F;
 	this->V = V;
 	this->constantStep_LineSearch = 0.01;
-	this->objective = objective;
+	this->totalObjective = Tobjective;
 	std::cout << "F.rows() = " << F.rows() << std::endl;
 	std::cout << "V.rows() = " << V.rows() << std::endl;
 	assert(X0.rows() == (3*V.rows()) && "X0 should contain the (x,y,z) coordinates for each vertice");
@@ -85,22 +85,16 @@ void Minimizer::update_lambda(int* lambda_counter)
 		(*lambda_counter) < autoLambda_count &&
 		numIteration % autoLambda_jump == 0)
 	{
-		std::shared_ptr<TotalObjective> totalObjective = std::dynamic_pointer_cast<TotalObjective>(objective);
-		for (auto& obj : totalObjective->objectiveList) 
-		{
-			std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-			std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-			std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
-			std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
-			if (ASH)
-				ASH->planarParameter /= 2;
-			if (ABN)
-				Cuda::AuxBendingNormal::planarParameter /= 2;
-			if (BE)
-				BE->planarParameter /= 2;
-			if (BN)
-				BN->planarParameter /= 2;
-		}
+		//AuxSpherePerHinge
+		std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
+		//BendingNormal
+		std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(totalObjective->objectiveList[2]);
+		//BendingEdge
+		std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(totalObjective->objectiveList[3]);
+		ASH->planarParameter /= 2;
+		Cuda::AuxBendingNormal::planarParameter /= 2;
+		BE->planarParameter /= 2;
+		BN->planarParameter /= 2;
 		(*lambda_counter)++;
 	}
 }
@@ -115,11 +109,10 @@ void Minimizer::run_one_iteration(
 	timer_avg = timer_sum / numIteration;
 	update_lambda(lambda_counter);
 
-
-	Cuda::AuxBendingNormal::gradient();
-	Cuda::copyArrays(Cuda::Minimizer::g, Cuda::AuxBendingNormal::grad);
+	Eigen::VectorXd _ = Eigen::VectorXd::Zero(1);
+	totalObjective->gradient(_, true);
 	step();
-	currentEnergy = objective->value(true);
+	currentEnergy = totalObjective->value(true);
 	linesearch();
 	update_external_data(steps);
 }
@@ -144,7 +137,7 @@ void Minimizer::value_linesearch()
 		//Eigen::VectorXd curr_x = X + step_size * p;
 		Cuda::Minimizer::linesearch_currX(step_size);
 
-		double new_energy = objective->value(false);
+		double new_energy = totalObjective->value(false);
 		if (new_energy >= currentEnergy)
 			step_size /= 2;
 		else 
