@@ -29,13 +29,9 @@ namespace Cuda {
 		{
 			return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
 		}
-
 		__device__ double dot(const double3 a, const double3 b)
 		{
-			return
-				a.x * b.x +
-				a.y * b.y +
-				a.z * b.z;
+			return a.x * b.x + a.y * b.y + a.z * b.z;
 		}
 		__device__ double3 mul(const double a, const double3 b)
 		{
@@ -52,6 +48,14 @@ namespace Cuda {
 		__device__ double3 normalize(const double3 a)
 		{
 			return mul(1.0f / norm(a), a);
+		}
+		__device__ double3 cross(const double3 a, const double3 b)
+		{
+			return make_double3(
+				a.y * b.z - a.z * b.y,
+				a.z * b.x - a.x * b.z,
+				a.x * b.y - a.y * b.x
+			);
 		}
 
 
