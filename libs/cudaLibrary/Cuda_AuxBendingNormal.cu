@@ -21,29 +21,41 @@ namespace Cuda {
 		Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
 		
 		
-		__device__ double3 addVectors(double3 a, double3 b)
+		__device__ double3 add(double3 a, double3 b)
 		{
-			double3 result;
-			result.x = a.x + b.x;
-			result.y = a.y + b.y;
-			result.z = a.z + b.z;
-			return result;
+			return make_double3(a.x + b.x, a.y + b.y, a.z + b.z);
 		}
-		__device__ double3 subVectors(const double3 a, const double3 b)
+		__device__ double3 sub(const double3 a, const double3 b)
 		{
-			double3 result;
-			result.x = a.x - b.x;
-			result.y = a.y - b.y;
-			result.z = a.z - b.z;
-			return result;
+			return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
 		}
-		__device__ double mulVectors(const double3 a, const double3 b)
+
+		__device__ double dot(const double3 a, const double3 b)
 		{
 			return
 				a.x * b.x +
 				a.y * b.y +
 				a.z * b.z;
 		}
+		__device__ double3 mul(const double a, const double3 b)
+		{
+			return make_double3(a * b.x, a * b.y, a * b.z);
+		}
+		__device__ double squared_norm(const double3 a)
+		{
+			return dot(a, a);
+		}
+		__device__ double norm(const double3 a)
+		{
+			return sqrt(squared_norm(a));
+		}
+		__device__ double3 normalize(const double3 a)
+		{
+			return mul(1.0f / norm(a), a);
+		}
+
+
+
 
 		__device__ double atomicAdd(double* address, double val, int flag)
 		{
@@ -114,8 +126,8 @@ namespace Cuda {
 			N1.x = curr_x[f1 + startN];
 			N1.y = curr_x[f1 + startNy];
 			N1.z = curr_x[f1 + startNz];
-			double3 diff = subVectors(N1, N0);
-			double d_normals = mulVectors(diff, diff);
+			double3 diff = sub(N1, N0);
+			double d_normals = squared_norm(diff);
 			
 			double res;
 			if (functionType == FunctionType::SIGMOID) {
@@ -177,12 +189,12 @@ namespace Cuda {
 			N.y = curr_x[startNi + num_faces];
 			N.z = curr_x[startNi + 2 * num_faces];
 
-			double3 e21 = subVectors(V2, V1);
-			double3 e10 = subVectors(V1, V0);
-			double3 e02 = subVectors(V0, V2);
-			double d1 = mulVectors(N, e21);
-			double d2 = mulVectors(N, e10);
-			double d3 = mulVectors(N, e02);
+			double3 e21 = sub(V2, V1);
+			double3 e10 = sub(V1, V0);
+			double3 e02 = sub(V0, V2);
+			double d1 = dot(N, e21);
+			double d2 = dot(N, e10);
+			double d3 = dot(N, e02);
 			double res = d1 * d1 + d2 * d2 + d3 * d3;
 			res *= w3;
 			return res;
@@ -323,8 +335,8 @@ namespace Cuda {
 			N1.x = curr_x[startN1x];
 			N1.y = curr_x[startN1y];
 			N1.z = curr_x[startN1z];
-			double3 diff = subVectors(N1, N0);
-			double d_normals = mulVectors(diff, diff);
+			double3 diff = sub(N1, N0);
+			double d_normals = squared_norm(diff);
 
 			double coeff = w1 * restAreaPerHinge[hi] * dPhi_dm(d_normals, planarParameter, functionType);
 
@@ -356,7 +368,7 @@ namespace Cuda {
 			N.y = curr_x[startNiy];
 			N.z = curr_x[startNiz];
 
-			double coeff = w2 * 4 * (mulVectors(N, N) - 1);
+			double coeff = w2 * 4 * (squared_norm(N) - 1);
 			if (thread == 0) //N.x
 				atomicAdd(&grad[startNi], coeff * N.x, 0);
 			else if (thread == 1) //N.y
@@ -396,12 +408,12 @@ namespace Cuda {
 			N.y = curr_x[startNi + num_faces];
 			N.z = curr_x[startNi + 2 * num_faces];
 
-			double3 e21 = subVectors(V2, V1);
-			double3 e10 = subVectors(V1, V0);
-			double3 e02 = subVectors(V0, V2);
-			double N02 = mulVectors(N, e02);
-			double N10 = mulVectors(N, e10);
-			double N21 = mulVectors(N, e21);
+			double3 e21 = sub(V2, V1);
+			double3 e10 = sub(V1, V0);
+			double3 e02 = sub(V0, V2);
+			double N02 = dot(N, e02);
+			double N10 = dot(N, e10);
+			double N21 = dot(N, e21);
 			double coeff = 2 * w3;
 			int num_2verices = 2 * num_vertices;
 			int num_3verices_fi = fi + num_2verices + num_vertices;
