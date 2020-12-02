@@ -1,11 +1,13 @@
 #pragma once
 #include "ObjectiveFunction.h"
+#include "cudaLibrary/cuda_fixAllVertices.cuh"
 
 class FixAllVertices : public ObjectiveFunction
 {
 private:
 	virtual void init_hessian() override;
 	Eigen::MatrixX3d CurrV;
+	void internalInitCuda();
 public:
 	FixAllVertices();
 	~FixAllVertices();

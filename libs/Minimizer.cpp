@@ -114,7 +114,12 @@ void Minimizer::run_one_iteration(
 	numIteration = steps;
 	timer_avg = timer_sum / numIteration;
 	update_lambda(lambda_counter);
+
+
+	Cuda::AuxBendingNormal::gradient();
+	Cuda::copyArrays(Cuda::Minimizer::g, Cuda::AuxBendingNormal::grad);
 	step();
+	currentEnergy = objective->value(true);
 	linesearch();
 	update_external_data(steps);
 }
@@ -130,9 +135,7 @@ void Minimizer::linesearch()
 }
 
 void Minimizer::value_linesearch()
-{
-	currentEnergy = objective->value(true);
-	
+{	
 	step_size = 0.00390625;//1;
 	cur_iter = 0; 
 	int MAX_STEP_SIZE_ITER = 50;

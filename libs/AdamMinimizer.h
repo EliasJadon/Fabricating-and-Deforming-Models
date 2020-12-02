@@ -10,22 +10,13 @@ private:
 	Eigen::VectorXd v_adam;
 	Eigen::VectorXd s_adam;
 #endif
-	double alpha_adam, beta1_adam, beta2_adam;
+
 public:
-	AdamMinimizer(const int solverID, 
-		double alpha_adam = 1,
-		double beta1_adam = 0.90,
-		double beta2_adam = 0.9990) :
-		Minimizer(solverID),
-		alpha_adam(alpha_adam),
-		beta1_adam(beta1_adam),
-		beta2_adam(beta2_adam) 
-	{}	
+	AdamMinimizer(const int solverID) : Minimizer(solverID){}
+
 	virtual void step() override {
 #ifdef USING_CUDA
-		Cuda::AuxBendingNormal::gradient();
-		Cuda::copyArrays(Cuda::Minimizer::g, Cuda::AuxBendingNormal::grad);
-		Cuda::AdamMinimizer::step(alpha_adam, beta1_adam, beta2_adam);
+		Cuda::AdamMinimizer::step();
 #else
 		objective->updateX(X);
 		currentEnergy = objective->value(true);

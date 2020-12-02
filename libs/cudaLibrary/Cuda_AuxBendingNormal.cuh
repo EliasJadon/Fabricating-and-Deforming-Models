@@ -18,7 +18,6 @@ namespace Cuda {
 		extern Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; //Eigen::VectorXi //num_hinges
 		extern Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
 		
-		extern void init();
 		extern double value();
 		extern void gradient();
 		extern void FreeAllVariables();		

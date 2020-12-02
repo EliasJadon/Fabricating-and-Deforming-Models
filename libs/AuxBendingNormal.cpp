@@ -39,7 +39,6 @@ void AuxBendingNormal::init()
 
 
 void AuxBendingNormal::internalInitCuda() {
-	Cuda::initCuda();
 	unsigned int numF = restShapeF.rows();
 	unsigned int numV = restShapeV.rows();
 	unsigned int numH = num_hinges;
@@ -64,6 +63,9 @@ void AuxBendingNormal::internalInitCuda() {
 	Cuda::AllocateMemory(Cuda::AuxBendingNormal::x3_LocInd,numH);
 
 	//init host buffers...
+	for (int i = 0; i < Cuda::AuxBendingNormal::grad.size; i++) {
+		Cuda::AuxBendingNormal::grad.host_arr[i] = 0;
+	}
 	for (int f = 0; f < restShapeF.rows(); f++) {
 		Cuda::AuxBendingNormal::restShapeF.host_arr[f] = Cuda::newRowVector<int>(restShapeF(f, 0), restShapeF(f, 1), restShapeF(f, 2));
 		Cuda::AuxBendingNormal::restAreaPerFace.host_arr[f] = restAreaPerFace[f];
@@ -82,6 +84,7 @@ void AuxBendingNormal::internalInitCuda() {
 	}
 
 	// Copy input vectors from host memory to GPU buffers.
+	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::grad);
 	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::restShapeF);
 	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerFace);
 	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::restAreaPerHinge);
