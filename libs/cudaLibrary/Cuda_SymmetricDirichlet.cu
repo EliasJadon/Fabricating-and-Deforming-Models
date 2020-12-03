@@ -201,15 +201,6 @@ namespace Cuda {
 				num_vertices);
 			CheckErr(cudaDeviceSynchronize());
 			MemCpyDeviceToHost(EnergyAtomic);
-
-
-			MemCpyDeviceToHost(EnergyVec);
-			for (int i = 0; i < EnergyVec.size; i++) {
-				std::cout << "EnergyVec.host_arr[" << i 
-					<< "] = " << EnergyVec.host_arr[i] << "\n";
-			}
-			std::cout << "EnergyAtomic.host_arr[0] = " << EnergyAtomic.host_arr[0] << std::endl;
-
 			return EnergyAtomic.host_arr[0];
 		}
 

@@ -28,8 +28,8 @@ void SymmetricDirichlet::internalInitCuda() {
 	unsigned int numF = restShapeF.rows();
 	unsigned int numV = restShapeV.rows();
 	
-	Cuda::AuxBendingNormal::num_faces = numF;
-	Cuda::AuxBendingNormal::num_vertices = numV;
+	Cuda::SymmetricDirichlet::num_faces = numF;
+	Cuda::SymmetricDirichlet::num_vertices = numV;
 
 	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::restShapeF, numF);
 	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::D1d, numF);
