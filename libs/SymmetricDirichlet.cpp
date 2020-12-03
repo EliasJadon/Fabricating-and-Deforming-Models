@@ -119,19 +119,19 @@ void SymmetricDirichlet::updateX(const Eigen::VectorXd& X)
 double SymmetricDirichlet::value(const bool update) {
 	double value = Cuda::SymmetricDirichlet::value();
 
-	///////////////////////////////////////////////////
-	// for debugging...
-	updateX(Eigen::VectorXd::Zero(1));
+	/////////////////////////////////////////////////////
+	//// for debugging...
+	//updateX(Eigen::VectorXd::Zero(1));
 
-	Eigen::VectorXd Energy(restShapeF.rows());
-	for (int fi = 0; fi < restShapeF.rows(); fi++) {
-		Energy(fi) = 0.5 * (1 + 1/ pow(detJ(fi),2)) * (pow(a(fi),2)+ pow(b(fi), 2)+ pow(c(fi), 2)+ pow(d(fi), 2));
-	}
-	double total_energy = restShapeArea.transpose() * Energy;
+	//Eigen::VectorXd Energy(restShapeF.rows());
+	//for (int fi = 0; fi < restShapeF.rows(); fi++) {
+	//	Energy(fi) = 0.5 * (1 + 1/ pow(detJ(fi),2)) * (pow(a(fi),2)+ pow(b(fi), 2)+ pow(c(fi), 2)+ pow(d(fi), 2));
+	//}
+	//double total_energy = restShapeArea.transpose() * Energy;
 
-	std::cout << "oldE = \t" << total_energy << std::endl;
-	std::cout << "E = \t" << value << std::endl;
-	///////////////////////////////////////////////////
+	//std::cout << "oldE = \t" << total_energy << std::endl;
+	//std::cout << "E = \t" << value << std::endl;
+	/////////////////////////////////////////////////////
 
 	if (update) {
 		//Efi = Energy;
