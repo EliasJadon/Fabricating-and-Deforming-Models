@@ -1,5 +1,8 @@
 #pragma once
 #include "ObjectiveFunction.h"
+#include "CudaLibrary/Cuda_SymmetricDirichlet.cuh"
+#include "CudaLibrary/Cuda_Minimizer.cuh"
+#include "CudaLibrary/Cuda_Basics.cuh"
 
 class SymmetricDirichlet : public ObjectiveFunction {
 private:
@@ -23,6 +26,7 @@ private:
 	//sets important properties of the rest shape using the set of points passed in as parameters
 	void setRestShapeFromCurrentConfiguration();
 	virtual void init_hessian();
+	void internalInitCuda();
 public:
 	SymmetricDirichlet();
 	~SymmetricDirichlet();

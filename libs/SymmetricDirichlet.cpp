@@ -21,7 +21,47 @@ void SymmetricDirichlet::init()
 	
 	setRestShapeFromCurrentConfiguration();
 	init_hessian();
+	internalInitCuda();
 }
+
+void SymmetricDirichlet::internalInitCuda() {
+	unsigned int numF = restShapeF.rows();
+	unsigned int numV = restShapeV.rows();
+	
+	Cuda::AuxBendingNormal::num_faces = numF;
+	Cuda::AuxBendingNormal::num_vertices = numV;
+
+	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::restShapeF, numF);
+	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::D1d, numF);
+	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::D2d, numF);
+	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::EnergyVec, numF);
+	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::restShapeArea, numF);
+	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::grad, (3 * numV) + (7 * numF));
+	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::EnergyAtomic, 1);
+
+	//init host buffers...
+	for (int i = 0; i < Cuda::SymmetricDirichlet::grad.size; i++) {
+		Cuda::SymmetricDirichlet::grad.host_arr[i] = 0;
+	}
+	Cuda::SymmetricDirichlet::EnergyAtomic.host_arr[0] = 0;
+	for (int f = 0; f < numF; f++) {
+		Cuda::SymmetricDirichlet::restShapeF.host_arr[f] = make_int3(restShapeF(f, 0), restShapeF(f, 1), restShapeF(f, 2));
+		Cuda::SymmetricDirichlet::restShapeArea.host_arr[f] = restShapeArea[f];
+		Cuda::SymmetricDirichlet::EnergyVec.host_arr[f] = 0;
+		Cuda::SymmetricDirichlet::D1d.host_arr[f] = make_double3(D1d(0, f), D1d(1, f), D1d(2, f));
+		Cuda::SymmetricDirichlet::D2d.host_arr[f] = make_double3(D2d(0, f), D2d(1, f), D2d(2, f));
+	}
+	
+	// Copy input vectors from host memory to GPU buffers.
+	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::restShapeF);
+	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::D1d);
+	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::D2d);
+	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::EnergyVec);
+	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::restShapeArea);
+	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::grad);
+	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::EnergyAtomic);
+}
+
 
 void SymmetricDirichlet::setRestShapeFromCurrentConfiguration() {
 	a.resize(restShapeF.rows());
@@ -42,8 +82,16 @@ void SymmetricDirichlet::setRestShapeFromCurrentConfiguration() {
 
 void SymmetricDirichlet::updateX(const Eigen::VectorXd& X)
 {
-	assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
-	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, restShapeV.size()).data(), restShapeV.rows(), 3);
+	Cuda::MemCpyDeviceToHost(Cuda::Minimizer::curr_x);
+	assert(Cuda::Minimizer::curr_x.size == (restShapeV.size() + 7 * restShapeF.rows()));
+	CurrV.resize(restShapeV.rows(), 3);
+	for (int v = 0; v < restShapeV.rows(); v++) {
+		CurrV(v, 0) = Cuda::Minimizer::curr_x.host_arr[v];
+		CurrV(v, 1) = Cuda::Minimizer::curr_x.host_arr[v + restShapeV.rows()];
+		CurrV(v, 2) = Cuda::Minimizer::curr_x.host_arr[v + 2 * restShapeV.rows()];
+	}
+	//assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
+	//CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, restShapeV.size()).data(), restShapeV.rows(), 3);
 	
 	OptimizationUtils::LocalBasis(CurrV, restShapeF, B1, B2);
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
@@ -69,17 +117,27 @@ void SymmetricDirichlet::updateX(const Eigen::VectorXd& X)
 }
 
 double SymmetricDirichlet::value(const bool update) {
+	double value = Cuda::SymmetricDirichlet::value();
+
+	///////////////////////////////////////////////////
+	// for debugging...
+	updateX(Eigen::VectorXd::Zero(1));
+
 	Eigen::VectorXd Energy(restShapeF.rows());
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
 		Energy(fi) = 0.5 * (1 + 1/ pow(detJ(fi),2)) * (pow(a(fi),2)+ pow(b(fi), 2)+ pow(c(fi), 2)+ pow(d(fi), 2));
 	}
 	double total_energy = restShapeArea.transpose() * Energy;
-	
+
+	std::cout << "oldE = \t" << total_energy << std::endl;
+	std::cout << "E = \t" << value << std::endl;
+	///////////////////////////////////////////////////
+
 	if (update) {
-		Efi = Energy;
-		energy_value = total_energy;
+		//Efi = Energy;
+		energy_value = value;
 	}
-	return total_energy;
+	return value;
 }
 
 Eigen::Matrix<double, 1, 4> SymmetricDirichlet::dE_dJ(int fi) {
