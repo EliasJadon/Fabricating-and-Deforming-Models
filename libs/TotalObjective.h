@@ -2,6 +2,7 @@
 #include "ObjectiveFunction.h"
 #include "cudaLibrary/Cuda_AdamMinimizer.cuh"
 #include "cudaLibrary/Cuda_FixAllVertices.cuh"
+#include "cudaLibrary/Cuda_SSSymmetricDirichlet.cuh"
 #include "cudaLibrary/Cuda_Minimizer.cuh"
 
 class TotalObjective : public ObjectiveFunction

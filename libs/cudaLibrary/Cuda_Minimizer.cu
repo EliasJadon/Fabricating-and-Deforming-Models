@@ -30,17 +30,20 @@ namespace Cuda {
 			const double* g1,
 			const double w1,
 			const double* g2,
-			const double w2) 
+			const double w2,
+			const double* g3,
+			const double w3) 
 		{
 			unsigned int Global_idx = threadIdx.x + blockIdx.x * blockDim.x;
 			if (Global_idx < size) {
-				g[Global_idx] = w1 * g1[Global_idx] + w2 * g2[Global_idx];
+				g[Global_idx] = w1 * g1[Global_idx] + w2 * g2[Global_idx] + w3 * g3[Global_idx];
 			}
 		}
 
 		void TotalGradient(
 			const double w_AuxBendingNormal,
-			const double w_FixAllVertices) {
+			const double w_FixAllVertices,
+			const double w_SymmetricDirichlet) {
 			
 			TotalGradientKernel << <ceil(g.size / (double)1024), 1024 >> > (
 				g.size,
@@ -48,7 +51,9 @@ namespace Cuda {
 				AuxBendingNormal::grad.cuda_arr,
 				w_AuxBendingNormal,
 				FixAllVertices::grad.cuda_arr,
-				w_FixAllVertices);
+				w_FixAllVertices,
+				SSSymmetricDirichlet::grad.cuda_arr,
+				w_SymmetricDirichlet);
 			
 			CheckErr(cudaDeviceSynchronize());
 		}

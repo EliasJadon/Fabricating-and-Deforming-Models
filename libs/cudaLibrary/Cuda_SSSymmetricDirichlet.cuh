@@ -2,7 +2,7 @@
 #include "Cuda_Basics.cuh"
 
 namespace Cuda {
-	namespace SymmetricDirichlet {
+	namespace SSSymmetricDirichlet {
 		extern Array<double> grad, EnergyAtomic, EnergyVec, restShapeArea;
 		extern Array<double3> D1d, D2d;
 		extern Array<int3> restShapeF;

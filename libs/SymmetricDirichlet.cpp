@@ -28,38 +28,38 @@ void SymmetricDirichlet::internalInitCuda() {
 	unsigned int numF = restShapeF.rows();
 	unsigned int numV = restShapeV.rows();
 	
-	Cuda::SymmetricDirichlet::num_faces = numF;
-	Cuda::SymmetricDirichlet::num_vertices = numV;
+	Cuda::SSSymmetricDirichlet::num_faces = numF;
+	Cuda::SSSymmetricDirichlet::num_vertices = numV;
 
-	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::restShapeF, numF);
-	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::D1d, numF);
-	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::D2d, numF);
-	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::EnergyVec, numF);
-	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::restShapeArea, numF);
-	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::grad, (3 * numV) + (7 * numF));
-	Cuda::AllocateMemory(Cuda::SymmetricDirichlet::EnergyAtomic, 1);
+	Cuda::AllocateMemory(Cuda::SSSymmetricDirichlet::restShapeF, numF);
+	Cuda::AllocateMemory(Cuda::SSSymmetricDirichlet::D1d, numF);
+	Cuda::AllocateMemory(Cuda::SSSymmetricDirichlet::D2d, numF);
+	Cuda::AllocateMemory(Cuda::SSSymmetricDirichlet::EnergyVec, numF);
+	Cuda::AllocateMemory(Cuda::SSSymmetricDirichlet::restShapeArea, numF);
+	Cuda::AllocateMemory(Cuda::SSSymmetricDirichlet::grad, (3 * numV) + (7 * numF));
+	Cuda::AllocateMemory(Cuda::SSSymmetricDirichlet::EnergyAtomic, 1);
 
 	//init host buffers...
-	for (int i = 0; i < Cuda::SymmetricDirichlet::grad.size; i++) {
-		Cuda::SymmetricDirichlet::grad.host_arr[i] = 0;
+	for (int i = 0; i < Cuda::SSSymmetricDirichlet::grad.size; i++) {
+		Cuda::SSSymmetricDirichlet::grad.host_arr[i] = 0;
 	}
-	Cuda::SymmetricDirichlet::EnergyAtomic.host_arr[0] = 0;
+	Cuda::SSSymmetricDirichlet::EnergyAtomic.host_arr[0] = 0;
 	for (int f = 0; f < numF; f++) {
-		Cuda::SymmetricDirichlet::restShapeF.host_arr[f] = make_int3(restShapeF(f, 0), restShapeF(f, 1), restShapeF(f, 2));
-		Cuda::SymmetricDirichlet::restShapeArea.host_arr[f] = restShapeArea[f];
-		Cuda::SymmetricDirichlet::EnergyVec.host_arr[f] = 0;
-		Cuda::SymmetricDirichlet::D1d.host_arr[f] = make_double3(D1d(0, f), D1d(1, f), D1d(2, f));
-		Cuda::SymmetricDirichlet::D2d.host_arr[f] = make_double3(D2d(0, f), D2d(1, f), D2d(2, f));
+		Cuda::SSSymmetricDirichlet::restShapeF.host_arr[f] = make_int3(restShapeF(f, 0), restShapeF(f, 1), restShapeF(f, 2));
+		Cuda::SSSymmetricDirichlet::restShapeArea.host_arr[f] = restShapeArea[f];
+		Cuda::SSSymmetricDirichlet::EnergyVec.host_arr[f] = 0;
+		Cuda::SSSymmetricDirichlet::D1d.host_arr[f] = make_double3(D1d(0, f), D1d(1, f), D1d(2, f));
+		Cuda::SSSymmetricDirichlet::D2d.host_arr[f] = make_double3(D2d(0, f), D2d(1, f), D2d(2, f));
 	}
 	
 	// Copy input vectors from host memory to GPU buffers.
-	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::restShapeF);
-	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::D1d);
-	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::D2d);
-	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::EnergyVec);
-	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::restShapeArea);
-	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::grad);
-	Cuda::MemCpyHostToDevice(Cuda::SymmetricDirichlet::EnergyAtomic);
+	Cuda::MemCpyHostToDevice(Cuda::SSSymmetricDirichlet::restShapeF);
+	Cuda::MemCpyHostToDevice(Cuda::SSSymmetricDirichlet::D1d);
+	Cuda::MemCpyHostToDevice(Cuda::SSSymmetricDirichlet::D2d);
+	Cuda::MemCpyHostToDevice(Cuda::SSSymmetricDirichlet::EnergyVec);
+	Cuda::MemCpyHostToDevice(Cuda::SSSymmetricDirichlet::restShapeArea);
+	Cuda::MemCpyHostToDevice(Cuda::SSSymmetricDirichlet::grad);
+	Cuda::MemCpyHostToDevice(Cuda::SSSymmetricDirichlet::EnergyAtomic);
 }
 
 
@@ -117,7 +117,7 @@ void SymmetricDirichlet::updateX(const Eigen::VectorXd& X)
 }
 
 double SymmetricDirichlet::value(const bool update) {
-	double value = Cuda::SymmetricDirichlet::value();
+	double value = Cuda::SSSymmetricDirichlet::value();
 
 	/////////////////////////////////////////////////////
 	//// for debugging...
@@ -156,6 +156,10 @@ Eigen::Matrix<double, 1, 4> SymmetricDirichlet::dE_dJ(int fi) {
 
 void SymmetricDirichlet::gradient(Eigen::VectorXd& g, const bool update)
 {
+	/////////////////////////////////////////////////////
+	//// for debugging...
+	updateX(Eigen::VectorXd::Zero(1));
+
 	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
 	g.setZero();
 
@@ -165,7 +169,17 @@ void SymmetricDirichlet::gradient(Eigen::VectorXd& g, const bool update)
 			for (int xyz = 0; xyz < 3; xyz++)
 				g[restShapeF(fi, vi) + (xyz*restShapeV.rows())] += dE_dX[xyz*3 + vi];
 	}
-
+	Cuda::SSSymmetricDirichlet::gradient();
+	
+	Cuda::MemCpyDeviceToHost(Cuda::SSSymmetricDirichlet::grad);
+	for (int i = 0; i < 50/*g.size()*/; i++) {
+		//std::cout << "Origin g[" << i << "] =\t" << g[i] << std::endl;
+		//std::cout << "Cuda g[" << i << "] =\t" << Cuda::SymmetricDirichlet::grad.host_arr[i] << std::endl;
+		
+		std::cout << i << ":\t\t";
+		std::cout << Cuda::SSSymmetricDirichlet::grad.host_arr[i] << "\t";
+		std::cout << g[i] << std::endl;
+	}
 	if (update)
 		gradient_norm = g.norm();
 }
