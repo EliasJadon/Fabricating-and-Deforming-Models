@@ -1,4 +1,4 @@
-project(cudaLibrary LANGUAGES CXX CUDA)
+project(cuda_optimization_lib LANGUAGES CXX CUDA)
 
 SET(CMAKE_CXX_STANDARD 			11)
 SET(CMAKE_CUDA_STANDARD 		11)

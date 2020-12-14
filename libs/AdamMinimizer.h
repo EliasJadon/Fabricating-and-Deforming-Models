@@ -1,7 +1,7 @@
 #pragma once
 #include "Minimizer.h"
-#include "cudaLibrary/Cuda_AdamMinimizer.cuh"
-#include "cudaLibrary/Cuda_AuxBendingNormal.cuh"
+#include "cuda_optimization_lib/Cuda_AdamMinimizer.cuh"
+#include "cuda_optimization_lib/Cuda_AuxBendingNormal.cuh"
 
 class AdamMinimizer : public Minimizer
 {

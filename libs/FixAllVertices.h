@@ -1,7 +1,7 @@
 #pragma once
 #include "ObjectiveFunction.h"
-#include "cudaLibrary/cuda_fixAllVertices.cuh"
-#include "cudaLibrary/Cuda_Minimizer.cuh"
+#include "cuda_optimization_lib/cuda_fixAllVertices.cuh"
+#include "cuda_optimization_lib/Cuda_Minimizer.cuh"
 
 class FixAllVertices : public ObjectiveFunction
 {

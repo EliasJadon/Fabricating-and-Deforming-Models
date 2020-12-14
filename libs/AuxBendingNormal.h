@@ -1,6 +1,6 @@
 #pragma once
 #include "ObjectiveFunction.h"
-#include "cudaLibrary/Cuda_AuxBendingNormal.cuh"
+#include "cuda_optimization_lib/Cuda_AuxBendingNormal.cuh"
 
 class AuxBendingNormal : public ObjectiveFunction
 {	

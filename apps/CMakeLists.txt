@@ -13,7 +13,7 @@ target_link_libraries(${PROJECT_NAME}
         igl::opengl_glfw_imgui
 		optimization_lib
 		plugins
-		cudaLibrary
+		cuda_optimization_lib
 		)
 
 if(MKL_FOUND)
