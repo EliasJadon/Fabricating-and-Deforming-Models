@@ -22,56 +22,101 @@ void FixChosenVertices::init()
 	startV_y = (1 * numV);
 	startV_z = (2 * numV);
 	init_hessian();
+	internalInitCuda();
+}
+
+void FixChosenVertices::internalInitCuda() {
+	Cuda::initIndices(Cuda::FixChosenVertices::mesh_indices, numF, numV, 0);
+	Cuda::AllocateMemory(Cuda::FixChosenVertices::grad, (3 * numV) + (7 * numF));
+	Cuda::AllocateMemory(Cuda::FixChosenVertices::EnergyAtomic, 1);
+	Cuda::AllocateMemory(Cuda::FixChosenVertices::Const_Ind, 0);
+	Cuda::AllocateMemory(Cuda::FixChosenVertices::Const_Pos, 0);
+	//init host buffers...
+	for (int i = 0; i < Cuda::FixChosenVertices::grad.size; i++) {
+		Cuda::FixChosenVertices::grad.host_arr[i] = 0;
+	}
+	// Copy input vectors from host memory to GPU buffers.
+	Cuda::MemCpyHostToDevice(Cuda::FixChosenVertices::grad);
 }
 
 void FixChosenVertices::updateExtConstraints(
 	std::vector<int>& CVInd,
 	Eigen::MatrixX3d& CVPos)
 {
-	m.lock();
+	m_value.lock();
+	m_gradient.lock();
+
+	Cuda::FreeMemory(Cuda::FixChosenVertices::Const_Ind);
+	Cuda::FreeMemory(Cuda::FixChosenVertices::Const_Pos);
+	Cuda::AllocateMemory(Cuda::FixChosenVertices::Const_Ind, CVInd.size());
+	Cuda::AllocateMemory(Cuda::FixChosenVertices::Const_Pos, CVInd.size());
+	//init host buffers...
+	for (int i = 0; i < CVInd.size(); i++) {
+		Cuda::FixChosenVertices::Const_Ind.host_arr[i] = CVInd[i];
+		Cuda::FixChosenVertices::Const_Pos.host_arr[i] = make_double3(
+			CVPos(i, 0),
+			CVPos(i, 1),
+			CVPos(i, 2)
+		);
+	}
+	// Copy input vectors from host memory to GPU buffers.
+	Cuda::MemCpyHostToDevice(Cuda::FixChosenVertices::Const_Ind);
+	Cuda::MemCpyHostToDevice(Cuda::FixChosenVertices::Const_Pos);
+	
+	
+	m_gradient.unlock();
+	m_value.unlock();
+	/*m.lock();
 	ConstrainedVerticesInd = CVInd;
 	ConstrainedVerticesPos = CVPos;
-	m.unlock();
+	m.unlock();*/
 }
 
 void FixChosenVertices::updateX(const Eigen::VectorXd& X)
 {
-	m.lock();
-	Eigen::MatrixX3d CurrConstrainedVerticesPos;
-	CurrConstrainedVerticesPos.resizeLike(ConstrainedVerticesPos);
-	for (int i = 0; i < ConstrainedVerticesInd.size(); i++)
-	{
-		CurrConstrainedVerticesPos.row(i) <<
-			X(ConstrainedVerticesInd[i] + startV_x),	//X-coordinate
-			X(ConstrainedVerticesInd[i] + startV_y),	//Y-coordinate
-			X(ConstrainedVerticesInd[i] + startV_z);	//Z-coordinate
-	}
-	diff = (CurrConstrainedVerticesPos - ConstrainedVerticesPos);
-	currConstrainedVerticesInd = ConstrainedVerticesInd;
-	m.unlock();
+	//m.lock();
+	//Eigen::MatrixX3d CurrConstrainedVerticesPos;
+	//CurrConstrainedVerticesPos.resizeLike(ConstrainedVerticesPos);
+	//for (int i = 0; i < ConstrainedVerticesInd.size(); i++)
+	//{
+	//	CurrConstrainedVerticesPos.row(i) <<
+	//		X(ConstrainedVerticesInd[i] + startV_x),	//X-coordinate
+	//		X(ConstrainedVerticesInd[i] + startV_y),	//Y-coordinate
+	//		X(ConstrainedVerticesInd[i] + startV_z);	//Z-coordinate
+	//}
+	//diff = (CurrConstrainedVerticesPos - ConstrainedVerticesPos);
+	//currConstrainedVerticesInd = ConstrainedVerticesInd;
+	//m.unlock();
 }
 
 double FixChosenVertices::value(const bool update)
 {
-	double E = diff.squaredNorm();
+	m_value.lock();
+	double value = Cuda::FixChosenVertices::value();
+	m_value.unlock();
+	
+	//double E = diff.squaredNorm();
 	if (update) {
-		energy_value = E;
+		energy_value = value;
 	}
-	return E;
+	return value;
 }
 
 void FixChosenVertices::gradient(Eigen::VectorXd& g, const bool update)
 {
-	g.conservativeResize(numV * 3 + numF * 7);
-	g.setZero();
-	for (int i = 0; i < currConstrainedVerticesInd.size(); i++)
-	{
-		g(currConstrainedVerticesInd[i] + startV_x) = 2 * diff(i, 0); //X-coordinate
-		g(currConstrainedVerticesInd[i] + startV_y) = 2 * diff(i, 1); //Y-coordinate
-		g(currConstrainedVerticesInd[i] + startV_z) = 2 * diff(i, 2); //Z-coordinate
-	}
-	if(update)
-		gradient_norm = g.norm();
+	m_gradient.lock();
+	Cuda::FixChosenVertices::gradient();
+	m_gradient.unlock();
+	//g.conservativeResize(numV * 3 + numF * 7);
+	//g.setZero();
+	//for (int i = 0; i < currConstrainedVerticesInd.size(); i++)
+	//{
+	//	g(currConstrainedVerticesInd[i] + startV_x) = 2 * diff(i, 0); //X-coordinate
+	//	g(currConstrainedVerticesInd[i] + startV_y) = 2 * diff(i, 1); //Y-coordinate
+	//	g(currConstrainedVerticesInd[i] + startV_z) = 2 * diff(i, 2); //Z-coordinate
+	//}
+	//if(update)
+	//	gradient_norm = g.norm();
 }
 
 void FixChosenVertices::hessian()

@@ -56,7 +56,7 @@ namespace Cuda
 
 	template<typename T> void AllocateMemory(Cuda::Array<T>& a, const unsigned int size) 
 	{
-		if (size <= 0) {
+		if (size < 0) {
 			std::cout << "Cuda: the size isn't positive!\n";
 			exit(1);
 		}

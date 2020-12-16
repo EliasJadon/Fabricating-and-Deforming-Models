@@ -52,8 +52,11 @@ void TotalObjective::gradient(Eigen::VectorXd& g, const bool update)
 	//	Cuda::SymmetricDirichlet::gradient();
 	if (objectiveList[0]->w)
 		Cuda::AuxSpherePerHinge::gradient();
-
-
+	if (objectiveList[6]->w) { //FixChosenVertices
+		Eigen::VectorXd _ = Eigen::VectorXd::Zero(1);
+		objectiveList[6]->gradient(_, true);
+	}
+		
 	//For Debugging SymmetricDirichlet...
 	// Eigen::VectorXd blabla = Eigen::VectorXd::Zero(1);
 	// objectiveList[4]->gradient(blabla, true);
@@ -62,7 +65,8 @@ void TotalObjective::gradient(Eigen::VectorXd& g, const bool update)
 		objectiveList[1]->w,	//AuxBendingNormal
 		objectiveList[5]->w,	//FixAllVertices
 		objectiveList[4]->w,	//SymmetricDirichlet
-		objectiveList[0]->w		//AuxSpherePerHinge
+		objectiveList[0]->w,	//AuxSpherePerHinge
+		objectiveList[6]->w		//FixChosenVertices
 	);
 
 	/*g.setZero(variables_size);

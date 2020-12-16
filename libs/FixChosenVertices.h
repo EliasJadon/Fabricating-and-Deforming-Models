@@ -1,5 +1,6 @@
 #pragma once
 #include "ObjectiveFunction.h"
+#include "cuda_optimization_lib/Cuda_FixChosenVertices.cuh"
 #include <mutex>
 
 class FixChosenVertices : public ObjectiveFunction
@@ -10,10 +11,11 @@ private:
 	int startV_y;
 	int startV_z;
 	Eigen::MatrixX3d diff;
-	std::mutex m;
+	std::mutex m_value, m_gradient;
 	std::vector<int> ConstrainedVerticesInd;
 	std::vector<int> currConstrainedVerticesInd;
 	Eigen::MatrixX3d ConstrainedVerticesPos;
+	void internalInitCuda();
 public:
 	FixChosenVertices();
 	~FixChosenVertices();
