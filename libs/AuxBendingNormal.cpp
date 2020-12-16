@@ -39,14 +39,12 @@ void AuxBendingNormal::init()
 
 
 void AuxBendingNormal::internalInitCuda() {
-	unsigned int numF = restShapeF.rows();
-	unsigned int numV = restShapeV.rows();
-	unsigned int numH = num_hinges;
+	const unsigned int numF = restShapeF.rows();
+	const unsigned int numV = restShapeV.rows();
+	const unsigned int numH = num_hinges;
 
-	Cuda::AuxBendingNormal::num_faces = numF;
-	Cuda::AuxBendingNormal::num_vertices = numV;
-	Cuda::AuxBendingNormal::num_hinges = numH;
-
+	Cuda::initIndices(Cuda::AuxBendingNormal::mesh_indices, numF, numV, numH);
+	
 	Cuda::AllocateMemory(Cuda::AuxBendingNormal::restShapeF, numF);
 	Cuda::AllocateMemory(Cuda::AuxBendingNormal::restAreaPerFace,numF);
 	Cuda::AllocateMemory(Cuda::AuxBendingNormal::restAreaPerHinge,numH);

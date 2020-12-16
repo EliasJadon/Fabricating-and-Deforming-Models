@@ -1,10 +1,10 @@
 #pragma once
 #include "ObjectiveFunction.h"
+#include "cuda_optimization_lib/Cuda_AuxSpherePerHinge.cuh"
 
 class AuxSpherePerHinge : public ObjectiveFunction
 {	
 private:
-	
 	Eigen::MatrixX3d CurrV, CurrCenter;
 	Eigen::VectorXd  d_center,d_radius, CurrRadius;
 	Eigen::VectorXd restAreaPerFace, restAreaPerHinge;

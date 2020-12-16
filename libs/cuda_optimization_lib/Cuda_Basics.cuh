@@ -15,6 +15,15 @@ enum FunctionType
 
 namespace Cuda 
 {
+	struct indices {
+		unsigned int
+			startVx, startVy, startVz,
+			startNx, startNy, startNz,
+			startCx, startCy, startCz,
+			startR,
+			num_vertices, num_faces, num_hinges;
+	};
+
 	struct hinge 
 	{
 		int f0, f1;
@@ -27,6 +36,11 @@ namespace Cuda
 		T* cuda_arr;
 	};
 
+	extern void initIndices(
+		indices& I,
+		const unsigned int F,
+		const unsigned int V,
+		const unsigned int H);
 	extern hinge newHinge(int f0, int f1);
 	extern void view_device_properties();
 	extern void initCuda();

@@ -48,8 +48,8 @@ void TotalObjective::gradient(Eigen::VectorXd& g, const bool update)
 	Cuda::FixAllVertices::gradient();
 	//Cuda::SymmetricDirichlet::gradient();
 
-	Eigen::VectorXd blabla = Eigen::VectorXd::Zero(1);
-	objectiveList[4]->gradient(blabla, true);
+	//Eigen::VectorXd blabla = Eigen::VectorXd::Zero(1);
+	//objectiveList[4]->gradient(blabla, true);
 
 	Cuda::Minimizer::TotalGradient(
 		objectiveList[1]->w,	//AuxBendingNormal
