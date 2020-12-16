@@ -21,12 +21,8 @@ private:
 	Eigen::VectorXd d2Phi_dmdm(Eigen::VectorXd);
 	Eigen::Matrix< double, 8, 1> dm_dN(int hi);
 	Eigen::Matrix< double, 8, 8> d2m_dNdN(int hi);
-	
+	void internalInitCuda();
 public:
-	std::vector<double> w_aux = { 1,100 }; // w1 = 1, w2 = 100;
-	FunctionType functionType;
-	double planarParameter;
-
 	AuxSpherePerHinge(FunctionType type);
 	~AuxSpherePerHinge();
 	virtual void init() override;

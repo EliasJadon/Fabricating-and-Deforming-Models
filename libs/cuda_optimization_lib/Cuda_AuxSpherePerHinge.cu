@@ -1,598 +1,498 @@
-//#include "Cuda_AuxSpherePerHinge.cuh"
-//#include "Cuda_Minimizer.cuh"
-//
-//namespace Cuda {
-//	namespace AuxSpherePerHinge {
-//		//Dynamic variables
-//		double w1 = 1, w2 = 100;
-//		FunctionType functionType; //OptimizationUtils::FunctionType /*QUADRATIC = 0,EXPONENTIAL = 1,SIGMOID = 2*/
-//		double planarParameter;
-//		Array<double> grad;
-//		Array<double> EnergyAtomic;
-//
-//		//Static variables
-//		Array<int3> restShapeF;
-//		Array<double> restAreaPerFace, restAreaPerHinge; //Eigen::VectorXd
-//		int num_hinges, num_faces, num_vertices;
-//		Array<hinge> hinges_faceIndex; //std::vector<Eigen::Vector2d> //num_hinges*2
-//		Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; //Eigen::VectorXi //num_hinges
-//		Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
-//
-//
-//		__device__ double3 add(const double3 a, const double3 b)
-//		{
-//			return make_double3(a.x + b.x, a.y + b.y, a.z + b.z);
-//		}
-//		__device__ double3 sub(const double3 a, const double3 b);
-//		
-//		__device__ double dot(const double3 a, const double3 b)
-//		{
-//			return a.x * b.x + a.y * b.y + a.z * b.z;
-//		}
-//		__device__ double3 mul(const double a, const double3 b)
-//		{
-//			return make_double3(a * b.x, a * b.y, a * b.z);
-//		}
-//		__device__ double squared_norm(const double3 a)
-//		{
-//			return dot(a, a);
-//		}
-//		__device__ double norm(const double3 a)
-//		{
-//			return sqrt(squared_norm(a));
-//		}
-//		__device__ double3 normalize(const double3 a)
-//		{
-//			return mul(1.0f / norm(a), a);
-//		}
-//		__device__ double3 cross(const double3 a, const double3 b)
-//		{
-//			return make_double3(
-//				a.y * b.z - a.z * b.y,
-//				a.z * b.x - a.x * b.z,
-//				a.x * b.y - a.y * b.x
-//			);
-//		}
-//		__device__ double atomicAdd(double* address, double val, int flag)
-//		{
-//			unsigned long long int* address_as_ull =
-//				(unsigned long long int*)address;
-//			unsigned long long int old = *address_as_ull, assumed;
-//
-//			do {
-//				assumed = old;
-//				old = atomicCAS(address_as_ull, assumed,
-//					__double_as_longlong(val +
-//						__longlong_as_double(assumed)));
-//
-//				// Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
-//			} while (assumed != old);
-//
-//			return __longlong_as_double(old);
-//		}
-//		__device__ double dPhi_dm(
-//			const double x,
-//			const double planarParameter,
-//			const FunctionType functionType)
-//		{
-//			if (functionType == FunctionType::SIGMOID)
-//				return (2 * x * planarParameter) / pow(x * x + planarParameter, 2);
-//			else if (functionType == FunctionType::QUADRATIC)
-//				return 2 * x;
-//			else if (functionType == FunctionType::EXPONENTIAL)
-//				return 0; //TODO: add exponential
-//		}
-//
-//		template <unsigned int blockSize, typename T>
-//		__device__ void warpReduce(volatile T* sdata, unsigned int tid) {
-//			if (blockSize >= 64) sdata[tid] += sdata[tid + 32];
-//			if (blockSize >= 32) sdata[tid] += sdata[tid + 16];
-//			if (blockSize >= 16) sdata[tid] += sdata[tid + 8];
-//			if (blockSize >= 8) sdata[tid] += sdata[tid + 4];
-//			if (blockSize >= 4) sdata[tid] += sdata[tid + 2];
-//			if (blockSize >= 2) sdata[tid] += sdata[tid + 1];
-//		}
-//
-//		template <unsigned int blockSize, typename T>
-//		__global__ void sumOfArray(T* g_idata, T* g_odata, unsigned int n) {
-//			extern __shared__ T sdata[blockSize];
-//			unsigned int tid = threadIdx.x;
-//			unsigned int i = blockIdx.x * (blockSize * 2) + tid;
-//			unsigned int gridSize = blockSize * 2 * gridDim.x;
-//			sdata[tid] = 0;
-//			while (i < n) { sdata[tid] += g_idata[i] + g_idata[i + blockSize]; i += gridSize; }
-//			__syncthreads();
-//
-//			if (blockSize >= 1024) { if (tid < 512) { sdata[tid] += sdata[tid + 512]; } __syncthreads(); }
-//			if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
-//			if (blockSize >= 256) { if (tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
-//			if (blockSize >= 128) { if (tid < 64) { sdata[tid] += sdata[tid + 64]; } __syncthreads(); }
-//			if (tid < 32) warpReduce<blockSize, T>(sdata, tid);
-//			if (tid == 0) g_odata[blockIdx.x] = sdata[0];
-//		}
-//
-//
-//
-//
-//		__device__ double Energy1Kernel(
-//			const double w1,
-//			const double* curr_x,
-//			const hinge* hinges_faceIndex,
-//			const double* restAreaPerHinge,
-//			const double planarParameter,
-//			const FunctionType functionType,
-//			const int hi,
-//			const int num_faces,
-//			const indices I)
-//		{
-//			int f0 = hinges_faceIndex[hi].f0;
-//			int f1 = hinges_faceIndex[hi].f1;
-//
-//			double3 N0 = make_double3(
-//				curr_x[f0 + I.startNx],
-//				curr_x[f0 + I.startNy],
-//				curr_x[f0 + I.startNz]
-//			);
-//			double3 N1 = make_double3(
-//				curr_x[f1 + I.startNx],
-//				curr_x[f1 + I.startNy],
-//				curr_x[f1 + I.startNz]
-//			);
-//			double3 diff = sub(N1, N0);
-//			double d_normals = squared_norm(diff);
-//			
-//			double res;
-//			if (functionType == FunctionType::SIGMOID) {
-//				double x2 = d_normals * d_normals;
-//				res = x2 / (x2 + planarParameter);
-//			}
-//			else if (functionType == FunctionType::QUADRATIC)
-//				res = d_normals * d_normals;
-//			else if (functionType == FunctionType::EXPONENTIAL)
-//				res = 0; //TODO: add exponential option
-//			return res* restAreaPerHinge[hi];
-//		}
-//
-//		__device__ double Energy2Kernel(
-//			const double w2,
-//			const double* curr_x,
-//			const int fi,
-//			const int num_faces,
-//			const indices I)
-//		{
-//			
-//			double3 currV = make_double3(
-//				curr_x[vi + I.startVx],
-//				curr_x[vi + I.startVy],
-//				curr_x[vi + I.startVz]
-//			);
-//			double3 currN = make_double3(
-//				curr_x[fi + I.startNx],
-//				curr_x[fi + I.startNy],
-//				curr_x[fi + I.startNz]
-//			);
-//			double3 CurrCenter = make_double3(
-//				curr_x[fi + I.startCx],
-//				curr_x[fi + I.startCy],
-//				curr_x[fi + I.startCz]
-//			);
-//			double CurrRadius = curr_x[fi + I.startR];
-//			
-//
-//			
-//			/*	int f0 = hinges_faceIndex[hi](0);
-//				int f1 = hinges_faceIndex[hi](1);
-//				d_center(hi) = (CurrCenter.row(f1) - CurrCenter.row(f0)).squaredNorm();
-//				d_radius(hi) = pow(CurrRadius(f1) - CurrRadius(f0), 2);
-//			
-//
-//
-//			double x2 = Nx * Nx;
-//			double y2 = Ny * Ny;
-//			double z2 = Nz * Nz;
-//			double sqrN = x2 + y2 + z2 - 1;
-//			return sqrN * sqrN * w2;*/
-//		}
-//		__device__ double Energy3Kernel(
-//			const double w3,
-//			const int3* restShapeF,
-//			const double* curr_x,
-//			const int fi,
-//			const int num_faces,
-//			const int num_vertices,
-//			const int startN)
-//		{
-//			// (N^T*(x1-x0))^2 + (N^T*(x2-x1))^2 + (N^T*(x0-x2))^2
-//			int x0 = restShapeF[fi].x;
-//			int x1 = restShapeF[fi].y;
-//			int x2 = restShapeF[fi].z;
-//
-//			int num_vertices2 = 2 * num_vertices;
-//			double3 V0,V1,V2;
-//			V0.x = curr_x[x0];
-//			V0.y = curr_x[x0 + num_vertices];
-//			V0.z = curr_x[x0 + num_vertices2];
-//			V1.x = curr_x[x1];
-//			V1.y = curr_x[x1 + num_vertices];
-//			V1.z = curr_x[x1 + num_vertices2];
-//			V2.x = curr_x[x2];
-//			V2.y = curr_x[x2 + num_vertices];
-//			V2.z = curr_x[x2 + num_vertices2];
-//
-//			double3 N;
-//			int startNi = fi + startN;
-//			N.x = curr_x[startNi];
-//			N.y = curr_x[startNi + num_faces];
-//			N.z = curr_x[startNi + 2 * num_faces];
-//
-//			double3 e21 = sub(V2, V1);
-//			double3 e10 = sub(V1, V0);
-//			double3 e02 = sub(V0, V2);
-//			double d1 = dot(N, e21);
-//			double d2 = dot(N, e10);
-//			double d3 = dot(N, e02);
-//			double res = d1 * d1 + d2 * d2 + d3 * d3;
-//			res *= w3;
-//			return res;
-//		}
-//
-//		template<unsigned int blockSize>
-//		__global__ void EnergyKernel(
-//			double* resAtomic,
-//			const double w1,
-//			const double w2,
-//			const double w3,
-//			const double* curr_x,
-//			const int3 * restShapeF,
-//			const double * restAreaPerHinge,
-//			const hinge* hinges_faceIndex,
-//			const double planarParameter,
-//			const FunctionType functionType,
-//			const int num_hinges,
-//			const int num_faces,
-//			const int num_vertices,
-//			const int startN) 
-//		{
-//			extern __shared__ double energy_value[blockSize];
-//			unsigned int tid = threadIdx.x;
-//			unsigned int Global_idx = blockIdx.x * blockSize + tid;
-//			*resAtomic = 0;
-//			__syncthreads();
-//
-//			//0	,..., F-1,		==> Call Energy(3)
-//			//F	,..., 2F-1,		==> Call Energy(2)
-//			//2F,..., 2F+h-1	==> Call Energy(1)
-//			if (Global_idx < num_faces) {
-//				energy_value[tid] = Energy3Kernel(
-//					w3,
-//					restShapeF,
-//					curr_x,
-//					Global_idx,
-//					num_faces,
-//					num_vertices,
-//					startN);
-//			}
-//			else if (Global_idx < (2*num_faces)) {
-//				energy_value[tid] = Energy2Kernel(
-//					w2,
-//					curr_x,
-//					Global_idx - num_faces,
-//					num_faces,
-//					startN);
-//			}
-//			else if (Global_idx < ((2 * num_faces) + num_hinges)) {
-//				energy_value[tid] = Energy1Kernel(
-//					w1,
-//					curr_x,
-//					hinges_faceIndex,
-//					restAreaPerHinge,
-//					planarParameter,
-//					functionType,
-//					Global_idx - (2 * num_faces),
-//					num_faces,
-//					startN);
-//			}
-//			else {
-//				energy_value[tid] = 0;
-//			}
-//			__syncthreads();
-//
-//			if (blockSize >= 1024) { if (tid < 512) { energy_value[tid] += energy_value[tid + 512]; } __syncthreads(); }
-//			if (blockSize >= 512) { if (tid < 256) { energy_value[tid] += energy_value[tid + 256]; } __syncthreads(); }
-//			if (blockSize >= 256) { if (tid < 128) { energy_value[tid] += energy_value[tid + 128]; } __syncthreads(); }
-//			if (blockSize >= 128) { if (tid < 64) { energy_value[tid] += energy_value[tid + 64]; } __syncthreads(); }
-//			if (tid < 32) warpReduce<blockSize, double>(energy_value, tid);
-//			if (tid == 0) atomicAdd(resAtomic, energy_value[0], 0);
-//		}
-//		
-//		double value() {
-//			return 5;
-//			/*unsigned int s = num_hinges + num_faces + num_faces;
-//			EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
-//				EnergyAtomic.cuda_arr,
-//				w1, w2, w3,
-//				Cuda::Minimizer::curr_x.cuda_arr,
-//				restShapeF.cuda_arr,
-//				restAreaPerHinge.cuda_arr,
-//				hinges_faceIndex.cuda_arr,
-//				planarParameter,
-//				functionType,
-//				num_hinges,
-//				num_faces,
-//				num_vertices,
-//				3 * num_vertices);
-//			CheckErr(cudaDeviceSynchronize());
-//			MemCpyDeviceToHost(EnergyAtomic);
-//			return EnergyAtomic.host_arr[0];*/
-//		}
-//
-//		__device__ double dPhi_dm(
-//			const double x, 
-//			const double planarParameter,
-//			const FunctionType functionType) 
-//		{
-//			if (functionType == FunctionType::SIGMOID)
-//				return (2 * x * planarParameter) / pow(x * x + planarParameter, 2);
-//			else if (functionType == FunctionType::QUADRATIC)
-//				return 2 * x;
-//			else if (functionType == FunctionType::EXPONENTIAL)
-//				return 0; //TODO: add exponential
-//		}
-//
-//		__device__ void gradient1Kernel(
-//			double* grad,
-//			const double* curr_x,
-//			const hinge* hinges_faceIndex,
-//			const double* restAreaPerHinge,
-//			const double planarParameter,
-//			const FunctionType functionType,
-//			const double w1,
-//			const int hi,
-//			const int thread,
-//			const int num_faces,
-//			const int num_vertices,
-//			const int startN)
-//		{
-//			int f0 = hinges_faceIndex[hi].f0;
-//			int f1 = hinges_faceIndex[hi].f1;
-//			int startNy = startN + num_faces;
-//			int startNz = startNy + num_faces;
-//
-//			int startN0x = f0 + startN;
-//			int startN0y = f0 + startNy;
-//			int startN0z = f0 + startNz;
-//			int startN1x = f1 + startN;
-//			int startN1y = f1 + startNy;
-//			int startN1z = f1 + startNz;
-//			double3 N0;
-//			N0.x = curr_x[startN0x];
-//			N0.y = curr_x[startN0y];
-//			N0.z = curr_x[startN0z];
-//			double3 N1;
-//			N1.x = curr_x[startN1x];
-//			N1.y = curr_x[startN1y];
-//			N1.z = curr_x[startN1z];
-//			double3 diff = sub(N1, N0);
-//			double d_normals = squared_norm(diff);
-//
-//			double coeff = w1 * restAreaPerHinge[hi] * dPhi_dm(d_normals, planarParameter, functionType);
-//
-//			if (thread == 0) //n0.x;
-//				atomicAdd(&grad[startN0x], coeff * 2 * (N0.x - N1.x), 0);
-//			else if (thread == 1) //n1.x
-//				atomicAdd(&grad[startN1x], coeff * 2 * (N1.x - N0.x), 0);
-//			else if (thread == 2) //n0.y
-//				atomicAdd(&grad[startN0y], coeff * 2 * (N0.y - N1.y), 0);
-//			else if (thread == 3) //n1.y
-//				atomicAdd(&grad[startN1y], coeff * 2 * (N1.y - N0.y), 0);
-//			else if (thread == 4) //n0.z
-//				atomicAdd(&grad[startN0z], coeff * 2 * (N0.z - N1.z), 0);
-//			else if (thread == 5) //n1.z
-//				atomicAdd(&grad[startN1z], coeff * 2 * (N1.z - N0.z), 0);
-//		}
-//		__device__ void gradient2Kernel(
-//			double* grad,
-//			const double* curr_x,
-//			const int thread,
-//			const double w2,
-//			const int num_faces,
-//			const int startNi)
-//		{
-//			int startNiy = startNi + num_faces;
-//			int startNiz = startNiy + num_faces;
-//			double3 N;
-//			N.x = curr_x[startNi];
-//			N.y = curr_x[startNiy];
-//			N.z = curr_x[startNiz];
-//
-//			double coeff = w2 * 4 * (squared_norm(N) - 1);
-//			if (thread == 0) //N.x
-//				atomicAdd(&grad[startNi], coeff * N.x, 0);
-//			else if (thread == 1) //N.y
-//				atomicAdd(&grad[startNiy], coeff * N.y, 0);
-//			else if (thread == 2) //N.z
-//				atomicAdd(&grad[startNiz], coeff * N.z, 0);
-//		}
-//		__device__ void gradient3Kernel(
-//			double* grad,
-//			const int3* restShapeF,
-//			const double* curr_x,
-//			const int fi,
-//			const int thread,
-//			const double w3,
-//			const int num_vertices,
-//			const int num_faces,
-//			const int startN)
-//		{
-//			int x0 = restShapeF[fi].x;
-//			int x1 = restShapeF[fi].y;
-//			int x2 = restShapeF[fi].z;
-//			int num_vertices2 = 2 * num_vertices;
-//			double3 V0, V1, V2;
-//			V0.x = curr_x[x0];
-//			V0.y = curr_x[x0 + num_vertices];
-//			V0.z = curr_x[x0 + num_vertices2];
-//			V1.x = curr_x[x1];
-//			V1.y = curr_x[x1 + num_vertices];
-//			V1.z = curr_x[x1 + num_vertices2];
-//			V2.x = curr_x[x2];
-//			V2.y = curr_x[x2 + num_vertices];
-//			V2.z = curr_x[x2 + num_vertices2];
-//
-//			double3 N;
-//			int startNi = fi + startN;
-//			N.x = curr_x[startNi];
-//			N.y = curr_x[startNi + num_faces];
-//			N.z = curr_x[startNi + 2 * num_faces];
-//
-//			double3 e21 = sub(V2, V1);
-//			double3 e10 = sub(V1, V0);
-//			double3 e02 = sub(V0, V2);
-//			double N02 = dot(N, e02);
-//			double N10 = dot(N, e10);
-//			double N21 = dot(N, e21);
-//			double coeff = 2 * w3;
-//			int num_2verices = 2 * num_vertices;
-//			int num_3verices_fi = fi + num_2verices + num_vertices;
-//
-//			switch (thread) {
-//			case 0: //x0
-//				atomicAdd(&grad[x0], coeff * N.x * (N02 - N10), 0);
-//				break;
-//			case 1: //y0
-//				atomicAdd(&grad[x0 + num_vertices], coeff * N.y * (N02 - N10), 0);
-//				break;
-//			case 2: //z0
-//				atomicAdd(&grad[x0 + num_2verices], coeff * N.z * (N02 - N10), 0);
-//				break;
-//			case 3: //x1
-//				atomicAdd(&grad[x1], coeff * N.x * (N10 - N21), 0);
-//				break;
-//			case 4: //y1
-//				atomicAdd(&grad[x1 + num_vertices], coeff * N.y * (N10 - N21), 0);
-//				break;
-//			case 5: //z1
-//				atomicAdd(&grad[x1 + num_2verices], coeff * N.z * (N10 - N21), 0);
-//				break;
-//			case 6: //x2
-//				atomicAdd(&grad[x2], coeff * N.x * (N21 - N02), 0);
-//				break;
-//			case 7: //y2
-//				atomicAdd(&grad[x2 + num_vertices], coeff * N.y * (N21 - N02), 0);
-//				break;
-//			case 8: //z2
-//				atomicAdd(&grad[x2 + num_2verices], coeff * N.z * (N21 - N02), 0);
-//				break;
-//			case 9: //Nx
-//				atomicAdd(&grad[num_3verices_fi], coeff * (N10 * e10.x + N21 * e21.x + N02 * e02.x), 0);
-//				break;
-//			case 10: //Ny
-//				atomicAdd(&grad[num_3verices_fi + num_faces], coeff * (N10 * e10.y + N21 * e21.y + N02 * e02.y), 0);
-//				break;
-//			case 11: //Nz
-//				atomicAdd(&grad[num_3verices_fi + (2 * num_faces)], coeff * (N10 * e10.z + N21 * e21.z + N02 * e02.z), 0);
-//				break;
-//			}
-//		}
-//
-//		__global__ void gradientKernel(
-//			double* grad,
-//			const double* curr_x,
-//			const hinge* hinges_faceIndex,
-//			const int3* restShapeF,
-//			const double* restAreaPerHinge,
-//			const double planarParameter,
-//			const FunctionType functionType,
-//			const int num_hinges,
-//			const int num_faces,
-//			const int num_vertices,
-//			const double w1,
-//			const double w2,
-//			const double w3)
-//		{
-//			int Bl_index = blockIdx.x;
-//			int Th_Index = threadIdx.x;
-//			//0	,..., F-1,		==> Call Energy(3)
-//			//F	,..., 2F-1,		==> Call Energy(2)
-//			//2F,..., 2F+h-1	==> Call Energy(1)
-//			if (Bl_index < num_faces) {
-//				gradient3Kernel(
-//					grad,
-//					restShapeF,
-//					curr_x,
-//					Bl_index,
-//					Th_Index,
-//					w3,
-//					num_vertices,
-//					num_faces,
-//					3 * num_vertices);
-//			}
-//			else if (Bl_index < (2 * num_faces)) {
-//				gradient2Kernel(
-//					grad, 
-//					curr_x,  
-//					Th_Index,
-//					w2,
-//					num_faces,
-//					3 * num_vertices + (Bl_index - num_faces));
-//			}
-//			else {
-//				gradient1Kernel(
-//					grad,
-//					curr_x,
-//					hinges_faceIndex,
-//					restAreaPerHinge,
-//					planarParameter,
-//					functionType,
-//					w1,
-//					Bl_index - (2 * num_faces),
-//					Th_Index,
-//					num_faces,
-//					num_vertices,
-//					3 * num_vertices);
-//			}
-//		}
-//
-//		template<typename T>
-//		__global__ void setZeroKernel(T* vec)
-//		{
-//			vec[blockIdx.x] = 0;
-//		}
-//
-//		void gradient()
-//		{
-//			setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
-//			CheckErr(cudaDeviceSynchronize());
-//
-//			gradientKernel << <num_hinges + num_faces + num_faces, 12 >> > (
-//				grad.cuda_arr,
-//				Cuda::Minimizer::X.cuda_arr,
-//				hinges_faceIndex.cuda_arr,
-//				restShapeF.cuda_arr,
-//				restAreaPerHinge.cuda_arr,
-//				planarParameter, functionType,
-//				num_hinges, num_faces, num_vertices,
-//				w1, w2, w3);
-//			CheckErr(cudaDeviceSynchronize());
-//			//MemCpyDeviceToHost(grad);
-//		}
-//		
-//		void FreeAllVariables() {
-//			cudaGetErrorString(cudaGetLastError());
-//			FreeMemory(restShapeF);
-//			FreeMemory(grad);
-//			FreeMemory(restAreaPerFace);
-//			FreeMemory(restAreaPerHinge);
-//			FreeMemory(EnergyAtomic);
-//			FreeMemory(hinges_faceIndex);
-//			FreeMemory(x0_GlobInd);
-//			FreeMemory(x1_GlobInd);
-//			FreeMemory(x2_GlobInd);
-//			FreeMemory(x3_GlobInd);
-//			FreeMemory(x0_LocInd);
-//			FreeMemory(x1_LocInd);
-//			FreeMemory(x2_LocInd);
-//			FreeMemory(x3_LocInd);
-//		}
-//	}
-//}
+#include "Cuda_AuxSpherePerHinge.cuh"
+#include "Cuda_Minimizer.cuh"
+//#include "Cuda_OptimizationUtils.cuh"
+
+namespace Cuda {
+	namespace AuxSpherePerHinge {
+		//dynamic variables
+		double w1 = 1, w2 = 100;
+		FunctionType functionType;
+		double planarParameter;
+		Array<double> grad;
+		//help variables - dynamic
+		Array<double> EnergyAtomic;
+
+		//Static variables
+		Array<int3> restShapeF;
+		indices mesh_indices;
+		Array<double> restAreaPerFace, restAreaPerHinge; //Eigen::VectorXd
+		Array<hinge> hinges_faceIndex; //std::vector<Eigen::Vector2d> //num_hinges*2
+		Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; //Eigen::VectorXi //num_hinges
+		Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
+		
+		__device__ double3 sub(const double3 a, const double3 b);
+		__device__ double3 add(double3 a, double3 b);
+		__device__ double dot(const double3 a, const double3 b);
+		__device__ double3 mul(const double a, const double3 b);
+		__device__ double squared_norm(const double3 a);
+		__device__ double norm(const double3 a);
+		__device__ double3 normalize(const double3 a);
+		__device__ double3 cross(const double3 a, const double3 b);
+		__device__ double atomicAdd(double* address, double val, int flag);
+		__device__ double Phi(const double x, const double planarParameter, const FunctionType functionType);
+		__device__ double dPhi_dm(const double x, const double planarParameter, const FunctionType functionType);
+		template <unsigned int blockSize, typename T>
+		__device__ void warpReduce(volatile T* sdata, unsigned int tid);
+		template <unsigned int blockSize, typename T>
+		__global__ void sumOfArray(T* g_idata, T* g_odata, unsigned int n);
+		template<typename T> __global__ void setZeroKernel(T* vec);
+
+
+		__device__ double Energy1Kernel(
+			const double w1,
+			const double* curr_x,
+			const hinge* hinges_faceIndex,
+			const double* restAreaPerHinge,
+			const double planarParameter,
+			const FunctionType functionType,
+			const int hi,
+			const indices I)
+		{
+			int f0 = hinges_faceIndex[hi].f0;
+			int f1 = hinges_faceIndex[hi].f1;
+			double R0 = curr_x[f0 + I.startR];
+			double R1 = curr_x[f1 + I.startR];
+			double3 C0 = make_double3(
+				curr_x[f0 + I.startCx],
+				curr_x[f0 + I.startCy],
+				curr_x[f0 + I.startCz]
+			);
+			double3 C1 = make_double3(
+				curr_x[f1 + I.startCx],
+				curr_x[f1 + I.startCy],
+				curr_x[f1 + I.startCz]
+			);
+			double d_center = squared_norm(sub(C1, C0));
+			double d_radius = pow(R1 - R0, 2);
+			return w1 * restAreaPerHinge[hi] *
+				Phi(d_center + d_radius, planarParameter, functionType);
+		}
+		__device__ double Energy2Kernel(
+			const double w2,
+			const int3* restShapeF,
+			const double* curr_x,
+			const int fi,
+			const indices I)
+		{
+			const unsigned int x0 = restShapeF[fi].x;
+			const unsigned int x1 = restShapeF[fi].y;
+			const unsigned int x2 = restShapeF[fi].z;
+			double3 V0 = make_double3(
+				curr_x[x0 + I.startVx],
+				curr_x[x0 + I.startVy],
+				curr_x[x0 + I.startVz]
+			);
+			double3 V1 = make_double3(
+				curr_x[x1 + I.startVx],
+				curr_x[x1 + I.startVy],
+				curr_x[x1 + I.startVz]
+			);
+			double3 V2 = make_double3(
+				curr_x[x2 + I.startVx],
+				curr_x[x2 + I.startVy],
+				curr_x[x2 + I.startVz]
+			);
+			double3 C = make_double3(
+				curr_x[fi + I.startCx],
+				curr_x[fi + I.startCy],
+				curr_x[fi + I.startCz]
+			);
+			double R = curr_x[fi + I.startR];
+			double res =
+				pow(squared_norm(sub(V0, C)) - pow(R, 2), 2) +
+				pow(squared_norm(sub(V1, C)) - pow(R, 2), 2) +
+				pow(squared_norm(sub(V2, C)) - pow(R, 2), 2);
+			return w2 * res;
+		}
+
+		template<unsigned int blockSize>
+		__global__ void EnergyKernel(
+			double* resAtomic,
+			const double w1,
+			const double w2,
+			const double* curr_x,
+			const int3* restShapeF,
+			const double* restAreaPerHinge,
+			const hinge* hinges_faceIndex,
+			const double planarParameter,
+			const FunctionType functionType,
+			const indices mesh_indices)
+		{
+			extern __shared__ double energy_value[blockSize];
+			unsigned int tid = threadIdx.x;
+			unsigned int Global_idx = blockIdx.x * blockSize + tid;
+			*resAtomic = 0;
+			__syncthreads();
+
+			//0	,..., F-1,	==> Call Energy(2)
+			//F ,..., F+h-1	==> Call Energy(1)
+			
+			if (Global_idx < mesh_indices.num_faces) {
+				energy_value[tid] = Energy2Kernel(
+					w2,
+					restShapeF,
+					curr_x,
+					Global_idx, //fi
+					mesh_indices);
+			}
+			else if (Global_idx < (mesh_indices.num_faces + mesh_indices.num_hinges)) {
+				energy_value[tid] = Energy1Kernel(
+					w1,
+					curr_x,
+					hinges_faceIndex,
+					restAreaPerHinge,
+					planarParameter,
+					functionType,
+					Global_idx - mesh_indices.num_faces, //hi
+					mesh_indices);
+			}
+			else {
+				energy_value[tid] = 0;
+			}
+			__syncthreads();
+
+			if (blockSize >= 1024) { if (tid < 512) { energy_value[tid] += energy_value[tid + 512]; } __syncthreads(); }
+			if (blockSize >= 512) { if (tid < 256) { energy_value[tid] += energy_value[tid + 256]; } __syncthreads(); }
+			if (blockSize >= 256) { if (tid < 128) { energy_value[tid] += energy_value[tid + 128]; } __syncthreads(); }
+			if (blockSize >= 128) { if (tid < 64) { energy_value[tid] += energy_value[tid + 64]; } __syncthreads(); }
+			if (tid < 32) warpReduce<blockSize, double>(energy_value, tid);
+			if (tid == 0) atomicAdd(resAtomic, energy_value[0], 0);
+		}
+
+		double value() {
+			const unsigned int s = mesh_indices.num_hinges + mesh_indices.num_faces;
+			EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
+				EnergyAtomic.cuda_arr,
+				w1, w2,
+				Cuda::Minimizer::curr_x.cuda_arr,
+				restShapeF.cuda_arr,
+				restAreaPerHinge.cuda_arr,
+				hinges_faceIndex.cuda_arr,
+				planarParameter,
+				functionType,
+				mesh_indices);
+			CheckErr(cudaDeviceSynchronize());
+			MemCpyDeviceToHost(EnergyAtomic);
+			return EnergyAtomic.host_arr[0];
+		}
+		__device__ void gradient1Kernel(
+			double* grad,
+			const double* X,
+			const hinge* hinges_faceIndex,
+			const double* restAreaPerHinge,
+			const double planarParameter,
+			const FunctionType functionType,
+			const double w1,
+			const int hi,
+			const int thread,
+			const indices I)
+		{
+			int f0 = hinges_faceIndex[hi].f0;
+			int f1 = hinges_faceIndex[hi].f1;
+			if (f0 >= I.num_faces || f1 >= I.num_faces)
+				return;
+			double R0 = X[f0 + I.startR];
+			double R1 = X[f1 + I.startR];
+			double3 C0 = make_double3(
+				X[f0 + I.startCx],
+				X[f0 + I.startCy],
+				X[f0 + I.startCz]
+			);
+			double3 C1 = make_double3(
+				X[f1 + I.startCx],
+				X[f1 + I.startCy],
+				X[f1 + I.startCz]
+			);
+			double d_center = squared_norm(sub(C1, C0));
+			double d_radius = pow(R1 - R0, 2);
+			double coeff = 2 * w1 * restAreaPerHinge[hi] * dPhi_dm(d_center + d_radius, planarParameter, functionType);
+			
+			if (thread == 0)
+				atomicAdd(&grad[f0 + I.startCx], (C0.x - C1.x) * coeff, 0); //C0.x
+			if (thread == 1)
+				atomicAdd(&grad[f0 + I.startCy], (C0.y - C1.y) * coeff, 0);	//C0.y
+			if (thread == 2)
+				atomicAdd(&grad[f0 + I.startCz], (C0.z - C1.z) * coeff, 0);	//C0.z
+			if (thread == 3)
+				atomicAdd(&grad[f1 + I.startCx], (C1.x - C0.x) * coeff, 0);	//C1.x
+			if (thread == 4)
+				atomicAdd(&grad[f1 + I.startCy], (C1.y - C0.y) * coeff, 0);	//C1.y
+			if (thread == 5)
+				atomicAdd(&grad[f1 + I.startCz], (C1.z - C0.z) * coeff, 0);	//C1.z
+			if (thread == 6)
+				atomicAdd(&grad[f0 + I.startR], (R0 - R1) * coeff, 0);		//r0
+			if (thread == 7)
+				atomicAdd(&grad[f1 + I.startR], (R1 - R0) * coeff, 0);		//r1
+		}
+		__device__ void gradient2Kernel(
+			double* grad,
+			const int3* restShapeF,
+			const double* X,
+			const unsigned int fi,
+			const int thread,
+			const double w2,
+			const indices I)
+		{
+			const unsigned int x0 = restShapeF[fi].x;
+			const unsigned int x1 = restShapeF[fi].y;
+			const unsigned int x2 = restShapeF[fi].z;
+			double3 V0 = make_double3(
+				X[x0 + I.startVx],
+				X[x0 + I.startVy],
+				X[x0 + I.startVz]
+			);
+			double3 V1 = make_double3(
+				X[x1 + I.startVx],
+				X[x1 + I.startVy],
+				X[x1 + I.startVz]
+			);
+			double3 V2 = make_double3(
+				X[x2 + I.startVx],
+				X[x2 + I.startVy],
+				X[x2 + I.startVz]
+			);
+			double3 C = make_double3(
+				X[fi + I.startCx],
+				X[fi + I.startCy],
+				X[fi + I.startCz]
+			);
+			double R = X[fi + I.startR];
+				
+			double coeff = w2 * 4;
+			double E0 = coeff * (squared_norm(sub(V0, C)) - pow(R, 2));
+			double E1 = coeff * (squared_norm(sub(V1, C)) - pow(R, 2));
+			double E2 = coeff * (squared_norm(sub(V2, C)) - pow(R, 2));
+
+			if (thread == 0)
+				atomicAdd(&grad[x0 + I.startVx], E0 * (V0.x - C.x), 0); // V0x
+			if (thread == 1)
+				atomicAdd(&grad[x0 + I.startVy], E0 * (V0.y - C.y), 0); // V0y
+			if (thread == 2)
+				atomicAdd(&grad[x0 + I.startVz], E0 * (V0.z - C.z), 0); // V0z
+			if (thread == 3)
+				atomicAdd(&grad[x1 + I.startVx], E1 * (V1.x - C.x), 0); // V1x
+			if (thread == 4)
+				atomicAdd(&grad[x1 + I.startVy], E1 * (V1.y - C.y), 0); // V1y
+			if (thread == 5)
+				atomicAdd(&grad[x1 + I.startVz], E1 * (V1.z - C.z), 0); // V1z
+			if (thread == 6)
+				atomicAdd(&grad[x2 + I.startVx], E2 * (V2.x - C.x), 0); // V2x
+			if (thread == 7)
+				atomicAdd(&grad[x2 + I.startVy], E2 * (V2.y - C.y), 0); // V2y
+			if (thread == 8)
+				atomicAdd(&grad[x2 + I.startVz], E2 * (V2.z - C.z), 0); // V2z
+			if (thread == 9)
+				atomicAdd(&grad[fi + I.startCx],
+				(E0 * (C.x - V0.x)) +
+				(E1 * (C.x - V1.x)) +
+				(E2 * (C.x - V2.x)), 0); // Cx
+			if (thread == 10)
+				atomicAdd(&grad[fi + I.startCy],
+				(E0 * (C.y - V0.y)) +
+				(E1 * (C.y - V1.y)) +
+				(E2 * (C.y - V2.y)), 0); // Cy
+			if (thread == 11)
+				atomicAdd(&grad[fi + I.startCz],
+				(E0 * (C.z - V0.z)) +
+				(E1 * (C.z - V1.z)) +
+				(E2 * (C.z - V2.z)), 0); // Cz
+			if (thread == 12)
+				atomicAdd(&grad[fi + I.startR],
+				(E0 * (-1) * R) +
+				(E1 * (-1) * R) +
+				(E2 * (-1) * R), 0); //r
+		}
+
+		__global__ void gradientKernel(
+			double* grad,
+			const double* X,
+			const hinge* hinges_faceIndex,
+			const int3* restShapeF,
+			const double* restAreaPerHinge,
+			const double planarParameter,
+			const FunctionType functionType,
+			const double w1,
+			const double w2,
+			const indices mesh_indices)
+		{
+			//0	,..., F-1,	==> Call Energy(2)
+			//F ,..., F+h-1	==> Call Energy(1)
+
+			if (blockIdx.x < mesh_indices.num_faces)
+				gradient2Kernel(
+					grad,
+					restShapeF,
+					X,
+					blockIdx.x, //fi
+					threadIdx.x,
+					w2,
+					mesh_indices);
+			if (blockIdx.x < (mesh_indices.num_faces + mesh_indices.num_hinges))
+				gradient1Kernel(
+					grad,
+					X,
+					hinges_faceIndex,
+					restAreaPerHinge,
+					planarParameter,
+					functionType,
+					w1,
+					blockIdx.x - mesh_indices.num_faces, //hi
+					threadIdx.x,
+					mesh_indices);
+		}
+		void gradient()
+		{
+			setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
+			CheckErr(cudaDeviceSynchronize());
+			gradientKernel << <mesh_indices.num_hinges + mesh_indices.num_faces, 20 >> > (
+				grad.cuda_arr,
+				Cuda::Minimizer::X.cuda_arr,
+				hinges_faceIndex.cuda_arr,
+				restShapeF.cuda_arr,
+				restAreaPerHinge.cuda_arr,
+				planarParameter, functionType,
+				w1, w2, mesh_indices);
+			CheckErr(cudaDeviceSynchronize());
+			/*MemCpyDeviceToHost(grad);
+			for (int i = 0; i < grad.size; i++) {
+				std::cout << i << ":\t" << grad.host_arr[i] << "\n";
+			}*/
+		}
+
+		void FreeAllVariables() {
+			cudaGetErrorString(cudaGetLastError());
+			FreeMemory(restShapeF);
+			FreeMemory(grad);
+			FreeMemory(restAreaPerFace);
+			FreeMemory(restAreaPerHinge);
+			FreeMemory(EnergyAtomic);
+			FreeMemory(hinges_faceIndex);
+			FreeMemory(x0_GlobInd);
+			FreeMemory(x1_GlobInd);
+			FreeMemory(x2_GlobInd);
+			FreeMemory(x3_GlobInd);
+			FreeMemory(x0_LocInd);
+			FreeMemory(x1_LocInd);
+			FreeMemory(x2_LocInd);
+			FreeMemory(x3_LocInd);
+		}
+
+
+
+
+
+
+
+
+		template<typename T>
+		__global__ void setZeroKernel(T* vec)
+		{
+			vec[blockIdx.x] = 0;
+		}
+		__device__ double Phi(
+			const double x,
+			const double planarParameter,
+			const FunctionType functionType)
+		{
+			if (functionType == FunctionType::SIGMOID) {
+				double x2 = pow(x, 2);
+				return x2 / (x2 + planarParameter);
+			}
+			if (functionType == FunctionType::QUADRATIC)
+				return pow(x, 2);
+			if (functionType == FunctionType::EXPONENTIAL)
+				return exp(x * x);
+		}
+		__device__ double3 sub(const double3 a, const double3 b)
+		{
+			return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
+		}
+		__device__ double3 add(double3 a, double3 b)
+		{
+			return make_double3(a.x + b.x, a.y + b.y, a.z + b.z);
+		}
+		__device__ double dot(const double3 a, const double3 b)
+		{
+			return a.x * b.x + a.y * b.y + a.z * b.z;
+		}
+		__device__ double3 mul(const double a, const double3 b)
+		{
+			return make_double3(a * b.x, a * b.y, a * b.z);
+		}
+		__device__ double squared_norm(const double3 a)
+		{
+			return dot(a, a);
+		}
+		__device__ double norm(const double3 a)
+		{
+			return sqrt(squared_norm(a));
+		}
+		__device__ double3 normalize(const double3 a)
+		{
+			return mul(1.0f / norm(a), a);
+		}
+		__device__ double3 cross(const double3 a, const double3 b)
+		{
+			return make_double3(
+				a.y * b.z - a.z * b.y,
+				a.z * b.x - a.x * b.z,
+				a.x * b.y - a.y * b.x
+			);
+		}
+		__device__ double atomicAdd(double* address, double val, int flag)
+		{
+			unsigned long long int* address_as_ull =
+				(unsigned long long int*)address;
+			unsigned long long int old = *address_as_ull, assumed;
+
+			do {
+				assumed = old;
+				old = atomicCAS(address_as_ull, assumed,
+					__double_as_longlong(val +
+						__longlong_as_double(assumed)));
+
+				// Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+			} while (assumed != old);
+
+			return __longlong_as_double(old);
+		}
+		__device__ double dPhi_dm(
+			const double x,
+			const double planarParameter,
+			const FunctionType functionType)
+		{
+			if (functionType == FunctionType::SIGMOID)
+				return (2 * x * planarParameter) / pow(x * x + planarParameter, 2);
+			if (functionType == FunctionType::QUADRATIC)
+				return 2 * x;
+			if (functionType == FunctionType::EXPONENTIAL)
+				return 2 * x * exp(x * x);
+		}
+		template <unsigned int blockSize, typename T>
+		__device__ void warpReduce(volatile T* sdata, unsigned int tid) {
+			if (blockSize >= 64) sdata[tid] += sdata[tid + 32];
+			if (blockSize >= 32) sdata[tid] += sdata[tid + 16];
+			if (blockSize >= 16) sdata[tid] += sdata[tid + 8];
+			if (blockSize >= 8) sdata[tid] += sdata[tid + 4];
+			if (blockSize >= 4) sdata[tid] += sdata[tid + 2];
+			if (blockSize >= 2) sdata[tid] += sdata[tid + 1];
+		}
+		template <unsigned int blockSize, typename T>
+		__global__ void sumOfArray(T* g_idata, T* g_odata, unsigned int n) {
+			extern __shared__ T sdata[blockSize];
+			unsigned int tid = threadIdx.x;
+			unsigned int i = blockIdx.x * (blockSize * 2) + tid;
+			unsigned int gridSize = blockSize * 2 * gridDim.x;
+			sdata[tid] = 0;
+			while (i < n) { sdata[tid] += g_idata[i] + g_idata[i + blockSize]; i += gridSize; }
+			__syncthreads();
+
+			if (blockSize >= 1024) { if (tid < 512) { sdata[tid] += sdata[tid + 512]; } __syncthreads(); }
+			if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
+			if (blockSize >= 256) { if (tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
+			if (blockSize >= 128) { if (tid < 64) { sdata[tid] += sdata[tid + 64]; } __syncthreads(); }
+			if (tid < 32) warpReduce<blockSize, T>(sdata, tid);
+			if (tid == 0) g_odata[blockIdx.x] = sdata[0];
+		}
+	}
+}

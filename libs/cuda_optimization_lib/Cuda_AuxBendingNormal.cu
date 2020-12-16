@@ -1,6 +1,6 @@
 #include "Cuda_AuxBendingNormal.cuh"
 #include "Cuda_Minimizer.cuh"
-#include "Cuda_OptimizationUtils.cuh"
+//#include "Cuda_OptimizationUtils.cuh"
 
 namespace Cuda {
 	namespace AuxBendingNormal {
@@ -20,6 +20,30 @@ namespace Cuda {
 		Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; //Eigen::VectorXi //num_hinges
 		Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
 		
+
+		__device__ double3 sub(const double3 a, const double3 b);
+		__device__ double3 add(double3 a, double3 b);
+		__device__ double dot(const double3 a, const double3 b);
+		__device__ double3 mul(const double a, const double3 b);
+		__device__ double squared_norm(const double3 a);
+		__device__ double norm(const double3 a);
+		__device__ double3 normalize(const double3 a);
+		__device__ double3 cross(const double3 a, const double3 b);
+		__device__ double atomicAdd(double* address, double val, int flag);
+		__device__ double Phi(const double x, const double planarParameter, const FunctionType functionType);
+		__device__ double dPhi_dm(const double x, const double planarParameter, const FunctionType functionType);
+		template <unsigned int blockSize, typename T>
+		__device__ void warpReduce(volatile T* sdata, unsigned int tid);
+		template <unsigned int blockSize, typename T>
+		__global__ void sumOfArray(T* g_idata, T* g_odata, unsigned int n);
+		template<typename T> __global__ void setZeroKernel(T* vec);
+
+
+
+
+
+
+
 		__device__ double Energy1Kernel(
 			const double w1,
 			const double* curr_x,
@@ -44,7 +68,7 @@ namespace Cuda {
 			);
 			double3 diff = sub(N1, N0);
 			double d_normals = squared_norm(diff);
-			return restAreaPerHinge[hi] *
+			return w1 * restAreaPerHinge[hi] *
 				Phi(d_normals, planarParameter, functionType);
 		}
 		__device__ double Energy2Kernel(
@@ -363,8 +387,6 @@ namespace Cuda {
 					mesh_indices);
 			}
 		}
-
-		
 		void gradient()
 		{
 			setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
@@ -398,117 +420,127 @@ namespace Cuda {
 			FreeMemory(x2_LocInd);
 			FreeMemory(x3_LocInd);
 		}
+
+
+
+
+
+
+
+
+
+
+
+		template<typename T>
+		__global__ void setZeroKernel(T* vec)
+		{
+			vec[blockIdx.x] = 0;
+		}
+		__device__ double Phi(
+			const double x,
+			const double planarParameter,
+			const FunctionType functionType)
+		{
+			if (functionType == FunctionType::SIGMOID) {
+				double x2 = pow(x, 2);
+				return x2 / (x2 + planarParameter);
+			}
+			if (functionType == FunctionType::QUADRATIC)
+				return pow(x, 2);
+			if (functionType == FunctionType::EXPONENTIAL)
+				return exp(x * x);
+		}
+		__device__ double3 sub(const double3 a, const double3 b)
+		{
+			return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
+		}
+		__device__ double3 add(double3 a, double3 b)
+		{
+			return make_double3(a.x + b.x, a.y + b.y, a.z + b.z);
+		}
+		__device__ double dot(const double3 a, const double3 b)
+		{
+			return a.x * b.x + a.y * b.y + a.z * b.z;
+		}
+		__device__ double3 mul(const double a, const double3 b)
+		{
+			return make_double3(a * b.x, a * b.y, a * b.z);
+		}
+		__device__ double squared_norm(const double3 a)
+		{
+			return dot(a, a);
+		}
+		__device__ double norm(const double3 a)
+		{
+			return sqrt(squared_norm(a));
+		}
+		__device__ double3 normalize(const double3 a)
+		{
+			return mul(1.0f / norm(a), a);
+		}
+		__device__ double3 cross(const double3 a, const double3 b)
+		{
+			return make_double3(
+				a.y * b.z - a.z * b.y,
+				a.z * b.x - a.x * b.z,
+				a.x * b.y - a.y * b.x
+			);
+		}
+		__device__ double atomicAdd(double* address, double val, int flag)
+		{
+			unsigned long long int* address_as_ull =
+				(unsigned long long int*)address;
+			unsigned long long int old = *address_as_ull, assumed;
+
+			do {
+				assumed = old;
+				old = atomicCAS(address_as_ull, assumed,
+					__double_as_longlong(val +
+						__longlong_as_double(assumed)));
+
+				// Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+			} while (assumed != old);
+
+			return __longlong_as_double(old);
+		}
+		__device__ double dPhi_dm(
+			const double x,
+			const double planarParameter,
+			const FunctionType functionType)
+		{
+			if (functionType == FunctionType::SIGMOID)
+				return (2 * x * planarParameter) / pow(x * x + planarParameter, 2);
+			if (functionType == FunctionType::QUADRATIC)
+				return 2 * x;
+			if (functionType == FunctionType::EXPONENTIAL)
+				return 2 * x * exp(x * x);
+		}
+		template <unsigned int blockSize, typename T>
+		__device__ void warpReduce(volatile T* sdata, unsigned int tid) {
+			if (blockSize >= 64) sdata[tid] += sdata[tid + 32];
+			if (blockSize >= 32) sdata[tid] += sdata[tid + 16];
+			if (blockSize >= 16) sdata[tid] += sdata[tid + 8];
+			if (blockSize >= 8) sdata[tid] += sdata[tid + 4];
+			if (blockSize >= 4) sdata[tid] += sdata[tid + 2];
+			if (blockSize >= 2) sdata[tid] += sdata[tid + 1];
+		}
+		template <unsigned int blockSize, typename T>
+		__global__ void sumOfArray(T* g_idata, T* g_odata, unsigned int n) {
+			extern __shared__ T sdata[blockSize];
+			unsigned int tid = threadIdx.x;
+			unsigned int i = blockIdx.x * (blockSize * 2) + tid;
+			unsigned int gridSize = blockSize * 2 * gridDim.x;
+			sdata[tid] = 0;
+			while (i < n) { sdata[tid] += g_idata[i] + g_idata[i + blockSize]; i += gridSize; }
+			__syncthreads();
+
+			if (blockSize >= 1024) { if (tid < 512) { sdata[tid] += sdata[tid + 512]; } __syncthreads(); }
+			if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
+			if (blockSize >= 256) { if (tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
+			if (blockSize >= 128) { if (tid < 64) { sdata[tid] += sdata[tid + 64]; } __syncthreads(); }
+			if (tid < 32) warpReduce<blockSize, T>(sdata, tid);
+			if (tid == 0) g_odata[blockIdx.x] = sdata[0];
+		}
 	}
 }
 
-
-template<typename T>
-__global__ void setZeroKernel(T* vec)
-{
-	vec[blockIdx.x] = 0;
-}
-__device__ double Phi(
-	const double x,
-	const double planarParameter,
-	const FunctionType functionType)
-{
-	if (functionType == FunctionType::SIGMOID) {
-		double x2 = pow(x, 2);
-		return x2 / (x2 + planarParameter);
-	}
-	if (functionType == FunctionType::QUADRATIC)
-		return pow(x, 2);
-	if (functionType == FunctionType::EXPONENTIAL)
-		return exp(x * x);
-}
-__device__ double3 sub(const double3 a, const double3 b)
-{
-	return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-__device__ double3 add(double3 a, double3 b)
-{
-	return make_double3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
-__device__ double dot(const double3 a, const double3 b)
-{
-	return a.x * b.x + a.y * b.y + a.z * b.z;
-}
-__device__ double3 mul(const double a, const double3 b)
-{
-	return make_double3(a * b.x, a * b.y, a * b.z);
-}
-__device__ double squared_norm(const double3 a)
-{
-	return dot(a, a);
-}
-__device__ double norm(const double3 a)
-{
-	return sqrt(squared_norm(a));
-}
-__device__ double3 normalize(const double3 a)
-{
-	return mul(1.0f / norm(a), a);
-}
-__device__ double3 cross(const double3 a, const double3 b)
-{
-	return make_double3(
-		a.y * b.z - a.z * b.y,
-		a.z * b.x - a.x * b.z,
-		a.x * b.y - a.y * b.x
-	);
-}
-__device__ double atomicAdd(double* address, double val, int flag)
-{
-	unsigned long long int* address_as_ull =
-		(unsigned long long int*)address;
-	unsigned long long int old = *address_as_ull, assumed;
-
-	do {
-		assumed = old;
-		old = atomicCAS(address_as_ull, assumed,
-			__double_as_longlong(val +
-				__longlong_as_double(assumed)));
-
-		// Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
-	} while (assumed != old);
-
-	return __longlong_as_double(old);
-}
-__device__ double dPhi_dm(
-	const double x,
-	const double planarParameter,
-	const FunctionType functionType)
-{
-	if (functionType == FunctionType::SIGMOID)
-		return (2 * x * planarParameter) / pow(x * x + planarParameter, 2);
-	if (functionType == FunctionType::QUADRATIC)
-		return 2 * x;
-	if (functionType == FunctionType::EXPONENTIAL)
-		return 2 * x * exp(x * x);
-}
-template <unsigned int blockSize, typename T>
-__device__ void warpReduce(volatile T* sdata, unsigned int tid) {
-	if (blockSize >= 64) sdata[tid] += sdata[tid + 32];
-	if (blockSize >= 32) sdata[tid] += sdata[tid + 16];
-	if (blockSize >= 16) sdata[tid] += sdata[tid + 8];
-	if (blockSize >= 8) sdata[tid] += sdata[tid + 4];
-	if (blockSize >= 4) sdata[tid] += sdata[tid + 2];
-	if (blockSize >= 2) sdata[tid] += sdata[tid + 1];
-}
-template <unsigned int blockSize, typename T>
-__global__ void sumOfArray(T* g_idata, T* g_odata, unsigned int n) {
-	extern __shared__ T sdata[blockSize];
-	unsigned int tid = threadIdx.x;
-	unsigned int i = blockIdx.x * (blockSize * 2) + tid;
-	unsigned int gridSize = blockSize * 2 * gridDim.x;
-	sdata[tid] = 0;
-	while (i < n) { sdata[tid] += g_idata[i] + g_idata[i + blockSize]; i += gridSize; }
-	__syncthreads();
-
-	if (blockSize >= 1024) { if (tid < 512) { sdata[tid] += sdata[tid + 512]; } __syncthreads(); }
-	if (blockSize >= 512) { if (tid < 256) { sdata[tid] += sdata[tid + 256]; } __syncthreads(); }
-	if (blockSize >= 256) { if (tid < 128) { sdata[tid] += sdata[tid + 128]; } __syncthreads(); }
-	if (blockSize >= 128) { if (tid < 64) { sdata[tid] += sdata[tid + 64]; } __syncthreads(); }
-	if (tid < 32) warpReduce<blockSize, T>(sdata, tid);
-	if (tid == 0) g_odata[blockIdx.x] = sdata[0];
-}

@@ -4,7 +4,7 @@
 
 
 AuxSpherePerHinge::AuxSpherePerHinge(FunctionType type) {
-	functionType = type;
+	Cuda::AuxSpherePerHinge::functionType = type;
 	name = "Aux Sphere Per Hinge";
 	w = 0;
 	std::cout << "\t" << name << " constructor" << std::endl;
@@ -33,8 +33,68 @@ void AuxSpherePerHinge::init()
 	
 	d_center.resize(num_hinges);
 	d_radius.resize(num_hinges);
-	planarParameter = 1;
+	Cuda::AuxSpherePerHinge::planarParameter = 1;
 	init_hessian();
+	internalInitCuda();
+}
+
+void AuxSpherePerHinge::internalInitCuda() {
+	const unsigned int numF = restShapeF.rows();
+	const unsigned int numV = restShapeV.rows();
+	const unsigned int numH = num_hinges;
+
+	Cuda::initIndices(Cuda::AuxSpherePerHinge::mesh_indices, numF, numV, numH);
+
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::restShapeF, numF);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::restAreaPerFace, numF);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::restAreaPerHinge, numH);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::grad, (3 * numV) + (7 * numF));
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::EnergyAtomic, 1);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::hinges_faceIndex, numH);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x0_GlobInd, numH);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x1_GlobInd, numH);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x2_GlobInd, numH);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x3_GlobInd, numH);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x0_LocInd, numH);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x1_LocInd, numH);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x2_LocInd, numH);
+	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x3_LocInd, numH);
+
+	//init host buffers...
+	for (int i = 0; i < Cuda::AuxSpherePerHinge::grad.size; i++) {
+		Cuda::AuxSpherePerHinge::grad.host_arr[i] = 0;
+	}
+	for (int f = 0; f < restShapeF.rows(); f++) {
+		Cuda::AuxSpherePerHinge::restShapeF.host_arr[f] = make_int3(restShapeF(f, 0), restShapeF(f, 1), restShapeF(f, 2));
+		Cuda::AuxSpherePerHinge::restAreaPerFace.host_arr[f] = restAreaPerFace[f];
+	}
+	for (int h = 0; h < num_hinges; h++) {
+		Cuda::AuxSpherePerHinge::restAreaPerHinge.host_arr[h] = restAreaPerHinge[h];
+		Cuda::AuxSpherePerHinge::hinges_faceIndex.host_arr[h] = Cuda::newHinge(hinges_faceIndex[h][0], hinges_faceIndex[h][1]);
+		Cuda::AuxSpherePerHinge::x0_GlobInd.host_arr[h] = x0_GlobInd[h];
+		Cuda::AuxSpherePerHinge::x1_GlobInd.host_arr[h] = x1_GlobInd[h];
+		Cuda::AuxSpherePerHinge::x2_GlobInd.host_arr[h] = x2_GlobInd[h];
+		Cuda::AuxSpherePerHinge::x3_GlobInd.host_arr[h] = x3_GlobInd[h];
+		Cuda::AuxSpherePerHinge::x0_LocInd.host_arr[h] = Cuda::newHinge(x0_LocInd(h, 0), x0_LocInd(h, 1));
+		Cuda::AuxSpherePerHinge::x1_LocInd.host_arr[h] = Cuda::newHinge(x1_LocInd(h, 0), x1_LocInd(h, 1));
+		Cuda::AuxSpherePerHinge::x2_LocInd.host_arr[h] = Cuda::newHinge(x2_LocInd(h, 0), x2_LocInd(h, 1));
+		Cuda::AuxSpherePerHinge::x3_LocInd.host_arr[h] = Cuda::newHinge(x3_LocInd(h, 0), x3_LocInd(h, 1));
+	}
+
+	// Copy input vectors from host memory to GPU buffers.
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::grad);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::restShapeF);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::restAreaPerFace);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::restAreaPerHinge);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::hinges_faceIndex);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x0_GlobInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x1_GlobInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x2_GlobInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x3_GlobInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x0_LocInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x1_LocInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x2_LocInd);
+	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x3_LocInd);
 }
 
 void AuxSpherePerHinge::updateX(const Eigen::VectorXd& X)
@@ -210,61 +270,61 @@ void AuxSpherePerHinge::calculateHinges() {
 }
 
 Eigen::VectorXd AuxSpherePerHinge::Phi(Eigen::VectorXd x) {
-	if(functionType == FunctionType::QUADRATIC)
+	if(Cuda::AuxSpherePerHinge::functionType == FunctionType::QUADRATIC)
 		return x.cwiseAbs2();
-	else if (functionType == FunctionType::EXPONENTIAL) {
+	else if (Cuda::AuxSpherePerHinge::functionType == FunctionType::EXPONENTIAL) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			res(i) = std::exp(x(i)*x(i));
 		}
 		return res;
 	}
-	else if (functionType == FunctionType::SIGMOID) {
+	else if (Cuda::AuxSpherePerHinge::functionType == FunctionType::SIGMOID) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			double x2 = pow(x(i), 2);
-			res(i) = x2/(x2+planarParameter);
+			res(i) = x2/(x2+ Cuda::AuxSpherePerHinge::planarParameter);
 		}
 		return res;
 	}
 }
 
 Eigen::VectorXd AuxSpherePerHinge::dPhi_dm(Eigen::VectorXd x) {
-	if (functionType == FunctionType::QUADRATIC)
+	if (Cuda::AuxSpherePerHinge::functionType == FunctionType::QUADRATIC)
 		return 2 * x;
-	else if (functionType == FunctionType::EXPONENTIAL) {
+	else if (Cuda::AuxSpherePerHinge::functionType == FunctionType::EXPONENTIAL) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			res(i) = 2 * x(i) * std::exp(x(i)*x(i));
 		}
 		return res;
 	}
-	else if (functionType == FunctionType::SIGMOID) {
+	else if (Cuda::AuxSpherePerHinge::functionType == FunctionType::SIGMOID) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
-			res(i) = (2*x(i)*planarParameter) / 
-				pow(x(i)*x(i) + planarParameter, 2);
+			res(i) = (2*x(i)* Cuda::AuxSpherePerHinge::planarParameter) /
+				pow(x(i)*x(i) + Cuda::AuxSpherePerHinge::planarParameter, 2);
 		}
 		return res;
 	}
 }
 
 Eigen::VectorXd AuxSpherePerHinge::d2Phi_dmdm(Eigen::VectorXd x) {
-	if (functionType == FunctionType::QUADRATIC)
+	if (Cuda::AuxSpherePerHinge::functionType == FunctionType::QUADRATIC)
 		return Eigen::VectorXd::Constant(x.rows(),2);
-	else if (functionType == FunctionType::EXPONENTIAL) {
+	else if (Cuda::AuxSpherePerHinge::functionType == FunctionType::EXPONENTIAL) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			res(i) = (4 * x(i)*x(i) + 2) * std::exp(x(i)*x(i));
 		}
 		return res;
 	}
-	else if (functionType == FunctionType::SIGMOID) {
+	else if (Cuda::AuxSpherePerHinge::functionType == FunctionType::SIGMOID) {
 		Eigen::VectorXd res(x.rows());
 		for (int i = 0; i < x.rows(); i++) {
 			double x2 = pow(x(i), 2);
-			res(i) = (2* planarParameter)*(-3*x2+ planarParameter) / 
-				pow(x2 + planarParameter,3);
+			res(i) = (2* Cuda::AuxSpherePerHinge::planarParameter)*(-3*x2+ Cuda::AuxSpherePerHinge::planarParameter) /
+				pow(x2 + Cuda::AuxSpherePerHinge::planarParameter,3);
 		}
 		return res;
 	}
@@ -272,6 +332,9 @@ Eigen::VectorXd AuxSpherePerHinge::d2Phi_dmdm(Eigen::VectorXd x) {
 
 double AuxSpherePerHinge::value(const bool update)
 {
+#ifdef USING_CUDA
+	double value = Cuda::AuxSpherePerHinge::value();
+#else
 	//per hinge
 	Eigen::VectorXd Energy1 = Phi(d_center + d_radius);
 	
@@ -289,12 +352,12 @@ double AuxSpherePerHinge::value(const bool update)
 	}
 
 	double value =
-		w_aux[0] * Energy1.transpose()*restAreaPerHinge +
-		w_aux[1] * Energy2;
-
+		Cuda::AuxSpherePerHinge::w1 * Energy1.transpose()*restAreaPerHinge +
+		Cuda::AuxSpherePerHinge::w2 * Energy2;
+#endif
 	if (update) {
 		//TODO: calculate Efi (for coloring the faces)
-		Efi.setZero();
+		//Efi.setZero();
 		energy_value = value;
 	}
 	return value;
@@ -310,7 +373,7 @@ void AuxSpherePerHinge::gradient(Eigen::VectorXd& g, const bool update)
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi](0);
 		int f1 = hinges_faceIndex[hi](1);
-		Eigen::Matrix<double, 1, 8> dE_dx = w_aux[0] *restAreaPerHinge(hi)*dphi_dm(hi) * dm_dN(hi).transpose();
+		Eigen::Matrix<double, 1, 8> dE_dx = Cuda::AuxSpherePerHinge::w1 *restAreaPerHinge(hi)*dphi_dm(hi) * dm_dN(hi).transpose();
 		for (int xyz = 0; xyz < 3; ++xyz) {
 			int start = 3 * restShapeV.rows() + 3 * restShapeF.rows();
 			g[f0 + start + (xyz * restShapeF.rows())] += dE_dx(xyz);
@@ -376,7 +439,7 @@ void AuxSpherePerHinge::gradient(Eigen::VectorXd& g, const bool update)
 			-2 * (CurrV(x2, 1) - c(1)), // Cy
 			-2 * (CurrV(x2, 2) - c(2)), // Cz
 			-2 * r; //r
-		Eigen::Matrix<double, 1, 13> dE_dx = w_aux[1] * 2 *
+		Eigen::Matrix<double, 1, 13> dE_dx = Cuda::AuxSpherePerHinge::w2 * 2 *
 			(sqrtE0*g_sqrtE0 + sqrtE1 * g_sqrtE1 + sqrtE2 * g_sqrtE2);
 		
 		int startC = 3 * restShapeV.rows() + 3 * restShapeF.rows();
@@ -440,7 +503,7 @@ void AuxSpherePerHinge::hessian() {
 			phi_m(hi) * m2_nn +
 			m_n * phi2_mm(hi) * m_n.transpose();
 		dE_dx *= restAreaPerHinge(hi);
-		dE_dx *= w_aux[0];
+		dE_dx *= Cuda::AuxSpherePerHinge::w1;
 
 		for (int fk = 0; fk < 2; fk++) {
 			for (int fj = 0; fj < 2; fj++) {
@@ -579,9 +642,9 @@ void AuxSpherePerHinge::hessian() {
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2;
 		
 		Eigen::Matrix<double, 13, 13> dE_dx =
-			w_aux[1] * 2 * (sqrtE0*H_sqrtE0 + g_sqrtE0.transpose()*g_sqrtE0) +
-			w_aux[1] * 2 * (sqrtE1*H_sqrtE1 + g_sqrtE1.transpose()*g_sqrtE1) +
-			w_aux[1] * 2 * (sqrtE2*H_sqrtE2 + g_sqrtE2.transpose()*g_sqrtE2);
+			Cuda::AuxSpherePerHinge::w2 * 2 * (sqrtE0*H_sqrtE0 + g_sqrtE0.transpose()*g_sqrtE0) +
+			Cuda::AuxSpherePerHinge::w2 * 2 * (sqrtE1*H_sqrtE1 + g_sqrtE1.transpose()*g_sqrtE1) +
+			Cuda::AuxSpherePerHinge::w2 * 2 * (sqrtE2*H_sqrtE2 + g_sqrtE2.transpose()*g_sqrtE2);
 
 		auto pushTriple = [&](int row, int col, double val) {
 			if (row <= col) {

@@ -91,7 +91,7 @@ void Minimizer::update_lambda(int* lambda_counter)
 		std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(totalObjective->objectiveList[2]);
 		//BendingEdge
 		std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(totalObjective->objectiveList[3]);
-		ASH->planarParameter /= 2;
+		Cuda::AuxSpherePerHinge::planarParameter /= 2;
 		Cuda::AuxBendingNormal::planarParameter /= 2;
 		BE->planarParameter /= 2;
 		BN->planarParameter /= 2;

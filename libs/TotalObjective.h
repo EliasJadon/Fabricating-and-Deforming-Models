@@ -3,6 +3,7 @@
 #include "cuda_optimization_lib/Cuda_AdamMinimizer.cuh"
 #include "cuda_optimization_lib/Cuda_FixAllVertices.cuh"
 #include "cuda_optimization_lib/Cuda_SSSymmetricDirichlet.cuh"
+#include "cuda_optimization_lib/Cuda_AuxSpherePerHinge.cuh"
 #include "cuda_optimization_lib/Cuda_Minimizer.cuh"
 
 class TotalObjective : public ObjectiveFunction
