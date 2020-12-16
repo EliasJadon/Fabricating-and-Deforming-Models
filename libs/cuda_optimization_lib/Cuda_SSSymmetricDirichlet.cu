@@ -2,6 +2,7 @@
 #include "Cuda_Minimizer.cuh"
 
 #define CUDA_EPSILON 0.000000000001 //1e-12
+
 namespace Cuda {
 	namespace SSSymmetricDirichlet {
 		Array<double> grad, EnergyAtomic, EnergyVec, restShapeArea;

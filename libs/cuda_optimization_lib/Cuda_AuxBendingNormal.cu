@@ -1,6 +1,17 @@
 #include "Cuda_AuxBendingNormal.cuh"
 #include "Cuda_Minimizer.cuh"
 
+__device__ double3 sub(const double3 a, const double3 b);
+__device__ double3 add(double3 a, double3 b);
+__device__ double dot(const double3 a, const double3 b);
+__device__ double3 mul(const double a, const double3 b);
+__device__ double squared_norm(const double3 a);
+__device__ double norm(const double3 a);
+__device__ double3 normalize(const double3 a);
+__device__ double3 cross(const double3 a, const double3 b);
+__device__ double atomicAdd(double* address, double val, int flag);
+__device__ double Phi(const double x,const double planarParameter,const FunctionType functionType);
+__device__ double dPhi_dm(const double x,const double planarParameter,const FunctionType functionType);
 
 namespace Cuda {
 	namespace AuxBendingNormal {
@@ -20,57 +31,6 @@ namespace Cuda {
 		Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; //Eigen::VectorXi //num_hinges
 		Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
 		
-		
-		__device__ double3 add(double3 a, double3 b)
-		{
-			return make_double3(a.x + b.x, a.y + b.y, a.z + b.z);
-		}
-		__device__ double3 sub(const double3 a, const double3 b);
-		__device__ double dot(const double3 a, const double3 b)
-		{
-			return a.x * b.x + a.y * b.y + a.z * b.z;
-		}
-		__device__ double3 mul(const double a, const double3 b)
-		{
-			return make_double3(a * b.x, a * b.y, a * b.z);
-		}
-		__device__ double squared_norm(const double3 a)
-		{
-			return dot(a, a);
-		}
-		__device__ double norm(const double3 a)
-		{
-			return sqrt(squared_norm(a));
-		}
-		__device__ double3 normalize(const double3 a)
-		{
-			return mul(1.0f / norm(a), a);
-		}
-		__device__ double3 cross(const double3 a, const double3 b)
-		{
-			return make_double3(
-				a.y * b.z - a.z * b.y,
-				a.z * b.x - a.x * b.z,
-				a.x * b.y - a.y * b.x
-			);
-		}
-		__device__ double atomicAdd(double* address, double val, int flag)
-		{
-			unsigned long long int* address_as_ull =
-				(unsigned long long int*)address;
-			unsigned long long int old = *address_as_ull, assumed;
-
-			do {
-				assumed = old;
-				old = atomicCAS(address_as_ull, assumed,
-					__double_as_longlong(val +
-						__longlong_as_double(assumed)));
-
-				// Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
-			} while (assumed != old);
-
-			return __longlong_as_double(old);
-		}
 		template <unsigned int blockSize, typename T>
 		__device__ void warpReduce(volatile T* sdata, unsigned int tid) {
 			if (blockSize >= 64) sdata[tid] += sdata[tid + 32];
@@ -99,20 +59,7 @@ namespace Cuda {
 		}
 
 
-		__device__ double Phi(
-			const double x,
-			const double planarParameter,
-			const FunctionType functionType)
-		{
-			if (functionType == FunctionType::SIGMOID) {
-				double x2 = pow(x, 2);
-				return x2 / (x2 + planarParameter);
-			}
-			if (functionType == FunctionType::QUADRATIC)
-				return pow(x, 2);
-			if (functionType == FunctionType::EXPONENTIAL)
-				return exp(x * x);
-		}
+		
 
 
 		__device__ double Energy1Kernel(
@@ -142,11 +89,6 @@ namespace Cuda {
 			return restAreaPerHinge[hi] *
 				Phi(d_normals, planarParameter, functionType);
 		}
-		__device__ double3 sub(const double3 a, const double3 b)
-		{
-			return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
-		}
-
 		__device__ double Energy2Kernel(
 			const double w2,
 			const double* curr_x,
@@ -283,22 +225,6 @@ namespace Cuda {
 			MemCpyDeviceToHost(EnergyAtomic);
 			return EnergyAtomic.host_arr[0];
 		}
-
-		
-		
-		__device__ double dPhi_dm(
-			const double x, 
-			const double planarParameter,
-			const FunctionType functionType) 
-		{
-			if (functionType == FunctionType::SIGMOID)
-				return (2 * x * planarParameter) / pow(x * x + planarParameter, 2);
-			if (functionType == FunctionType::QUADRATIC)
-				return 2 * x;
-			if (functionType == FunctionType::EXPONENTIAL)
-				return 2 * x * exp(x * x);
-		}
-
 		__device__ void gradient1Kernel(
 			double* grad,
 			const double* X,
@@ -520,4 +446,84 @@ namespace Cuda {
 			FreeMemory(x3_LocInd);
 		}
 	}
+}
+
+__device__ double Phi(
+	const double x,
+	const double planarParameter,
+	const FunctionType functionType)
+{
+	if (functionType == FunctionType::SIGMOID) {
+		double x2 = pow(x, 2);
+		return x2 / (x2 + planarParameter);
+	}
+	if (functionType == FunctionType::QUADRATIC)
+		return pow(x, 2);
+	if (functionType == FunctionType::EXPONENTIAL)
+		return exp(x * x);
+}
+__device__ double3 sub(const double3 a, const double3 b)
+{
+	return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+__device__ double3 add(double3 a, double3 b)
+{
+	return make_double3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+__device__ double dot(const double3 a, const double3 b)
+{
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+__device__ double3 mul(const double a, const double3 b)
+{
+	return make_double3(a * b.x, a * b.y, a * b.z);
+}
+__device__ double squared_norm(const double3 a)
+{
+	return dot(a, a);
+}
+__device__ double norm(const double3 a)
+{
+	return sqrt(squared_norm(a));
+}
+__device__ double3 normalize(const double3 a)
+{
+	return mul(1.0f / norm(a), a);
+}
+__device__ double3 cross(const double3 a, const double3 b)
+{
+	return make_double3(
+		a.y * b.z - a.z * b.y,
+		a.z * b.x - a.x * b.z,
+		a.x * b.y - a.y * b.x
+	);
+}
+__device__ double atomicAdd(double* address, double val, int flag)
+{
+	unsigned long long int* address_as_ull =
+		(unsigned long long int*)address;
+	unsigned long long int old = *address_as_ull, assumed;
+
+	do {
+		assumed = old;
+		old = atomicCAS(address_as_ull, assumed,
+			__double_as_longlong(val +
+				__longlong_as_double(assumed)));
+
+		// Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+	} while (assumed != old);
+
+	return __longlong_as_double(old);
+}
+__device__ double dPhi_dm(
+	const double x,
+	const double planarParameter,
+	const FunctionType functionType)
+{
+	if (functionType == FunctionType::SIGMOID)
+		return (2 * x * planarParameter) / pow(x * x + planarParameter, 2);
+	if (functionType == FunctionType::QUADRATIC)
+		return 2 * x;
+	if (functionType == FunctionType::EXPONENTIAL)
+		return 2 * x * exp(x * x);
 }
