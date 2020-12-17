@@ -20,38 +20,36 @@ void Minimizer::init(
 	const Eigen::VectorXd& center0,
 	const Eigen::VectorXd& Radius0,
 	const Eigen::MatrixXi& F, 
-	const Eigen::MatrixXd& V
-) 
+	const Eigen::MatrixXd& V) 
 {
+	assert(X0.rows() == (3 * V.rows()) && "X0 should contain the (x,y,z) coordinates for each vertice");
+	assert(norm0.rows() == (3 * F.rows()) && "norm0 should contain the (x,y,z) coordinates for each face");
+	
 	this->F = F;
 	this->V = V;
+	this->ext_x = X0;
+	this->ext_center = center0;
+	this->ext_norm = norm0;
+	this->ext_radius = Radius0;
 	this->constantStep_LineSearch = 0.01;
 	this->totalObjective = Tobjective;
+	
 	std::cout << "F.rows() = " << F.rows() << std::endl;
 	std::cout << "V.rows() = " << V.rows() << std::endl;
-	assert(X0.rows() == (3*V.rows()) && "X0 should contain the (x,y,z) coordinates for each vertice");
-	assert(norm0.rows() == (3*F.rows()) && "norm0 should contain the (x,y,z) coordinates for each face");
 	Cuda::initCuda();
+
 	unsigned int size = 3 * V.rows() + 7 * F.rows();
-	Cuda::AllocateMemory(Cuda::Minimizer::X, size);
-	Cuda::AllocateMemory(Cuda::Minimizer::p, size);
-	Cuda::AllocateMemory(Cuda::Minimizer::g, size);
-	Cuda::AllocateMemory(Cuda::Minimizer::curr_x, size);
+	this->cuda_Minimizer = std::make_shared<Cuda_Minimizer>(size);
 	for (int i = 0; i < 3 * V.rows(); i++)
-		Cuda::Minimizer::X.host_arr[i] = X0[i];
+		cuda_Minimizer->X.host_arr[i] = X0[i];
 	for (int i = 0; i < 3 * F.rows(); i++)
-		Cuda::Minimizer::X.host_arr[3 * V.rows() + i] = norm0[i];
+		cuda_Minimizer->X.host_arr[3 * V.rows() + i] = norm0[i];
 	for (int i = 0; i < 3 * F.rows(); i++)
-		Cuda::Minimizer::X.host_arr[3 * V.rows() + 3 * F.rows() + i] = center0[i];
+		cuda_Minimizer->X.host_arr[3 * V.rows() + 3 * F.rows() + i] = center0[i];
 	for (int i = 0; i < F.rows(); i++)
-		Cuda::Minimizer::X.host_arr[3 * V.rows() + 6 * F.rows() + i] = Radius0[i];
-	Cuda::MemCpyHostToDevice(Cuda::Minimizer::X);
-	Cuda::copyArrays(Cuda::Minimizer::curr_x, Cuda::Minimizer::X);
-	ext_x = X0;
-	ext_center = center0;
-	ext_norm = norm0;
-	ext_radius = Radius0;
-	internal_init();
+		cuda_Minimizer->X.host_arr[3 * V.rows() + 6 * F.rows() + i] = Radius0[i];
+	Cuda::MemCpyHostToDevice(cuda_Minimizer->X);
+	Cuda::copyArrays(cuda_Minimizer->curr_x, cuda_Minimizer->X);
 }
 
 int Minimizer::run()
@@ -100,9 +98,10 @@ void Minimizer::run_one_iteration(
 	update_lambda(lambda_counter);
 
 	Eigen::VectorXd _ = Eigen::VectorXd::Zero(1);
-	totalObjective->gradient(_, true);
-	step();
-	currentEnergy = totalObjective->value(true);
+	totalObjective->gradient(cuda_Minimizer, cuda_Minimizer->X, _, true);
+	if (step_type == MinimizerType::ADAM_MINIMIZER)
+		cuda_Minimizer->adam_Step();
+	currentEnergy = totalObjective->value(cuda_Minimizer->X, true);
 	linesearch();
 	update_external_data(steps);
 }
@@ -125,15 +124,15 @@ void Minimizer::value_linesearch()
 	while (cur_iter++ < MAX_STEP_SIZE_ITER) 
 	{
 		//Eigen::VectorXd curr_x = X + step_size * p;
-		Cuda::Minimizer::linesearch_currX(step_size);
+		cuda_Minimizer->linesearch_currX(step_size);
 
-		double new_energy = totalObjective->value(false);
+		double new_energy = totalObjective->value(cuda_Minimizer->curr_x,false);
 		if (new_energy >= currentEnergy)
 			step_size /= 2;
 		else 
 		{
 			//X = curr_x;
-			Cuda::copyArrays(Cuda::Minimizer::X, Cuda::Minimizer::curr_x);
+			Cuda::copyArrays(cuda_Minimizer->X, cuda_Minimizer->curr_x);
 			break;
 		}
 	}
@@ -184,15 +183,15 @@ void Minimizer::update_external_data(int steps)
 	give_parameter_update_slot();
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
 	//if (steps % 10 == 0) {
-		Cuda::MemCpyDeviceToHost(Cuda::Minimizer::X);
+		Cuda::MemCpyDeviceToHost(cuda_Minimizer->X);
 		for (int i = 0; i < 3 * V.rows(); i++)
-			ext_x[i] = Cuda::Minimizer::X.host_arr[i];
+			ext_x[i] = cuda_Minimizer->X.host_arr[i];
 		for (int i = 0; i < 3 * F.rows(); i++)
-			ext_norm[i] = Cuda::Minimizer::X.host_arr[3 * V.rows() + i];
+			ext_norm[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + i];
 		for (int i = 0; i < 3 * F.rows(); i++)
-			ext_center[i] = Cuda::Minimizer::X.host_arr[3 * V.rows() + 3 * F.rows() + i];
+			ext_center[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 3 * F.rows() + i];
 		for (int i = 0; i < F.rows(); i++)
-			ext_radius[i] = Cuda::Minimizer::X.host_arr[3 * V.rows() + 6 * F.rows() + i];
+			ext_radius[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 6 * F.rows() + i];
 	//}
 	progressed = true;
 }

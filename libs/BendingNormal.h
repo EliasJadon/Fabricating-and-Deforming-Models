@@ -15,8 +15,7 @@ private:
 	Eigen::MatrixXi x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd;
 
 	void calculateHinges();	
-	virtual void init_hessian() override;
-
+	
 	Eigen::VectorXd Phi(Eigen::VectorXd);
 	Eigen::VectorXd dPhi_dm(Eigen::VectorXd);
 	Eigen::VectorXd d2Phi_dmdm(Eigen::VectorXd);
@@ -35,9 +34,8 @@ public:
 	BendingNormal(FunctionType type);
 	~BendingNormal();
 	virtual void init() override;
-	virtual void updateX(const Eigen::VectorXd& X) override;
-	virtual double value(const bool update) override;
-	virtual void gradient(Eigen::VectorXd& g, const bool update) override;
-	virtual void hessian() override;
+	virtual void updateX(Cuda::Array<double>& curr_x) override;
+	virtual double value(Cuda::Array<double>& curr_x,const bool update) override;
+	virtual void gradient(Cuda::Array<double>& X,Eigen::VectorXd& g, const bool update) override;
 };
 

@@ -5,7 +5,6 @@
 class GroupSpheres : public ObjectiveFunction
 {
 private:
-	virtual void init_hessian() override;
 	int startC;
 	int startC_x;
 	int startC_y;
@@ -20,10 +19,9 @@ public:
 	GroupSpheres();
 	~GroupSpheres();
 	virtual void init() override;
-	virtual void updateX(const Eigen::VectorXd& X) override;
-	virtual double value(const bool update) override;
-	virtual void gradient(Eigen::VectorXd& g, const bool update) override;
-	virtual void hessian() override;
+	virtual void updateX(Cuda::Array<double>& curr_x) override;
+	virtual double value(Cuda::Array<double>& curr_x, const bool update) override;
+	virtual void gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update) override;
 	void updateExtConstraints(std::vector < std::vector<int>>& CInd);
 	int numV=0;
 	int numF=0;

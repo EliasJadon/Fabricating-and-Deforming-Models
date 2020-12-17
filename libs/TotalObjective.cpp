@@ -14,51 +14,42 @@ TotalObjective::~TotalObjective()
 void TotalObjective::init()
 {
 	std::cout << "\t" << name << " initialization" << std::endl;
-	variables_size = 3 * restShapeV.rows() + 7 * restShapeF.rows();
-	//assume that each objective's member have been set outside
 	for (auto &objective : objectiveList)
 		objective->init();
-//	for (auto& objective : objectiveList)
-	//	objective->updateX(Eigen::VectorXd::Random(variables_size));
-	init_hessian();
 }
 
-void TotalObjective::updateX(const Eigen::VectorXd& X)
-{
-	for (auto& objective : objectiveList)
-		if (objective->w != 0)
-			objective->updateX(X);
-}
-
-double TotalObjective::value(const bool update)
+double TotalObjective::value(Cuda::Array<double>& curr_x, const bool update)
 {
 	double f=0;
 	for (auto &obj : objectiveList)
 		if (obj->w != 0)
-			f += obj->w * obj->value(update);
-
+			f += obj->w * obj->value(curr_x, update);
 	if (update)
 		energy_value = f;
 	return f;
 }
 
-void TotalObjective::gradient(Eigen::VectorXd& g, const bool update)
+void TotalObjective::gradient(
+	std::shared_ptr<Cuda_Minimizer> cuda_Minimizer,
+	Cuda::Array<double>& X, 
+	Eigen::VectorXd& g, 
+	const bool update)
 {
 	if (objectiveList[1]->w)
-		Cuda::AuxBendingNormal::gradient();
+		Cuda::AuxBendingNormal::gradient(X);
 	if (objectiveList[5]->w)
-		Cuda::FixAllVertices::gradient();
+		Cuda::FixAllVertices::gradient(X);
 	if (objectiveList[0]->w)
-		Cuda::AuxSpherePerHinge::gradient();
+		Cuda::AuxSpherePerHinge::gradient(X);
 	if (objectiveList[6]->w) { //FixChosenVertices
 		Eigen::VectorXd _ = Eigen::VectorXd::Zero(1);
-		objectiveList[6]->gradient(_, true);
+		objectiveList[6]->gradient(X, _, true);
 	}
 		
 	
 	std::shared_ptr<FixChosenVertices> FCV = std::dynamic_pointer_cast<FixChosenVertices>(objectiveList[6]);
 
-	Cuda::Minimizer::TotalGradient(
+	cuda_Minimizer->TotalGradient(
 		Cuda::AuxBendingNormal::grad.cuda_arr, objectiveList[1]->w,//AuxBendingNormal
 		Cuda::FixAllVertices::grad.cuda_arr, objectiveList[5]->w,//FixAllVertices
 		Cuda::AuxSpherePerHinge::grad.cuda_arr, objectiveList[0]->w,//AuxSpherePerHinge
@@ -78,36 +69,3 @@ void TotalObjective::gradient(Eigen::VectorXd& g, const bool update)
 	if(update)
 		gradient_norm = g.norm();*/
 }
-
-void TotalObjective::hessian()
-{
-	II.clear(); JJ.clear(); SS.clear();
-	
-	for (auto const &objective : objectiveList)
-	{
-		if (objective->w != 0) {
-			objective->hessian();
-			std::vector<double> SSi; SSi.resize(objective->SS.size());
-			for (int i = 0; i < objective->SS.size(); i++)
-				SSi[i] = objective->w * objective->SS[i];
-
-			SS.insert(SS.end(), SSi.begin(), SSi.end());
-			II.insert(II.end(), objective->II.begin(), objective->II.end());
-			JJ.insert(JJ.end(), objective->JJ.begin(), objective->JJ.end());
-		}
-	}
-
-	// shift the diagonal of the hessian
-	for (int i = 0; i < variables_size; i++) {
-		II.push_back(i);
-		JJ.push_back(i);
-		SS.push_back(1e-6 + Shift_eigen_values);
-	}
-	assert(SS.size() == II.size() && SS.size() == JJ.size());
-}
-
-void TotalObjective::init_hessian()
-{
-	
-}
-

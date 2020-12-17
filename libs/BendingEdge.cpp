@@ -33,36 +33,35 @@ void BendingEdge::init()
 	planarParameter = 1;
 
 	setRestShapeFromCurrentConfiguration();
-	init_hessian();
 }
 
-void BendingEdge::updateX(const Eigen::VectorXd& X)
+void BendingEdge::updateX(Cuda::Array<double>& curr_x)
 {
-	assert(X.rows() == (restShapeV.size()+ 7*restShapeF.rows()));
-	for (int hi = 0; hi < num_hinges; hi++) {
-		//X = [x,x, ... ,x,y,y, ... ,y,z,z, ... ,z]
-		x0.row(hi) = Eigen::Vector3d(
-			X(x0_index(hi) + (0 * restShapeV.rows())),	//x-coordinate
-			X(x0_index(hi) + (1 * restShapeV.rows())),	//Y-coordinate
-			X(x0_index(hi) + (2 * restShapeV.rows()))	//Z-coordinate
-		); 
-		x1.row(hi) = Eigen::Vector3d(
-			X(x1_index(hi) + (0 * restShapeV.rows())),	//x-coordinate
-			X(x1_index(hi) + (1 * restShapeV.rows())),	//Y-coordinate
-			X(x1_index(hi) + (2 * restShapeV.rows()))	//Z-coordinate
-		);
-		x2.row(hi) = Eigen::Vector3d(
-			X(x2_index(hi) + (0 * restShapeV.rows())),	//x-coordinate
-			X(x2_index(hi) + (1 * restShapeV.rows())),	//Y-coordinate
-			X(x2_index(hi) + (2 * restShapeV.rows()))	//Z-coordinate
-		);
-		x3.row(hi) = Eigen::Vector3d(
-			X(x3_index(hi) + (0 * restShapeV.rows())),	//x-coordinate
-			X(x3_index(hi) + (1 * restShapeV.rows())),	//Y-coordinate
-			X(x3_index(hi) + (2 * restShapeV.rows()))	//Z-coordinate
-		);
-	}
-	getAngle();
+	//assert(X.rows() == (restShapeV.size()+ 7*restShapeF.rows()));
+	//for (int hi = 0; hi < num_hinges; hi++) {
+	//	//X = [x,x, ... ,x,y,y, ... ,y,z,z, ... ,z]
+	//	x0.row(hi) = Eigen::Vector3d(
+	//		X(x0_index(hi) + (0 * restShapeV.rows())),	//x-coordinate
+	//		X(x0_index(hi) + (1 * restShapeV.rows())),	//Y-coordinate
+	//		X(x0_index(hi) + (2 * restShapeV.rows()))	//Z-coordinate
+	//	); 
+	//	x1.row(hi) = Eigen::Vector3d(
+	//		X(x1_index(hi) + (0 * restShapeV.rows())),	//x-coordinate
+	//		X(x1_index(hi) + (1 * restShapeV.rows())),	//Y-coordinate
+	//		X(x1_index(hi) + (2 * restShapeV.rows()))	//Z-coordinate
+	//	);
+	//	x2.row(hi) = Eigen::Vector3d(
+	//		X(x2_index(hi) + (0 * restShapeV.rows())),	//x-coordinate
+	//		X(x2_index(hi) + (1 * restShapeV.rows())),	//Y-coordinate
+	//		X(x2_index(hi) + (2 * restShapeV.rows()))	//Z-coordinate
+	//	);
+	//	x3.row(hi) = Eigen::Vector3d(
+	//		X(x3_index(hi) + (0 * restShapeV.rows())),	//x-coordinate
+	//		X(x3_index(hi) + (1 * restShapeV.rows())),	//Y-coordinate
+	//		X(x3_index(hi) + (2 * restShapeV.rows()))	//Z-coordinate
+	//	);
+	//}
+	//getAngle();
 }
 
 void BendingEdge::calculateHinges() {
@@ -266,7 +265,7 @@ Eigen::VectorXd BendingEdge::d2F_d0d0(Eigen::VectorXd x) {
 	}
 }
 
-double BendingEdge::value(const bool update)
+double BendingEdge::value(Cuda::Array<double>& curr_x, const bool update)
 {
 	Eigen::VectorXd d_angle = angle - restAngle;
 	Eigen::VectorXd f = AngleFunctionvalue(d_angle);
@@ -281,7 +280,7 @@ double BendingEdge::value(const bool update)
 	return value;
 }
 
-void BendingEdge::gradient(Eigen::VectorXd& g, const bool update)
+void BendingEdge::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
 {
 	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
 	g.setZero();
@@ -421,66 +420,4 @@ int BendingEdge::x_index(int i,int hi) {
 		return x3_index(hi);
 	else
 		assert("Error!");
-}
-
-void BendingEdge::hessian() {
-	// constant factors
-	int index = 0;
-	Eigen::VectorXd d_angle = angle - restAngle;
-	Eigen::VectorXd dE_df = k * restConst;
-	Eigen::VectorXd df_d0 = dF_d0(d_angle);
-	Eigen::VectorXd d2f_d0d0 = d2F_d0d0(d_angle);
-
-	for (int hi = 0; hi < num_hinges; hi++) {
-		Eigen::Matrix< Eigen::Matrix3d, 4, 4> H_angle = d20_dxdx(hi);
-		Eigen::Matrix<double, 4, 3> grad_angle = d0_dx(hi);
-		//dE/dx =	dE/dF * dF/d0 * d20/dxdx + 
-		//			dE/dF * d2F/d0d0 * d0/dx * (d0/dx)^T
-		Eigen::Matrix3d H[4][4];
-		for (int i = 0; i < 4; ++i)
-			for (int j = 0; j < 4; ++j)
-				H[i][j] = 
-				dE_df(hi) * df_d0(hi) * H_angle(i,j) + 
-				dE_df(hi) * d2f_d0d0(hi) * grad_angle.row(i).transpose() * grad_angle.row(j);
-
-		//Finally, convert to triplets
-		for (int i = 0; i < 4; ++i)
-			for (int j = 0; j < 4; ++j)
-				for (int ii = 0; ii < 3; ++ii)
-					for (int jj = 0; jj < 3; ++jj) {
-						int global_j = x_index(i, hi) + (ii*restShapeV.rows());
-						int global_i = x_index(j, hi) + (jj*restShapeV.rows());
-
-						if (global_i <= global_j) {
-							//hesEntries.push_back(Eigen::Triplet<double>(global_i, global_j, H[i][j](ii, jj)));
-							SS[index++] = H[i][j](ii, jj);
-						}	
-					}
-	}
-	SS[index++] = 0;
-}
-
-void BendingEdge::init_hessian()
-{
-	II.clear();
-	JJ.clear();
-	
-	for (int hi = 0; hi < num_hinges; hi++) {
-		//Finally, convert to triplets
-		for (int i = 0; i < 4; ++i)
-			for (int j = 0; j < 4; ++j)
-				for (int ii = 0; ii < 3; ++ii)
-					for (int jj = 0; jj < 3; ++jj) {
-						int global_j = x_index(i, hi) + (ii*restShapeV.rows());
-						int global_i = x_index(j, hi) + (jj*restShapeV.rows());
-
-						if (global_i <= global_j) {
-							II.push_back(global_i);
-							JJ.push_back(global_j);
-						}
-					}
-	}
-	II.push_back(restShapeV.size() + 7*restShapeF.rows() - 1);
-	JJ.push_back(restShapeV.size() + 7*restShapeF.rows() - 1);
-	SS = std::vector<double>(II.size(), 0.);
 }

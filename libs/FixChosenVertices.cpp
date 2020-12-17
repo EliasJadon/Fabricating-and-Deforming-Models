@@ -25,7 +25,6 @@ void FixChosenVertices::init()
 	startV_x = (0 * numV);
 	startV_y = (1 * numV);
 	startV_z = (2 * numV);
-	init_hessian();
 }
 
 void FixChosenVertices::updateExtConstraints(
@@ -56,7 +55,7 @@ void FixChosenVertices::updateExtConstraints(
 	m_value.unlock();
 }
 
-void FixChosenVertices::updateX(const Eigen::VectorXd& X)
+void FixChosenVertices::updateX(Cuda::Array<double>& curr_x)
 {
 	//m.lock();
 	//Eigen::MatrixX3d CurrConstrainedVerticesPos;
@@ -73,10 +72,10 @@ void FixChosenVertices::updateX(const Eigen::VectorXd& X)
 	//m.unlock();
 }
 
-double FixChosenVertices::value(const bool update)
+double FixChosenVertices::value(Cuda::Array<double>& curr_x, const bool update)
 {
 	m_value.lock();
-	double value = Cuda_FixChosConst->value();
+	double value = Cuda_FixChosConst->value(curr_x);
 	m_value.unlock();
 	
 	//double E = diff.squaredNorm();
@@ -86,10 +85,10 @@ double FixChosenVertices::value(const bool update)
 	return value;
 }
 
-void FixChosenVertices::gradient(Eigen::VectorXd& g, const bool update)
+void FixChosenVertices::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
 {
 	m_gradient.lock();
-	Cuda_FixChosConst->gradient();
+	Cuda_FixChosConst->gradient(X);
 	m_gradient.unlock();
 	//g.conservativeResize(numV * 3 + numF * 7);
 	//g.setZero();
@@ -101,29 +100,4 @@ void FixChosenVertices::gradient(Eigen::VectorXd& g, const bool update)
 	//}
 	//if(update)
 	//	gradient_norm = g.norm();
-}
-
-void FixChosenVertices::hessian()
-{
-	fill(SS.begin(), SS.end(), 0);
-	for (int i = 0; i < currConstrainedVerticesInd.size(); i++)
-	{
-		SS[currConstrainedVerticesInd[i] + startV_x] = 2;
-		SS[currConstrainedVerticesInd[i] + startV_y] = 2;
-		SS[currConstrainedVerticesInd[i] + startV_z] = 2;
-	}
-}
-
-void FixChosenVertices::init_hessian()
-{
-	II.resize((3 * numV) + 1);
-	JJ.resize((3 * numV) + 1);
-	for (int i = 0; i < 3*numV; i++)
-	{
-		II[i] = i;
-		JJ[i] = i;
-	}
-	II[3 * numV] = 3 * numV + 7 * numF - 1;
-	JJ[3 * numV] = 3 * numV + 7 * numF - 1;
-	SS = std::vector<double>(II.size(), 0.);
 }

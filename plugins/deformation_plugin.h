@@ -18,7 +18,7 @@ private:
 	bool isUpdateAll;
 	bool isMinimizerRunning, IsMouseDraggingAnyWindow;
 	int faceColoring_type;
-	app_utils::MinimizerType minimizer_type;
+	MinimizerType minimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
 	float constantStep_LineSearch;
 	int curr_highlighted_face, curr_highlighted_output;
@@ -112,7 +112,7 @@ public:
 	igl::opengl::ViewerCore& InputCore();
 	igl::opengl::ViewerCore& OutputCore(const int index);
 
-	void change_minimizer_type(app_utils::MinimizerType type);
+	void change_minimizer_type(MinimizerType type);
 	void draw_brush_sphere();
 	void brush_erase_or_insert();
 	void load_new_model(const std::string modelpath);

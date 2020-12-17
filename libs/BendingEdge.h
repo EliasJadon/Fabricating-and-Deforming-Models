@@ -34,8 +34,6 @@ private:
 	//update angle
 	void getAngle();
 
-	virtual void init_hessian() override;
-
 	Eigen::VectorXd AngleFunctionvalue(Eigen::VectorXd angleDifference);
 	Eigen::VectorXd dF_d0(Eigen::VectorXd angleDifference);
 	Eigen::VectorXd d2F_d0d0(Eigen::VectorXd angleDifference);
@@ -49,9 +47,8 @@ public:
 	BendingEdge(FunctionType type);
 	~BendingEdge();
 	virtual void init() override;
-	virtual void updateX(const Eigen::VectorXd& X) override;
-	virtual double value(const bool update) override;
-	virtual void gradient(Eigen::VectorXd& g, const bool update) override;
-	virtual void hessian() override;
+	virtual void updateX(Cuda::Array<double>& curr_x) override;
+	virtual double value(Cuda::Array<double>& curr_x,const bool update) override;
+	virtual void gradient(Cuda::Array<double>& X,Eigen::VectorXd& g, const bool update) override;
 };
 

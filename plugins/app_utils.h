@@ -74,12 +74,7 @@ namespace app_utils
 		GROUPING_BY_BRUSH,
 		GROUPING_BY_ADJ
 	};
-	enum MinimizerType {
-		NEWTON = 0,
-		GRADIENT_DESCENT = 1,
-		ADAM_MINIMIZER = 2
-	};
-
+	
 	static Eigen::Vector3f computeTranslation(
 		const int mouse_x, 
 		const int from_x, 

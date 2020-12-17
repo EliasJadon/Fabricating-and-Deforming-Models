@@ -37,7 +37,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	clusteringRatio = 0.5;
 	faceColoring_type = 1;
 	curr_highlighted_output = curr_highlighted_face = NOT_FOUND;
-	minimizer_type = app_utils::MinimizerType::ADAM_MINIMIZER;
+	minimizer_type = MinimizerType::ADAM_MINIMIZER;
 	linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 	UserInterface_groupNum = 0;
 	UserInterface_option = app_utils::UserInterfaceOptions::NONE;
@@ -301,30 +301,16 @@ void deformation_plugin::CollapsingHeader_minimizer()
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0"))
 			change_minimizer_type(minimizer_type);
-		std::shared_ptr<NewtonMinimizer> newtonMinimizer = std::dynamic_pointer_cast<NewtonMinimizer>(Outputs[0].activeMinimizer);
-		if (newtonMinimizer != NULL) {
-			bool PD = newtonMinimizer->getPositiveDefiniteChecker();
-			ImGui::Checkbox("Positive Definite check", &PD);
-			for (auto& o : Outputs) {
-				std::dynamic_pointer_cast<NewtonMinimizer>(o.activeMinimizer)->SwitchPositiveDefiniteChecker(PD);
-			}
-		}
 		if (ImGui::Combo("init sphere var", (int *)(&typeSphereAuxVar), "Sphere Fit\0Mesh Center\0Minus Normal\0\0"))
 			init_minimizer_thread();
 		
 		if (ImGui::Combo("line search", (int *)(&linesearch_type), "Gradient Norm\0Function Value\0Constant Step\0\0")) {
-			for (auto& o : Outputs) {
-				o.newtonMinimizer->lineSearch_type = linesearch_type;
-				o.adamMinimizer->lineSearch_type = linesearch_type;
-				o.gradientDescentMinimizer->lineSearch_type = linesearch_type;
-			}
+			for (auto& o : Outputs)
+				o.minimizer->lineSearch_type = linesearch_type;
 		}
 		if (linesearch_type == OptimizationUtils::LineSearch::CONSTANT_STEP && ImGui::DragFloat("Step value", &constantStep_LineSearch, 0.0001f, 0.0f, 1.0f)) {
-			for (auto& o : Outputs) {
-				o.newtonMinimizer->constantStep_LineSearch = constantStep_LineSearch;
-				o.adamMinimizer->constantStep_LineSearch = constantStep_LineSearch;
-				o.gradientDescentMinimizer->constantStep_LineSearch = constantStep_LineSearch;
-			}
+			for (auto& o : Outputs)
+				o.minimizer->constantStep_LineSearch = constantStep_LineSearch;	
 		}
 		float w = ImGui::GetContentRegionAvailWidth(), p = ImGui::GetStyle().FramePadding.x;
 		if (ImGui::Button("Check gradients", ImVec2((w - p) / 2.f, 0)))
@@ -494,39 +480,20 @@ void deformation_plugin::Draw_energies_window()
 			const int  i64_zero = 0, i64_max = 100000.0;
 			ImGui::Text((modelName + std::to_string(out.ModelID)).c_str());
 			ImGui::TableNextCell();
-			if (ImGui::Checkbox("##On/Off", &out.activeMinimizer->isAutoLambdaRunning))
-			{
-				out.newtonMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
-				out.adamMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
-				out.gradientDescentMinimizer->isAutoLambdaRunning = out.activeMinimizer->isAutoLambdaRunning;
-			}
+			ImGui::Checkbox("##On/Off", &out.minimizer->isAutoLambdaRunning);
 			ImGui::TableNextCell();
-			if (ImGui::DragInt("##From", &(out.activeMinimizer->autoLambda_from), 1, i64_zero, i64_max))
-			{
-				out.newtonMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
-				out.adamMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
-				out.gradientDescentMinimizer->autoLambda_from = out.activeMinimizer->autoLambda_from;
-			}
+			ImGui::DragInt("##From", &(out.minimizer->autoLambda_from), 1, i64_zero, i64_max);
 			ImGui::TableNextCell();
-			if (ImGui::DragInt("##count", &(out.activeMinimizer->autoLambda_count), 1, i64_zero, i64_max, "2^%d"))
-			{
-				out.newtonMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
-				out.adamMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
-				out.gradientDescentMinimizer->autoLambda_count = out.activeMinimizer->autoLambda_count;
-			}
+			ImGui::DragInt("##count", &(out.minimizer->autoLambda_count), 1, i64_zero, i64_max, "2^%d");
 			ImGui::TableNextCell();
-			if (ImGui::DragInt("##jump", &(out.activeMinimizer->autoLambda_jump), 1, 1, i64_max))
-			{
-				out.newtonMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
-				out.adamMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
-				out.gradientDescentMinimizer->autoLambda_jump = out.activeMinimizer->autoLambda_jump;
-			}
+			ImGui::DragInt("##jump", &(out.minimizer->autoLambda_jump), 1, 1, i64_max);
+			
 			ImGui::TableNextCell();
-			ImGui::Text(std::to_string(out.activeMinimizer->getNumiter()).c_str());
+			ImGui::Text(std::to_string(out.minimizer->getNumiter()).c_str());
 			ImGui::TableNextCell();
-			ImGui::Text(std::to_string(out.activeMinimizer->timer_curr).c_str());
+			ImGui::Text(std::to_string(out.minimizer->timer_curr).c_str());
 			ImGui::TableNextCell();
-			ImGui::Text(std::to_string(out.activeMinimizer->timer_avg).c_str());
+			ImGui::Text(std::to_string(out.minimizer->timer_avg).c_str());
 			ImGui::PopID();
 			ImGui::TableNextRow();
 		}
@@ -535,13 +502,12 @@ void deformation_plugin::Draw_energies_window()
 	}
 	
 	if (Outputs.size() != 0) {
-		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 3, ImGuiTableFlags_Resizable))
+		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 2, ImGuiTableFlags_Resizable))
 		{
 			ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed);
 			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
 				ImGui::TableSetupColumn(obj->name.c_str(), ImGuiTableColumnFlags_WidthFixed);
 			}
-			ImGui::TableSetupColumn("shift eigen values", ImGuiTableColumnFlags_WidthFixed);
 			ImGui::TableAutoHeaders();
 			ImGui::Separator();
 
@@ -632,8 +598,6 @@ void deformation_plugin::Draw_energies_window()
 					ImGui::TableNextCell();
 					ImGui::PopID();
 				}
-				ImGui::DragFloat("##ShiftEigenValues", &(Outputs[i].totalObjective->Shift_eigen_values), 0.05f, 0.0f, 100000.0f);
-				ImGui::TableNextCell();
 				ImGui::PushID(id++);
 				ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
 				if (Outputs.size() > 1 && ImGui::Button("Remove"))
@@ -1426,7 +1390,7 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 	Update_view();
 	update_parameters_for_all_cores();
 	for (auto& out : Outputs)
-		if (out.activeMinimizer->progressed)
+		if (out.minimizer->progressed)
 			update_data_from_minimizer();
 	//Update the model's faces colors in the screens
 	InputModel().set_colors(model_color.cast <double>().replicate(1, InputModel().F.rows()).transpose());
@@ -1469,7 +1433,7 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 	return ImGuiMenu::pre_draw();
 }
 
-void deformation_plugin::change_minimizer_type(app_utils::MinimizerType type) 
+void deformation_plugin::change_minimizer_type(MinimizerType type) 
 {
 	minimizer_type = type;
 	stop_minimizer_thread();
@@ -1800,7 +1764,7 @@ void deformation_plugin::checkGradients()
 
 void deformation_plugin::checkHessians()
 {
-	stop_minimizer_thread();
+	/*stop_minimizer_thread();
 	for (auto& o : Outputs) 
 	{
 		if (!isModelLoaded) 
@@ -1811,7 +1775,7 @@ void deformation_plugin::checkHessians()
 		Eigen::VectorXd testX = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
 		for (auto const &objective : o.totalObjective->objectiveList)
 			objective->checkHessian(testX);
-	}
+	}*/
 }
 
 void deformation_plugin::update_data_from_minimizer()
@@ -1820,7 +1784,7 @@ void deformation_plugin::update_data_from_minimizer()
 	std::vector<Eigen::VectorXd> radius(Outputs.size());
 	for (int i = 0; i < Outputs.size(); i++)
 	{
-		Outputs[i].activeMinimizer->get_data(V[i], center[i],radius[i],norm[i]);
+		Outputs[i].minimizer->get_data(V[i], center[i],radius[i],norm[i]);
 		if (Outputs[i].UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES)
 			V[i].row(Outputs[i].UserInterface_TranslateIndex) = OutputModel(i).V.row(Outputs[i].UserInterface_TranslateIndex);
 		else if (Outputs[i].UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && Outputs[i].getCenterOfSphere().size())
@@ -1835,23 +1799,11 @@ void deformation_plugin::stop_minimizer_thread()
 	isMinimizerRunning = false;
 	for (auto&o : Outputs) 
 	{
-		if (o.newtonMinimizer->is_running) 
+		if (o.minimizer->is_running) 
 		{
-			o.newtonMinimizer->stop();
+			o.minimizer->stop();
 		}
-		while (o.newtonMinimizer->is_running);
-
-		if (o.adamMinimizer->is_running) 
-		{
-			o.adamMinimizer->stop();
-		}
-		while (o.adamMinimizer->is_running);
-
-		if (o.gradientDescentMinimizer->is_running) 
-		{
-			o.gradientDescentMinimizer->stop();
-		}
-		while (o.gradientDescentMinimizer->is_running);
+		while (o.minimizer->is_running);
 	}
 }
 
@@ -1871,7 +1823,7 @@ void deformation_plugin::run_one_minimizer_iter()
 		init_minimizer_thread();
 	for (int i = 0; i < Outputs.size(); i++) 
 	{
-		minimizer_thread = std::thread(&Minimizer::run_one_iteration, Outputs[i].activeMinimizer.get(), iteration_counter++, &lambda_counter, true);
+		minimizer_thread = std::thread(&Minimizer::run_one_iteration, Outputs[i].minimizer.get(), iteration_counter++, &lambda_counter, true);
 		minimizer_thread.join();
 	}
 }
@@ -1882,7 +1834,7 @@ void deformation_plugin::start_minimizer_thread()
 	init_minimizer_thread();
 	for (int i = 0; i < Outputs.size();i++) 
 	{
-		minimizer_thread = std::thread(&Minimizer::run, Outputs[i].activeMinimizer.get());
+		minimizer_thread = std::thread(&Minimizer::run, Outputs[i].minimizer.get());
 		minimizer_thread.detach();
 	}
 	isMinimizerRunning = true;
@@ -1949,7 +1901,6 @@ void deformation_plugin::initializeMinimizer(const int index)
 
 	//init total objective
 	Outputs[index].totalObjective->objectiveList.clear();
-	Outputs[index].totalObjective->init_mesh(V, F);
 	auto add_obj = [&](std::shared_ptr< ObjectiveFunction> obj) 
 	{
 		Outputs[index].totalObjective->objectiveList.push_back(move(obj));

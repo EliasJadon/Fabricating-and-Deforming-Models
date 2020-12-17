@@ -33,19 +33,18 @@ void BendingNormal::init()
 	
 	d_normals.resize(num_hinges);
 	planarParameter = 1;
-	init_hessian();
 }
 
-void BendingNormal::updateX(const Eigen::VectorXd& X)
+void BendingNormal::updateX(Cuda::Array<double>& curr_x)
 {
-	assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
+	/*assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
 	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, restShapeV.size()).data(), restShapeV.rows(), 3);
 	igl::per_face_normals(CurrV, restShapeF, normals);
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi](0);
 		int f1 = hinges_faceIndex[hi](1);
 		d_normals(hi) = (normals.row(f1) - normals.row(f0)).squaredNorm();
-	}
+	}*/
 }
 
 void BendingNormal::calculateHinges() {
@@ -254,7 +253,7 @@ Eigen::VectorXd BendingNormal::d2Phi_dmdm(Eigen::VectorXd x) {
 	}
 }
 
-double BendingNormal::value(const bool update)
+double BendingNormal::value(Cuda::Array<double>& curr_x, const bool update)
 {
 	Eigen::VectorXd Energy = Phi(d_normals);
 	double value = Energy.transpose()*restArea;
@@ -266,7 +265,7 @@ double BendingNormal::value(const bool update)
 	return value;
 }
 
-void BendingNormal::gradient(Eigen::VectorXd& g, const bool update)
+void BendingNormal::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
 {
 	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
 	g.setZero();
@@ -537,52 +536,6 @@ Eigen::Matrix<Eigen::Matrix<double, 12, 12>, 1, 6> BendingNormal::d2N_dxdx_perhi
 	return n_x;
 }
 
-void BendingNormal::hessian() {
-	II.clear();
-	JJ.clear();
-	SS.clear();
-	
-	Eigen::VectorXd phi_m = dPhi_dm(d_normals);
-	Eigen::VectorXd phi2_mm = d2Phi_dmdm(d_normals);
-
-	for (int hi = 0; hi < num_hinges; hi++) {
-		Eigen::Matrix<double, 6, 12> n_x = dN_dx_perhinge(hi);
-		Eigen::Matrix<Eigen::Matrix<double, 12, 12>, 1, 6> n2_xx = d2N_dxdx_perhinge(hi);
-		Eigen::Matrix<double, 6, 1> m_n = dm_dN(hi);
-		Eigen::Matrix<double, 6, 6> m2_nn = d2m_dNdN(hi);
-
-		Eigen::Matrix<double, 12, 12> dE_dx =
-			phi_m(hi) * n_x.transpose() * m2_nn * n_x +
-			phi_m(hi) * m_n[0] * n2_xx[0] +
-			phi_m(hi) * m_n[1] * n2_xx[1] +
-			phi_m(hi) * m_n[2] * n2_xx[2] +
-			phi_m(hi) * m_n[3] * n2_xx[3] +
-			phi_m(hi) * m_n[4] * n2_xx[4] +
-			phi_m(hi) * m_n[5] * n2_xx[5] +
-			n_x.transpose() * m_n * phi2_mm(hi) * m_n.transpose() * n_x;
-		dE_dx *= restArea(hi);
-
-		for (int xi = 0; xi < 4; xi++) {
-			for (int xj = 0; xj < 4; xj++) {
-				for (int xyz1 = 0; xyz1 < 3; ++xyz1) {
-					for (int xyz2 = 0; xyz2 < 3; ++xyz2) {
-						int Grow = x_GlobInd(xi, hi) + (xyz1*restShapeV.rows());
-						int Gcol = x_GlobInd(xj, hi) + (xyz2*restShapeV.rows());
-						if (Grow <= Gcol) {
-							II.push_back(Grow);
-							JJ.push_back(Gcol);
-							SS.push_back(dE_dx(3 * xi + xyz1, 3 * xj + xyz2));
-						}
-					}
-				}
-			}
-		}	
-	}
-	II.push_back(restShapeV.size() + 7*restShapeF.rows() - 1);
-	JJ.push_back(restShapeV.size() + 7*restShapeF.rows() - 1);
-	SS.push_back(0);
-}
-
 int BendingNormal::x_GlobInd(int index, int hi) {
 	if (index == 0)
 		return x0_GlobInd(hi);
@@ -592,10 +545,4 @@ int BendingNormal::x_GlobInd(int index, int hi) {
 		return x2_GlobInd(hi);
 	if (index == 3)
 		return x3_GlobInd(hi);
-}
-
-
-void BendingNormal::init_hessian()
-{
-	
 }

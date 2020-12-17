@@ -20,7 +20,6 @@ void SymmetricDirichlet::init()
 		throw name + " must define members V,F before init()!";
 	
 	setRestShapeFromCurrentConfiguration();
-	init_hessian();
 }
 
 void SymmetricDirichlet::setRestShapeFromCurrentConfiguration() {
@@ -40,15 +39,15 @@ void SymmetricDirichlet::setRestShapeFromCurrentConfiguration() {
 	restShapeArea /= 2;
 }
 
-void SymmetricDirichlet::updateX(const Eigen::VectorXd& X)
+void SymmetricDirichlet::updateX(Cuda::Array<double>& curr_x)
 {
-	Cuda::MemCpyDeviceToHost(Cuda::Minimizer::curr_x);
+	Cuda::MemCpyDeviceToHost(curr_x);
 	assert(Cuda::Minimizer::curr_x.size == (restShapeV.size() + 7 * restShapeF.rows()));
 	CurrV.resize(restShapeV.rows(), 3);
 	for (int v = 0; v < restShapeV.rows(); v++) {
-		CurrV(v, 0) = Cuda::Minimizer::curr_x.host_arr[v];
-		CurrV(v, 1) = Cuda::Minimizer::curr_x.host_arr[v + restShapeV.rows()];
-		CurrV(v, 2) = Cuda::Minimizer::curr_x.host_arr[v + 2 * restShapeV.rows()];
+		CurrV(v, 0) = curr_x.host_arr[v];
+		CurrV(v, 1) = curr_x.host_arr[v + restShapeV.rows()];
+		CurrV(v, 2) = curr_x.host_arr[v + 2 * restShapeV.rows()];
 	}
 	//assert(X.rows() == (restShapeV.size() + 7*restShapeF.rows()));
 	//CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, restShapeV.size()).data(), restShapeV.rows(), 3);
@@ -76,7 +75,7 @@ void SymmetricDirichlet::updateX(const Eigen::VectorXd& X)
 	}
 }
 
-double SymmetricDirichlet::value(const bool update) {
+double SymmetricDirichlet::value(Cuda::Array<double>& curr_x, const bool update) {
 	return 15;
 }
 
@@ -94,22 +93,9 @@ Eigen::Matrix<double, 1, 4> SymmetricDirichlet::dE_dJ(int fi) {
 	return de_dJ;
 }
 
-void SymmetricDirichlet::gradient(Eigen::VectorXd& g, const bool update)
+void SymmetricDirichlet::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
 {
 	
-}
-
-void SymmetricDirichlet::init_hessian() {
-
-}
-
-void SymmetricDirichlet::hessian() {
-	II.clear();
-	JJ.clear();
-	SS.clear();
-	II.push_back(restShapeV.size() + 7*restShapeF.rows() - 1);
-	JJ.push_back(restShapeV.size() + 7*restShapeF.rows() - 1);
-	SS.push_back(0);
 }
 
 Eigen::Matrix<double, 4, 9> SymmetricDirichlet::dJ_dX(int fi) {

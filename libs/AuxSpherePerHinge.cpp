@@ -34,7 +34,6 @@ void AuxSpherePerHinge::init()
 	d_center.resize(num_hinges);
 	d_radius.resize(num_hinges);
 	Cuda::AuxSpherePerHinge::planarParameter = 1;
-	init_hessian();
 	internalInitCuda();
 }
 
@@ -97,31 +96,31 @@ void AuxSpherePerHinge::internalInitCuda() {
 	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x3_LocInd);
 }
 
-void AuxSpherePerHinge::updateX(const Eigen::VectorXd& X)
+void AuxSpherePerHinge::updateX(Cuda::Array<double>& curr_x)
 {
-	//X = [
-	//		x(0), ... ,x(#V-1), 
-	//		y(0), ... ,y(#V-1), 
-	//		z(0), ... ,z(#V-1), 
-	//		Nx(0), ... ,Nx(#F-1),
-	//		Ny(0), ... ,Ny(#F-1),
-	//		Nz(0), ... ,Nz(#F-1),
-	//		Cx,
-	//		Cy,
-	//		Cz,
-	//		R
-	//	  ]
-	assert(X.rows() == (restShapeV.size() + 7 * restShapeF.rows()));
-	CurrV =		Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0,3 * restShapeV.rows()).data(), restShapeV.rows(), 3);
-	CurrCenter = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(3 * restShapeV.rows()+ 3 * restShapeF.rows(),3 * restShapeF.rows()).data(), restShapeF.rows(), 3);
-	CurrRadius = Eigen::Map<const Eigen::VectorXd>(X.middleRows(3 * restShapeV.rows() + 6 * restShapeF.rows(), restShapeF.rows()).data(), restShapeF.rows(), 1);
-	
-	for (int hi = 0; hi < num_hinges; hi++) {
-		int f0 = hinges_faceIndex[hi](0);
-		int f1 = hinges_faceIndex[hi](1);
-		d_center(hi) = (CurrCenter.row(f1) - CurrCenter.row(f0)).squaredNorm();
-		d_radius(hi) = pow(CurrRadius(f1) - CurrRadius(f0), 2);
-	}
+	////X = [
+	////		x(0), ... ,x(#V-1), 
+	////		y(0), ... ,y(#V-1), 
+	////		z(0), ... ,z(#V-1), 
+	////		Nx(0), ... ,Nx(#F-1),
+	////		Ny(0), ... ,Ny(#F-1),
+	////		Nz(0), ... ,Nz(#F-1),
+	////		Cx,
+	////		Cy,
+	////		Cz,
+	////		R
+	////	  ]
+	//assert(X.rows() == (restShapeV.size() + 7 * restShapeF.rows()));
+	//CurrV =		Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0,3 * restShapeV.rows()).data(), restShapeV.rows(), 3);
+	//CurrCenter = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(3 * restShapeV.rows()+ 3 * restShapeF.rows(),3 * restShapeF.rows()).data(), restShapeF.rows(), 3);
+	//CurrRadius = Eigen::Map<const Eigen::VectorXd>(X.middleRows(3 * restShapeV.rows() + 6 * restShapeF.rows(), restShapeF.rows()).data(), restShapeF.rows(), 1);
+	//
+	//for (int hi = 0; hi < num_hinges; hi++) {
+	//	int f0 = hinges_faceIndex[hi](0);
+	//	int f1 = hinges_faceIndex[hi](1);
+	//	d_center(hi) = (CurrCenter.row(f1) - CurrCenter.row(f0)).squaredNorm();
+	//	d_radius(hi) = pow(CurrRadius(f1) - CurrRadius(f0), 2);
+	//}
 }
 
 void AuxSpherePerHinge::calculateHinges() {
@@ -330,10 +329,10 @@ Eigen::VectorXd AuxSpherePerHinge::d2Phi_dmdm(Eigen::VectorXd x) {
 	}
 }
 
-double AuxSpherePerHinge::value(const bool update)
+double AuxSpherePerHinge::value(Cuda::Array<double>& curr_x, const bool update)
 {
 #ifdef USING_CUDA
-	double value = Cuda::AuxSpherePerHinge::value();
+	double value = Cuda::AuxSpherePerHinge::value(curr_x);
 #else
 	//per hinge
 	Eigen::VectorXd Energy1 = Phi(d_center + d_radius);
@@ -363,7 +362,7 @@ double AuxSpherePerHinge::value(const bool update)
 	return value;
 }
 
-void AuxSpherePerHinge::gradient(Eigen::VectorXd& g, const bool update)
+void AuxSpherePerHinge::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
 {
 	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
 	g.setZero();
@@ -471,223 +470,4 @@ Eigen::Matrix< double, 8, 1> AuxSpherePerHinge::dm_dN(int hi) {
 		-2 * (CurrRadius(f1) - CurrRadius(f0)),			//r0
 		2 * (CurrRadius(f1) - CurrRadius(f0));			//r1
 	return grad;
-}
-
-Eigen::Matrix< double, 8, 8> AuxSpherePerHinge::d2m_dNdN(int hi) {
-	Eigen::Matrix< double, 8, 8> hess;
-	hess <<
-		2, 0, 0, -2, 0, 0, 0, 0,	//C0.x
-		0, 2, 0, 0, -2, 0, 0, 0,	//C0.y
-		0, 0, 2, 0, 0, -2, 0, 0,	//C0.z
-		-2, 0, 0, 2, 0, 0, 0, 0,	//C1.x
-		0, -2, 0, 0, 2, 0, 0, 0,	//C1.y
-		0, 0, -2, 0, 0, 2, 0, 0,	//C1.z
-		0, 0, 0, 0, 0, 0, 2, -2,	//r0
-		0, 0, 0, 0, 0, 0, -2, 2;	//r1
-	return hess;
-}
-
-void AuxSpherePerHinge::hessian() {
-	II.clear();
-	JJ.clear();
-	SS.clear();
-	
-	Eigen::VectorXd phi_m = dPhi_dm(d_center + d_radius);
-	Eigen::VectorXd phi2_mm = d2Phi_dmdm(d_center + d_radius);
-
-	//Energy 1: per hinge
-	for (int hi = 0; hi < num_hinges; hi++) {
-		Eigen::Matrix<double, 8, 1> m_n = dm_dN(hi);
-		Eigen::Matrix<double, 8, 8> m2_nn = d2m_dNdN(hi);
-		Eigen::Matrix<double, 8, 8> dE_dx =
-			phi_m(hi) * m2_nn +
-			m_n * phi2_mm(hi) * m_n.transpose();
-		dE_dx *= restAreaPerHinge(hi);
-		dE_dx *= Cuda::AuxSpherePerHinge::w1;
-
-		for (int fk = 0; fk < 2; fk++) {
-			for (int fj = 0; fj < 2; fj++) {
-				int f0 = hinges_faceIndex[hi](fk);
-				int f1 = hinges_faceIndex[hi](fj);
-				int start = 3 * restShapeV.rows() + 6 * restShapeF.rows();
-				int Grow = f0 + start;
-				int Gcol = f1 + start;
-				if (Grow <= Gcol) {
-					II.push_back(Grow);
-					JJ.push_back(Gcol);
-					SS.push_back(dE_dx(fk + 6, fj + 6));
-				}
-				for (int xyz1 = 0; xyz1 < 3; ++xyz1) {
-					int startc = 3 * restShapeV.rows() + 6 * restShapeF.rows();
-					int startr = 3 * restShapeV.rows() + 3 * restShapeF.rows();
-
-					int Grow = f0 + startr + (xyz1 * restShapeF.rows());
-					int Gcol = f1 + startc;
-					if (Grow <= Gcol) {
-						II.push_back(Grow);
-						JJ.push_back(Gcol);
-						SS.push_back(dE_dx(3 * fk + xyz1, fj + 6));
-					}
-					for (int xyz2 = 0; xyz2 < 3; ++xyz2) {
-						int start = 3 * restShapeV.rows() + 3 * restShapeF.rows();
-						int Grow = f0 + start + (xyz1 * restShapeF.rows());
-						int Gcol = f1 + start + (xyz2 * restShapeF.rows());
-						if (Grow <= Gcol) {
-							II.push_back(Grow);
-							JJ.push_back(Gcol);
-							SS.push_back(dE_dx(3 * fk + xyz1, 3 * fj + xyz2));
-						}
-					}
-				}
-			}
-		}	
-	}
-
-	//Energy 2: per face
-	for (int fi = 0; fi < restShapeF.rows(); fi++) {
-		int x0 = restShapeF(fi, 0);
-		int x1 = restShapeF(fi, 1);
-		int x2 = restShapeF(fi, 2);
-		Eigen::RowVector3d c = CurrCenter.row(fi);
-		double r = CurrRadius(fi);
-		double sqrtE0 = (CurrV.row(x0) - c).squaredNorm() - pow(r, 2);
-		double sqrtE1 = (CurrV.row(x1) - c).squaredNorm() - pow(r, 2);
-		double sqrtE2 = (CurrV.row(x2) - c).squaredNorm() - pow(r, 2);
-
-		Eigen::Matrix<double, 1, 13> g_sqrtE0, g_sqrtE1, g_sqrtE2;
-		g_sqrtE0 <<
-			2 * (CurrV(x0, 0) - c(0)), // V0x
-			2 * (CurrV(x0, 1) - c(1)), // V0y
-			2 * (CurrV(x0, 2) - c(2)), // V0z
-			0, // V1x
-			0, // V1y
-			0, // V1z
-			0, // V2x
-			0, // V2y
-			0, // V2z
-			-2 * (CurrV(x0, 0) - c(0)), // Cx
-			-2 * (CurrV(x0, 1) - c(1)), // Cy
-			-2 * (CurrV(x0, 2) - c(2)), // Cz
-			-2 * r; //r
-		g_sqrtE1 <<
-			0, // V0x
-			0, // V0y
-			0, // V0z
-			2 * (CurrV(x1, 0) - c(0)), // V1x
-			2 * (CurrV(x1, 1) - c(1)), // V1y
-			2 * (CurrV(x1, 2) - c(2)), // V1z
-			0, // V2x
-			0, // V2y
-			0, // V2z
-			-2 * (CurrV(x1, 0) - c(0)), // Cx
-			-2 * (CurrV(x1, 1) - c(1)), // Cy
-			-2 * (CurrV(x1, 2) - c(2)), // Cz
-			-2 * r; //r
-		g_sqrtE2 <<
-			0, // V0x
-			0, // V0y
-			0, // V0z
-			0, // V1x
-			0, // V1y
-			0, // V1z
-			2 * (CurrV(x2, 0) - c(0)), // V2x
-			2 * (CurrV(x2, 1) - c(1)), // V2y
-			2 * (CurrV(x2, 2) - c(2)), // V2z
-			-2 * (CurrV(x2, 0) - c(0)), // Cx
-			-2 * (CurrV(x2, 1) - c(1)), // Cy
-			-2 * (CurrV(x2, 2) - c(2)), // Cz
-			-2 * r; //r
-		Eigen::Matrix<double, 13, 13> H_sqrtE0, H_sqrtE1, H_sqrtE2;
-		H_sqrtE0 <<
-			2, 0, 0, 0, 0, 0, 0, 0, 0, -2, 0, 0, 0,
-			0, 2, 0, 0, 0, 0, 0, 0, 0, 0, -2, 0, 0,
-			0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, -2, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			-2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0,
-			0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0,
-			0, 0, -2, 0, 0, 0, 0, 0, 0, 0, 0, 2, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2;
-		H_sqrtE1 <<
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 2, 0, 0, 0, 0, 0, -2, 0, 0, 0,
-			0, 0, 0, 0, 2, 0, 0, 0, 0, 0, -2, 0, 0,
-			0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, -2, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, -2, 0, 0, 0, 0, 0, 2, 0, 0, 0,
-			0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 2, 0, 0,
-			0, 0, 0, 0, 0, -2, 0, 0, 0, 0, 0, 2, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2;
-		H_sqrtE2 <<
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 2, 0, 0, -2, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 2, 0, 0, -2, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, -2, 0,
-			0, 0, 0, 0, 0, 0, -2, 0, 0, 2, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, -2, 0, 0, 2, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, -2, 0, 0, 2, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -2;
-		
-		Eigen::Matrix<double, 13, 13> dE_dx =
-			Cuda::AuxSpherePerHinge::w2 * 2 * (sqrtE0*H_sqrtE0 + g_sqrtE0.transpose()*g_sqrtE0) +
-			Cuda::AuxSpherePerHinge::w2 * 2 * (sqrtE1*H_sqrtE1 + g_sqrtE1.transpose()*g_sqrtE1) +
-			Cuda::AuxSpherePerHinge::w2 * 2 * (sqrtE2*H_sqrtE2 + g_sqrtE2.transpose()*g_sqrtE2);
-
-		auto pushTriple = [&](int row, int col, double val) {
-			if (row <= col) {
-				II.push_back(row);
-				JJ.push_back(col);
-				SS.push_back(val);
-			}
-		};
-		int startC = 3 * restShapeV.rows() + 3 * restShapeF.rows();
-		int startR = 3 * restShapeV.rows() + 6 * restShapeF.rows();
-		int numV = restShapeV.rows();
-		int numF = restShapeF.rows();
-		for (int xyz1 = 0; xyz1 < 3; ++xyz1) {
-			pushTriple(x0 + xyz1 * numV, startR + fi, dE_dx(0 + xyz1, 12));
-			pushTriple(x1 + xyz1 * numV, startR + fi, dE_dx(3 + xyz1, 12));
-			pushTriple(x2 + xyz1 * numV, startR + fi, dE_dx(6 + xyz1, 12));
-			pushTriple(fi + startC + xyz1 * numF, startR + fi, dE_dx(9 + xyz1, 12));
-			for (int xyz2 = 0; xyz2 < 3; ++xyz2) {
-				pushTriple(x0 + xyz1 * numV, x0 + xyz2 * numV, dE_dx(0 + xyz1, 0 + xyz2));
-				pushTriple(x0 + xyz1 * numV, x1 + xyz2 * numV, dE_dx(0 + xyz1, 3 + xyz2));
-				pushTriple(x0 + xyz1 * numV, x2 + xyz2 * numV, dE_dx(0 + xyz1, 6 + xyz2));
-				pushTriple(x1 + xyz1 * numV, x0 + xyz2 * numV, dE_dx(3 + xyz1, 0 + xyz2));
-				pushTriple(x1 + xyz1 * numV, x1 + xyz2 * numV, dE_dx(3 + xyz1, 3 + xyz2));
-				pushTriple(x1 + xyz1 * numV, x2 + xyz2 * numV, dE_dx(3 + xyz1, 6 + xyz2));
-				pushTriple(x2 + xyz1 * numV, x0 + xyz2 * numV, dE_dx(6 + xyz1, 0 + xyz2));
-				pushTriple(x2 + xyz1 * numV, x1 + xyz2 * numV, dE_dx(6 + xyz1, 3 + xyz2));
-				pushTriple(x2 + xyz1 * numV, x2 + xyz2 * numV, dE_dx(6 + xyz1, 6 + xyz2));
-				pushTriple(fi + startC + xyz1 * numF, fi + startC + xyz2 * numF, dE_dx(9 + xyz1, 9 + xyz2));
-				pushTriple(x0 + xyz1 * numV, fi + startC + xyz2 * numF, dE_dx(0 + xyz1, 9 + xyz2));
-				pushTriple(x1 + xyz1 * numV, fi + startC + xyz2 * numF, dE_dx(3 + xyz1, 9 + xyz2));
-				pushTriple(x2 + xyz1 * numV, fi + startC + xyz2 * numF, dE_dx(6 + xyz1, 9 + xyz2));	
-			}
-		}
-		pushTriple(startR + fi, startR + fi, dE_dx(12, 12));
-	}
-	
-
-	II.push_back(restShapeV.size() + 7 * restShapeF.rows() - 1);
-	JJ.push_back(restShapeV.size() + 7 * restShapeF.rows() - 1);
-	SS.push_back(0);
-}
-
-void AuxSpherePerHinge::init_hessian()
-{
-	
 }

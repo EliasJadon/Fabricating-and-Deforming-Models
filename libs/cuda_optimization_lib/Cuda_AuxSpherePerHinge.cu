@@ -159,12 +159,12 @@ namespace Cuda {
 			if (tid == 0) atomicAdd(resAtomic, energy_value[0], 0);
 		}
 
-		double value() {
+		double value(Cuda::Array<double>& curr_x) {
 			const unsigned int s = mesh_indices.num_hinges + mesh_indices.num_faces;
 			EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 				EnergyAtomic.cuda_arr,
 				w1, w2,
-				Cuda::Minimizer::curr_x.cuda_arr,
+				curr_x.cuda_arr,
 				restShapeF.cuda_arr,
 				restAreaPerHinge.cuda_arr,
 				hinges_faceIndex.cuda_arr,
@@ -340,13 +340,13 @@ namespace Cuda {
 					threadIdx.x,
 					mesh_indices);
 		}
-		void gradient()
+		void gradient(Cuda::Array<double>& X)
 		{
 			setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
 			CheckErr(cudaDeviceSynchronize());
 			gradientKernel << <mesh_indices.num_hinges + mesh_indices.num_faces, 20 >> > (
 				grad.cuda_arr,
-				Cuda::Minimizer::X.cuda_arr,
+				X.cuda_arr,
 				hinges_faceIndex.cuda_arr,
 				restShapeF.cuda_arr,
 				restAreaPerHinge.cuda_arr,

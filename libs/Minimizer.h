@@ -29,7 +29,7 @@ public:
 	
 	// Pointer to the energy class
 	std::shared_ptr<TotalObjective> totalObjective;
-
+	std::shared_ptr<Cuda_Minimizer> cuda_Minimizer;
 	// Activity flags
 	std::atomic_bool is_running = {false};
 	std::atomic_bool progressed = {false};
@@ -39,14 +39,10 @@ public:
 	void release_parameter_update_slot();
 
 	// External (interface) and internal working mesh
-	Eigen::VectorXd ext_x;
-	Eigen::VectorXd ext_center, ext_radius, ext_norm;
-#ifndef USING_CUDA
-	Eigen::VectorXd X;
-#endif
+	Eigen::VectorXd ext_x, ext_center, ext_radius, ext_norm;
 	Eigen::MatrixX3i F;
 	Eigen::MatrixXd V;
-	
+	MinimizerType step_type;
 	double timer_curr=0, timer_sum = 0, timer_avg = 0;
 
 	OptimizationUtils::LineSearch lineSearch_type;
@@ -55,31 +51,21 @@ public:
 		return this->numIteration;
 	}
 	void update_lambda(int*);
-	bool isAutoLambdaRunning = false;
-	int autoLambda_from = 100, autoLambda_count = 70, autoLambda_jump = 50;
+	bool isAutoLambdaRunning = true;
+	int autoLambda_from = 100, autoLambda_count = 30, autoLambda_jump = 70;
 protected:
 	// Give the wrapper a chance to intersect gracefully
 	void give_parameter_update_slot();
 	// Updating the data after a step has been done
 	void update_external_data(int steps);
-#ifndef USING_CUDA
-	// Descent direction evaluated in step
-	Eigen::VectorXd p;
-	// Current energy, gradient and hessian
-	Eigen::VectorXd g;
-#endif
-	
 	double currentEnergy;
 	int numIteration = 0;
 private:
 	int solverID;
-	virtual void step() = 0;
-
 	void linesearch();
 	void value_linesearch();
 	void gradNorm_linesearch();
 	void constant_linesearch();
-	virtual void internal_init() = 0;
 	double step_size;
 	int cur_iter;
 

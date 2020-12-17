@@ -13,6 +13,13 @@ enum FunctionType
 	SIGMOID = 2
 };
 
+enum MinimizerType {
+	NEWTON = 0,
+	GRADIENT_DESCENT = 1,
+	ADAM_MINIMIZER = 2
+};
+
+
 namespace Cuda 
 {
 	struct indices {

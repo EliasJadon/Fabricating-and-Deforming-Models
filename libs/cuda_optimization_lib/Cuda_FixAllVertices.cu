@@ -81,11 +81,11 @@ namespace Cuda {
 			if (tid == 0) atomicAdd(resAtomic, energy_value[0], 0);
 		}
 		
-		double value() {
+		double value(Cuda::Array<double>& curr_x) {
 			unsigned int s = 3 * num_vertices;
 			EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 				EnergyAtomic.cuda_arr,
-				Cuda::Minimizer::curr_x.cuda_arr,
+				curr_x.cuda_arr,
 				restShapeV.cuda_arr,
 				num_vertices);
 			CheckErr(cudaDeviceSynchronize());
@@ -122,12 +122,12 @@ namespace Cuda {
 			}
 		}
 
-		void gradient()
+		void gradient(Cuda::Array<double>& X)
 		{
 			unsigned int s = grad.size;
 			gradientKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 				grad.cuda_arr,
-				Cuda::Minimizer::X.cuda_arr,
+				X.cuda_arr,
 				restShapeV.cuda_arr,
 				num_vertices,
 				grad.size);

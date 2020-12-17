@@ -107,11 +107,11 @@ namespace Utils_Cuda_FixChosenConstraints {
 }
 
 
-double Cuda_FixChosenConstraints::value() {
+double Cuda_FixChosenConstraints::value(Cuda::Array<double>& curr_x) {
 	const unsigned int s = Const_Ind.size;
 	Utils_Cuda_FixChosenConstraints::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,
-		Cuda::Minimizer::curr_x.cuda_arr,
+		curr_x.cuda_arr,
 		Const_Ind.size,
 		Const_Ind.cuda_arr,
 		Const_Pos.cuda_arr,
@@ -121,13 +121,13 @@ double Cuda_FixChosenConstraints::value() {
 	return EnergyAtomic.host_arr[0];
 }
 		
-void Cuda_FixChosenConstraints::gradient()
+void Cuda_FixChosenConstraints::gradient(Cuda::Array<double>& X)
 {
 	Utils_Cuda_FixChosenConstraints::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
 	Cuda::CheckErr(cudaDeviceSynchronize());
 	Utils_Cuda_FixChosenConstraints::gradientKernel << <Const_Ind.size, 3 >> > (
 		grad.cuda_arr,
-		Cuda::Minimizer::X.cuda_arr,
+		X.cuda_arr,
 		startX, startY, startZ,
 		Const_Ind.cuda_arr,
 		Const_Pos.cuda_arr,

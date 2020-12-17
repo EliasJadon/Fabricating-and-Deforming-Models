@@ -18,7 +18,6 @@ void FixAllVertices::init()
 	if (restShapeV.size() == 0 || restShapeF.size() == 0)
 		throw name + " must define members V,F before init()!";
 	internalInitCuda();
-	init_hessian();
 }
 
 void FixAllVertices::internalInitCuda() {
@@ -43,22 +42,22 @@ void FixAllVertices::internalInitCuda() {
 	Cuda::MemCpyHostToDevice(Cuda::FixAllVertices::restShapeV);
 }
 
-void FixAllVertices::updateX(const Eigen::VectorXd& ab)
+void FixAllVertices::updateX(Cuda::Array<double>& curr_x)
 {
-	Cuda::MemCpyDeviceToHost(Cuda::Minimizer::curr_x);
-	assert(Cuda::Minimizer::curr_x.size == (restShapeV.size() + 7*restShapeF.rows()));
+	Cuda::MemCpyDeviceToHost(curr_x);
+	assert(curr_x.size == (restShapeV.size() + 7*restShapeF.rows()));
 	CurrV.resize(restShapeV.rows(), 3);
 	for (int v = 0; v < restShapeV.rows(); v++) {
-		CurrV(v, 0) = Cuda::Minimizer::curr_x.host_arr[v];
-		CurrV(v, 1) = Cuda::Minimizer::curr_x.host_arr[v + restShapeV.rows()];
-		CurrV(v, 2) = Cuda::Minimizer::curr_x.host_arr[v + 2 * restShapeV.rows()];
+		CurrV(v, 0) = curr_x.host_arr[v];
+		CurrV(v, 1) = curr_x.host_arr[v + restShapeV.rows()];
+		CurrV(v, 2) = curr_x.host_arr[v + 2 * restShapeV.rows()];
 	}
 	//CurrV = Eigen::Map<const Eigen::MatrixX3d>(Cuda::Minimizer::curr_x.host_arr.middleRows(0,restShapeV.size()).data(), restShapeV.rows(), 3);
 }
 
-double FixAllVertices::value(const bool update)
+double FixAllVertices::value(Cuda::Array<double>& curr_x, const bool update)
 {
-	double E = Cuda::FixAllVertices::value();
+	double E = Cuda::FixAllVertices::value(curr_x);
 	///////////////////////////////////////////////////
 	// for debugging...
 	/*updateX(Eigen::VectorXd::Zero(1));
@@ -72,11 +71,11 @@ double FixAllVertices::value(const bool update)
 	return E;
 }
 
-void FixAllVertices::gradient(Eigen::VectorXd& g, const bool update)
+void FixAllVertices::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
 {
 	///////////////////////////////////////////////////
 	// for debugging...
-	updateX(Eigen::VectorXd::Zero(1));
+	//updateX(Eigen::VectorXd::Zero(1));
 
 	int n = restShapeV.rows();
 	g.conservativeResize(restShapeV.size()+ 7*restShapeF.rows());
@@ -91,25 +90,4 @@ void FixAllVertices::gradient(Eigen::VectorXd& g, const bool update)
 	///////////////////////////////////////////////////
 	if(update)
 		gradient_norm = g.norm();
-}
-
-void FixAllVertices::hessian()
-{
-	// The hessian is constant!
-	// Empty on purpose
-}
-
-void FixAllVertices::init_hessian()
-{
-	II.clear(); JJ.clear(); SS.clear();
-	int n = restShapeV.rows();
-	for (int i = 0; i < 3*n; i++)
-	{
-		II.push_back(i);
-		JJ.push_back(i);
-		SS.push_back(2);
-	}
-	II.push_back(restShapeV.size() + 7*restShapeF.rows() - 1);
-	JJ.push_back(restShapeV.size() + 7*restShapeF.rows() - 1);
-	SS.push_back(0);
 }

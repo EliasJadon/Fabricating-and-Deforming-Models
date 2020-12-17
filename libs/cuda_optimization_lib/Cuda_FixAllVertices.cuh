@@ -6,8 +6,8 @@ namespace Cuda {
 		extern Array<double> grad, EnergyAtomic;
 		extern Array<double3> restShapeV;
 		extern unsigned int num_faces, num_vertices;
-		extern double value();
-		extern void gradient();
+		extern double value(Cuda::Array<double>& curr_x);
+		extern void gradient(Cuda::Array<double>& X);
 		extern void FreeAllVariables();		
 	}
 }

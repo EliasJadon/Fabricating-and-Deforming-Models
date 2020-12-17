@@ -9,13 +9,11 @@ private:
 	std::vector<Eigen::Matrix2d> dXInv, strain;
 	std::vector<Eigen::Matrix<double, 3, 2>> F;
 	void setRestShapeFromCurrentConfiguration();
-	virtual void init_hessian();
 public:
 	STVK();
 	~STVK();
 	virtual void init();
-	virtual void updateX(const Eigen::VectorXd& X);
-	virtual double value(const bool update);
-	virtual void gradient(Eigen::VectorXd& g, const bool update);
-	virtual void hessian();
+	virtual void updateX(Cuda::Array<double>& curr_x);
+	virtual double value(Cuda::Array<double>& curr_x, const bool update);
+	virtual void gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update);
 };

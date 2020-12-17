@@ -24,29 +24,28 @@ void GroupSpheres::init()
 	startC_y = (3 * numV) + (3 * numF) + (1 * numF);
 	startC_z = (3 * numV) + (3 * numF) + (2 * numF);
 	startR = (3 * numV) + (6 * numF);
-	init_hessian();
 }
 
-void GroupSpheres::updateX(const Eigen::VectorXd& X)
+void GroupSpheres::updateX(Cuda::Array<double>& curr_x)
 {
-	m.lock();
-	SphereCenterPos.resize(GroupsInd.size());
-	SphereRadiusLen.resize(GroupsInd.size());
-	for (int ci = 0; ci < GroupsInd.size(); ci++) {
-		//for each cluster
-		SphereCenterPos[ci].resize(GroupsInd[ci].size(),3);
-		SphereRadiusLen[ci].resize(GroupsInd[ci].size());
-		for (int fi = 0; fi < GroupsInd[ci].size(); fi++) {
-			
-			SphereCenterPos[ci].row(fi) <<
-				X(GroupsInd[ci][fi] + startC_x),	//X-coordinate
-				X(GroupsInd[ci][fi] + startC_y),	//Y-coordinate
-				X(GroupsInd[ci][fi] + startC_z);	//Z-coordinate
-			SphereRadiusLen[ci](fi) = X(GroupsInd[ci][fi] + startR);
-		}
-	}
-	currGroupsInd = GroupsInd;
-	m.unlock();
+	//m.lock();
+	//SphereCenterPos.resize(GroupsInd.size());
+	//SphereRadiusLen.resize(GroupsInd.size());
+	//for (int ci = 0; ci < GroupsInd.size(); ci++) {
+	//	//for each cluster
+	//	SphereCenterPos[ci].resize(GroupsInd[ci].size(),3);
+	//	SphereRadiusLen[ci].resize(GroupsInd[ci].size());
+	//	for (int fi = 0; fi < GroupsInd[ci].size(); fi++) {
+	//		
+	//		SphereCenterPos[ci].row(fi) <<
+	//			X(GroupsInd[ci][fi] + startC_x),	//X-coordinate
+	//			X(GroupsInd[ci][fi] + startC_y),	//Y-coordinate
+	//			X(GroupsInd[ci][fi] + startC_z);	//Z-coordinate
+	//		SphereRadiusLen[ci](fi) = X(GroupsInd[ci][fi] + startR);
+	//	}
+	//}
+	//currGroupsInd = GroupsInd;
+	//m.unlock();
 }
 
 void GroupSpheres::updateExtConstraints(std::vector < std::vector<int>>& CInd) {
@@ -56,7 +55,7 @@ void GroupSpheres::updateExtConstraints(std::vector < std::vector<int>>& CInd) {
 }
 
 
-double GroupSpheres::value(const bool update)
+double GroupSpheres::value(Cuda::Array<double>& curr_x, const bool update)
 {
 	double E = 0;
 	for (int ci = 0; ci < currGroupsInd.size(); ci++)
@@ -70,7 +69,7 @@ double GroupSpheres::value(const bool update)
 	return E;
 }
 
-void GroupSpheres::gradient(Eigen::VectorXd& g, const bool update)
+void GroupSpheres::gradient(Cuda::Array<double>& curr_x, Eigen::VectorXd& g, const bool update)
 {
 	g.conservativeResize(numV * 3 + numF * 7);
 	g.setZero();
@@ -95,86 +94,4 @@ void GroupSpheres::gradient(Eigen::VectorXd& g, const bool update)
 	}
 	if(update)
 		gradient_norm = g.norm();
-}
-
-void GroupSpheres::hessian()
-{
-	auto PushTriple = [&](const int row, const int col, const double val) {
-		if (col >= row) {
-			II.push_back(row);
-			JJ.push_back(col);
-			SS.push_back(val);
-		}
-	};
-	
-	II.clear();
-	JJ.clear();
-	SS.clear();
-
-	for (int ci = 0; ci < currGroupsInd.size(); ci++) {
-		for (int f1 = 0; f1 < SphereCenterPos[ci].rows(); f1++) {
-			for (int f2 = f1 + 1; f2 < SphereCenterPos[ci].rows(); f2++) {
-				for (int xyz = 0; xyz < 3; xyz++) {
-					// d2E/df1df1
-					PushTriple(
-						currGroupsInd[ci][f1] + (xyz * numF) + startC,
-						currGroupsInd[ci][f1] + (xyz * numF) + startC,
-						2
-					);
-					// d2E/df1df2
-					PushTriple(
-						currGroupsInd[ci][f1] + (xyz * numF) + startC,
-						currGroupsInd[ci][f2] + (xyz * numF) + startC,
-						-2
-					);
-					// d2E/df2df1
-					PushTriple(
-						currGroupsInd[ci][f2] + (xyz * numF) + startC,
-						currGroupsInd[ci][f1] + (xyz * numF) + startC,
-						-2
-					);
-					// d2E/df2df2
-					PushTriple(
-						currGroupsInd[ci][f2] + (xyz * numF) + startC,
-						currGroupsInd[ci][f2] + (xyz * numF) + startC,
-						2
-					);
-				}
-				// d2E/df1df1
-				PushTriple(
-					currGroupsInd[ci][f1] + startR,
-					currGroupsInd[ci][f1] + startR,
-					2
-				);
-				// d2E/df1df2
-				PushTriple(
-					currGroupsInd[ci][f1] + startR,
-					currGroupsInd[ci][f2] + startR,
-					-2
-				);
-				// d2E/df2df1
-				PushTriple(
-					currGroupsInd[ci][f2] + startR,
-					currGroupsInd[ci][f1] + startR,
-					-2
-				);
-				// d2E/df2df2
-				PushTriple(
-					currGroupsInd[ci][f2] + startR,
-					currGroupsInd[ci][f2] + startR,
-					2
-				);
-			}
-		}
-	}
-	PushTriple(
-		3 * numV + 7 * numF - 1,
-		3 * numV + 7 * numF - 1,
-		0
-	);
-}
-
-void GroupSpheres::init_hessian()
-{
-	
 }

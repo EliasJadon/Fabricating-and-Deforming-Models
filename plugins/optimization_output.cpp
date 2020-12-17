@@ -2,7 +2,7 @@
 
 OptimizationOutput::OptimizationOutput(
 	igl::opengl::glfw::Viewer* viewer,
-	const app_utils::MinimizerType minimizer_type,
+	const MinimizerType minimizer_type,
 	const OptimizationUtils::LineSearch linesearchType)
 {
 	//update viewer
@@ -11,12 +11,8 @@ OptimizationOutput::OptimizationOutput(
 	viewer->core(CoreID).is_animating = true;
 	viewer->core(CoreID).lighting_factor = 0.5;
 	// Initialize minimizer thread
-	newtonMinimizer = std::make_shared<NewtonMinimizer>(CoreID);
-	gradientDescentMinimizer = std::make_shared<GradientDescentMinimizer>(CoreID);
-	adamMinimizer = std::make_shared<AdamMinimizer>(CoreID);
-	newtonMinimizer->lineSearch_type = linesearchType;
-	gradientDescentMinimizer->lineSearch_type = linesearchType;
-	adamMinimizer->lineSearch_type = linesearchType;
+	minimizer = std::make_shared<Minimizer>(CoreID);
+	minimizer->lineSearch_type = linesearchType;
 	updateActiveMinimizer(minimizer_type);
 	totalObjective = std::make_shared<TotalObjective>();
 	showFacesNorm = showSphereEdges = showNormEdges =
@@ -528,25 +524,7 @@ void OptimizationOutput::initMinimizers(
 		}
 	}
 	setAuxVariables(V, F, center0, Radius0, normals);
-	newtonMinimizer->init(
-		totalObjective,
-		initVertices,
-		initNormals,
-		Eigen::Map<Eigen::VectorXd>(center0.data(), F.size()),
-		Radius0,
-		F,
-		V
-	);
-	gradientDescentMinimizer->init(
-		totalObjective,
-		initVertices,
-		initNormals,
-		Eigen::Map<Eigen::VectorXd>(center0.data(), F.size()),
-		Radius0,
-		F,
-		V
-	);
-	adamMinimizer->init(
+	minimizer->init(
 		totalObjective,
 		initVertices,
 		initNormals,
@@ -558,18 +536,8 @@ void OptimizationOutput::initMinimizers(
 }
 
 void OptimizationOutput::updateActiveMinimizer(
-	const app_utils::MinimizerType minimizer_type) 
+	const MinimizerType minimizer_type) 
 {
-	switch (minimizer_type) {
-	case app_utils::MinimizerType::NEWTON:
-		activeMinimizer = newtonMinimizer;
-		break;
-	case app_utils::MinimizerType::GRADIENT_DESCENT:
-		activeMinimizer = gradientDescentMinimizer;
-		break;
-	case app_utils::MinimizerType::ADAM_MINIMIZER:
-		activeMinimizer = adamMinimizer;
-		break;
-	}
+	minimizer->step_type = minimizer_type;
 }
 

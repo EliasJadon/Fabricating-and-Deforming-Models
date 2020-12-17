@@ -1,26 +1,25 @@
 #pragma once
 #include "ObjectiveFunction.h"
 #include "FixChosenVertices.h"
-#include "cuda_optimization_lib/Cuda_AdamMinimizer.cuh"
 #include "cuda_optimization_lib/Cuda_FixAllVertices.cuh"
 #include "cuda_optimization_lib/Cuda_AuxSpherePerHinge.cuh"
 #include "cuda_optimization_lib/Cuda_Minimizer.cuh"
+#include <string>
 
-class TotalObjective : public ObjectiveFunction
+class TotalObjective
 {
-private:
-	virtual void init_hessian() override;
-	int variables_size;
 public:
+	std::string name;
+	std::vector<std::shared_ptr<ObjectiveFunction>> objectiveList;
+	double energy_value, gradient_norm;
+
 	TotalObjective();
 	~TotalObjective();
-	virtual void init() override;
-	virtual void updateX(const Eigen::VectorXd& X) override;
-	virtual double value(const bool update) override;
-	virtual void gradient(Eigen::VectorXd& g, const bool update) override;
-	virtual void hessian() override;
-	
-	// sub objectives
-	float Shift_eigen_values = 1000;
-	std::vector<std::shared_ptr<ObjectiveFunction>> objectiveList;
+	void init();
+	double value(Cuda::Array<double>& curr_x, const bool update);
+	void gradient(
+		std::shared_ptr<Cuda_Minimizer> cuda_Minimizer,
+		Cuda::Array<double>& X, 
+		Eigen::VectorXd& g, 
+		const bool update);
 };

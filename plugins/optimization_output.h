@@ -16,12 +16,9 @@ public:
 
 	std::set<int> UserInterface_FixedFaces, UserInterface_FixedVertices;
 	std::vector<FacesGroup> UserInterface_facesGroups;
-	std::shared_ptr<NewtonMinimizer> newtonMinimizer;
-	std::shared_ptr<GradientDescentMinimizer> gradientDescentMinimizer;
-	std::shared_ptr<AdamMinimizer> adamMinimizer;
+	std::shared_ptr<Minimizer> minimizer;
 	std::vector<std::vector<int>> clusters_indices;
 	std::shared_ptr<TotalObjective> totalObjective;
-	std::shared_ptr<Minimizer> activeMinimizer;
 	float prev_camera_zoom;
 	Eigen::Vector3f prev_camera_translation;
 	Eigen::Quaternionf prev_trackball_angle;
@@ -42,7 +39,7 @@ public:
 
 	OptimizationOutput(
 		igl::opengl::glfw::Viewer* viewer,
-		const app_utils::MinimizerType minimizer_type,
+		const MinimizerType minimizer_type,
 		const OptimizationUtils::LineSearch linesearchType);
 	~OptimizationOutput() = default;
 	void setAuxVariables(
@@ -82,5 +79,5 @@ public:
 		const Eigen::Vector3f face_norm_color);
 	void updateFaceColors(const int fi, const Eigen::Vector3f color);
 	void initMinimizers(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const OptimizationUtils::InitSphereAuxiliaryVariables& typeAuxVar);
-	void updateActiveMinimizer(const app_utils::MinimizerType minimizer_type);
+	void updateActiveMinimizer(const MinimizerType minimizer_type);
 };
