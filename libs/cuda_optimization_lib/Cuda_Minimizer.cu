@@ -25,8 +25,7 @@ namespace Cuda {
 
 
 		__global__ void TotalGradientKernel(
-			const unsigned int size,
-			double* g,
+			const unsigned int size, double* total_g,
 			const double* g1, const double w1,
 			const double* g2, const double w2,
 			const double* g3, const double w3,
@@ -34,7 +33,7 @@ namespace Cuda {
 		{
 			unsigned int Global_idx = threadIdx.x + blockIdx.x * blockDim.x;
 			if (Global_idx < size) {
-				g[Global_idx] =
+				total_g[Global_idx] =
 					w1 * g1[Global_idx] +
 					w2 * g2[Global_idx] +
 					w3 * g3[Global_idx] +
@@ -43,18 +42,17 @@ namespace Cuda {
 		}
 
 		void TotalGradient(
-			const double w_AuxBendingNormal,
-			const double w_FixAllVertices,
-			const double w_AuxSpherePerHinge,
-			const double w_FixChosenVertices)
+			const double* g1, const double w1,
+			const double* g2, const double w2,
+			const double* g3, const double w3,
+			const double* g4, const double w4)
 		{
 			TotalGradientKernel << <ceil(g.size / (double)1024), 1024 >> > (
 				g.size, g.cuda_arr,
-				AuxBendingNormal::grad.cuda_arr,	w_AuxBendingNormal,
-				FixAllVertices::grad.cuda_arr,		w_FixAllVertices,
-				AuxSpherePerHinge::grad.cuda_arr, w_AuxSpherePerHinge,
-				FixChosenConstraints::grad.cuda_arr, w_FixChosenVertices
-			);
+				g1,	w1,
+				g2,	w2,
+				g3,	w3,
+				g4,	w4);
 			CheckErr(cudaDeviceSynchronize());
 		}
 

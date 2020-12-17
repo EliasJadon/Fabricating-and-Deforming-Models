@@ -15,9 +15,9 @@ private:
 	std::vector<int> ConstrainedVerticesInd;
 	std::vector<int> currConstrainedVerticesInd;
 	Eigen::MatrixX3d ConstrainedVerticesPos;
-	void internalInitCuda();
 public:
-	FixChosenVertices();
+	std::shared_ptr<Cuda_FixChosenConstraints> Cuda_FixChosConst;
+	FixChosenVertices(const unsigned int numF,const unsigned int numV);
 	~FixChosenVertices();
 	virtual void init() override;
 	virtual void updateX(const Eigen::VectorXd& X) override;

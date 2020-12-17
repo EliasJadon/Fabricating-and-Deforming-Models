@@ -1,10 +1,14 @@
 #include "FixChosenVertices.h"
 
-FixChosenVertices::FixChosenVertices()
+FixChosenVertices::FixChosenVertices(
+	const unsigned int numF,
+	const unsigned int numV)
 {
+	this->numF = numF;
+	this->numV = numV;
+	Cuda_FixChosConst = std::make_shared<Cuda_FixChosenConstraints>(numF, numV, 0);
     name = "Fix Chosen Vertices";
-	//w = 500;
-	w = 0;
+	w = 100000;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
@@ -22,25 +26,6 @@ void FixChosenVertices::init()
 	startV_y = (1 * numV);
 	startV_z = (2 * numV);
 	init_hessian();
-	internalInitCuda();
-}
-
-void FixChosenVertices::internalInitCuda() {
-	Cuda::initIndices(Cuda::FixChosenConstraints::mesh_indices, numF, numV, 0);
-	Cuda::AllocateMemory(Cuda::FixChosenConstraints::grad, (3 * numV) + (7 * numF));
-	Cuda::AllocateMemory(Cuda::FixChosenConstraints::EnergyAtomic, 1);
-	Cuda::AllocateMemory(Cuda::FixChosenConstraints::Const_Ind, 0);
-	Cuda::AllocateMemory(Cuda::FixChosenConstraints::Const_Pos, 0);
-	//Choose the kind of constraints (vertices)
-	Cuda::FixChosenConstraints::startX = Cuda::FixChosenConstraints::mesh_indices.startVx;
-	Cuda::FixChosenConstraints::startY = Cuda::FixChosenConstraints::mesh_indices.startVy;
-	Cuda::FixChosenConstraints::startZ = Cuda::FixChosenConstraints::mesh_indices.startVz;
-	//init host buffers...
-	for (int i = 0; i < Cuda::FixChosenConstraints::grad.size; i++) {
-		Cuda::FixChosenConstraints::grad.host_arr[i] = 0;
-	}
-	// Copy input vectors from host memory to GPU buffers.
-	Cuda::MemCpyHostToDevice(Cuda::FixChosenConstraints::grad);
 }
 
 void FixChosenVertices::updateExtConstraints(
@@ -50,22 +35,22 @@ void FixChosenVertices::updateExtConstraints(
 	m_value.lock();
 	m_gradient.lock();
 
-	Cuda::FreeMemory(Cuda::FixChosenConstraints::Const_Ind);
-	Cuda::FreeMemory(Cuda::FixChosenConstraints::Const_Pos);
-	Cuda::AllocateMemory(Cuda::FixChosenConstraints::Const_Ind, CVInd.size());
-	Cuda::AllocateMemory(Cuda::FixChosenConstraints::Const_Pos, CVInd.size());
+	Cuda::FreeMemory(Cuda_FixChosConst->Const_Ind);
+	Cuda::FreeMemory(Cuda_FixChosConst->Const_Pos);
+	Cuda::AllocateMemory(Cuda_FixChosConst->Const_Ind, CVInd.size());
+	Cuda::AllocateMemory(Cuda_FixChosConst->Const_Pos, CVInd.size());
 	//init host buffers...
 	for (int i = 0; i < CVInd.size(); i++) {
-		Cuda::FixChosenConstraints::Const_Ind.host_arr[i] = CVInd[i];
-		Cuda::FixChosenConstraints::Const_Pos.host_arr[i] = make_double3(
+		Cuda_FixChosConst->Const_Ind.host_arr[i] = CVInd[i];
+		Cuda_FixChosConst->Const_Pos.host_arr[i] = make_double3(
 			CVPos(i, 0),
 			CVPos(i, 1),
 			CVPos(i, 2)
 		);
 	}
 	// Copy input vectors from host memory to GPU buffers.
-	Cuda::MemCpyHostToDevice(Cuda::FixChosenConstraints::Const_Ind);
-	Cuda::MemCpyHostToDevice(Cuda::FixChosenConstraints::Const_Pos);
+	Cuda::MemCpyHostToDevice(Cuda_FixChosConst->Const_Ind);
+	Cuda::MemCpyHostToDevice(Cuda_FixChosConst->Const_Pos);
 	
 	m_gradient.unlock();
 	m_value.unlock();
@@ -91,7 +76,7 @@ void FixChosenVertices::updateX(const Eigen::VectorXd& X)
 double FixChosenVertices::value(const bool update)
 {
 	m_value.lock();
-	double value = Cuda::FixChosenConstraints::value();
+	double value = Cuda_FixChosConst->value();
 	m_value.unlock();
 	
 	//double E = diff.squaredNorm();
@@ -104,7 +89,7 @@ double FixChosenVertices::value(const bool update)
 void FixChosenVertices::gradient(Eigen::VectorXd& g, const bool update)
 {
 	m_gradient.lock();
-	Cuda::FixChosenConstraints::gradient();
+	Cuda_FixChosConst->gradient();
 	m_gradient.unlock();
 	//g.conservativeResize(numV * 3 + numF * 7);
 	//g.setZero();

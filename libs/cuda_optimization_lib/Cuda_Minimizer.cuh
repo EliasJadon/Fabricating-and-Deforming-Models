@@ -10,9 +10,9 @@ namespace Cuda {
 		extern Array<double> X, p, g, curr_x;
 		void linesearch_currX(const double step_size);
 		void TotalGradient(
-			const double, 
-			const double, 
-			const double, 
-			const double);
+			const double* g1, const double w1,
+			const double* g2, const double w2,
+			const double* g3, const double w3,
+			const double* g4, const double w4);
 	}
 }

@@ -1928,9 +1928,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	fixChosenNormals->numF = F.rows();
 	fixChosenNormals->init();
 	Outputs[index].Energy_FixChosenNormals = fixChosenNormals;
-	std::shared_ptr <FixChosenVertices> fixChosenVertices = std::make_shared<FixChosenVertices>();
-	fixChosenVertices->numV = V.rows();
-	fixChosenVertices->numF = F.rows();
+	std::shared_ptr <FixChosenVertices> fixChosenVertices = std::make_shared<FixChosenVertices>(F.rows(), V.rows());
 	fixChosenVertices->init();
 	Outputs[index].Energy_FixChosenVertices = fixChosenVertices;
 	std::shared_ptr< FixChosenSpheres> fixChosenSpheres = std::make_shared<FixChosenSpheres>();

@@ -1,16 +1,18 @@
 #pragma once
 #include "Cuda_Basics.cuh"
 
-namespace Cuda {
-	namespace FixChosenConstraints {
-		extern Array<double> grad, EnergyAtomic;
-		extern indices mesh_indices;
-		extern Array<int> Const_Ind;
-		extern Array<double3> Const_Pos;
-		extern unsigned int startX, startY, startZ;
+class Cuda_FixChosenConstraints {
+public:
+	Cuda_FixChosenConstraints(const unsigned int numF,
+		const unsigned int numV,
+		const unsigned int Type);
+	~Cuda_FixChosenConstraints();
+	Cuda::Array<double> grad, EnergyAtomic;
+	Cuda::indices mesh_indices;
+	Cuda::Array<int> Const_Ind;
+	Cuda::Array<double3> Const_Pos;
+	unsigned int startX, startY, startZ;
 
-		extern double value();
-		extern void gradient();
-		extern void FreeAllVariables();
-	}
-}
+	double value();
+	void gradient();
+};
