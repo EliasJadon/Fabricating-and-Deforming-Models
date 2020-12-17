@@ -53,7 +53,7 @@ namespace Cuda {
 				AuxBendingNormal::grad.cuda_arr,	w_AuxBendingNormal,
 				FixAllVertices::grad.cuda_arr,		w_FixAllVertices,
 				AuxSpherePerHinge::grad.cuda_arr, w_AuxSpherePerHinge,
-				FixChosenVertices::grad.cuda_arr, w_FixChosenVertices
+				FixChosenConstraints::grad.cuda_arr, w_FixChosenVertices
 			);
 			CheckErr(cudaDeviceSynchronize());
 		}

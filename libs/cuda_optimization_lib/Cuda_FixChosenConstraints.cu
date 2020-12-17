@@ -1,12 +1,13 @@
-#include "Cuda_FixChosenVertices.cuh"
+#include "Cuda_FixChosenConstraints.cuh"
 #include "Cuda_Minimizer.cuh"
 
 namespace Cuda {
-	namespace FixChosenVertices {
+	namespace FixChosenConstraints {
 		Array<double> grad, EnergyAtomic;
 		indices mesh_indices;
 		Array<int> Const_Ind;
 		Array<double3> Const_Pos;
+		unsigned int startX, startY, startZ;
 
 		__device__ double3 sub(const double3 a, const double3 b)
 		{
@@ -57,7 +58,9 @@ namespace Cuda {
 			const unsigned int size,
 			const int* Const_Ind,
 			const double3* Const_Pos,
-			const indices I)
+			const unsigned int startX,
+			const unsigned int startY,
+			const unsigned int startZ)
 		{
 			//init data
 			extern __shared__ double energy_value[blockSize];
@@ -69,9 +72,9 @@ namespace Cuda {
 			
 			if (Global_idx < size) {
 				double3 Vi = make_double3(
-					curr_x[Const_Ind[Global_idx] + I.startVx],//X-coordinate
-					curr_x[Const_Ind[Global_idx] + I.startVy],//Y-coordinate
-					curr_x[Const_Ind[Global_idx] + I.startVz]	//Z-coordinate
+					curr_x[Const_Ind[Global_idx] + startX],
+					curr_x[Const_Ind[Global_idx] + startY],
+					curr_x[Const_Ind[Global_idx] + startZ]
 				);
 				energy_value[tid] = squared_norm(sub(Vi, Const_Pos[Global_idx]));
 			}
@@ -97,7 +100,7 @@ namespace Cuda {
 				Const_Ind.size,
 				Const_Ind.cuda_arr,
 				Const_Pos.cuda_arr,
-				mesh_indices);
+				startX, startY, startZ);
 			CheckErr(cudaDeviceSynchronize());
 			MemCpyDeviceToHost(EnergyAtomic);
 			return EnergyAtomic.host_arr[0];
@@ -106,19 +109,21 @@ namespace Cuda {
 		__global__ void gradientKernel(
 			double* grad,
 			const double* X,
-			const indices I,
+			const unsigned int startX,
+			const unsigned int startY,
+			const unsigned int startZ,
 			const int* Const_Ind,
 			const double3* Const_Pos,
 			const unsigned int size)
 		{
 			int i = blockIdx.x;
 			if (i < size) {
-				if (threadIdx.x == 0) //Vx
-					grad[Const_Ind[i] + I.startVx] = 2 * (X[Const_Ind[i] + I.startVx] - Const_Pos[i].x);
-				if (threadIdx.x == 1) //Vy
-					grad[Const_Ind[i] + I.startVy] = 2 * (X[Const_Ind[i] + I.startVy] - Const_Pos[i].y);
-				if (threadIdx.x == 2) //Vz
-					grad[Const_Ind[i] + I.startVz] = 2 * (X[Const_Ind[i] + I.startVz] - Const_Pos[i].z);
+				if (threadIdx.x == 0)
+					grad[Const_Ind[i] + startX] = 2 * (X[Const_Ind[i] + startX] - Const_Pos[i].x);
+				if (threadIdx.x == 1)
+					grad[Const_Ind[i] + startY] = 2 * (X[Const_Ind[i] + startY] - Const_Pos[i].y);
+				if (threadIdx.x == 2)
+					grad[Const_Ind[i] + startZ] = 2 * (X[Const_Ind[i] + startZ] - Const_Pos[i].z);
 			}
 		}
 		void gradient()
@@ -128,7 +133,7 @@ namespace Cuda {
 			gradientKernel << <Const_Ind.size, 3 >> > (
 				grad.cuda_arr,
 				Cuda::Minimizer::X.cuda_arr,
-				mesh_indices,
+				startX, startY, startZ,
 				Const_Ind.cuda_arr,
 				Const_Pos.cuda_arr,
 				Const_Ind.size);

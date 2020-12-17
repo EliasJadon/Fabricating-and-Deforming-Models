@@ -3,7 +3,7 @@
 #include "Cuda_AuxBendingNormal.cuh"
 #include "Cuda_FixAllVertices.cuh"
 #include "Cuda_AuxSpherePerHinge.cuh"
-#include "Cuda_FixChosenVertices.cuh"
+#include "Cuda_FixChosenConstraints.cuh"
 
 namespace Cuda {
 	namespace Minimizer {
