@@ -31,7 +31,6 @@ void Minimizer::init(
 	std::cout << "V.rows() = " << V.rows() << std::endl;
 	assert(X0.rows() == (3*V.rows()) && "X0 should contain the (x,y,z) coordinates for each vertice");
 	assert(norm0.rows() == (3*F.rows()) && "norm0 should contain the (x,y,z) coordinates for each face");
-#ifdef USING_CUDA
 	Cuda::initCuda();
 	unsigned int size = 3 * V.rows() + 7 * F.rows();
 	Cuda::AllocateMemory(Cuda::Minimizer::X, size);
@@ -48,13 +47,6 @@ void Minimizer::init(
 		Cuda::Minimizer::X.host_arr[3 * V.rows() + 6 * F.rows() + i] = Radius0[i];
 	Cuda::MemCpyHostToDevice(Cuda::Minimizer::X);
 	Cuda::copyArrays(Cuda::Minimizer::curr_x, Cuda::Minimizer::X);
-#else
-	X.resize(3 * V.rows() + 7 * F.rows());
-	X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows()) = X0;
-	X.middleRows(3 * V.rows() + 0 * F.rows(), 3 * F.rows()) = norm0;
-	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows()) = center0;
-	X.middleRows(3 * V.rows() + 6 * F.rows(), 1 * F.rows()) = Radius0;
-#endif
 	ext_x = X0;
 	ext_center = center0;
 	ext_norm = norm0;
@@ -85,8 +77,6 @@ void Minimizer::update_lambda(int* lambda_counter)
 		(*lambda_counter) < autoLambda_count &&
 		numIteration % autoLambda_jump == 0)
 	{
-		//AuxSpherePerHinge
-		std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
 		//BendingNormal
 		std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(totalObjective->objectiveList[2]);
 		//BendingEdge
@@ -193,7 +183,7 @@ void Minimizer::update_external_data(int steps)
 {
 	give_parameter_update_slot();
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
-	if (steps % 100 == 0) {
+	//if (steps % 10 == 0) {
 		Cuda::MemCpyDeviceToHost(Cuda::Minimizer::X);
 		for (int i = 0; i < 3 * V.rows(); i++)
 			ext_x[i] = Cuda::Minimizer::X.host_arr[i];
@@ -203,11 +193,7 @@ void Minimizer::update_external_data(int steps)
 			ext_center[i] = Cuda::Minimizer::X.host_arr[3 * V.rows() + 3 * F.rows() + i];
 		for (int i = 0; i < F.rows(); i++)
 			ext_radius[i] = Cuda::Minimizer::X.host_arr[3 * V.rows() + 6 * F.rows() + i];
-	}
-	//ext_x =			X.middleRows(0 * V.rows() + 0 * F.rows(), 3 * V.rows());
-	//ext_norm =		X.middleRows(3 * V.rows() + 0 * F.rows(), 3 * F.rows());
-	//ext_center =	X.middleRows(3 * V.rows() + 3 * F.rows(), 3 * F.rows());
-	//ext_radius =	X.middleRows(3 * V.rows() + 6 * F.rows(), 1 * F.rows());
+	//}
 	progressed = true;
 }
 

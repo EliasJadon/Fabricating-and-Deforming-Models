@@ -30,8 +30,7 @@ namespace Cuda {
 			const double* g1, const double w1,
 			const double* g2, const double w2,
 			const double* g3, const double w3,
-			const double* g4, const double w4,
-			const double* g5, const double w5) 
+			const double* g4, const double w4) 
 		{
 			unsigned int Global_idx = threadIdx.x + blockIdx.x * blockDim.x;
 			if (Global_idx < size) {
@@ -39,15 +38,13 @@ namespace Cuda {
 					w1 * g1[Global_idx] +
 					w2 * g2[Global_idx] +
 					w3 * g3[Global_idx] +
-					w4 * g4[Global_idx] +
-					w5 * g5[Global_idx];
+					w4 * g4[Global_idx];
 			}
 		}
 
 		void TotalGradient(
 			const double w_AuxBendingNormal,
 			const double w_FixAllVertices,
-			const double w_SymmetricDirichlet,
 			const double w_AuxSpherePerHinge,
 			const double w_FixChosenVertices)
 		{
@@ -55,7 +52,6 @@ namespace Cuda {
 				g.size, g.cuda_arr,
 				AuxBendingNormal::grad.cuda_arr,	w_AuxBendingNormal,
 				FixAllVertices::grad.cuda_arr,		w_FixAllVertices,
-				SSSymmetricDirichlet::grad.cuda_arr,w_SymmetricDirichlet,
 				AuxSpherePerHinge::grad.cuda_arr, w_AuxSpherePerHinge,
 				FixChosenVertices::grad.cuda_arr, w_FixChosenVertices
 			);

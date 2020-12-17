@@ -1,6 +1,5 @@
 #pragma once
 #include "ObjectiveFunction.h"
-#include "cuda_optimization_lib/Cuda_SSSymmetricDirichlet.cuh"
 #include "cuda_optimization_lib/Cuda_Minimizer.cuh"
 #include "cuda_optimization_lib/Cuda_Basics.cuh"
 
