@@ -21,10 +21,6 @@
 #include "unique_colors.h"
 
 #include "../../libs/Minimizer.h"
-#include "../../libs/NewtonMinimizer.h"
-#include "../../libs/GradientDescentMinimizer.h"
-#include "../../libs/AdamMinimizer.h"
-
 #include "../../libs/GroupSpheres.h"
 #include "../../libs/GroupNormals.h"
 #include "../../libs/FixChosenSpheres.h"

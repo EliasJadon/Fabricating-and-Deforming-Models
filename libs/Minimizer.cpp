@@ -1,5 +1,4 @@
 #include "Minimizer.h"
-#include "NewtonMinimizer.h"
 #include "AuxBendingNormal.h"
 #include "AuxSpherePerHinge.h"
 #include "BendingEdge.h"
