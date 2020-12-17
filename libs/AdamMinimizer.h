@@ -16,7 +16,7 @@ public:
 
 	virtual void step() override {
 #ifdef USING_CUDA
-		Cuda::AdamMinimizer::step();
+		Cuda::Minimizer::AdamStep();
 #else
 		objective->updateX(X);
 		currentEnergy = objective->value(true);
@@ -39,14 +39,14 @@ public:
 	virtual void internal_init() override {
 #ifdef USING_CUDA
 		unsigned int size = 3 * V.rows() + 7 * F.rows();
-		Cuda::AllocateMemory(Cuda::AdamMinimizer::v_adam, size);
-		Cuda::AllocateMemory(Cuda::AdamMinimizer::s_adam, size);
+		Cuda::AllocateMemory(Cuda::Minimizer::v_adam, size);
+		Cuda::AllocateMemory(Cuda::Minimizer::s_adam, size);
 		for (int i = 0; i < size; i++) {
-			Cuda::AdamMinimizer::v_adam.host_arr[i] = 0;
-			Cuda::AdamMinimizer::s_adam.host_arr[i] = 0;
+			Cuda::Minimizer::v_adam.host_arr[i] = 0;
+			Cuda::Minimizer::s_adam.host_arr[i] = 0;
 		}
-		Cuda::MemCpyHostToDevice(Cuda::AdamMinimizer::v_adam);
-		Cuda::MemCpyHostToDevice(Cuda::AdamMinimizer::s_adam);
+		Cuda::MemCpyHostToDevice(Cuda::Minimizer::v_adam);
+		Cuda::MemCpyHostToDevice(Cuda::Minimizer::s_adam);
 #else
 		objective->updateX(X);
 		g.resize(X.size());

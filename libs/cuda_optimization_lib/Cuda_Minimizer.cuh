@@ -8,6 +8,9 @@
 namespace Cuda {
 	namespace Minimizer {
 		extern Array<double> X, p, g, curr_x;
+		extern Array<double> v_adam, s_adam;
+
+		void AdamStep();
 		void linesearch_currX(const double step_size);
 		void TotalGradient(
 			const double* g1, const double w1,
