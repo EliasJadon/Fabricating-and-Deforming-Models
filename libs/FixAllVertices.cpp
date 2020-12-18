@@ -2,6 +2,7 @@
 
 FixAllVertices::FixAllVertices()
 {
+	cuda_FixAllV = std::make_shared<Cuda_FixAllVertices>();
     name = "Fix All Vertices";
 	w = 0.3;
 	std::cout << "\t" << name << " constructor" << std::endl;
@@ -17,7 +18,6 @@ void FixAllVertices::init()
 	std::cout << "\t" << name << " initialization" << std::endl;
 	if (restShapeV.size() == 0 || restShapeF.size() == 0)
 		throw name + " must define members V,F before init()!";
-	 cuda_FixAllV = std::make_shared<Cuda_FixAllVertices>();
 	internalInitCuda();
 }
 

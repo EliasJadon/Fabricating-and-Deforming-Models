@@ -42,7 +42,7 @@ void SymmetricDirichlet::setRestShapeFromCurrentConfiguration() {
 void SymmetricDirichlet::updateX(Cuda::Array<double>& curr_x)
 {
 	Cuda::MemCpyDeviceToHost(curr_x);
-	assert(Cuda::Minimizer::curr_x.size == (restShapeV.size() + 7 * restShapeF.rows()));
+	assert(curr_x.size == (restShapeV.size() + 7 * restShapeF.rows()));
 	CurrV.resize(restShapeV.rows(), 3);
 	for (int v = 0; v < restShapeV.rows(); v++) {
 		CurrV(v, 0) = curr_x.host_arr[v];
