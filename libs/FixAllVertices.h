@@ -9,6 +9,7 @@ private:
 	Eigen::MatrixX3d CurrV;
 	void internalInitCuda();
 public:
+	std::shared_ptr<Cuda_FixAllVertices> cuda_FixAllV;
 	FixAllVertices();
 	~FixAllVertices();
 	virtual void init() override;

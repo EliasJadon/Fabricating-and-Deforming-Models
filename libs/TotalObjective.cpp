@@ -35,23 +35,26 @@ void TotalObjective::gradient(
 	Eigen::VectorXd& g, 
 	const bool update)
 {
+	Eigen::VectorXd _ = Eigen::VectorXd::Zero(1);
+
 	if (objectiveList[1]->w)
 		Cuda::AuxBendingNormal::gradient(X);
-	if (objectiveList[5]->w)
-		Cuda::FixAllVertices::gradient(X);
+	if (objectiveList[5]->w) // FixAllVertices
+		objectiveList[5]->gradient(X, _, true);
 	if (objectiveList[0]->w)
 		Cuda::AuxSpherePerHinge::gradient(X);
-	if (objectiveList[6]->w) { //FixChosenVertices
-		Eigen::VectorXd _ = Eigen::VectorXd::Zero(1);
+	if (objectiveList[6]->w) //FixChosenVertices
 		objectiveList[6]->gradient(X, _, true);
-	}
 		
 	
-	std::shared_ptr<FixChosenVertices> FCV = std::dynamic_pointer_cast<FixChosenVertices>(objectiveList[6]);
+	std::shared_ptr<FixChosenVertices> FCV = 
+		std::dynamic_pointer_cast<FixChosenVertices>(objectiveList[6]);
+	std::shared_ptr<FixAllVertices> FAV =
+		std::dynamic_pointer_cast<FixAllVertices>(objectiveList[5]);
 
 	cuda_Minimizer->TotalGradient(
 		Cuda::AuxBendingNormal::grad.cuda_arr, objectiveList[1]->w,//AuxBendingNormal
-		Cuda::FixAllVertices::grad.cuda_arr, objectiveList[5]->w,//FixAllVertices
+		FAV->cuda_FixAllV->grad.cuda_arr, FAV->w,//FixAllVertices
 		Cuda::AuxSpherePerHinge::grad.cuda_arr, objectiveList[0]->w,//AuxSpherePerHinge
 		FCV->Cuda_FixChosConst->grad.cuda_arr, FCV->w		//FixChosenVertices
 	);
