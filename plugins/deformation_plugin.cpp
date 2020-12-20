@@ -1875,20 +1875,16 @@ void deformation_plugin::initializeMinimizer(const int index)
 	fixAllVertices->init();
 
 	//Add User Interface Energies
-	std::shared_ptr <FixChosenNormals> fixChosenNormals = std::make_shared<FixChosenNormals>();
-	fixChosenNormals->numV = V.rows();
-	fixChosenNormals->numF = F.rows();
-	fixChosenNormals->init();
+	auto fixChosenNormals = std::make_shared<FixChosenVertices>(F.rows(), V.rows(), ConstraintsType::NORMALS);
 	Outputs[index].Energy_FixChosenNormals = fixChosenNormals;
 	
 	auto fixChosenVertices = std::make_shared<FixChosenVertices>(F.rows(), V.rows(), ConstraintsType::VERTICES);
 	Outputs[index].Energy_FixChosenVertices = fixChosenVertices;
 
-	std::shared_ptr< FixChosenSpheres> fixChosenSpheres = std::make_shared<FixChosenSpheres>();
-	fixChosenSpheres->numV = V.rows();
-	fixChosenSpheres->numF = F.rows();
-	fixChosenSpheres->init();
+	auto fixChosenSpheres = std::make_shared<FixChosenVertices>(F.rows(), V.rows(), ConstraintsType::SPHERES);
 	Outputs[index].Energy_FixChosenSpheres = fixChosenSpheres;
+	
+	
 	std::shared_ptr< GroupSpheres> groupSpheres = std::make_shared<GroupSpheres>();
 	groupSpheres->numV = V.rows();
 	groupSpheres->numF = F.rows();

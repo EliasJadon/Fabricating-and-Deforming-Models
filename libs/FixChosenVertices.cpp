@@ -5,9 +5,13 @@ FixChosenVertices::FixChosenVertices(
 	const unsigned int numV,
 	const ConstraintsType type)
 {
-	Cuda_FixChosConst = std::make_shared<Cuda_FixChosenConstraints>(
-		numF, numV, type);
-    name = "Fix Chosen Vertices";
+	Cuda_FixChosConst = std::make_shared<Cuda_FixChosenConstraints>(numF, numV, type);
+    if(type == ConstraintsType::VERTICES)
+		name = "Fix Chosen Vertices";
+	if(type == ConstraintsType::NORMALS)
+		name = "Fix Chosen Normals";
+	if(type == ConstraintsType::SPHERES)
+		name = "Fix Chosen Centers";
 	w = 100000;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
