@@ -1,6 +1,6 @@
 #include "FixChosenVertices.h"
 
-FixChosenVertices::FixChosenVertices(
+FixChosenConstraints::FixChosenConstraints(
 	const unsigned int numF,
 	const unsigned int numV,
 	const ConstraintsType type)
@@ -16,16 +16,16 @@ FixChosenVertices::FixChosenVertices(
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
-FixChosenVertices::~FixChosenVertices() 
+FixChosenConstraints::~FixChosenConstraints() 
 {
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void FixChosenVertices::init()
+void FixChosenConstraints::init()
 {
 }
 
-void FixChosenVertices::updateExtConstraints(
+void FixChosenConstraints::updateExtConstraints(
 	std::vector<int>& CVInd,
 	Eigen::MatrixX3d& CVPos)
 {
@@ -53,11 +53,11 @@ void FixChosenVertices::updateExtConstraints(
 	m_value.unlock();
 }
 
-void FixChosenVertices::updateX(Cuda::Array<double>& curr_x)
+void FixChosenConstraints::updateX(Cuda::Array<double>& curr_x)
 {
 }
 
-double FixChosenVertices::value(Cuda::Array<double>& curr_x, const bool update)
+double FixChosenConstraints::value(Cuda::Array<double>& curr_x, const bool update)
 {
 	m_value.lock();
 	double value = Cuda_FixChosConst->value(curr_x);
@@ -68,7 +68,7 @@ double FixChosenVertices::value(Cuda::Array<double>& curr_x, const bool update)
 	return value;
 }
 
-void FixChosenVertices::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
+void FixChosenConstraints::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
 {
 	m_gradient.lock();
 	Cuda_FixChosConst->gradient(X);

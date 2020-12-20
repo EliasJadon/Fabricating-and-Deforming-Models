@@ -47,8 +47,8 @@ void TotalObjective::gradient(
 		objectiveList[6]->gradient(X, _, true);
 		
 	
-	std::shared_ptr<FixChosenVertices> FCV = 
-		std::dynamic_pointer_cast<FixChosenVertices>(objectiveList[6]);
+	std::shared_ptr<FixChosenConstraints> FCV = 
+		std::dynamic_pointer_cast<FixChosenConstraints>(objectiveList[6]);
 	std::shared_ptr<FixAllVertices> FAV =
 		std::dynamic_pointer_cast<FixAllVertices>(objectiveList[5]);
 

@@ -3,17 +3,17 @@
 #include "cuda_optimization_lib/Cuda_FixChosenConstraints.cuh"
 #include <mutex>
 
-class FixChosenVertices : public ObjectiveFunction
+class FixChosenConstraints : public ObjectiveFunction
 {
 private:
 	std::mutex m_value, m_gradient;
 public:
 	std::shared_ptr<Cuda_FixChosenConstraints> Cuda_FixChosConst;
-	FixChosenVertices(
+	FixChosenConstraints(
 		const unsigned int numF,
 		const unsigned int numV,
 		const ConstraintsType type);
-	~FixChosenVertices();
+	~FixChosenConstraints();
 	virtual void init() override;
 	virtual void updateX(Cuda::Array<double>& curr_x) override;
 	virtual double value(Cuda::Array<double>& curr_x, const bool update) override;
