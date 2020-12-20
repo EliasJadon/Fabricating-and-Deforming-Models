@@ -1,6 +1,6 @@
 #pragma once
 #include "ObjectiveFunction.h"
-#include "FixChosenVertices.h"
+#include "FixChosenConstraints.h"
 #include "FixAllVertices.h"
 #include "cuda_optimization_lib/Cuda_FixAllVertices.cuh"
 #include "cuda_optimization_lib/Cuda_AuxSpherePerHinge.cuh"

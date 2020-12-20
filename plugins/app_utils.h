@@ -23,7 +23,6 @@
 #include "../../libs/Minimizer.h"
 #include "../../libs/GroupSpheres.h"
 #include "../../libs/GroupNormals.h"
-#include "../../libs/FixChosenSpheres.h"
 #include "../../libs/STVK.h"
 #include "../../libs/SymmetricDirichlet.h"
 #include "../../libs/FixAllVertices.h"
@@ -31,8 +30,7 @@
 #include "../../libs/AuxBendingNormal.h"
 #include "../../libs/AuxSpherePerHinge.h"
 #include "../../libs/BendingNormal.h"
-#include "../../libs/FixChosenVertices.h"
-#include "../../libs/FixChosenNormals.h"
+#include "../../libs/FixChosenConstraints.h"
 
 #define RED_COLOR Eigen::Vector3f(1, 0, 0)
 #define BLUE_COLOR Eigen::Vector3f(0, 0, 1)
