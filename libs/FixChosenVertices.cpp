@@ -4,8 +4,6 @@ FixChosenVertices::FixChosenVertices(
 	const unsigned int numF,
 	const unsigned int numV)
 {
-	this->numF = numF;
-	this->numV = numV;
 	Cuda_FixChosConst = std::make_shared<Cuda_FixChosenConstraints>(
 		numF, numV, ConstraintsType::VERTICES);
     name = "Fix Chosen Vertices";
@@ -20,12 +18,6 @@ FixChosenVertices::~FixChosenVertices()
 
 void FixChosenVertices::init()
 {
-	std::cout << "\t" << name << " initialization" << std::endl;
-	if(numV==0 || numF == 0)
-		throw name + " must define members numV & numF before init()!";
-	startV_x = (0 * numV);
-	startV_y = (1 * numV);
-	startV_z = (2 * numV);
 }
 
 void FixChosenVertices::updateExtConstraints(
@@ -58,19 +50,6 @@ void FixChosenVertices::updateExtConstraints(
 
 void FixChosenVertices::updateX(Cuda::Array<double>& curr_x)
 {
-	//m.lock();
-	//Eigen::MatrixX3d CurrConstrainedVerticesPos;
-	//CurrConstrainedVerticesPos.resizeLike(ConstrainedVerticesPos);
-	//for (int i = 0; i < ConstrainedVerticesInd.size(); i++)
-	//{
-	//	CurrConstrainedVerticesPos.row(i) <<
-	//		X(ConstrainedVerticesInd[i] + startV_x),	//X-coordinate
-	//		X(ConstrainedVerticesInd[i] + startV_y),	//Y-coordinate
-	//		X(ConstrainedVerticesInd[i] + startV_z);	//Z-coordinate
-	//}
-	//diff = (CurrConstrainedVerticesPos - ConstrainedVerticesPos);
-	//currConstrainedVerticesInd = ConstrainedVerticesInd;
-	//m.unlock();
 }
 
 double FixChosenVertices::value(Cuda::Array<double>& curr_x, const bool update)
@@ -78,8 +57,6 @@ double FixChosenVertices::value(Cuda::Array<double>& curr_x, const bool update)
 	m_value.lock();
 	double value = Cuda_FixChosConst->value(curr_x);
 	m_value.unlock();
-	
-	//double E = diff.squaredNorm();
 	if (update) {
 		energy_value = value;
 	}
@@ -91,14 +68,4 @@ void FixChosenVertices::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, con
 	m_gradient.lock();
 	Cuda_FixChosConst->gradient(X);
 	m_gradient.unlock();
-	//g.conservativeResize(numV * 3 + numF * 7);
-	//g.setZero();
-	//for (int i = 0; i < currConstrainedVerticesInd.size(); i++)
-	//{
-	//	g(currConstrainedVerticesInd[i] + startV_x) = 2 * diff(i, 0); //X-coordinate
-	//	g(currConstrainedVerticesInd[i] + startV_y) = 2 * diff(i, 1); //Y-coordinate
-	//	g(currConstrainedVerticesInd[i] + startV_z) = 2 * diff(i, 2); //Z-coordinate
-	//}
-	//if(update)
-	//	gradient_norm = g.norm();
 }
