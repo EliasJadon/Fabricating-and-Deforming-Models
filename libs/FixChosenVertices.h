@@ -9,7 +9,10 @@ private:
 	std::mutex m_value, m_gradient;
 public:
 	std::shared_ptr<Cuda_FixChosenConstraints> Cuda_FixChosConst;
-	FixChosenVertices(const unsigned int numF,const unsigned int numV);
+	FixChosenVertices(
+		const unsigned int numF,
+		const unsigned int numV,
+		const ConstraintsType type);
 	~FixChosenVertices();
 	virtual void init() override;
 	virtual void updateX(Cuda::Array<double>& curr_x) override;

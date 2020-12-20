@@ -2,10 +2,11 @@
 
 FixChosenVertices::FixChosenVertices(
 	const unsigned int numF,
-	const unsigned int numV)
+	const unsigned int numV,
+	const ConstraintsType type)
 {
 	Cuda_FixChosConst = std::make_shared<Cuda_FixChosenConstraints>(
-		numF, numV, ConstraintsType::VERTICES);
+		numF, numV, type);
     name = "Fix Chosen Vertices";
 	w = 100000;
 	std::cout << "\t" << name << " constructor" << std::endl;
