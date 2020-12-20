@@ -142,7 +142,7 @@ void Cuda_FixChosenConstraints::gradient(Cuda::Array<double>& X)
 Cuda_FixChosenConstraints::Cuda_FixChosenConstraints(
 	const unsigned int numF,
 	const unsigned int numV,
-	const unsigned int const_Type) 
+	const ConstraintsType const_Type)
 {
 	Cuda::initIndices(mesh_indices, numF, numV, 0);
 	Cuda::AllocateMemory(grad, (3 * numV) + (7 * numF));
@@ -150,11 +150,22 @@ Cuda_FixChosenConstraints::Cuda_FixChosenConstraints(
 	Cuda::AllocateMemory(Const_Ind, 0);
 	Cuda::AllocateMemory(Const_Pos, 0);
 	//Choose the kind of constraints
-	if (const_Type == 0) { //vertices constraints
+	if (const_Type == ConstraintsType::VERTICES) { 
 		startX = mesh_indices.startVx;
 		startY = mesh_indices.startVy;
 		startZ = mesh_indices.startVz;
 	}
+	if (const_Type == ConstraintsType::NORMALS) { 
+		startX = mesh_indices.startNx;
+		startY = mesh_indices.startNy;
+		startZ = mesh_indices.startNz;
+	}
+	if (const_Type == ConstraintsType::SPHERES) { 
+		startX = mesh_indices.startCx;
+		startY = mesh_indices.startCy;
+		startZ = mesh_indices.startCz;
+	}
+	
 	//init host buffers...
 	for (int i = 0; i < grad.size; i++) {
 		grad.host_arr[i] = 0;

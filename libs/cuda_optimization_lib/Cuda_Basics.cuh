@@ -6,6 +6,12 @@
 
 #define USING_CUDA
 
+enum ConstraintsType {
+	VERTICES,
+	SPHERES,
+	NORMALS
+};
+
 enum FunctionType 
 {
 	QUADRATIC = 0,

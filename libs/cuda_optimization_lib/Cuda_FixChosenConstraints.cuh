@@ -5,7 +5,7 @@ class Cuda_FixChosenConstraints {
 public:
 	Cuda_FixChosenConstraints(const unsigned int numF,
 		const unsigned int numV,
-		const unsigned int Type);
+		const ConstraintsType Type);
 	~Cuda_FixChosenConstraints();
 	Cuda::Array<double> grad, EnergyAtomic;
 	Cuda::indices mesh_indices;

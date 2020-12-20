@@ -6,7 +6,8 @@ FixChosenVertices::FixChosenVertices(
 {
 	this->numF = numF;
 	this->numV = numV;
-	Cuda_FixChosConst = std::make_shared<Cuda_FixChosenConstraints>(numF, numV, 0);
+	Cuda_FixChosConst = std::make_shared<Cuda_FixChosenConstraints>(
+		numF, numV, ConstraintsType::VERTICES);
     name = "Fix Chosen Vertices";
 	w = 100000;
 	std::cout << "\t" << name << " constructor" << std::endl;
