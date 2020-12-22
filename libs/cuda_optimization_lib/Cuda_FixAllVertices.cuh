@@ -10,5 +10,5 @@ public:
 	Cuda_FixAllVertices();
 	~Cuda_FixAllVertices();
 	double value(Cuda::Array<double>& curr_x);
-	void gradient(Cuda::Array<double>& X);
+	Cuda::Array<double>* gradient(Cuda::Array<double>& X);
 };

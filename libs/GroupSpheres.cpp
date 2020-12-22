@@ -69,29 +69,30 @@ double GroupSpheres::value(Cuda::Array<double>& curr_x, const bool update)
 	return E;
 }
 
-void GroupSpheres::gradient(Cuda::Array<double>& curr_x, Eigen::VectorXd& g, const bool update)
+Cuda::Array<double>* GroupSpheres::gradient(Cuda::Array<double>& X, const bool update)
 {
-	g.conservativeResize(numV * 3 + numF * 7);
-	g.setZero();
+	return NULL;
+	//g.conservativeResize(numV * 3 + numF * 7);
+	//g.setZero();
 
-	for (int ci = 0; ci < currGroupsInd.size(); ci++) {
-		for (int f1 = 0; f1 < SphereCenterPos[ci].rows(); f1++) {
-			for (int f2 = f1 + 1; f2 < SphereCenterPos[ci].rows(); f2++) {
-				Eigen::RowVector3d diffC = SphereCenterPos[ci].row(f1) - SphereCenterPos[ci].row(f2);
-				double diffR = SphereRadiusLen[ci](f1) - SphereRadiusLen[ci](f2);
-				for (int xyz = 0; xyz < 3; xyz++) {
-					//f1 derivative
-					g(currGroupsInd[ci][f1] + (xyz * numF) + startC) += 2 * diffC(xyz);
-					//f2 derivative
-					g(currGroupsInd[ci][f2] + (xyz * numF) + startC) += -2 * diffC(xyz);
-				}
-				//f1 derivative
-				g(currGroupsInd[ci][f1] + startR) += 2 * diffR;
-				//f2 derivative
-				g(currGroupsInd[ci][f2] + startR) += -2 * diffR;
-			}
-		}
-	}
-	if(update)
-		gradient_norm = g.norm();
+	//for (int ci = 0; ci < currGroupsInd.size(); ci++) {
+	//	for (int f1 = 0; f1 < SphereCenterPos[ci].rows(); f1++) {
+	//		for (int f2 = f1 + 1; f2 < SphereCenterPos[ci].rows(); f2++) {
+	//			Eigen::RowVector3d diffC = SphereCenterPos[ci].row(f1) - SphereCenterPos[ci].row(f2);
+	//			double diffR = SphereRadiusLen[ci](f1) - SphereRadiusLen[ci](f2);
+	//			for (int xyz = 0; xyz < 3; xyz++) {
+	//				//f1 derivative
+	//				g(currGroupsInd[ci][f1] + (xyz * numF) + startC) += 2 * diffC(xyz);
+	//				//f2 derivative
+	//				g(currGroupsInd[ci][f2] + (xyz * numF) + startC) += -2 * diffC(xyz);
+	//			}
+	//			//f1 derivative
+	//			g(currGroupsInd[ci][f1] + startR) += 2 * diffR;
+	//			//f2 derivative
+	//			g(currGroupsInd[ci][f2] + startR) += -2 * diffR;
+	//		}
+	//	}
+	//}
+	//if(update)
+	//	gradient_norm = g.norm();
 }

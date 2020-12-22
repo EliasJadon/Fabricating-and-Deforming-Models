@@ -55,9 +55,9 @@ double FixAllVertices::value(Cuda::Array<double>& curr_x, const bool update)
 	return E;
 }
 
-void FixAllVertices::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
+Cuda::Array<double>* FixAllVertices::gradient(Cuda::Array<double>& X, const bool update)
 {
-	cuda_FixAllV->gradient(X);
+	return cuda_FixAllV->gradient(X);
 	//if(update)
 	//	gradient_norm = g.norm();
 }

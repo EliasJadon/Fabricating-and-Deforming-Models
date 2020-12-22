@@ -121,7 +121,7 @@ double Cuda_FixChosenConstraints::value(Cuda::Array<double>& curr_x) {
 	return EnergyAtomic.host_arr[0];
 }
 		
-void Cuda_FixChosenConstraints::gradient(Cuda::Array<double>& X)
+Cuda::Array<double>* Cuda_FixChosenConstraints::gradient(Cuda::Array<double>& X)
 {
 	Utils_Cuda_FixChosenConstraints::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
 	Cuda::CheckErr(cudaDeviceSynchronize());
@@ -137,6 +137,7 @@ void Cuda_FixChosenConstraints::gradient(Cuda::Array<double>& X)
 	for (int i = 0; i < grad.size; i++) {
 		std::cout << i << ":\t" << grad.host_arr[i] << "\n";
 	}*/
+	return &grad;
 }
 
 Cuda_FixChosenConstraints::Cuda_FixChosenConstraints(

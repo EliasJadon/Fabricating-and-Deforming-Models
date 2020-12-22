@@ -387,7 +387,7 @@ namespace Cuda {
 					mesh_indices);
 			}
 		}
-		void gradient(Cuda::Array<double>& X)
+		Cuda::Array<double>* gradient(Cuda::Array<double>& X)
 		{
 			setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
 			CheckErr(cudaDeviceSynchronize());
@@ -401,6 +401,7 @@ namespace Cuda {
 				w1, w2, w3, mesh_indices);
 			CheckErr(cudaDeviceSynchronize());
 			//MemCpyDeviceToHost(grad);
+			return &grad;
 		}
 		
 		void FreeAllVariables() {

@@ -79,9 +79,10 @@ double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
 	return total_energy;
 }
 
-void STVK::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
+Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)
 {
-	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
+	return NULL;
+	/*g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
 	g.setZero();
 
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
@@ -117,5 +118,5 @@ void STVK::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool updat
 	}
 
 	if (update)
-		gradient_norm = g.norm();
+		gradient_norm = g.norm();*/
 }

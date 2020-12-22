@@ -93,9 +93,9 @@ Eigen::Matrix<double, 1, 4> SymmetricDirichlet::dE_dJ(int fi) {
 	return de_dJ;
 }
 
-void SymmetricDirichlet::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
+Cuda::Array<double>* SymmetricDirichlet::gradient(Cuda::Array<double>& X, const bool update)
 {
-	
+	return NULL;
 }
 
 Eigen::Matrix<double, 4, 9> SymmetricDirichlet::dJ_dX(int fi) {

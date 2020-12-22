@@ -62,24 +62,26 @@ double GroupNormals::value(Cuda::Array<double>& curr_x, const bool update)
 	return E;
 }
 
-void GroupNormals::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
+Cuda::Array<double>* GroupNormals::gradient(Cuda::Array<double>& X, const bool update)
 {
-	g.conservativeResize(numV * 3 + numF * 7);
-	g.setZero();
+	return NULL;
 
-	for (int ci = 0; ci < currGroupsInd.size(); ci++) {
-		for (int f1 = 0; f1 < NormalPos[ci].rows(); f1++) {
-			for (int f2 = f1 + 1; f2 < NormalPos[ci].rows(); f2++) {
-				Eigen::RowVector3d diffN = NormalPos[ci].row(f1) - NormalPos[ci].row(f2);
-				for (int xyz = 0; xyz < 3; xyz++) {
-					//f1 derivative
-					g(currGroupsInd[ci][f1] + (xyz * numF) + startN) += 2 * diffN(xyz);
-					//f2 derivative
-					g(currGroupsInd[ci][f2] + (xyz * numF) + startN) += -2 * diffN(xyz);
-				}
-			}
-		}
-	}
-	if(update)
-		gradient_norm = g.norm();
+	//g.conservativeResize(numV * 3 + numF * 7);
+	//g.setZero();
+
+	//for (int ci = 0; ci < currGroupsInd.size(); ci++) {
+	//	for (int f1 = 0; f1 < NormalPos[ci].rows(); f1++) {
+	//		for (int f2 = f1 + 1; f2 < NormalPos[ci].rows(); f2++) {
+	//			Eigen::RowVector3d diffN = NormalPos[ci].row(f1) - NormalPos[ci].row(f2);
+	//			for (int xyz = 0; xyz < 3; xyz++) {
+	//				//f1 derivative
+	//				g(currGroupsInd[ci][f1] + (xyz * numF) + startN) += 2 * diffN(xyz);
+	//				//f2 derivative
+	//				g(currGroupsInd[ci][f2] + (xyz * numF) + startN) += -2 * diffN(xyz);
+	//			}
+	//		}
+	//	}
+	//}
+	//if(update)
+	//	gradient_norm = g.norm();
 }

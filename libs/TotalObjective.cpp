@@ -35,16 +35,14 @@ void TotalObjective::gradient(
 	Eigen::VectorXd& g, 
 	const bool update)
 {
-	Eigen::VectorXd _ = Eigen::VectorXd::Zero(1);
-
 	if (objectiveList[1]->w)
 		Cuda::AuxBendingNormal::gradient(X);
 	if (objectiveList[5]->w) // FixAllVertices
-		objectiveList[5]->gradient(X, _, true);
+		objectiveList[5]->gradient(X, true);
 	if (objectiveList[0]->w)
 		Cuda::AuxSpherePerHinge::gradient(X);
 	if (objectiveList[6]->w) //FixChosenVertices
-		objectiveList[6]->gradient(X, _, true);
+		objectiveList[6]->gradient(X, true);
 		
 	
 	std::shared_ptr<FixChosenConstraints> FCV = 

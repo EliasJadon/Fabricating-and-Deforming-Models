@@ -280,25 +280,9 @@ double BendingEdge::value(Cuda::Array<double>& curr_x, const bool update)
 	return value;
 }
 
-void BendingEdge::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
+Cuda::Array<double>* BendingEdge::gradient(Cuda::Array<double>& X, const bool update)
 {
-	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
-	g.setZero();
-
-	Eigen::VectorXd d_angle = angle - restAngle;
-	Eigen::VectorXd dE_df = k * restConst;
-	Eigen::VectorXd df_d0 = dF_d0(d_angle);
-
-	for (int hi = 0; hi < num_hinges; hi++) {
-		Eigen::Matrix<double, 4, 3> dE_dx = dE_df(hi) * df_d0(hi) * d0_dx(hi);
-
-		for(int i=0;i<4;i++)
-			for (int xyz = 0; xyz < 3; ++xyz)
-				g[x_index(i,hi) + (xyz*restShapeV.rows())] += dE_dx(i, xyz);
-	}
-
-	if (update)
-		gradient_norm = g.norm();
+	return NULL;
 }
 
 Eigen::Matrix< Eigen::Matrix3d, 4, 4> BendingEdge::d20_dxdx(int hi) {

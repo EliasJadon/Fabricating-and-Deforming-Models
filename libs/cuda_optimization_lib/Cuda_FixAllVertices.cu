@@ -117,7 +117,7 @@ double Cuda_FixAllVertices::value(Cuda::Array<double>& curr_x) {
 
 		
 
-void Cuda_FixAllVertices::gradient(Cuda::Array<double>& X)
+Cuda::Array<double>* Cuda_FixAllVertices::gradient(Cuda::Array<double>& X)
 {
 	unsigned int s = grad.size;
 	Utils_Cuda_FixAllVertices::gradientKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
@@ -128,6 +128,7 @@ void Cuda_FixAllVertices::gradient(Cuda::Array<double>& X)
 		grad.size);
 	Cuda::CheckErr(cudaDeviceSynchronize());
 	//MemCpyDeviceToHost(grad);
+	return &grad;
 }
 
 Cuda_FixAllVertices::Cuda_FixAllVertices(){

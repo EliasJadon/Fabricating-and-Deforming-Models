@@ -265,32 +265,9 @@ double BendingNormal::value(Cuda::Array<double>& curr_x, const bool update)
 	return value;
 }
 
-void BendingNormal::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
+Cuda::Array<double>* BendingNormal::gradient(Cuda::Array<double>& X, const bool update)
 {
-	g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
-	g.setZero();
-	// m = ||n1-n0||^2
-	// E = Phi( ||n1-n0||^2 )
-	// 
-	// dE/dx = dPhi/dx
-	// 
-	// using chain rule:
-	// dPhi/dx = dPhi/dm * dm/dn * dn/dx
-
-	Eigen::VectorXd dphi_dm = dPhi_dm(d_normals);
-
-	for (int hi = 0; hi < num_hinges; hi++) {
-		Eigen::Matrix<double, 6, 12> n_x = dN_dx_perhinge(hi);
-		Eigen::Matrix<double, 1, 12> dE_dx = 
-			restArea(hi)* dphi_dm(hi) * dm_dN(hi).transpose() * n_x;
-		
-		for (int xi = 0; xi < 4; xi++)
-			for (int xyz = 0; xyz < 3; ++xyz)
-				g[x_GlobInd(xi,hi) + (xyz*restShapeV.rows())] += dE_dx(xi*3 + xyz);
-	}
-
-	if (update)
-		gradient_norm = g.norm();
+	return NULL;
 }
 
 

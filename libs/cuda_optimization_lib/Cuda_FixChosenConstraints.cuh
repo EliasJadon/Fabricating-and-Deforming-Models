@@ -14,5 +14,5 @@ public:
 	unsigned int startX, startY, startZ;
 
 	double value(Cuda::Array<double>& curr_x);
-	void gradient(Cuda::Array<double>& X);
+	Cuda::Array<double>* gradient(Cuda::Array<double>& X);
 };

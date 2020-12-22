@@ -15,5 +15,5 @@ public:
 	virtual void init() override;
 	virtual void updateX(Cuda::Array<double>& curr_x) override;
 	virtual double value(Cuda::Array<double>& curr_x,const bool update) override;
-	virtual void gradient(Cuda::Array<double>& curr_x,Eigen::VectorXd& g, const bool update) override;
+	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) override;
 };

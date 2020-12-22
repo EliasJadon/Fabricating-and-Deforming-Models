@@ -241,8 +241,8 @@ double AuxBendingNormal::value(Cuda::Array<double>& curr_x, const bool update)
 	return value;
 }
 
-void AuxBendingNormal::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
+Cuda::Array<double>* AuxBendingNormal::gradient(Cuda::Array<double>& X, const bool update)
 {
-	Cuda::AuxBendingNormal::gradient(X);
+	return Cuda::AuxBendingNormal::gradient(X);
 }
 

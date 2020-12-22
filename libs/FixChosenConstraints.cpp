@@ -68,9 +68,10 @@ double FixChosenConstraints::value(Cuda::Array<double>& curr_x, const bool updat
 	return value;
 }
 
-void FixChosenConstraints::gradient(Cuda::Array<double>& X, Eigen::VectorXd& g, const bool update)
+Cuda::Array<double>* FixChosenConstraints::gradient(Cuda::Array<double>& X, const bool update)
 {
 	m_gradient.lock();
-	Cuda_FixChosConst->gradient(X);
+	Cuda::Array<double>* grad = Cuda_FixChosConst->gradient(X);
 	m_gradient.unlock();
+	return grad;
 }
