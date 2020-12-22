@@ -74,11 +74,13 @@ void ObjectiveFunction::checkGradient(const Eigen::VectorXd& X)
 	//std::cout << "FD= " << FD_gradient << std::endl;
 	
 	std::cout << name << ": g.norm() = " << Analytic_gradient_norm << "(analytic) , " << FD_gradient_norm << "(FD)" << std::endl;
-	/*for (int i = 0; i < Analytic_gradient->size; i++) {
+	for (int i = 0; i < Analytic_gradient->size; i++) {
         double absErr = abs(FD_gradient.host_arr[i] - Analytic_gradient->host_arr[i]);
         double relError = 2 * absErr / (eps + Analytic_gradient->host_arr[i] + FD_gradient.host_arr[i]);
         if (relError > tol && absErr > 1e-6) {
-            printf("Mismatch element %d: Analytic val: %lf, FD val: %lf. Error: %lf(%lf%%)\n", i, Analytic_gradient->host_arr[i], FD_gradient.host_arr[i], absErr, relError * 100);
+			std::cout << name << "\t" << i << ":\tAnalytic val: " <<
+				Analytic_gradient->host_arr[i] << ", FD val: " << FD_gradient.host_arr[i] <<
+				". Error: " << absErr << "(" << relError * 100 << "%%)\n";
         }
-    }*/
+    }
 }
