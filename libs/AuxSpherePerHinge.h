@@ -5,8 +5,6 @@
 class AuxSpherePerHinge : public ObjectiveFunction
 {	
 private:
-	Eigen::MatrixX3d CurrV, CurrCenter;
-	Eigen::VectorXd  d_center,d_radius, CurrRadius;
 	Eigen::VectorXd restAreaPerFace, restAreaPerHinge;
 	int num_hinges = -1;
 	std::vector<Eigen::Vector2d> hinges_faceIndex;
@@ -14,12 +12,6 @@ private:
 	Eigen::MatrixXi x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd;
 
 	void calculateHinges();	
-	
-	Eigen::VectorXd Phi(Eigen::VectorXd);
-	Eigen::VectorXd dPhi_dm(Eigen::VectorXd);
-	Eigen::VectorXd d2Phi_dmdm(Eigen::VectorXd);
-	Eigen::Matrix< double, 8, 1> dm_dN(int hi);
-	Eigen::Matrix< double, 8, 8> d2m_dNdN(int hi);
 	void internalInitCuda();
 public:
 	AuxSpherePerHinge(FunctionType type);
