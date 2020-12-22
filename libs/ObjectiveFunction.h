@@ -20,7 +20,7 @@ public:
 	void init_mesh(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
 
 	//Finite Differences check point
-	Eigen::VectorXd FDGradient(const Eigen::VectorXd& X);
+	void FDGradient(const Cuda::Array<double>& X, Cuda::Array<double>& grad);
     void checkGradient(const Eigen::VectorXd& X);
     
 	//weight for each objective function
