@@ -520,47 +520,14 @@ void deformation_plugin::Draw_energies_window()
 				for (auto& obj : Outputs[i].totalObjective->objectiveList) {
 					ImGui::PushID(id++);
 					ImGui::DragFloat("##w", &(obj->w), 0.05f, 0.0f, 100000.0f);
-					auto BE = std::dynamic_pointer_cast<BendingEdge>(obj);
-					auto BN = std::dynamic_pointer_cast<BendingNormal>(obj);
 					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 					if (obj->w) {
-						if (BE != NULL)
-							ImGui::Combo("Function", (int*)(&(BE->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
-						if (BN != NULL)
-							ImGui::Combo("Function", (int*)(&(BN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (ABN != NULL)
 							ImGui::Combo("Function", (int*)(&(Cuda::AuxBendingNormal::functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (AS != NULL)
 							ImGui::Combo("Function", (int*)(&(Cuda::AuxSpherePerHinge::functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 
-						if (BE != NULL && BE->functionType == FunctionType::SIGMOID) {
-
-							ImGui::Text(("2^" + std::to_string(int(log2(BE->planarParameter)))).c_str());
-							ImGui::SameLine();
-							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								BE->planarParameter = (BE->planarParameter * 2) > 1 ? 1 : BE->planarParameter * 2;
-							}
-							ImGui::SameLine();
-							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								BE->planarParameter /= 2;
-							}
-						}
-						if (BN != NULL && BN->functionType == FunctionType::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(BN->planarParameter)))).c_str());
-							ImGui::SameLine();
-							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								BN->planarParameter = (BN->planarParameter * 2) > 1 ? 1 : BN->planarParameter * 2;
-							}
-							ImGui::SameLine();
-							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								BN->planarParameter /= 2;
-							}
-						}
 						if (ABN != NULL && Cuda::AuxBendingNormal::functionType == FunctionType::SIGMOID) {
 							ImGui::Text(("2^" + std::to_string(int(log2(Cuda::AuxBendingNormal::planarParameter)))).c_str());
 							ImGui::SameLine();
@@ -1279,16 +1246,10 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
-				std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
 				if(ABN != NULL)
 					ABN->w = 1.6;
 				if (AS != NULL)
 					AS->w = 0;
-				if (BN != NULL)
-					BN->w = 0;
-				if (BE != NULL)
-					BE->w = 0;
 			}
 		}
 	}
@@ -1306,16 +1267,10 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(obj);
-				std::shared_ptr<BendingEdge> BE = std::dynamic_pointer_cast<BendingEdge>(obj);
 				if (ABN != NULL)
 					ABN->w = 0;
 				if (AS != NULL)
 					AS->w = 1.6;
-				if (BN != NULL)
-					BN->w = 0;
-				if (BE != NULL)
-					BE->w = 0;
 			}
 		}
 	}
@@ -1849,21 +1804,12 @@ void deformation_plugin::initializeMinimizer(const int index)
 		return;
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
-	std::shared_ptr <BendingEdge> bendingEdge = std::make_unique<BendingEdge>(FunctionType::SIGMOID);
-	bendingEdge->init_mesh(V, F);
-	bendingEdge->init();
 	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(FunctionType::SIGMOID);
 	auxBendingNormal->init_mesh(V, F);
 	auxBendingNormal->init();
 	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(FunctionType::SIGMOID);
 	auxSpherePerHinge->init_mesh(V, F);
 	auxSpherePerHinge->init();
-	std::shared_ptr <BendingNormal> bendingNormal = std::make_unique<BendingNormal>(FunctionType::SIGMOID);
-	bendingNormal->init_mesh(V, F);
-	bendingNormal->init();
-	std::shared_ptr <SymmetricDirichlet> SymmDirich = std::make_unique<SymmetricDirichlet>();
-	SymmDirich->init_mesh(V, F);
-	SymmDirich->init();
 	std::shared_ptr <STVK> stvk = std::make_unique<STVK>();
 	if (app_utils::IsMesh2D(InputModel().V)) 
 	{
@@ -1904,9 +1850,6 @@ void deformation_plugin::initializeMinimizer(const int index)
 	};
 	add_obj(auxSpherePerHinge);
 	add_obj(auxBendingNormal);
-	add_obj(bendingNormal);
-	add_obj(bendingEdge);
-	add_obj(SymmDirich);
 	if(app_utils::IsMesh2D(InputModel().V))
 		add_obj(stvk);
 	add_obj(fixAllVertices);

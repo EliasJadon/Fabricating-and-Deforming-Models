@@ -37,18 +37,18 @@ void TotalObjective::gradient(
 {
 	if (objectiveList[1]->w)
 		Cuda::AuxBendingNormal::gradient(X);
-	if (objectiveList[5]->w) // FixAllVertices
-		objectiveList[5]->gradient(X, true);
+	if (objectiveList[2]->w) // FixAllVertices
+		objectiveList[2]->gradient(X, true);
 	if (objectiveList[0]->w)
 		Cuda::AuxSpherePerHinge::gradient(X);
-	if (objectiveList[6]->w) //FixChosenVertices
-		objectiveList[6]->gradient(X, true);
+	if (objectiveList[3]->w) //FixChosenVertices
+		objectiveList[3]->gradient(X, true);
 		
 	
 	std::shared_ptr<FixChosenConstraints> FCV = 
-		std::dynamic_pointer_cast<FixChosenConstraints>(objectiveList[6]);
+		std::dynamic_pointer_cast<FixChosenConstraints>(objectiveList[3]);
 	std::shared_ptr<FixAllVertices> FAV =
-		std::dynamic_pointer_cast<FixAllVertices>(objectiveList[5]);
+		std::dynamic_pointer_cast<FixAllVertices>(objectiveList[2]);
 
 	cuda_Minimizer->TotalGradient(
 		Cuda::AuxBendingNormal::grad.cuda_arr, objectiveList[1]->w,//AuxBendingNormal

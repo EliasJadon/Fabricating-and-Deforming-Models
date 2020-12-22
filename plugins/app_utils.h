@@ -24,12 +24,9 @@
 #include "../../libs/GroupSpheres.h"
 #include "../../libs/GroupNormals.h"
 #include "../../libs/STVK.h"
-#include "../../libs/SymmetricDirichlet.h"
 #include "../../libs/FixAllVertices.h"
-#include "../../libs/BendingEdge.h"
 #include "../../libs/AuxBendingNormal.h"
 #include "../../libs/AuxSpherePerHinge.h"
-#include "../../libs/BendingNormal.h"
 #include "../../libs/FixChosenConstraints.h"
 
 #define RED_COLOR Eigen::Vector3f(1, 0, 0)
