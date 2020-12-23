@@ -16,10 +16,10 @@ private:
 	std::vector < Eigen::VectorXd> SphereRadiusLen;
 	std::mutex m;
 public:
-	GroupSpheres();
+	GroupSpheres(
+		const Eigen::MatrixXd& V,
+		const Eigen::MatrixX3i& F);
 	~GroupSpheres();
-	virtual void init() override;
-	virtual void updateX(Cuda::Array<double>& curr_x) override;
 	virtual double value(Cuda::Array<double>& curr_x, const bool update) override;
 	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) override;
 	void updateExtConstraints(std::vector < std::vector<int>>& CInd);

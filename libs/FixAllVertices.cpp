@@ -1,24 +1,20 @@
 #include "FixAllVertices.h"
 
-FixAllVertices::FixAllVertices()
+FixAllVertices::FixAllVertices(
+	const Eigen::MatrixXd& V,
+	const Eigen::MatrixX3i& F)
 {
+	init_mesh(V, F);
 	cuda_FixAllV = std::make_shared<Cuda_FixAllVertices>();
     name = "Fix All Vertices";
 	w = 0.3;
+	internalInitCuda();
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
 FixAllVertices::~FixAllVertices()
 {
 	std::cout << "\t" << name << " destructor" << std::endl;
-}
-
-void FixAllVertices::init()
-{
-	std::cout << "\t" << name << " initialization" << std::endl;
-	if (restShapeV.size() == 0 || restShapeF.size() == 0)
-		throw name + " must define members V,F before init()!";
-	internalInitCuda();
 }
 
 void FixAllVertices::internalInitCuda() {
@@ -41,10 +37,6 @@ void FixAllVertices::internalInitCuda() {
 	// Copy input vectors from host memory to GPU buffers.
 	Cuda::MemCpyHostToDevice(cuda_FixAllV->grad);
 	Cuda::MemCpyHostToDevice(cuda_FixAllV->restShapeV);
-}
-
-void FixAllVertices::updateX(Cuda::Array<double>& curr_x)
-{
 }
 
 double FixAllVertices::value(Cuda::Array<double>& curr_x, const bool update)

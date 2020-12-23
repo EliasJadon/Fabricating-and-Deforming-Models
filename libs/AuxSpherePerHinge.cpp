@@ -3,25 +3,22 @@
 #include <igl/triangle_triangle_adjacency.h>
 
 
-AuxSpherePerHinge::AuxSpherePerHinge(FunctionType type) {
+AuxSpherePerHinge::AuxSpherePerHinge(
+	const Eigen::MatrixXd& V, 
+	const Eigen::MatrixX3i& F,
+	const FunctionType type) 
+{
+	init_mesh(V, F);
 	Cuda::AuxSpherePerHinge::functionType = type;
 	name = "Aux Sphere Per Hinge";
 	w = 0;
-	std::cout << "\t" << name << " constructor" << std::endl;
-}
+	
 
-AuxSpherePerHinge::~AuxSpherePerHinge() {
-	std::cout << "\t" << name << " destructor" << std::endl;
-}
-
-void AuxSpherePerHinge::init()
-{
-	std::cout << "\t" << name << " initialization" << std::endl;
 	if (restShapeV.size() == 0 || restShapeF.size() == 0)
 		throw name + " must define members V,F before init()!";
 
 	calculateHinges();
-	
+
 	restAreaPerHinge.resize(num_hinges);
 	igl::doublearea(restShapeV, restShapeF, restAreaPerFace);
 	restAreaPerFace /= 2;
@@ -32,6 +29,11 @@ void AuxSpherePerHinge::init()
 	}
 	Cuda::AuxSpherePerHinge::planarParameter = 1;
 	internalInitCuda();
+	std::cout << "\t" << name << " constructor" << std::endl;
+}
+
+AuxSpherePerHinge::~AuxSpherePerHinge() {
+	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
 void AuxSpherePerHinge::internalInitCuda() {
@@ -91,10 +93,6 @@ void AuxSpherePerHinge::internalInitCuda() {
 	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x1_LocInd);
 	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x2_LocInd);
 	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x3_LocInd);
-}
-
-void AuxSpherePerHinge::updateX(Cuda::Array<double>& curr_x)
-{
 }
 
 void AuxSpherePerHinge::calculateHinges() {

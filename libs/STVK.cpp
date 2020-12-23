@@ -1,25 +1,22 @@
 ﻿#include "STVK.h"
 
-STVK::STVK() {
+STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) 
+{
+	init_mesh(V, F);
 	name = "STVK";
 	w = 0;
+	if (restShapeV.size() == 0 || restShapeF.size() == 0)
+		throw name + " must define members V,F before init()!";
+
+	assert(restShapeV.col(2).isZero() && "Warning: Rest shape is assumed to be in the plane (z coordinate must be zero in the beginning)");
+	shearModulus = 0.3;
+	bulkModulus = 1.5;
+	setRestShapeFromCurrentConfiguration();
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
 STVK::~STVK() {
 	std::cout << "\t" << name << " destructor" << std::endl;
-}
-
-void STVK::init()
-{
-	std::cout << "\t" << name << " initialization" << std::endl;
-	if (restShapeV.size() == 0 || restShapeF.size() == 0)
-		throw name + " must define members V,F before init()!";
-	
-	assert(restShapeV.col(2).isZero() && "Warning: Rest shape is assumed to be in the plane (z coordinate must be zero in the beginning)");
-	shearModulus = 0.3;
-	bulkModulus = 1.5;
-	setRestShapeFromCurrentConfiguration();
 }
 
 void STVK::setRestShapeFromCurrentConfiguration() {
@@ -39,8 +36,8 @@ void STVK::setRestShapeFromCurrentConfiguration() {
 	restShapeArea /= 2;
 }
 
-void STVK::updateX(Cuda::Array<double>& curr_x)
-{
+//void STVK::updateX(Cuda::Array<double>& curr_x)
+//{
 	//assert(X.rows() == (restShapeV.size()+ 7*restShapeF.rows()));
 	//CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, restShapeV.size()).data(), restShapeV.rows(), 3);
 	//
@@ -61,7 +58,7 @@ void STVK::updateX(Cuda::Array<double>& curr_x)
 	//	strain[fi](0, 0) -= 1; strain[fi](1, 1) -= 1;
 	//	strain[fi] *= 0.5;
 	//}
-}
+//}
 
 double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
 	Eigen::VectorXd Energy(restShapeF.rows());

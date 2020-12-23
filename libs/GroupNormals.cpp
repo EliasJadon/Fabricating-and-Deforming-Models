@@ -1,10 +1,24 @@
 #include "GroupNormals.h"
 
-GroupNormals::GroupNormals()
+GroupNormals::GroupNormals(
+	const Eigen::MatrixXd& V,
+	const Eigen::MatrixX3i& F)
 {
+	init_mesh(V, F);
+	numV = V.rows();
+	numF = F.rows();
     name = "Group Normals";
 	//w = 0.05;
 	w = 0;
+
+	std::cout << "\t" << name << " initialization" << std::endl;
+	if (numV == 0 || numF == 0)
+		throw name + " must define members numV & numF before init()!";
+	startN = 3 * numV;
+	startN_x = (0 * numF) + (3 * numV);
+	startN_y = (1 * numF) + (3 * numV);
+	startN_z = (2 * numF) + (3 * numV);
+
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
@@ -13,19 +27,8 @@ GroupNormals::~GroupNormals()
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void GroupNormals::init()
-{
-	std::cout << "\t" << name << " initialization" << std::endl;
-	if(numV==0 || numF == 0)
-		throw name + " must define members numV & numF before init()!";
-	startN = 3 * numV;
-	startN_x = (0 * numF) + (3 * numV);
-	startN_y = (1 * numF) + (3 * numV);
-	startN_z = (2 * numF) + (3 * numV);
-}
-
-void GroupNormals::updateX(Cuda::Array<double>& curr_x)
-{
+//void GroupNormals::updateX(Cuda::Array<double>& curr_x)
+//{
 	//m.lock();
 	//NormalPos.resize(GroupsInd.size());
 	//for (int ci = 0; ci < GroupsInd.size(); ci++) {
@@ -41,7 +44,7 @@ void GroupNormals::updateX(Cuda::Array<double>& curr_x)
 	//}
 	//currGroupsInd = GroupsInd;
 	//m.unlock();
-}
+//}
 
 void GroupNormals::updateExtConstraints(std::vector < std::vector<int>>& CInd)
 {

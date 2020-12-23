@@ -12,8 +12,6 @@ public:
 public:
 	ObjectiveFunction() {}
 	virtual ~ObjectiveFunction(){}
-	virtual void init() = 0;
-	virtual void updateX(Cuda::Array<double>& curr_x) = 0;
 	virtual double value(Cuda::Array<double>& curr_x, const bool update) = 0;
 	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) = 0;
 	

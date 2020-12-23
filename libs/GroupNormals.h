@@ -14,10 +14,10 @@ private:
 	std::vector < Eigen::MatrixX3d> NormalPos;
 	std::mutex m;
 public:
-	GroupNormals();
+	GroupNormals(
+		const Eigen::MatrixXd& V,
+		const Eigen::MatrixX3i& F);
 	~GroupNormals();
-	virtual void init() override;
-	virtual void updateX(Cuda::Array<double>& curr_x) override;
 	virtual double value(Cuda::Array<double>& curr_x, const bool update) override;
 	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) override;
 	void updateExtConstraints(std::vector < std::vector<int>>& CInd);

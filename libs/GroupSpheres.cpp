@@ -1,10 +1,24 @@
 #include "GroupSpheres.h"
 
-GroupSpheres::GroupSpheres()
+GroupSpheres::GroupSpheres(
+	const Eigen::MatrixXd& V,
+	const Eigen::MatrixX3i& F)
 {
+	init_mesh(V, F);
+	numV = V.rows();
+	numF = F.rows();
     name = "Group Spheres";
 	//w = 0.05;
 	w = 0;
+
+	if (numV == 0 || numF == 0)
+		throw name + " must define members numV & numF before init()!";
+
+	startC = (3 * numV) + (3 * numF);
+	startC_x = (3 * numV) + (3 * numF) + (0 * numF);
+	startC_y = (3 * numV) + (3 * numF) + (1 * numF);
+	startC_z = (3 * numV) + (3 * numF) + (2 * numF);
+	startR = (3 * numV) + (6 * numF);
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
@@ -13,21 +27,8 @@ GroupSpheres::~GroupSpheres()
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void GroupSpheres::init()
-{
-	std::cout << "\t" << name << " initialization" << std::endl;
-	if(numV==0 || numF == 0)
-		throw name + " must define members numV & numF before init()!";
-
-	startC = (3 * numV) + (3 * numF);
-	startC_x = (3 * numV) + (3 * numF) + (0 * numF);
-	startC_y = (3 * numV) + (3 * numF) + (1 * numF);
-	startC_z = (3 * numV) + (3 * numF) + (2 * numF);
-	startR = (3 * numV) + (6 * numF);
-}
-
-void GroupSpheres::updateX(Cuda::Array<double>& curr_x)
-{
+//void GroupSpheres::updateX(Cuda::Array<double>& curr_x)
+//{
 	//m.lock();
 	//SphereCenterPos.resize(GroupsInd.size());
 	//SphereRadiusLen.resize(GroupsInd.size());
@@ -46,7 +47,7 @@ void GroupSpheres::updateX(Cuda::Array<double>& curr_x)
 	//}
 	//currGroupsInd = GroupsInd;
 	//m.unlock();
-}
+//}
 
 void GroupSpheres::updateExtConstraints(std::vector < std::vector<int>>& CInd) {
 	m.lock();

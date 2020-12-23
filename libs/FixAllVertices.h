@@ -10,10 +10,9 @@ private:
 	void internalInitCuda();
 public:
 	std::shared_ptr<Cuda_FixAllVertices> cuda_FixAllV;
-	FixAllVertices();
+	FixAllVertices(const Eigen::MatrixXd& V,
+		const Eigen::MatrixX3i& F);
 	~FixAllVertices();
-	virtual void init() override;
-	virtual void updateX(Cuda::Array<double>& curr_x) override;
 	virtual double value(Cuda::Array<double>& curr_x,const bool update) override;
 	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) override;
 };

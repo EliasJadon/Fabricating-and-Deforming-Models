@@ -11,13 +11,6 @@ TotalObjective::~TotalObjective()
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void TotalObjective::init()
-{
-	std::cout << "\t" << name << " initialization" << std::endl;
-	for (auto &objective : objectiveList)
-		objective->init();
-}
-
 double TotalObjective::value(Cuda::Array<double>& curr_x, const bool update)
 {
 	double f=0;

@@ -14,8 +14,6 @@ public:
 		const unsigned int numV,
 		const ConstraintsType type);
 	~FixChosenConstraints();
-	virtual void init() override;
-	virtual void updateX(Cuda::Array<double>& curr_x) override;
 	virtual double value(Cuda::Array<double>& curr_x, const bool update) override;
 	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) override;
 	void updateExtConstraints(std::vector<int>& CVInd, Eigen::MatrixX3d& CVPos);

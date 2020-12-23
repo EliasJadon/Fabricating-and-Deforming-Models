@@ -1804,22 +1804,15 @@ void deformation_plugin::initializeMinimizer(const int index)
 		return;
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
-	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(FunctionType::SIGMOID);
-	auxBendingNormal->init_mesh(V, F);
-	auxBendingNormal->init();
-	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(FunctionType::SIGMOID);
-	auxSpherePerHinge->init_mesh(V, F);
-	auxSpherePerHinge->init();
-	std::shared_ptr <STVK> stvk = std::make_unique<STVK>();
+	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(V, F, FunctionType::SIGMOID);
+	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(V, F, FunctionType::SIGMOID);
+	std::shared_ptr <STVK> stvk;
 	if (app_utils::IsMesh2D(InputModel().V)) 
 	{
-		stvk->init_mesh(V, F);
-		stvk->init();
+		stvk = std::make_unique<STVK>(V, F);
 	}
-	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>();
-	fixAllVertices->init_mesh(V, F);
-	fixAllVertices->init();
-
+	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>(V, F);
+	
 	//Add User Interface Energies
 	auto fixChosenNormals = std::make_shared<FixChosenConstraints>(F.rows(), V.rows(), ConstraintsType::NORMALS);
 	Outputs[index].Energy_FixChosenNormals = fixChosenNormals;
@@ -1831,15 +1824,9 @@ void deformation_plugin::initializeMinimizer(const int index)
 	Outputs[index].Energy_FixChosenSpheres = fixChosenSpheres;
 	
 	
-	std::shared_ptr< GroupSpheres> groupSpheres = std::make_shared<GroupSpheres>();
-	groupSpheres->numV = V.rows();
-	groupSpheres->numF = F.rows();
-	groupSpheres->init();
+	std::shared_ptr< GroupSpheres> groupSpheres = std::make_shared<GroupSpheres>(V,F);
 	Outputs[index].Energy_GroupSpheres = groupSpheres;
-	std::shared_ptr< GroupNormals> groupNormals = std::make_shared<GroupNormals>();
-	groupNormals->numV = V.rows();
-	groupNormals->numF = F.rows();
-	groupNormals->init();
+	std::shared_ptr< GroupNormals> groupNormals = std::make_shared<GroupNormals>(V, F);
 	Outputs[index].Energy_GroupNormals = groupNormals;
 
 	//init total objective
@@ -1858,7 +1845,6 @@ void deformation_plugin::initializeMinimizer(const int index)
 	add_obj(fixChosenSpheres);
 	add_obj(groupSpheres);
 	add_obj(groupNormals);
-	Outputs[index].totalObjective->init();
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
 	init_minimizer_thread();
 }

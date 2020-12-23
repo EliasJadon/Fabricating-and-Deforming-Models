@@ -2,25 +2,18 @@
 #include <unsupported/Eigen/MatrixFunctions>
 #include <igl/triangle_triangle_adjacency.h>
 
-AuxBendingNormal::AuxBendingNormal(FunctionType type) {
+AuxBendingNormal::AuxBendingNormal(
+	const Eigen::MatrixXd& V, 
+	const Eigen::MatrixX3i& F,
+	const FunctionType type) 
+{
+	init_mesh(V, F);
 	Cuda::AuxBendingNormal::functionType = type;
 	name = "Aux Bending Normal";
 	w = 1;
-	std::cout << "\t" << name << " constructor" << std::endl;
-}
-
-AuxBendingNormal::~AuxBendingNormal() {
-	std::cout << "\t" << name << " destructor" << std::endl;
-}
-
-void AuxBendingNormal::init()
-{
-	std::cout << "\t" << name << " initialization" << std::endl;
-	if (restShapeV.size() == 0 || restShapeF.size() == 0)
-		throw name + " must define members V,F before init()!";
-
-	calculateHinges();
 	
+	calculateHinges();
+
 	restAreaPerHinge.resize(num_hinges);
 	igl::doublearea(restShapeV, restShapeF, restAreaPerFace);
 	restAreaPerFace /= 2;
@@ -29,12 +22,16 @@ void AuxBendingNormal::init()
 		int f1 = hinges_faceIndex[hi](1);
 		restAreaPerHinge(hi) = (restAreaPerFace(f0) + restAreaPerFace(f1)) / 2;
 	}
-	
+
 	Cuda::AuxBendingNormal::planarParameter = 1;
 	Efi.setZero();
 	internalInitCuda();
+	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
+AuxBendingNormal::~AuxBendingNormal() {
+	std::cout << "\t" << name << " destructor" << std::endl;
+}
 
 void AuxBendingNormal::internalInitCuda() {
 	const unsigned int numF = restShapeF.rows();
@@ -93,10 +90,6 @@ void AuxBendingNormal::internalInitCuda() {
 	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::x1_LocInd);
 	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::x2_LocInd);
 	Cuda::MemCpyHostToDevice(Cuda::AuxBendingNormal::x3_LocInd);
-}
-
-void AuxBendingNormal::updateX(Cuda::Array<double>& curr_x)
-{
 }
 
 void AuxBendingNormal::calculateHinges() {
@@ -234,7 +227,6 @@ void AuxBendingNormal::calculateHinges() {
 
 double AuxBendingNormal::value(Cuda::Array<double>& curr_x, const bool update)
 {
-
 	double value = Cuda::AuxBendingNormal::value(curr_x);
 	if (update)
 		energy_value = value;

@@ -21,10 +21,6 @@ FixChosenConstraints::~FixChosenConstraints()
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void FixChosenConstraints::init()
-{
-}
-
 void FixChosenConstraints::updateExtConstraints(
 	std::vector<int>& CVInd,
 	Eigen::MatrixX3d& CVPos)
@@ -51,10 +47,6 @@ void FixChosenConstraints::updateExtConstraints(
 	
 	m_gradient.unlock();
 	m_value.unlock();
-}
-
-void FixChosenConstraints::updateX(Cuda::Array<double>& curr_x)
-{
 }
 
 double FixChosenConstraints::value(Cuda::Array<double>& curr_x, const bool update)
