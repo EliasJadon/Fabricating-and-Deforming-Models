@@ -6,7 +6,8 @@ class GroupNormals : public ObjectiveFunction
 {
 private:
 	unsigned int startN_x, startN_y, startN_z;
-	std::vector < std::vector<int>> GroupsInd;
+	Cuda::Array<int> GroupInd;
+	unsigned int num_clusters, max_face_per_cluster;
 	std::mutex m_value, m_gradient;
 public:
 	Cuda::Array<double> grad;
