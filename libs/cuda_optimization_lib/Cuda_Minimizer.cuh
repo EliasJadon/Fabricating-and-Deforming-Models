@@ -18,5 +18,8 @@ public:
 		const double* g1, const double w1,
 		const double* g2, const double w2,
 		const double* g3, const double w3,
-		const double* g4, const double w4);
+		const double* g4, const double w4,
+		const double* g5, const double w5,
+		const double* g6, const double w6,
+		const double* g7, const double w7);
 };

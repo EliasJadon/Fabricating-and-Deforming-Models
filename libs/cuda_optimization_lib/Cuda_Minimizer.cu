@@ -18,7 +18,10 @@ namespace Utils_Cuda_Minimizer {
 		const double* g1, const double w1,
 		const double* g2, const double w2,
 		const double* g3, const double w3,
-		const double* g4, const double w4)
+		const double* g4, const double w4,
+		const double* g5, const double w5,
+		const double* g6, const double w6,
+		const double* g7, const double w7)
 	{
 		unsigned int Global_idx = threadIdx.x + blockIdx.x * blockDim.x;
 		if (Global_idx < size) {
@@ -26,7 +29,10 @@ namespace Utils_Cuda_Minimizer {
 				w1 * g1[Global_idx] +
 				w2 * g2[Global_idx] +
 				w3 * g3[Global_idx] +
-				w4 * g4[Global_idx];
+				w4 * g4[Global_idx] +
+				w5 * g5[Global_idx] +
+				w6 * g6[Global_idx] +
+				w7 * g7[Global_idx];
 		}
 	}
 	__global__ void AdamStepKernel(
@@ -100,14 +106,20 @@ void Cuda_Minimizer::TotalGradient(
 	const double* g1, const double w1,
 	const double* g2, const double w2,
 	const double* g3, const double w3,
-	const double* g4, const double w4)
+	const double* g4, const double w4,
+	const double* g5, const double w5,
+	const double* g6, const double w6,
+	const double* g7, const double w7)
 {
 	Utils_Cuda_Minimizer::TotalGradientKernel << <ceil(g.size / (double)1024), 1024 >> > (
 		g.size, g.cuda_arr,
-		g1,	w1,
-		g2,	w2,
-		g3,	w3,
-		g4,	w4);
+		g1, w1,
+		g2, w2,
+		g3, w3,
+		g4, w4,
+		g5, w5,
+		g6, w6,
+		g7, w7);
 	Cuda::CheckErr(cudaDeviceSynchronize());
 }
 

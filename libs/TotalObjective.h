@@ -2,6 +2,7 @@
 #include "ObjectiveFunction.h"
 #include "FixChosenConstraints.h"
 #include "FixAllVertices.h"
+#include "GroupNormals.h"
 #include "cuda_optimization_lib/Cuda_FixAllVertices.cuh"
 #include "cuda_optimization_lib/Cuda_AuxSpherePerHinge.cuh"
 #include "cuda_optimization_lib/Cuda_Minimizer.cuh"

@@ -8,8 +8,9 @@ private:
 	unsigned int startN_x, startN_y, startN_z;
 	std::vector < std::vector<int>> GroupsInd;
 	std::mutex m_value, m_gradient;
-	Cuda::Array<double> grad;
 public:
+	Cuda::Array<double> grad;
+
 	GroupNormals(
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixX3i& F);
