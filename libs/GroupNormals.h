@@ -5,14 +5,10 @@
 class GroupNormals : public ObjectiveFunction
 {
 private:
-	int startN;
-	int startN_x;
-	int startN_y;
-	int startN_z;
+	unsigned int startN_x, startN_y, startN_z;
 	std::vector < std::vector<int>> GroupsInd;
-	std::vector < std::vector<int>> currGroupsInd;
-	std::vector < Eigen::MatrixX3d> NormalPos;
-	std::mutex m;
+	std::mutex m_value, m_gradient;
+	Cuda::Array<double> grad;
 public:
 	GroupNormals(
 		const Eigen::MatrixXd& V,
