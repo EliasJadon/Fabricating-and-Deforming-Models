@@ -13,13 +13,12 @@ public:
 	std::string name;
 	std::vector<std::shared_ptr<ObjectiveFunction>> objectiveList;
 	double energy_value, gradient_norm;
-
+	
 	TotalObjective();
 	~TotalObjective();
 	double value(Cuda::Array<double>& curr_x, const bool update);
 	void gradient(
 		std::shared_ptr<Cuda_Minimizer> cuda_Minimizer,
-		Cuda::Array<double>& X, 
-		Eigen::VectorXd& g, 
+		Cuda::Array<double>& X,  
 		const bool update);
 };

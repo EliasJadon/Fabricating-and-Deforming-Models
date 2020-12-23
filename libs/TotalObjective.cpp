@@ -25,7 +25,6 @@ double TotalObjective::value(Cuda::Array<double>& curr_x, const bool update)
 void TotalObjective::gradient(
 	std::shared_ptr<Cuda_Minimizer> cuda_Minimizer,
 	Cuda::Array<double>& X, 
-	Eigen::VectorXd& g, 
 	const bool update)
 {
 	if (objectiveList[1]->w)

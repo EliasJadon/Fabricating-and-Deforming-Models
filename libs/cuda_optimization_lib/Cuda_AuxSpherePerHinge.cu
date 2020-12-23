@@ -340,7 +340,7 @@ namespace Cuda {
 					threadIdx.x,
 					mesh_indices);
 		}
-		void gradient(Cuda::Array<double>& X)
+		Cuda::Array<double>* gradient(Cuda::Array<double>& X)
 		{
 			setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
 			CheckErr(cudaDeviceSynchronize());
@@ -357,6 +357,7 @@ namespace Cuda {
 			for (int i = 0; i < grad.size; i++) {
 				std::cout << i << ":\t" << grad.host_arr[i] << "\n";
 			}*/
+			return &grad;
 		}
 
 		void FreeAllVariables() {

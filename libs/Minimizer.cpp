@@ -88,8 +88,7 @@ void Minimizer::run_one_iteration(
 	timer_avg = timer_sum / numIteration;
 	update_lambda(lambda_counter);
 
-	Eigen::VectorXd _ = Eigen::VectorXd::Zero(1);
-	totalObjective->gradient(cuda_Minimizer, cuda_Minimizer->X, _, true);
+	totalObjective->gradient(cuda_Minimizer, cuda_Minimizer->X, true);
 	if (step_type == MinimizerType::ADAM_MINIMIZER)
 		cuda_Minimizer->adam_Step();
 	currentEnergy = totalObjective->value(cuda_Minimizer->X, true);

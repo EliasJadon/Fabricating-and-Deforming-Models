@@ -238,7 +238,5 @@ double AuxSpherePerHinge::value(Cuda::Array<double>& curr_x, const bool update)
 
 Cuda::Array<double>* AuxSpherePerHinge::gradient(Cuda::Array<double>& X, const bool update)
 {
-	return NULL;
-	//if (update)
-	//	gradient_norm = g.norm();
+	return Cuda::AuxSpherePerHinge::gradient(X);
 }

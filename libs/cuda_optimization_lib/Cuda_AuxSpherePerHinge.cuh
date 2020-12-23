@@ -19,7 +19,7 @@ namespace Cuda {
 		extern Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
 
 		extern double value(Cuda::Array<double>& curr_x);
-		extern void gradient(Cuda::Array<double>& X);
+		extern Cuda::Array<double>* gradient(Cuda::Array<double>& X);
 		extern void FreeAllVariables();
 	}
 }
