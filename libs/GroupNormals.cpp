@@ -58,6 +58,7 @@ void GroupNormals::updateExtConstraints(std::vector < std::vector<int>>& CInd)
 			}
 		}
 	}
+	Cuda::MemCpyHostToDevice(GroupInd);
 
 	m_gradient.unlock();
 	m_value.unlock();

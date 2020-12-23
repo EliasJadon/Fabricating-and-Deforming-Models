@@ -28,10 +28,10 @@ void TotalObjective::gradient(
 	const bool update)
 {
 	if (objectiveList[0]->w)
-		Cuda::AuxSpherePerHinge::gradient(X);
+		objectiveList[0]->gradient(X, true);
 
 	if (objectiveList[1]->w)
-		Cuda::AuxBendingNormal::gradient(X);
+		objectiveList[1]->gradient(X, true);
 
 	if (objectiveList[2]->w) // FixAllVertices
 		objectiveList[2]->gradient(X, true);
