@@ -56,8 +56,8 @@ void TotalObjective::gradient(
 	std::shared_ptr<FixChosenConstraints> FCN = std::dynamic_pointer_cast<FixChosenConstraints>(objectiveList[4]);
 	std::shared_ptr<FixChosenConstraints> FCC = std::dynamic_pointer_cast<FixChosenConstraints>(objectiveList[5]);
 	std::shared_ptr<FixAllVertices> FAV = std::dynamic_pointer_cast<FixAllVertices>(objectiveList[2]);
-	std::shared_ptr<GroupNormals> GroN = std::dynamic_pointer_cast<GroupNormals>(objectiveList[7]);
-	std::shared_ptr<GroupNormals> GroS = std::dynamic_pointer_cast<GroupNormals>(objectiveList[6]);
+	std::shared_ptr<Grouping> GroN = std::dynamic_pointer_cast<Grouping>(objectiveList[7]);
+	std::shared_ptr<Grouping> GroS = std::dynamic_pointer_cast<Grouping>(objectiveList[6]);
 	std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(objectiveList[0]);
 	std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(objectiveList[1]);
 

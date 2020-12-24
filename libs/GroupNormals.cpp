@@ -1,6 +1,6 @@
 #include "GroupNormals.h"
 
-GroupNormals::GroupNormals(
+Grouping::Grouping(
 	const Eigen::MatrixXd& V,
 	const Eigen::MatrixX3i& F,
 	const ConstraintsType type)
@@ -12,12 +12,12 @@ GroupNormals::GroupNormals(
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
-GroupNormals::~GroupNormals()
+Grouping::~Grouping()
 {
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void GroupNormals::updateExtConstraints(std::vector < std::vector<int>>& CInd)
+void Grouping::updateExtConstraints(std::vector < std::vector<int>>& CInd)
 {
 	m_value.lock();
 	m_gradient.lock();
@@ -49,7 +49,7 @@ void GroupNormals::updateExtConstraints(std::vector < std::vector<int>>& CInd)
 	m_value.unlock();
 }
 
-double GroupNormals::value(Cuda::Array<double>& curr_x, const bool update)
+double Grouping::value(Cuda::Array<double>& curr_x, const bool update)
 {
 	Cuda::MemCpyDeviceToHost(curr_x);
 
@@ -80,7 +80,7 @@ double GroupNormals::value(Cuda::Array<double>& curr_x, const bool update)
 	return E;
 }
 
-Cuda::Array<double>* GroupNormals::gradient(Cuda::Array<double>& X, const bool update)
+Cuda::Array<double>* Grouping::gradient(Cuda::Array<double>& X, const bool update)
 {
 	m_gradient.lock();
 	Cuda::Array<double>* g = cudaGrouping->gradient(X);
