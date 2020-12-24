@@ -116,26 +116,29 @@ namespace Utils_Cuda_Grouping {
 	{
 		int f1 = blockIdx.x;
 		int ci = blockIdx.y;
-		bool updateOnce = true;
-		if ((ci < num_clusters) && (f1 < max_face_per_cluster)) 
-		{
+		int start;
+		if (threadIdx.x == 0)
+			start = startX;
+		else if (threadIdx.x == 1)
+			start = startY;
+		else if (threadIdx.x == 2)
+			start = startZ;
+		else return;
+		if (!((ci < num_clusters) && (f1 < max_face_per_cluster)))
+			return;
+		const unsigned int indexF1 = Group_Ind[ci * max_face_per_cluster + f1];
+		if (indexF1 == -1)
+			return;
 
-			for (int f2 = 0; f2 < max_face_per_cluster; f2++) {
-				const unsigned int indexF1 = Group_Ind[ci * max_face_per_cluster + f1];
-				const unsigned int indexF2 = Group_Ind[ci * max_face_per_cluster + f2];
-				if ((f1 != f2) && (indexF1 != -1) && (indexF2 != -1)) {
-					if (updateOnce) {
-						grad[indexF1 + startX] = 0;
-						grad[indexF1 + startY] = 0;
-						grad[indexF1 + startZ] = 0;
-						updateOnce = false;
-					}
-					grad[indexF1 + startX] += 2 * (X[indexF1 + startX] - X[indexF2 + startX]);
-					grad[indexF1 + startY] += 2 * (X[indexF1 + startY] - X[indexF2 + startY]);
-					grad[indexF1 + startZ] += 2 * (X[indexF1 + startZ] - X[indexF2 + startZ]);
-				}
+		double X_value = X[indexF1 + start];
+		double grad_value = 0;
+		for (int f2 = 0; f2 < max_face_per_cluster; f2++) {
+			const unsigned int indexF2 = Group_Ind[ci * max_face_per_cluster + f2];
+			if ((f1 != f2) && (indexF2 != -1)) {
+				grad_value += 2 * (X_value - X[indexF2 + start]);
 			}
 		}
+		grad[indexF1 + start] = grad_value;
 	}
 }
 
@@ -172,7 +175,7 @@ Cuda::Array<double>* Cuda_Grouping::gradient(Cuda::Array<double>& X)
 	Utils_Cuda_Grouping::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
 	Cuda::CheckErr(cudaDeviceSynchronize());
 	Utils_Cuda_Grouping::gradientKernel
-		<< <dim3(max_face_per_cluster, num_clusters,1), 1 >> > (
+		<< <dim3(max_face_per_cluster, num_clusters,1), 3 >> > (
 			grad.cuda_arr,
 			X.cuda_arr,
 			startX,
