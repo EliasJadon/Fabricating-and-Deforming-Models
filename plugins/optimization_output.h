@@ -11,7 +11,7 @@ public:
 	std::shared_ptr <FixChosenConstraints> Energy_FixChosenVertices;
 	std::shared_ptr <FixChosenConstraints> Energy_FixChosenNormals;
 	std::shared_ptr< FixChosenConstraints> Energy_FixChosenSpheres;
-	std::shared_ptr< GroupSpheres> Energy_GroupSpheres;
+	std::shared_ptr< GroupNormals> Energy_GroupSpheres;
 	std::shared_ptr< GroupNormals> Energy_GroupNormals;
 
 	std::set<int> UserInterface_FixedFaces, UserInterface_FixedVertices;

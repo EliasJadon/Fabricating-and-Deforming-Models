@@ -1824,9 +1824,9 @@ void deformation_plugin::initializeMinimizer(const int index)
 	Outputs[index].Energy_FixChosenSpheres = fixChosenSpheres;
 	
 	
-	std::shared_ptr< GroupSpheres> groupSpheres = std::make_shared<GroupSpheres>(V,F);
+	std::shared_ptr< GroupNormals> groupSpheres = std::make_shared<GroupNormals>(V, F, ConstraintsType::SPHERES);
 	Outputs[index].Energy_GroupSpheres = groupSpheres;
-	std::shared_ptr< GroupNormals> groupNormals = std::make_shared<GroupNormals>(V, F);
+	std::shared_ptr< GroupNormals> groupNormals = std::make_shared<GroupNormals>(V, F, ConstraintsType::NORMALS);
 	Outputs[index].Energy_GroupNormals = groupNormals;
 
 	//init total objective

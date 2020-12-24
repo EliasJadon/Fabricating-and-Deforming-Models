@@ -2,12 +2,13 @@
 
 GroupNormals::GroupNormals(
 	const Eigen::MatrixXd& V,
-	const Eigen::MatrixX3i& F)
+	const Eigen::MatrixX3i& F,
+	const ConstraintsType type)
 {
 	init_mesh(V, F);
 	name = "Group Normals";
 	w = 0.05;
-	cudaGrouping = std::make_shared<Cuda_Grouping>(F.rows(), V.rows(), ConstraintsType::NORMALS);
+	cudaGrouping = std::make_shared<Cuda_Grouping>(F.rows(), V.rows(), type);
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 

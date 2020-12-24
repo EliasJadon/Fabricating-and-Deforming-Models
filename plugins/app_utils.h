@@ -21,7 +21,6 @@
 #include "unique_colors.h"
 
 #include "../../libs/Minimizer.h"
-#include "../../libs/GroupSpheres.h"
 #include "../../libs/GroupNormals.h"
 #include "../../libs/STVK.h"
 #include "../../libs/FixAllVertices.h"
