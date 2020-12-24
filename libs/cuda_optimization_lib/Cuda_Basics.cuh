@@ -92,4 +92,9 @@ namespace Cuda
 		// Copy output vector from GPU buffer to host memory.
 		CheckErr(cudaMemcpy(a.host_arr, a.cuda_arr, a.size * sizeof(T), cudaMemcpyDeviceToHost));
 	}
+	template <typename T> void MemCpyDeviceToHost(Array<T>& a, const unsigned int size) 
+	{
+		// Copy output vector from GPU buffer to host memory.
+		CheckErr(cudaMemcpy(a.host_arr, a.cuda_arr, size * sizeof(T), cudaMemcpyDeviceToHost));
+	}
 }

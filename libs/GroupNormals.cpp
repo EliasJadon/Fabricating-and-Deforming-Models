@@ -5,16 +5,9 @@ GroupNormals::GroupNormals(
 	const Eigen::MatrixX3i& F)
 {
 	init_mesh(V, F);
-	numV = V.rows();
-	numF = F.rows();
-    name = "Group Normals";
+	name = "Group Normals";
 	w = 0.05;
-	startN_x = (0 * numF) + (3 * numV);
-	startN_y = (1 * numF) + (3 * numV);
-	startN_z = (2 * numF) + (3 * numV);
-	 
-	cudaGrouping = std::make_shared<Cuda_Grouping>(numF, numV, ConstraintsType::NORMALS);
-
+	cudaGrouping = std::make_shared<Cuda_Grouping>(F.rows(), V.rows(), ConstraintsType::NORMALS);
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
@@ -34,7 +27,9 @@ void GroupNormals::updateExtConstraints(std::vector < std::vector<int>>& CInd)
 		cudaGrouping->max_face_per_cluster = std::max<int>(cudaGrouping->max_face_per_cluster, C.size());
 	
 	Cuda::FreeMemory(cudaGrouping->Group_Ind);
+	Cuda::FreeMemory(cudaGrouping->EnergyAtomic);
 	Cuda::AllocateMemory(cudaGrouping->Group_Ind, cudaGrouping->num_clusters * cudaGrouping->max_face_per_cluster);
+	Cuda::AllocateMemory(cudaGrouping->EnergyAtomic, cudaGrouping->num_clusters * pow(cudaGrouping->max_face_per_cluster, 2));
 
 	for (int c = 0; c < cudaGrouping->num_clusters; c++) {
 		for (int f = 0; f < cudaGrouping->max_face_per_cluster; f++) {
@@ -66,14 +61,14 @@ double GroupNormals::value(Cuda::Array<double>& curr_x, const bool update)
 				const unsigned int indexF2 = cudaGrouping->Group_Ind.host_arr[ci * cudaGrouping->max_face_per_cluster + f2];
 				if (indexF1 != -1 && indexF2 != -1) {
 					Eigen::Vector3d NormalPos1(
-						curr_x.host_arr[indexF1 + startN_x],	//X-coordinate
-						curr_x.host_arr[indexF1 + startN_y],	//Y-coordinate
-						curr_x.host_arr[indexF1 + startN_z]		//Z-coordinate
+						curr_x.host_arr[indexF1 + cudaGrouping->startX],	//X-coordinate
+						curr_x.host_arr[indexF1 + cudaGrouping->startY],	//Y-coordinate
+						curr_x.host_arr[indexF1 + cudaGrouping->startZ]		//Z-coordinate
 					);
 					Eigen::Vector3d NormalPos2(
-						curr_x.host_arr[indexF2 + startN_x],	//X-coordinate
-						curr_x.host_arr[indexF2 + startN_y],	//Y-coordinate
-						curr_x.host_arr[indexF2 + startN_z]		//Z-coordinate
+						curr_x.host_arr[indexF2 + cudaGrouping->startX],	//X-coordinate
+						curr_x.host_arr[indexF2 + cudaGrouping->startY],	//Y-coordinate
+						curr_x.host_arr[indexF2 + cudaGrouping->startZ]		//Z-coordinate
 					);
 					E += (NormalPos1 - NormalPos2).squaredNorm();
 				}
