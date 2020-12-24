@@ -1,17 +1,15 @@
 #pragma once
 #include "ObjectiveFunction.h"
+#include "cuda_optimization_lib/Cuda_Grouping.cuh"
 #include <mutex>
 
 class GroupNormals : public ObjectiveFunction
 {
 private:
 	unsigned int startN_x, startN_y, startN_z;
-	Cuda::Array<int> GroupInd;
-	unsigned int num_clusters, max_face_per_cluster;
 	std::mutex m_value, m_gradient;
 public:
-	Cuda::Array<double> grad;
-
+	std::shared_ptr<Cuda_Grouping> cudaGrouping;
 	GroupNormals(
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixX3i& F);

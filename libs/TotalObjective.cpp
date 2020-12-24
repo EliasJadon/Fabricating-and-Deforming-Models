@@ -62,7 +62,7 @@ void TotalObjective::gradient(
 		FCV->Cuda_FixChosConst->grad.cuda_arr, FCV->w,		//FixChosenVertices
 		FCN->Cuda_FixChosConst->grad.cuda_arr, FCN->w,		//FixChosenVertices
 		FCC->Cuda_FixChosConst->grad.cuda_arr, FCC->w,		//FixChosenVertices
-		GroN->grad.cuda_arr, GroN->w		//GroupNormals
+		GroN->cudaGrouping->grad.cuda_arr, GroN->w		//GroupNormals
 	);
 			
 	/*g.setZero(variables_size);

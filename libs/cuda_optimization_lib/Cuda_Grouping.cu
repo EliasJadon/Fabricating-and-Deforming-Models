@@ -52,17 +52,40 @@ namespace Utils_Cuda_Grouping {
 		const unsigned int startY,
 		const unsigned int startZ,
 		const int* Group_Ind,
-		const double3* Const_Pos,
-		const unsigned int size)
+		const unsigned int num_clusters,
+		const unsigned int max_face_per_cluster)
 	{
-		int i = blockIdx.x;
-		if (i < size) {
-			if (threadIdx.x == 0)
-				grad[Group_Ind[i] + startX] = 2 * (X[Group_Ind[i] + startX] - Const_Pos[i].x);
-			if (threadIdx.x == 1)
-				grad[Group_Ind[i] + startY] = 2 * (X[Group_Ind[i] + startY] - Const_Pos[i].y);
-			if (threadIdx.x == 2)
-				grad[Group_Ind[i] + startZ] = 2 * (X[Group_Ind[i] + startZ] - Const_Pos[i].z);
+		int f1 = blockIdx.x;
+		int f2 = blockIdx.y;
+		int ci = blockIdx.z;
+		
+		if ((f1 > f2) &&
+			(ci < num_clusters) &&
+			(f1 < max_face_per_cluster) &&
+			(f2 < max_face_per_cluster)) 
+		{
+			const unsigned int indexF1 = Group_Ind[ci * max_face_per_cluster + f1];
+			const unsigned int indexF2 = Group_Ind[ci * max_face_per_cluster + f2];
+			if (indexF1 != -1 && indexF2 != -1) {
+				double3 NormalPos1 = make_double3(
+					X[indexF1 + startX],	//X-coordinate
+					X[indexF1 + startY],	//Y-coordinate
+					X[indexF1 + startZ]		//Z-coordinate
+				);
+				double3 NormalPos2 = make_double3(
+					X[indexF2 + startX],	//X-coordinate
+					X[indexF2 + startY],	//Y-coordinate
+					X[indexF2 + startZ]		//Z-coordinate
+				);
+				double3 diffN = Utils_Cuda_Grouping::sub(NormalPos1, NormalPos2);
+
+				atomicAdd(&grad[indexF1 + startX], 2 * diffN.x, 0);
+				atomicAdd(&grad[indexF2 + startX], -2 * diffN.x, 0);
+				atomicAdd(&grad[indexF1 + startY], 2 * diffN.y, 0);
+				atomicAdd(&grad[indexF2 + startY], -2 * diffN.y, 0);
+				atomicAdd(&grad[indexF1 + startZ], 2 * diffN.z, 0);
+				atomicAdd(&grad[indexF2 + startZ], -2 * diffN.z, 0);
+			}
 		}
 	}
 }
@@ -73,8 +96,23 @@ double Cuda_Grouping::value(Cuda::Array<double>& curr_x)
 	return 18;
 }
 		
-void Cuda_Grouping::gradient(Cuda::Array<double>& X)
+Cuda::Array<double>* Cuda_Grouping::gradient(Cuda::Array<double>& X)
 {
+	Utils_Cuda_Grouping::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
+	Cuda::CheckErr(cudaDeviceSynchronize());
+	Utils_Cuda_Grouping::gradientKernel
+		<< <dim3(max_face_per_cluster, max_face_per_cluster, num_clusters), 1 >> > (
+			grad.cuda_arr,
+			X.cuda_arr,
+			startX,
+			startY,
+			startZ,
+			Group_Ind.cuda_arr,
+			num_clusters,
+			max_face_per_cluster
+			);
+	Cuda::CheckErr(cudaDeviceSynchronize());
+	return &grad;
 }
 
 Cuda_Grouping::Cuda_Grouping(
