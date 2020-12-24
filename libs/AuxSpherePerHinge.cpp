@@ -9,16 +9,11 @@ AuxSpherePerHinge::AuxSpherePerHinge(
 	const FunctionType type) 
 {
 	init_mesh(V, F);
-	Cuda::AuxSpherePerHinge::functionType = type;
 	name = "Aux Sphere Per Hinge";
 	w = 0;
 	
-
-	if (restShapeV.size() == 0 || restShapeF.size() == 0)
-		throw name + " must define members V,F before init()!";
-
+	//Initialize rest variables (X0) 
 	calculateHinges();
-
 	restAreaPerHinge.resize(num_hinges);
 	igl::doublearea(restShapeV, restShapeF, restAreaPerFace);
 	restAreaPerFace /= 2;
@@ -27,6 +22,9 @@ AuxSpherePerHinge::AuxSpherePerHinge(
 		int f1 = hinges_faceIndex[hi](1);
 		restAreaPerHinge(hi) = (restAreaPerFace(f0) + restAreaPerFace(f1)) / 2;
 	}
+
+	//Init Cuda variables
+	Cuda::AuxSpherePerHinge::functionType = type;
 	Cuda::AuxSpherePerHinge::planarParameter = 1;
 	internalInitCuda();
 	std::cout << "\t" << name << " constructor" << std::endl;
