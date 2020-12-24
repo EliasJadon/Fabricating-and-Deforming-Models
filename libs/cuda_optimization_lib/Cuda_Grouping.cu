@@ -115,29 +115,25 @@ namespace Utils_Cuda_Grouping {
 		const unsigned int max_face_per_cluster)
 	{
 		int f1 = blockIdx.x;
-		int f2 = blockIdx.y;
-		int ci = blockIdx.z;
-		
-		if ((f1 > f2) &&
-			(ci < num_clusters) &&
-			(f1 < max_face_per_cluster) &&
-			(f2 < max_face_per_cluster)) 
+		int ci = blockIdx.y;
+		bool updateOnce = true;
+		if ((ci < num_clusters) && (f1 < max_face_per_cluster)) 
 		{
-			const unsigned int indexF1 = Group_Ind[ci * max_face_per_cluster + f1];
-			const unsigned int indexF2 = Group_Ind[ci * max_face_per_cluster + f2];
-			if (indexF1 != -1 && indexF2 != -1) {
-				if (threadIdx.x == 0)
-					atomicAdd(&grad[indexF1 + startX], 2 * (X[indexF1 + startX] - X[indexF2 + startX]), 0);
-				if (threadIdx.x == 1)
-					atomicAdd(&grad[indexF2 + startX], -2 * (X[indexF1 + startX] - X[indexF2 + startX]), 0);
-				if (threadIdx.x == 2)
-					atomicAdd(&grad[indexF1 + startY], 2 * (X[indexF1 + startY] - X[indexF2 + startY]), 0);
-				if (threadIdx.x == 3)
-					atomicAdd(&grad[indexF2 + startY], -2 * (X[indexF1 + startY] - X[indexF2 + startY]), 0);
-				if (threadIdx.x == 4)
-					atomicAdd(&grad[indexF1 + startZ], 2 * (X[indexF1 + startZ] - X[indexF2 + startZ]), 0);
-				if (threadIdx.x == 5)
-					atomicAdd(&grad[indexF2 + startZ], -2 * (X[indexF1 + startZ] - X[indexF2 + startZ]), 0);
+
+			for (int f2 = 0; f2 < max_face_per_cluster; f2++) {
+				const unsigned int indexF1 = Group_Ind[ci * max_face_per_cluster + f1];
+				const unsigned int indexF2 = Group_Ind[ci * max_face_per_cluster + f2];
+				if ((f1 != f2) && (indexF1 != -1) && (indexF2 != -1)) {
+					if (updateOnce) {
+						grad[indexF1 + startX] = 0;
+						grad[indexF1 + startY] = 0;
+						grad[indexF1 + startZ] = 0;
+						updateOnce = false;
+					}
+					grad[indexF1 + startX] += 2 * (X[indexF1 + startX] - X[indexF2 + startX]);
+					grad[indexF1 + startY] += 2 * (X[indexF1 + startY] - X[indexF2 + startY]);
+					grad[indexF1 + startZ] += 2 * (X[indexF1 + startZ] - X[indexF2 + startZ]);
+				}
 			}
 		}
 	}
@@ -176,7 +172,7 @@ Cuda::Array<double>* Cuda_Grouping::gradient(Cuda::Array<double>& X)
 	Utils_Cuda_Grouping::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
 	Cuda::CheckErr(cudaDeviceSynchronize());
 	Utils_Cuda_Grouping::gradientKernel
-		<< <dim3(max_face_per_cluster, max_face_per_cluster, num_clusters), 6 >> > (
+		<< <dim3(max_face_per_cluster, num_clusters,1), 1 >> > (
 			grad.cuda_arr,
 			X.cuda_arr,
 			startX,
