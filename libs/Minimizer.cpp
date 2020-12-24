@@ -72,7 +72,8 @@ void Minimizer::update_lambda(int* lambda_counter)
 		(*lambda_counter) < autoLambda_count &&
 		numIteration % autoLambda_jump == 0)
 	{
-		Cuda::AuxSpherePerHinge::planarParameter /= 2;
+		std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
+		ASH->cuda_ASH->planarParameter /= 2;
 		Cuda::AuxBendingNormal::planarParameter /= 2;
 		(*lambda_counter)++;
 	}

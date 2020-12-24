@@ -13,6 +13,7 @@ private:
 	void calculateHinges();	
 	void internalInitCuda();
 public:
+	std::shared_ptr<Cuda_AuxSpherePerHinge> cuda_ASH;
 	AuxSpherePerHinge(
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixX3i& F,

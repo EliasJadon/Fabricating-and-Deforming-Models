@@ -24,8 +24,9 @@ AuxSpherePerHinge::AuxSpherePerHinge(
 	}
 
 	//Init Cuda variables
-	Cuda::AuxSpherePerHinge::functionType = type;
-	Cuda::AuxSpherePerHinge::planarParameter = 1;
+	cuda_ASH = std::make_shared<Cuda_AuxSpherePerHinge>();
+	cuda_ASH->functionType = type;
+	cuda_ASH->planarParameter = 1;
 	internalInitCuda();
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
@@ -39,58 +40,58 @@ void AuxSpherePerHinge::internalInitCuda() {
 	const unsigned int numV = restShapeV.rows();
 	const unsigned int numH = num_hinges;
 
-	Cuda::initIndices(Cuda::AuxSpherePerHinge::mesh_indices, numF, numV, numH);
+	Cuda::initIndices(cuda_ASH->mesh_indices, numF, numV, numH);
 
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::restShapeF, numF);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::restAreaPerFace, numF);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::restAreaPerHinge, numH);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::grad, (3 * numV) + (7 * numF));
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::EnergyAtomic, 1);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::hinges_faceIndex, numH);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x0_GlobInd, numH);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x1_GlobInd, numH);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x2_GlobInd, numH);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x3_GlobInd, numH);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x0_LocInd, numH);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x1_LocInd, numH);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x2_LocInd, numH);
-	Cuda::AllocateMemory(Cuda::AuxSpherePerHinge::x3_LocInd, numH);
+	Cuda::AllocateMemory(cuda_ASH->restShapeF, numF);
+	Cuda::AllocateMemory(cuda_ASH->restAreaPerFace, numF);
+	Cuda::AllocateMemory(cuda_ASH->restAreaPerHinge, numH);
+	Cuda::AllocateMemory(cuda_ASH->grad, (3 * numV) + (7 * numF));
+	Cuda::AllocateMemory(cuda_ASH->EnergyAtomic, 1);
+	Cuda::AllocateMemory(cuda_ASH->hinges_faceIndex, numH);
+	Cuda::AllocateMemory(cuda_ASH->x0_GlobInd, numH);
+	Cuda::AllocateMemory(cuda_ASH->x1_GlobInd, numH);
+	Cuda::AllocateMemory(cuda_ASH->x2_GlobInd, numH);
+	Cuda::AllocateMemory(cuda_ASH->x3_GlobInd, numH);
+	Cuda::AllocateMemory(cuda_ASH->x0_LocInd, numH);
+	Cuda::AllocateMemory(cuda_ASH->x1_LocInd, numH);
+	Cuda::AllocateMemory(cuda_ASH->x2_LocInd, numH);
+	Cuda::AllocateMemory(cuda_ASH->x3_LocInd, numH);
 
 	//init host buffers...
-	for (int i = 0; i < Cuda::AuxSpherePerHinge::grad.size; i++) {
-		Cuda::AuxSpherePerHinge::grad.host_arr[i] = 0;
+	for (int i = 0; i < cuda_ASH->grad.size; i++) {
+		cuda_ASH->grad.host_arr[i] = 0;
 	}
 	for (int f = 0; f < restShapeF.rows(); f++) {
-		Cuda::AuxSpherePerHinge::restShapeF.host_arr[f] = make_int3(restShapeF(f, 0), restShapeF(f, 1), restShapeF(f, 2));
-		Cuda::AuxSpherePerHinge::restAreaPerFace.host_arr[f] = restAreaPerFace[f];
+		cuda_ASH->restShapeF.host_arr[f] = make_int3(restShapeF(f, 0), restShapeF(f, 1), restShapeF(f, 2));
+		cuda_ASH->restAreaPerFace.host_arr[f] = restAreaPerFace[f];
 	}
 	for (int h = 0; h < num_hinges; h++) {
-		Cuda::AuxSpherePerHinge::restAreaPerHinge.host_arr[h] = restAreaPerHinge[h];
-		Cuda::AuxSpherePerHinge::hinges_faceIndex.host_arr[h] = Cuda::newHinge(hinges_faceIndex[h][0], hinges_faceIndex[h][1]);
-		Cuda::AuxSpherePerHinge::x0_GlobInd.host_arr[h] = x0_GlobInd[h];
-		Cuda::AuxSpherePerHinge::x1_GlobInd.host_arr[h] = x1_GlobInd[h];
-		Cuda::AuxSpherePerHinge::x2_GlobInd.host_arr[h] = x2_GlobInd[h];
-		Cuda::AuxSpherePerHinge::x3_GlobInd.host_arr[h] = x3_GlobInd[h];
-		Cuda::AuxSpherePerHinge::x0_LocInd.host_arr[h] = Cuda::newHinge(x0_LocInd(h, 0), x0_LocInd(h, 1));
-		Cuda::AuxSpherePerHinge::x1_LocInd.host_arr[h] = Cuda::newHinge(x1_LocInd(h, 0), x1_LocInd(h, 1));
-		Cuda::AuxSpherePerHinge::x2_LocInd.host_arr[h] = Cuda::newHinge(x2_LocInd(h, 0), x2_LocInd(h, 1));
-		Cuda::AuxSpherePerHinge::x3_LocInd.host_arr[h] = Cuda::newHinge(x3_LocInd(h, 0), x3_LocInd(h, 1));
+		cuda_ASH->restAreaPerHinge.host_arr[h] = restAreaPerHinge[h];
+		cuda_ASH->hinges_faceIndex.host_arr[h] = Cuda::newHinge(hinges_faceIndex[h][0], hinges_faceIndex[h][1]);
+		cuda_ASH->x0_GlobInd.host_arr[h] = x0_GlobInd[h];
+		cuda_ASH->x1_GlobInd.host_arr[h] = x1_GlobInd[h];
+		cuda_ASH->x2_GlobInd.host_arr[h] = x2_GlobInd[h];
+		cuda_ASH->x3_GlobInd.host_arr[h] = x3_GlobInd[h];
+		cuda_ASH->x0_LocInd.host_arr[h] = Cuda::newHinge(x0_LocInd(h, 0), x0_LocInd(h, 1));
+		cuda_ASH->x1_LocInd.host_arr[h] = Cuda::newHinge(x1_LocInd(h, 0), x1_LocInd(h, 1));
+		cuda_ASH->x2_LocInd.host_arr[h] = Cuda::newHinge(x2_LocInd(h, 0), x2_LocInd(h, 1));
+		cuda_ASH->x3_LocInd.host_arr[h] = Cuda::newHinge(x3_LocInd(h, 0), x3_LocInd(h, 1));
 	}
 
 	// Copy input vectors from host memory to GPU buffers.
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::grad);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::restShapeF);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::restAreaPerFace);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::restAreaPerHinge);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::hinges_faceIndex);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x0_GlobInd);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x1_GlobInd);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x2_GlobInd);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x3_GlobInd);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x0_LocInd);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x1_LocInd);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x2_LocInd);
-	Cuda::MemCpyHostToDevice(Cuda::AuxSpherePerHinge::x3_LocInd);
+	Cuda::MemCpyHostToDevice(cuda_ASH->grad);
+	Cuda::MemCpyHostToDevice(cuda_ASH->restShapeF);
+	Cuda::MemCpyHostToDevice(cuda_ASH->restAreaPerFace);
+	Cuda::MemCpyHostToDevice(cuda_ASH->restAreaPerHinge);
+	Cuda::MemCpyHostToDevice(cuda_ASH->hinges_faceIndex);
+	Cuda::MemCpyHostToDevice(cuda_ASH->x0_GlobInd);
+	Cuda::MemCpyHostToDevice(cuda_ASH->x1_GlobInd);
+	Cuda::MemCpyHostToDevice(cuda_ASH->x2_GlobInd);
+	Cuda::MemCpyHostToDevice(cuda_ASH->x3_GlobInd);
+	Cuda::MemCpyHostToDevice(cuda_ASH->x0_LocInd);
+	Cuda::MemCpyHostToDevice(cuda_ASH->x1_LocInd);
+	Cuda::MemCpyHostToDevice(cuda_ASH->x2_LocInd);
+	Cuda::MemCpyHostToDevice(cuda_ASH->x3_LocInd);
 }
 
 void AuxSpherePerHinge::calculateHinges() {
@@ -228,7 +229,7 @@ void AuxSpherePerHinge::calculateHinges() {
 
 double AuxSpherePerHinge::value(Cuda::Array<double>& curr_x, const bool update)
 {
-	double value = Cuda::AuxSpherePerHinge::value(curr_x);
+	double value = cuda_ASH->value(curr_x);
 	if (update)
 		energy_value = value;
 	return value;
@@ -236,5 +237,5 @@ double AuxSpherePerHinge::value(Cuda::Array<double>& curr_x, const bool update)
 
 Cuda::Array<double>* AuxSpherePerHinge::gradient(Cuda::Array<double>& X, const bool update)
 {
-	return Cuda::AuxSpherePerHinge::gradient(X);
+	return cuda_ASH->gradient(X);
 }

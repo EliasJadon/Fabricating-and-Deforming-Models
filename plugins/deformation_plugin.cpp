@@ -526,7 +526,7 @@ void deformation_plugin::Draw_energies_window()
 						if (ABN != NULL)
 							ImGui::Combo("Function", (int*)(&(Cuda::AuxBendingNormal::functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (AS != NULL)
-							ImGui::Combo("Function", (int*)(&(Cuda::AuxSpherePerHinge::functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+							ImGui::Combo("Function", (int*)(&(AS->cuda_ASH->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 
 						if (ABN != NULL && Cuda::AuxBendingNormal::functionType == FunctionType::SIGMOID) {
 							ImGui::Text(("2^" + std::to_string(int(log2(Cuda::AuxBendingNormal::planarParameter)))).c_str());
@@ -545,21 +545,21 @@ void deformation_plugin::Draw_energies_window()
 							ImGui::DragScalar("w2", ImGuiDataType_Double, &(Cuda::AuxBendingNormal::w2), 0.05f, &f64_zero, &f64_max);
 							ImGui::DragScalar("w3", ImGuiDataType_Double, &(Cuda::AuxBendingNormal::w3), 0.05f, &f64_zero, &f64_max);
 						}
-						if (AS != NULL && Cuda::AuxSpherePerHinge::functionType == FunctionType::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(Cuda::AuxSpherePerHinge::planarParameter)))).c_str());
+						if (AS != NULL && AS->cuda_ASH->functionType == FunctionType::SIGMOID) {
+							ImGui::Text(("2^" + std::to_string(int(log2(AS->cuda_ASH->planarParameter)))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								Cuda::AuxSpherePerHinge::planarParameter = (Cuda::AuxSpherePerHinge::planarParameter * 2) > 1 ? 1 : Cuda::AuxSpherePerHinge::planarParameter * 2;
+								AS->cuda_ASH->planarParameter = (AS->cuda_ASH->planarParameter * 2) > 1 ? 1 : AS->cuda_ASH->planarParameter * 2;
 							}
 							ImGui::SameLine();
 							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								Cuda::AuxSpherePerHinge::planarParameter /= 2;
+								AS->cuda_ASH->planarParameter /= 2;
 							}
 							const double  f64_zero = 0, f64_max = 100000.0;
-							ImGui::DragScalar("w0", ImGuiDataType_Double, &(Cuda::AuxSpherePerHinge::w1), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w1", ImGuiDataType_Double, &(Cuda::AuxSpherePerHinge::w2), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w0", ImGuiDataType_Double, &(AS->cuda_ASH->w1), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->cuda_ASH->w2), 0.05f, &f64_zero, &f64_max);
 						}
 					}
 					ImGui::TableNextCell();

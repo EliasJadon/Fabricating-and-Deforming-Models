@@ -403,82 +403,64 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 }
 
 
-namespace Cuda {
-	namespace AuxSpherePerHinge {
-		//dynamic variables
-		double w1 = 1, w2 = 100;
-		FunctionType functionType;
-		double planarParameter;
-		Array<double> grad;
-		//help variables - dynamic
-		Array<double> EnergyAtomic;
 
-		//Static variables
-		Array<int3> restShapeF;
-		indices mesh_indices;
-		Array<double> restAreaPerFace, restAreaPerHinge; //Eigen::VectorXd
-		Array<hinge> hinges_faceIndex; //std::vector<Eigen::Vector2d> //num_hinges*2
-		Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; //Eigen::VectorXi //num_hinges
-		Array<hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; //Eigen::MatrixXi //num_hinges*2
-		
-		
-
-		
-
-		double value(Cuda::Array<double>& curr_x) {
-			const unsigned int s = mesh_indices.num_hinges + mesh_indices.num_faces;
-			Utils_Cuda_AuxSpherePerHinge::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
-				EnergyAtomic.cuda_arr,
-				w1, w2,
-				curr_x.cuda_arr,
-				restShapeF.cuda_arr,
-				restAreaPerHinge.cuda_arr,
-				hinges_faceIndex.cuda_arr,
-				planarParameter,
-				functionType,
-				mesh_indices);
-			CheckErr(cudaDeviceSynchronize());
-			MemCpyDeviceToHost(EnergyAtomic);
-			return EnergyAtomic.host_arr[0];
-		}
-		
-		Cuda::Array<double>* gradient(Cuda::Array<double>& X)
-		{
-			Utils_Cuda_AuxSpherePerHinge::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
-			CheckErr(cudaDeviceSynchronize());
-			Utils_Cuda_AuxSpherePerHinge::gradientKernel << <mesh_indices.num_hinges + mesh_indices.num_faces, 20 >> > (
-				grad.cuda_arr,
-				X.cuda_arr,
-				hinges_faceIndex.cuda_arr,
-				restShapeF.cuda_arr,
-				restAreaPerHinge.cuda_arr,
-				planarParameter, functionType,
-				w1, w2, mesh_indices);
-			CheckErr(cudaDeviceSynchronize());
-			/*MemCpyDeviceToHost(grad);
-			for (int i = 0; i < grad.size; i++) {
-				std::cout << i << ":\t" << grad.host_arr[i] << "\n";
-			}*/
-			return &grad;
-		}
-
-		void FreeAllVariables() {
-			cudaGetErrorString(cudaGetLastError());
-			FreeMemory(restShapeF);
-			FreeMemory(grad);
-			FreeMemory(restAreaPerFace);
-			FreeMemory(restAreaPerHinge);
-			FreeMemory(EnergyAtomic);
-			FreeMemory(hinges_faceIndex);
-			FreeMemory(x0_GlobInd);
-			FreeMemory(x1_GlobInd);
-			FreeMemory(x2_GlobInd);
-			FreeMemory(x3_GlobInd);
-			FreeMemory(x0_LocInd);
-			FreeMemory(x1_LocInd);
-			FreeMemory(x2_LocInd);
-			FreeMemory(x3_LocInd);
-		}
-		
-	}
+double Cuda_AuxSpherePerHinge::value(Cuda::Array<double>& curr_x) {
+	const unsigned int s = mesh_indices.num_hinges + mesh_indices.num_faces;
+	Utils_Cuda_AuxSpherePerHinge::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
+		EnergyAtomic.cuda_arr,
+		w1, w2,
+		curr_x.cuda_arr,
+		restShapeF.cuda_arr,
+		restAreaPerHinge.cuda_arr,
+		hinges_faceIndex.cuda_arr,
+		planarParameter,
+		functionType,
+		mesh_indices);
+	Cuda::CheckErr(cudaDeviceSynchronize());
+	MemCpyDeviceToHost(EnergyAtomic);
+	return EnergyAtomic.host_arr[0];
 }
+		
+Cuda::Array<double>* Cuda_AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
+{
+	Utils_Cuda_AuxSpherePerHinge::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
+	Cuda::CheckErr(cudaDeviceSynchronize());
+	Utils_Cuda_AuxSpherePerHinge::gradientKernel << <mesh_indices.num_hinges + mesh_indices.num_faces, 20 >> > (
+		grad.cuda_arr,
+		X.cuda_arr,
+		hinges_faceIndex.cuda_arr,
+		restShapeF.cuda_arr,
+		restAreaPerHinge.cuda_arr,
+		planarParameter, functionType,
+		w1, w2, mesh_indices);
+	Cuda::CheckErr(cudaDeviceSynchronize());
+	/*MemCpyDeviceToHost(grad);
+	for (int i = 0; i < grad.size; i++) {
+		std::cout << i << ":\t" << grad.host_arr[i] << "\n";
+	}*/
+	return &grad;
+}
+
+Cuda_AuxSpherePerHinge::Cuda_AuxSpherePerHinge() {
+
+}
+
+Cuda_AuxSpherePerHinge::~Cuda_AuxSpherePerHinge() {
+	cudaGetErrorString(cudaGetLastError());
+	FreeMemory(restShapeF);
+	FreeMemory(grad);
+	FreeMemory(restAreaPerFace);
+	FreeMemory(restAreaPerHinge);
+	FreeMemory(EnergyAtomic);
+	FreeMemory(hinges_faceIndex);
+	FreeMemory(x0_GlobInd);
+	FreeMemory(x1_GlobInd);
+	FreeMemory(x2_GlobInd);
+	FreeMemory(x3_GlobInd);
+	FreeMemory(x0_LocInd);
+	FreeMemory(x1_LocInd);
+	FreeMemory(x2_LocInd);
+	FreeMemory(x3_LocInd);
+}
+
+

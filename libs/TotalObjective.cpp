@@ -54,15 +54,16 @@ void TotalObjective::gradient(
 	std::shared_ptr<FixChosenConstraints> FCC = std::dynamic_pointer_cast<FixChosenConstraints>(objectiveList[5]);
 	std::shared_ptr<FixAllVertices> FAV = std::dynamic_pointer_cast<FixAllVertices>(objectiveList[2]);
 	std::shared_ptr<GroupNormals> GroN = std::dynamic_pointer_cast<GroupNormals>(objectiveList[7]);
+	std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(objectiveList[0]);
 
 	cuda_Minimizer->TotalGradient(
-		Cuda::AuxBendingNormal::grad.cuda_arr, objectiveList[1]->w,//AuxBendingNormal
-		FAV->cuda_FixAllV->grad.cuda_arr, FAV->w,//FixAllVertices
-		Cuda::AuxSpherePerHinge::grad.cuda_arr, objectiveList[0]->w,//AuxSpherePerHinge
-		FCV->Cuda_FixChosConst->grad.cuda_arr, FCV->w,		//FixChosenVertices
-		FCN->Cuda_FixChosConst->grad.cuda_arr, FCN->w,		//FixChosenVertices
-		FCC->Cuda_FixChosConst->grad.cuda_arr, FCC->w,		//FixChosenVertices
-		GroN->cudaGrouping->grad.cuda_arr, GroN->w		//GroupNormals
+		Cuda::AuxBendingNormal::grad.cuda_arr	, objectiveList[1]->w,//AuxBendingNormal
+		FAV->cuda_FixAllV->grad.cuda_arr		, FAV->w,//FixAllVertices
+		ASH->cuda_ASH->grad.cuda_arr			, ASH->w,//AuxSpherePerHinge
+		FCV->Cuda_FixChosConst->grad.cuda_arr	, FCV->w,		//FixChosenVertices
+		FCN->Cuda_FixChosConst->grad.cuda_arr	, FCN->w,		//FixChosenVertices
+		FCC->Cuda_FixChosConst->grad.cuda_arr	, FCC->w,		//FixChosenVertices
+		GroN->cudaGrouping->grad.cuda_arr		, GroN->w		//GroupNormals
 	);
 			
 	/*g.setZero(variables_size);
