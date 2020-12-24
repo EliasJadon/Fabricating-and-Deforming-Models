@@ -524,26 +524,26 @@ void deformation_plugin::Draw_energies_window()
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 					if (obj->w) {
 						if (ABN != NULL)
-							ImGui::Combo("Function", (int*)(&(Cuda::AuxBendingNormal::functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+							ImGui::Combo("Function", (int*)(&(ABN->cuda_ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (AS != NULL)
 							ImGui::Combo("Function", (int*)(&(AS->cuda_ASH->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 
-						if (ABN != NULL && Cuda::AuxBendingNormal::functionType == FunctionType::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(Cuda::AuxBendingNormal::planarParameter)))).c_str());
+						if (ABN != NULL && ABN->cuda_ABN->functionType == FunctionType::SIGMOID) {
+							ImGui::Text(("2^" + std::to_string(int(log2(ABN->cuda_ABN->planarParameter)))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								Cuda::AuxBendingNormal::planarParameter = (Cuda::AuxBendingNormal::planarParameter * 2) > 1 ? 1 : Cuda::AuxBendingNormal::planarParameter * 2;
+								ABN->cuda_ABN->planarParameter = (ABN->cuda_ABN->planarParameter * 2) > 1 ? 1 : ABN->cuda_ABN->planarParameter * 2;
 							}
 							ImGui::SameLine();
 							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								Cuda::AuxBendingNormal::planarParameter /= 2;
+								ABN->cuda_ABN->planarParameter /= 2;
 							}
 							const double  f64_zero = 0, f64_max = 100000.0;
-							ImGui::DragScalar("w1", ImGuiDataType_Double, &(Cuda::AuxBendingNormal::w1), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w2", ImGuiDataType_Double, &(Cuda::AuxBendingNormal::w2), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w3", ImGuiDataType_Double, &(Cuda::AuxBendingNormal::w3), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(ABN->cuda_ABN->w1), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w2", ImGuiDataType_Double, &(ABN->cuda_ABN->w2), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ABN->cuda_ABN->w3), 0.05f, &f64_zero, &f64_max);
 						}
 						if (AS != NULL && AS->cuda_ASH->functionType == FunctionType::SIGMOID) {
 							ImGui::Text(("2^" + std::to_string(int(log2(AS->cuda_ASH->planarParameter)))).c_str());
