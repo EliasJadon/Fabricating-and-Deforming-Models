@@ -1,4 +1,4 @@
-#include "GroupNormals.h"
+#include "Grouping.h"
 
 Grouping::Grouping(
 	const Eigen::MatrixXd& V,
