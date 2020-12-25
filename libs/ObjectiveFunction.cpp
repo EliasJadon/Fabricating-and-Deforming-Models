@@ -22,7 +22,7 @@ void ObjectiveFunction::FDGradient(const Cuda::Array<double>& X, Cuda::Array<dou
 		Xd.host_arr[i] = X.host_arr[i];
 	}
 	Cuda::MemCpyHostToDevice(Xd);
-	const double dX = 10e-6;
+	const double dX = 1e-4;
 	double f_P, f_M;
 
     //this is a very slow method that evaluates the gradient of the objective function through FD...
@@ -77,7 +77,7 @@ void ObjectiveFunction::checkGradient(const Eigen::VectorXd& X)
 	for (int i = 0; i < Analytic_gradient->size; i++) {
         double absErr = abs(FD_gradient.host_arr[i] - Analytic_gradient->host_arr[i]);
         double relError = 2 * absErr / (eps + Analytic_gradient->host_arr[i] + FD_gradient.host_arr[i]);
-        if (relError > tol && absErr > 1e-6) {
+        if (relError > tol && absErr > 1e-5) {
 			std::cout << name << "\t" << i << ":\tAnalytic val: " <<
 				Analytic_gradient->host_arr[i] << ", FD val: " << FD_gradient.host_arr[i] <<
 				". Error: " << absErr << "(" << relError * 100 << "%%)\n";
