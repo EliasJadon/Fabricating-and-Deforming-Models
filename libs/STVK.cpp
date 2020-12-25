@@ -1,5 +1,38 @@
 ﻿#include "STVK.h"
 
+template<int R1, int C1_R2, int C2> void multiply(
+	double mat1[R1][C1_R2],
+	double mat2[C1_R2][C2],
+	double res[R1][C2])
+{
+	int i, j, k;
+	for (i = 0; i < R1; i++) {
+		for (j = 0; j < C2; j++) {
+			res[i][j] = 0;
+			for (k = 0; k < C1_R2; k++)
+				res[i][j] += mat1[i][k] * mat2[k][j];
+		}
+	}
+}
+template<int R1, int C1_R2, int C2> void multiplyTranspose(
+	double mat1[C1_R2][R1],
+	double mat2[C1_R2][C2],
+	double res[R1][C2])
+{
+	int i, j, k;
+	for (i = 0; i < R1; i++) {
+		for (j = 0; j < C2; j++) {
+			res[i][j] = 0;
+			for (k = 0; k < C1_R2; k++)
+				res[i][j] += mat1[k][i] * mat2[k][j];
+		}
+	}
+}
+double3 sub(const double3 a, const double3 b)
+{
+	return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
 STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) 
 {
 	init_mesh(V, F);
@@ -7,6 +40,7 @@ STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F)
 	w = 0;
 	shearModulus = 0.3;
 	bulkModulus = 1.5;
+	Cuda::initIndices(mesh_indices, F.rows(), V.rows(), 0);
 	Cuda::AllocateMemory(grad, 3 * V.rows() + 7 * F.rows());
 	setRestShapeFromCurrentConfiguration();
 	std::cout << "\t" << name << " constructor" << std::endl;
@@ -41,48 +75,67 @@ void STVK::setRestShapeFromCurrentConfiguration() {
 		dX <<
 			V1_2D[0], V2_2D[0],
 			V1_2D[1], V2_2D[1];
-		dXInv.push_back(dX.inverse()); //TODO .inverse() is baaad
+		Eigen::Matrix2d inv = dX.inverse();//TODO .inverse() is baaad
+		dXInv.push_back(make_double4(inv(0, 0), inv(0, 1), inv(1, 0), inv(1, 1))); 
 	}
 	//compute the area for each triangle
 	igl::doublearea(restShapeV, restShapeF, restShapeArea);
 	restShapeArea /= 2;
 }
 
-void STVK::updateX(Cuda::Array<double>& curr_x)
-{
-	Cuda::MemCpyDeviceToHost(curr_x);
-	CurrV.resize(restShapeV.rows(), 3);
-	for (int vi = 0; vi < restShapeV.rows(); vi++) {
-		CurrV(vi, 0) = curr_x.host_arr[vi];
-		CurrV(vi, 1) = curr_x.host_arr[vi + restShapeV.rows()];
-		CurrV(vi, 2) = curr_x.host_arr[vi + 2 * restShapeV.rows()];
-	}
-	F.clear();
-	strain.clear();
-	for (int fi = 0; fi < restShapeF.rows(); fi++) {
-		Eigen::VectorXd v1 = CurrV.row(restShapeF(fi, 1)) - CurrV.row(restShapeF(fi, 0));
-		Eigen::VectorXd v2 = CurrV.row(restShapeF(fi, 2)) - CurrV.row(restShapeF(fi, 0));
-		Eigen::Matrix<double, 3, 2> dx;
-		dx <<
-			v1(0), v2(0),
-			v1(1), v2(1),
-			v1(2), v2(2);
-		F.push_back(dx * dXInv[fi]);
-
-		//compute the Green Strain = 1/2 * (F'F-I)
-		strain.push_back(F[fi].transpose() * F[fi]);
-		strain[fi](0, 0) -= 1; strain[fi](1, 1) -= 1;
-		strain[fi] *= 0.5;
-	}
-}
-
 double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
-	updateX(curr_x);
+	Cuda::MemCpyDeviceToHost(curr_x);
+	
+	
+	
 	Eigen::VectorXd Energy(restShapeF.rows());
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
-			Energy(fi) = 
-				shearModulus * strain[fi].squaredNorm() +
-				(bulkModulus / 2) * pow(strain[fi].trace(), 2);
+		const unsigned int v0i = restShapeF(fi, 0);
+		const unsigned int v1i = restShapeF(fi, 1);
+		const unsigned int v2i = restShapeF(fi, 2);
+		double3 V0 = make_double3(
+			curr_x.host_arr[v0i + mesh_indices.startVx],
+			curr_x.host_arr[v0i + mesh_indices.startVy],
+			curr_x.host_arr[v0i + mesh_indices.startVz]
+		);
+		double3 V1 = make_double3(
+			curr_x.host_arr[v1i + mesh_indices.startVx],
+			curr_x.host_arr[v1i + mesh_indices.startVy],
+			curr_x.host_arr[v1i + mesh_indices.startVz]
+		);
+		double3 V2 = make_double3(
+			curr_x.host_arr[v2i + mesh_indices.startVx],
+			curr_x.host_arr[v2i + mesh_indices.startVy],
+			curr_x.host_arr[v2i + mesh_indices.startVz]
+		);
+
+		double3 e10 = sub(V1, V0);
+		double3 e20 = sub(V2, V0);
+		double dx[3][2];
+		dx[0][0] = e10.x; dx[0][1] = e20.x;
+		dx[1][0] = e10.y; dx[1][1] = e20.y;
+		dx[2][0] = e10.z; dx[2][1] = e20.z;
+
+		double F[3][2];
+		double dxInv[2][2];
+		dxInv[0][0] = dXInv[fi].x;
+		dxInv[0][1] = dXInv[fi].y;
+		dxInv[1][0] = dXInv[fi].z;
+		dxInv[1][1] = dXInv[fi].w;
+		multiply<3, 2, 2>(dx, dxInv, F);
+
+		//compute the Green Strain = 1/2 * (F'F-I)
+		double strain[2][2];
+		multiplyTranspose<2, 3, 2>(F, F, strain);
+		strain[0][0] -= 1; strain[1][1] -= 1;
+		strain[0][0] *= 0.5;
+		strain[0][1] *= 0.5;
+		strain[1][0] *= 0.5;
+		strain[1][1] *= 0.5;
+
+		Energy(fi) =
+			shearModulus * (pow(strain[0][0], 2) + pow(strain[1][0], 2) + pow(strain[0][1], 2) + pow(strain[1][1], 2)) +
+			(bulkModulus / 2) * pow((strain[0][0] + strain[1][1]), 2);
 	}
 	double total_energy = restShapeArea.transpose() * Energy;
 	
@@ -95,34 +148,79 @@ double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
 
 Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)
 {
-	updateX(X);
+	Cuda::MemCpyDeviceToHost(X);
+
+
 	for (int i = 0; i < grad.size; i++) {
 		grad.host_arr[i] = 0;
 	}
 
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
+		const unsigned int v0i = restShapeF(fi, 0);
+		const unsigned int v1i = restShapeF(fi, 1);
+		const unsigned int v2i = restShapeF(fi, 2);
+		double3 V0 = make_double3(
+			X.host_arr[v0i + mesh_indices.startVx],
+			X.host_arr[v0i + mesh_indices.startVy],
+			X.host_arr[v0i + mesh_indices.startVz]
+		);
+		double3 V1 = make_double3(
+			X.host_arr[v1i + mesh_indices.startVx],
+			X.host_arr[v1i + mesh_indices.startVy],
+			X.host_arr[v1i + mesh_indices.startVz]
+		);
+		double3 V2 = make_double3(
+			X.host_arr[v2i + mesh_indices.startVx],
+			X.host_arr[v2i + mesh_indices.startVy],
+			X.host_arr[v2i + mesh_indices.startVz]
+		);
+
+		double3 e10 = sub(V1, V0);
+		double3 e20 = sub(V2, V0);
+		double dx[3][2];
+		dx[0][0] = e10.x; dx[0][1] = e20.x;
+		dx[1][0] = e10.y; dx[1][1] = e20.y;
+		dx[2][0] = e10.z; dx[2][1] = e20.z;
+
+		double F[3][2];
+		double dxInv[2][2];
+		dxInv[0][0] = dXInv[fi].x;
+		dxInv[0][1] = dXInv[fi].y;
+		dxInv[1][0] = dXInv[fi].z;
+		dxInv[1][1] = dXInv[fi].w;
+		multiply<3, 2, 2>(dx, dxInv, F);
+
+		//compute the Green Strain = 1/2 * (F'F-I)
+		double strain[2][2];
+		multiplyTranspose<2, 3, 2>(F, F, strain);
+		strain[0][0] -= 1; strain[1][1] -= 1;
+		strain[0][0] *= 0.5;
+		strain[0][1] *= 0.5;
+		strain[1][0] *= 0.5;
+		strain[1][1] *= 0.5;
+
 		Eigen::Matrix<double, 6, 9> dF_dX;
 		Eigen::Matrix<double, 4, 6> dstrain_dF;
 		Eigen::Matrix<double, 1, 4> dE_dJ;
 		dF_dX <<
-			-dXInv[fi](0, 0) - dXInv[fi](1, 0), dXInv[fi](0, 0), dXInv[fi](1, 0), 0, 0, 0, 0, 0, 0,
-			-dXInv[fi](0, 1) - dXInv[fi](1, 1), dXInv[fi](0, 1), dXInv[fi](1, 1), 0, 0, 0, 0, 0, 0,
-			0, 0, 0, -dXInv[fi](0, 0) - dXInv[fi](1, 0), dXInv[fi](0, 0), dXInv[fi](1, 0), 0, 0, 0,
-			0, 0, 0, -dXInv[fi](0, 1) - dXInv[fi](1, 1), dXInv[fi](0, 1), dXInv[fi](1, 1), 0, 0, 0,
-			0, 0, 0, 0, 0, 0, -dXInv[fi](0, 0) - dXInv[fi](1, 0), dXInv[fi](0, 0), dXInv[fi](1, 0),
-			0, 0, 0, 0, 0, 0, -dXInv[fi](0, 1) - dXInv[fi](1, 1), dXInv[fi](0, 1), dXInv[fi](1, 1);
+			-dXInv[fi].x - dXInv[fi].z, dXInv[fi].x, dXInv[fi].z, 0, 0, 0, 0, 0, 0,
+			-dXInv[fi].y - dXInv[fi].w, dXInv[fi].y, dXInv[fi].w, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, -dXInv[fi].x - dXInv[fi].z, dXInv[fi].x, dXInv[fi].z, 0, 0, 0,
+			0, 0, 0, -dXInv[fi].y - dXInv[fi].w, dXInv[fi].y, dXInv[fi].w, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, -dXInv[fi].x - dXInv[fi].z, dXInv[fi].x, dXInv[fi].z,
+			0, 0, 0, 0, 0, 0, -dXInv[fi].y - dXInv[fi].w, dXInv[fi].y, dXInv[fi].w;
 
 		dstrain_dF <<
-			F[fi](0, 0), 0, F[fi](1, 0), 0, F[fi](2, 0), 0,
-			0.5*F[fi](0, 1), 0.5*F[fi](0, 0), 0.5*F[fi](1, 1), 0.5*F[fi](1, 0), 0.5*F[fi](2, 1), 0.5*F[fi](2, 0),
-			0.5*F[fi](0, 1), 0.5*F[fi](0, 0), 0.5*F[fi](1, 1), 0.5*F[fi](1, 0), 0.5*F[fi](2, 1), 0.5*F[fi](2, 0),
-			0, F[fi](0, 1), 0, F[fi](1, 1), 0, F[fi](2, 1);
+			F[0][0], 0, F[1][0], 0, F[2][0], 0,
+			0.5*F[0][1], 0.5*F[0][0], 0.5*F[1][1], 0.5*F[1][0], 0.5*F[2][1], 0.5*F[2][0],
+			0.5*F[0][1], 0.5*F[0][0], 0.5*F[1][1], 0.5*F[1][0], 0.5*F[2][1], 0.5*F[2][0],
+			0, F[0][1], 0, F[1][1], 0, F[2][1];
 		
 		dE_dJ <<
-			2 * shearModulus*strain[fi](0, 0) + bulkModulus * strain[fi].trace(),
-			2 * shearModulus*strain[fi](0, 1),
-			2 * shearModulus*strain[fi](1, 0),
-			2 * shearModulus*strain[fi](1, 1) + bulkModulus * strain[fi].trace();
+			2 * shearModulus * strain[0][0] + bulkModulus * (strain[0][0] + strain[1][1]),
+			2 * shearModulus * strain[0][1],
+			2 * shearModulus * strain[1][0],
+			2 * shearModulus * strain[1][1] + bulkModulus * (strain[0][0] + strain[1][1]);
 		dE_dJ *= restShapeArea[fi];
 	
 		Eigen::Matrix<double, 1, 9> dE_dX = dE_dJ * dstrain_dF * dF_dX;

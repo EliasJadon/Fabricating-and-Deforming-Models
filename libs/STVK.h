@@ -5,12 +5,11 @@ class STVK : public ObjectiveFunction {
 private:	
 	double shearModulus, bulkModulus;
 	Eigen::VectorXd restShapeArea;
-	Eigen::MatrixX3d CurrV;
-	std::vector<Eigen::Matrix2d> dXInv, strain;
-	std::vector<Eigen::Matrix<double, 3, 2>> F;
+	std::vector<double4> dXInv;
 	void setRestShapeFromCurrentConfiguration();
 	void updateX(Cuda::Array<double>& curr_x);
 public:
+	Cuda::indices mesh_indices;
 	Cuda::Array<double> grad;
 	STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
 	~STVK();
