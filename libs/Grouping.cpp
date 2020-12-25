@@ -6,7 +6,11 @@ Grouping::Grouping(
 	const ConstraintsType type)
 {
 	init_mesh(V, F);
-	name = "Group Normals";
+	if(type == ConstraintsType::NORMALS)
+		name = "Group Normals";
+	if(type == ConstraintsType::SPHERES)
+		name = "Group Spheres";
+
 	w = 0.05;
 	cudaGrouping = std::make_shared<Cuda_Grouping>(F.rows(), V.rows(), type);
 	std::cout << "\t" << name << " constructor" << std::endl;
