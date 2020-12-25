@@ -10,8 +10,8 @@ private:
 	std::vector<Eigen::Matrix<double, 3, 2>> F;
 	void setRestShapeFromCurrentConfiguration();
 	void updateX(Cuda::Array<double>& curr_x);
-	Cuda::Array<double> grad;
 public:
+	Cuda::Array<double> grad;
 	STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
 	~STVK();
 	virtual double value(Cuda::Array<double>& curr_x, const bool update);
