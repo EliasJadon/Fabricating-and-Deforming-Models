@@ -33,6 +33,8 @@ double3 sub(const double3 a, const double3 b)
 	return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
+
+
 STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) 
 {
 	init_mesh(V, F);
@@ -40,6 +42,7 @@ STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F)
 	w = 0;
 	shearModulus = 0.3;
 	bulkModulus = 1.5;
+	Cuda::AllocateMemory(dXInv, F.rows());
 	Cuda::initIndices(mesh_indices, F.rows(), V.rows(), 0);
 	Cuda::AllocateMemory(grad, 3 * V.rows() + 7 * F.rows());
 	setRestShapeFromCurrentConfiguration();
@@ -47,11 +50,11 @@ STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F)
 }
 
 STVK::~STVK() {
+	Cuda::FreeMemory(dXInv);
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
 void STVK::setRestShapeFromCurrentConfiguration() {
-	dXInv.clear();
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
 		//Vertices in 3D
 		Eigen::VectorXd V0_3D = restShapeV.row(restShapeF(fi, 0));
@@ -76,11 +79,12 @@ void STVK::setRestShapeFromCurrentConfiguration() {
 			V1_2D[0], V2_2D[0],
 			V1_2D[1], V2_2D[1];
 		Eigen::Matrix2d inv = dX.inverse();//TODO .inverse() is baaad
-		dXInv.push_back(make_double4(inv(0, 0), inv(0, 1), inv(1, 0), inv(1, 1))); 
+		dXInv.host_arr[fi] = make_double4(inv(0, 0), inv(0, 1), inv(1, 0), inv(1, 1)); 
 	}
 	//compute the area for each triangle
 	igl::doublearea(restShapeV, restShapeF, restShapeArea);
 	restShapeArea /= 2;
+	Cuda::MemCpyHostToDevice(dXInv);
 }
 
 double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
@@ -118,10 +122,10 @@ double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
 
 		double F[3][2];
 		double dxInv[2][2];
-		dxInv[0][0] = dXInv[fi].x;
-		dxInv[0][1] = dXInv[fi].y;
-		dxInv[1][0] = dXInv[fi].z;
-		dxInv[1][1] = dXInv[fi].w;
+		dxInv[0][0] = dXInv.host_arr[fi].x;
+		dxInv[0][1] = dXInv.host_arr[fi].y;
+		dxInv[1][0] = dXInv.host_arr[fi].z;
+		dxInv[1][1] = dXInv.host_arr[fi].w;
 		multiply<3, 2, 2>(dx, dxInv, F);
 
 		//compute the Green Strain = 1/2 * (F'F-I)
@@ -184,10 +188,10 @@ Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)
 
 		double F[3][2];
 		double dxInv[2][2];
-		dxInv[0][0] = dXInv[fi].x;
-		dxInv[0][1] = dXInv[fi].y;
-		dxInv[1][0] = dXInv[fi].z;
-		dxInv[1][1] = dXInv[fi].w;
+		dxInv[0][0] = dXInv.host_arr[fi].x;
+		dxInv[0][1] = dXInv.host_arr[fi].y;
+		dxInv[1][0] = dXInv.host_arr[fi].z;
+		dxInv[1][1] = dXInv.host_arr[fi].w;
 		multiply<3, 2, 2>(dx, dxInv, F);
 
 		//compute the Green Strain = 1/2 * (F'F-I)
@@ -203,12 +207,12 @@ Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)
 		Eigen::Matrix<double, 4, 6> dstrain_dF;
 		Eigen::Matrix<double, 1, 4> dE_dJ;
 		dF_dX <<
-			-dXInv[fi].x - dXInv[fi].z, dXInv[fi].x, dXInv[fi].z, 0, 0, 0, 0, 0, 0,
-			-dXInv[fi].y - dXInv[fi].w, dXInv[fi].y, dXInv[fi].w, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, -dXInv[fi].x - dXInv[fi].z, dXInv[fi].x, dXInv[fi].z, 0, 0, 0,
-			0, 0, 0, -dXInv[fi].y - dXInv[fi].w, dXInv[fi].y, dXInv[fi].w, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, -dXInv[fi].x - dXInv[fi].z, dXInv[fi].x, dXInv[fi].z,
-			0, 0, 0, 0, 0, 0, -dXInv[fi].y - dXInv[fi].w, dXInv[fi].y, dXInv[fi].w;
+			-dXInv.host_arr[fi].x - dXInv.host_arr[fi].z, dXInv.host_arr[fi].x, dXInv.host_arr[fi].z, 0, 0, 0, 0, 0, 0,
+			-dXInv.host_arr[fi].y - dXInv.host_arr[fi].w, dXInv.host_arr[fi].y, dXInv.host_arr[fi].w, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, -dXInv.host_arr[fi].x - dXInv.host_arr[fi].z, dXInv.host_arr[fi].x, dXInv.host_arr[fi].z, 0, 0, 0,
+			0, 0, 0, -dXInv.host_arr[fi].y - dXInv.host_arr[fi].w, dXInv.host_arr[fi].y, dXInv.host_arr[fi].w, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, -dXInv.host_arr[fi].x - dXInv.host_arr[fi].z, dXInv.host_arr[fi].x, dXInv.host_arr[fi].z,
+			0, 0, 0, 0, 0, 0, -dXInv.host_arr[fi].y - dXInv.host_arr[fi].w, dXInv.host_arr[fi].y, dXInv.host_arr[fi].w;
 
 		dstrain_dF <<
 			F[0][0], 0, F[1][0], 0, F[2][0], 0,
@@ -231,6 +235,4 @@ Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)
 	}
 	Cuda::MemCpyHostToDevice(grad);
 	return &grad;
-	//if (update)
-	//	gradient_norm = g.norm();
 }

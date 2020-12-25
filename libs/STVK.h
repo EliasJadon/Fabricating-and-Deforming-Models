@@ -5,9 +5,8 @@ class STVK : public ObjectiveFunction {
 private:	
 	double shearModulus, bulkModulus;
 	Eigen::VectorXd restShapeArea;
-	std::vector<double4> dXInv;
+	Cuda::Array<double4> dXInv;
 	void setRestShapeFromCurrentConfiguration();
-	void updateX(Cuda::Array<double>& curr_x);
 public:
 	Cuda::indices mesh_indices;
 	Cuda::Array<double> grad;
