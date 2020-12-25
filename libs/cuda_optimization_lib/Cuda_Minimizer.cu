@@ -26,15 +26,25 @@ namespace Utils_Cuda_Minimizer {
 	{
 		unsigned int Global_idx = threadIdx.x + blockIdx.x * blockDim.x;
 		if (Global_idx < size) {
-			total_g[Global_idx] =
-				w1 * g1[Global_idx] +
-				w2 * g2[Global_idx] +
-				w3 * g3[Global_idx] +
-				w4 * g4[Global_idx] +
-				w5 * g5[Global_idx] +
-				w6 * g6[Global_idx] +
-				w7 * g7[Global_idx] +
-				w8 * g8[Global_idx];
+			double grad_val = 0;
+			if (w1 != 0)
+				grad_val += w1 * g1[Global_idx];
+			if (w2 != 0)
+				grad_val += w2 * g2[Global_idx];
+			if (w3 != 0)
+				grad_val += w3 * g3[Global_idx];
+			if (w4 != 0)
+				grad_val += w4 * g4[Global_idx];
+			if (w5 != 0)
+				grad_val += w5 * g5[Global_idx];
+			if (w6 != 0)
+				grad_val += w6 * g6[Global_idx];
+			if (w7 != 0)
+				grad_val += w7 * g7[Global_idx];
+			if (w8 != 0)
+				grad_val += w8 * g8[Global_idx];
+
+			total_g[Global_idx] = grad_val;
 		}
 	}
 	__global__ void AdamStepKernel(

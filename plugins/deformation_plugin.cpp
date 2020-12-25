@@ -1806,11 +1806,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
 	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(V, F, FunctionType::SIGMOID);
 	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(V, F, FunctionType::SIGMOID);
-	std::shared_ptr <STVK> stvk;
-	if (app_utils::IsMesh2D(InputModel().V)) 
-	{
-		stvk = std::make_unique<STVK>(V, F);
-	}
+	std::shared_ptr <STVK> stvk = std::make_unique<STVK>(V, F);
 	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>(V, F);
 	
 	//Add User Interface Energies
@@ -1823,9 +1819,9 @@ void deformation_plugin::initializeMinimizer(const int index)
 	auto fixChosenSpheres = std::make_shared<FixChosenConstraints>(F.rows(), V.rows(), ConstraintsType::SPHERES);
 	Outputs[index].Energy_FixChosenSpheres = fixChosenSpheres;
 	
-	
 	std::shared_ptr< Grouping> groupSpheres = std::make_shared<Grouping>(V, F, ConstraintsType::SPHERES);
 	Outputs[index].Energy_GroupSpheres = groupSpheres;
+
 	std::shared_ptr< Grouping> groupNormals = std::make_shared<Grouping>(V, F, ConstraintsType::NORMALS);
 	Outputs[index].Energy_GroupNormals = groupNormals;
 
@@ -1837,8 +1833,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	};
 	add_obj(auxSpherePerHinge);
 	add_obj(auxBendingNormal);
-	if(app_utils::IsMesh2D(InputModel().V))
-		add_obj(stvk);
+	add_obj(stvk);
 	add_obj(fixAllVertices);
 	add_obj(fixChosenVertices);
 	add_obj(fixChosenNormals);

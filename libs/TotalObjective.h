@@ -5,6 +5,7 @@
 #include "Grouping.h"
 #include "AuxSpherePerHinge.h"
 #include "AuxBendingNormal.h"
+#include "STVK.h"
 #include "cuda_optimization_lib/Cuda_FixAllVertices.cuh"
 #include "cuda_optimization_lib/Cuda_AuxSpherePerHinge.cuh"
 #include "cuda_optimization_lib/Cuda_Minimizer.cuh"

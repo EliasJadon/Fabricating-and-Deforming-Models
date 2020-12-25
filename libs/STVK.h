@@ -9,6 +9,8 @@ private:
 	std::vector<Eigen::Matrix2d> dXInv, strain;
 	std::vector<Eigen::Matrix<double, 3, 2>> F;
 	void setRestShapeFromCurrentConfiguration();
+	void updateX(Cuda::Array<double>& curr_x);
+	Cuda::Array<double> grad;
 public:
 	STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
 	~STVK();

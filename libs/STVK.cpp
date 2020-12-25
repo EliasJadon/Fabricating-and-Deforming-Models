@@ -5,12 +5,9 @@ STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F)
 	init_mesh(V, F);
 	name = "STVK";
 	w = 0;
-	if (restShapeV.size() == 0 || restShapeF.size() == 0)
-		throw name + " must define members V,F before init()!";
-
-	assert(restShapeV.col(2).isZero() && "Warning: Rest shape is assumed to be in the plane (z coordinate must be zero in the beginning)");
 	shearModulus = 0.3;
 	bulkModulus = 1.5;
+	Cuda::AllocateMemory(grad, 3 * V.rows() + 7 * F.rows());
 	setRestShapeFromCurrentConfiguration();
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
@@ -22,13 +19,28 @@ STVK::~STVK() {
 void STVK::setRestShapeFromCurrentConfiguration() {
 	dXInv.clear();
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
-		Eigen::VectorXd V1 = restShapeV.row(restShapeF(fi, 1)) - restShapeV.row(restShapeF(fi, 0));
-		Eigen::VectorXd V2 = restShapeV.row(restShapeF(fi, 2)) - restShapeV.row(restShapeF(fi, 0));
+		//Vertices in 3D
+		Eigen::VectorXd V0_3D = restShapeV.row(restShapeF(fi, 0));
+		Eigen::VectorXd V1_3D = restShapeV.row(restShapeF(fi, 1));
+		Eigen::VectorXd V2_3D = restShapeV.row(restShapeF(fi, 2));
+		Eigen::VectorXd e10 = V1_3D - V0_3D;
+		Eigen::VectorXd e20 = V2_3D - V0_3D;
+
+		//Flatten Vertices to 2D
+		double h = e10.norm();
+		double temp = e20.transpose() * e10;
+		double i = temp / h;
+		double j = sqrt(e20.squaredNorm() - pow(i, 2));
+		Eigen::Vector2d V0_2D(0, 0);
+		Eigen::Vector2d V1_2D(h, 0);
+		Eigen::Vector2d V2_2D(i, j);
+
+
 		//matrix that holds three edge vectors
 		Eigen::Matrix2d dX;
 		dX <<
-			V1[0], V2[0],
-			V1[1], V2[1];
+			V1_2D[0], V2_2D[0],
+			V1_2D[1], V2_2D[1];
 		dXInv.push_back(dX.inverse()); //TODO .inverse() is baaad
 	}
 	//compute the area for each triangle
@@ -36,31 +48,36 @@ void STVK::setRestShapeFromCurrentConfiguration() {
 	restShapeArea /= 2;
 }
 
-//void STVK::updateX(Cuda::Array<double>& curr_x)
-//{
-	//assert(X.rows() == (restShapeV.size()+ 7*restShapeF.rows()));
-	//CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, restShapeV.size()).data(), restShapeV.rows(), 3);
-	//
-	//F.clear();
-	//strain.clear();
-	//for (int fi = 0; fi < restShapeF.rows(); fi++) {
-	//	Eigen::VectorXd v1 = CurrV.row(restShapeF(fi, 1)) - CurrV.row(restShapeF(fi, 0));
-	//	Eigen::VectorXd v2 = CurrV.row(restShapeF(fi, 2)) - CurrV.row(restShapeF(fi, 0));
-	//	Eigen::Matrix<double, 3, 2> dx;
-	//	dx <<
-	//		v1(0), v2(0),
-	//		v1(1), v2(1),
-	//		v1(2), v2(2);
-	//	F.push_back(dx * dXInv[fi]);
+void STVK::updateX(Cuda::Array<double>& curr_x)
+{
+	Cuda::MemCpyDeviceToHost(curr_x);
+	CurrV.resize(restShapeV.rows(), 3);
+	for (int vi = 0; vi < restShapeV.rows(); vi++) {
+		CurrV(vi, 0) = curr_x.host_arr[vi];
+		CurrV(vi, 1) = curr_x.host_arr[vi + restShapeV.rows()];
+		CurrV(vi, 2) = curr_x.host_arr[vi + 2 * restShapeV.rows()];
+	}
+	F.clear();
+	strain.clear();
+	for (int fi = 0; fi < restShapeF.rows(); fi++) {
+		Eigen::VectorXd v1 = CurrV.row(restShapeF(fi, 1)) - CurrV.row(restShapeF(fi, 0));
+		Eigen::VectorXd v2 = CurrV.row(restShapeF(fi, 2)) - CurrV.row(restShapeF(fi, 0));
+		Eigen::Matrix<double, 3, 2> dx;
+		dx <<
+			v1(0), v2(0),
+			v1(1), v2(1),
+			v1(2), v2(2);
+		F.push_back(dx * dXInv[fi]);
 
-	//	//compute the Green Strain = 1/2 * (F'F-I)
-	//	strain.push_back(F[fi].transpose() * F[fi]);
-	//	strain[fi](0, 0) -= 1; strain[fi](1, 1) -= 1;
-	//	strain[fi] *= 0.5;
-	//}
-//}
+		//compute the Green Strain = 1/2 * (F'F-I)
+		strain.push_back(F[fi].transpose() * F[fi]);
+		strain[fi](0, 0) -= 1; strain[fi](1, 1) -= 1;
+		strain[fi] *= 0.5;
+	}
+}
 
 double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
+	updateX(curr_x);
 	Eigen::VectorXd Energy(restShapeF.rows());
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
 			Energy(fi) = 
@@ -78,9 +95,10 @@ double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
 
 Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)
 {
-	return NULL;
-	/*g.conservativeResize(restShapeV.size() + 7*restShapeF.rows());
-	g.setZero();
+	updateX(X);
+	for (int i = 0; i < grad.size; i++) {
+		grad.host_arr[i] = 0;
+	}
 
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
 		Eigen::Matrix<double, 6, 9> dF_dX;
@@ -111,9 +129,10 @@ Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)
 		
 		for (int vi = 0; vi < 3; vi++)
 			for (int xyz = 0; xyz < 3; xyz++)
-				g[restShapeF(fi, vi) + (xyz*restShapeV.rows())] += dE_dX[xyz*3 + vi];
+				grad.host_arr[restShapeF(fi, vi) + (xyz*restShapeV.rows())] += dE_dX[xyz*3 + vi];
 	}
-
-	if (update)
-		gradient_norm = g.norm();*/
+	Cuda::MemCpyHostToDevice(grad);
+	return &grad;
+	//if (update)
+	//	gradient_norm = g.norm();
 }
