@@ -1,15 +1,12 @@
 #pragma once
 #include "ObjectiveFunction.h"
+#include "cuda_optimization_lib/cuda_STVK.cuh"
 
 class STVK : public ObjectiveFunction {
 private:	
-	double shearModulus, bulkModulus;
-	Eigen::VectorXd restShapeArea;
-	Cuda::Array<double4> dXInv;
 	void setRestShapeFromCurrentConfiguration();
 public:
-	Cuda::indices mesh_indices;
-	Cuda::Array<double> grad;
+	std::shared_ptr<Cuda_STVK> cuda_STVK;
 	STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
 	~STVK();
 	virtual double value(Cuda::Array<double>& curr_x, const bool update);
