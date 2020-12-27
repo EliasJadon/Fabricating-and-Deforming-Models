@@ -1475,6 +1475,8 @@ void deformation_plugin::Update_view()
 	InputModel().set_visible(true, inputCoreID);
 	for (int i = 0; i < Outputs.size(); i++)
 		OutputModel(i).set_visible(true, Outputs[i].CoreID);
+	for (auto& core : viewer->core_list)
+		core.is_animating = true;
 }
 
 void deformation_plugin::follow_and_mark_selected_faces() 

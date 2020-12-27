@@ -126,6 +126,8 @@ namespace Utils_Cuda_AuxBendingNormal {
 	{
 		int f0 = hinges_faceIndex[hi].f0;
 		int f1 = hinges_faceIndex[hi].f1;
+		if ((f0 >= I.num_faces) || (f1 >= I.num_faces))
+			return;
 		double3 N0 = make_double3(
 			curr_x[f0 + I.startNx],
 			curr_x[f0 + I.startNy],
@@ -147,6 +149,8 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const int fi,
 		const Cuda::indices I)
 	{
+		if (fi >= I.num_faces)
+			return;
 		double3 N = make_double3(
 			curr_x[fi + I.startNx],
 			curr_x[fi + I.startNy],
@@ -162,6 +166,8 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const Cuda::indices I)
 	{
 		// (N^T*(x1-x0))^2 + (N^T*(x2-x1))^2 + (N^T*(x0-x2))^2
+		if (fi >= I.num_faces)
+			return;
 		int x0 = restShapeF[fi].x;
 		int x1 = restShapeF[fi].y;
 		int x2 = restShapeF[fi].z;
@@ -276,6 +282,8 @@ namespace Utils_Cuda_AuxBendingNormal {
 	{
 		int f0 = hinges_faceIndex[hi].f0;
 		int f1 = hinges_faceIndex[hi].f1;
+		if ((f0 >= I.num_faces) || (f1 >= I.num_faces))
+			return;
 		double3 N0 = make_double3(
 			X[f0 + I.startNx],
 			X[f0 + I.startNy],
@@ -312,6 +320,8 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const unsigned int fi,
 		const Cuda::indices I)
 	{
+		if (fi >= I.num_faces)
+			return;
 		double3 N = make_double3(
 			X[fi + I.startNx],
 			X[fi + I.startNy],
@@ -334,6 +344,8 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const double w3,
 		const Cuda::indices I)
 	{
+		if (fi >= I.num_faces)
+			return;
 		const unsigned int x0 = restShapeF[fi].x;
 		const unsigned int x1 = restShapeF[fi].y;
 		const unsigned int x2 = restShapeF[fi].z;
@@ -428,7 +440,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 				(Bl_index - mesh_indices.num_faces),
 				mesh_indices);
 		}
-		else {
+		else if (Bl_index < (2 * mesh_indices.num_faces + mesh_indices.num_hinges)) {
 			gradient1Kernel(
 				grad,
 				X,
