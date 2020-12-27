@@ -74,32 +74,78 @@ namespace Utils_Cuda_STVK {
 	template<unsigned int blockSize>
 	__global__ void EnergyKernel(
 		double* resAtomic,
+		double* Energy,
 		const double* curr_x,
-		const double3* restShapeV,
-		const unsigned int num_vertices)
+		const int3* restShapeF,
+		const double* restShapeArea,
+		const double4* dXInv,
+		const Cuda::indices I,
+		const double shearModulus,
+		const double bulkModulus)
 	{
 		//init data
 		extern __shared__ double energy_value[blockSize];
 		unsigned int tid = threadIdx.x;
-		unsigned int Global_idx = blockIdx.x * blockSize + tid;
+		unsigned int fi = blockIdx.x * blockSize + tid;
 		*resAtomic = 0;
 
 		__syncthreads();
 
-		if (Global_idx < num_vertices) {
-			double diff_x = curr_x[Global_idx] - restShapeV[Global_idx].x;
-			energy_value[tid] = diff_x * diff_x;
-		}
-		else if (Global_idx < 2 * num_vertices) {
-			unsigned int V_index = Global_idx - num_vertices;
-			double diff_y = curr_x[Global_idx] - restShapeV[V_index].y;
-			energy_value[tid] = diff_y * diff_y;
-		}
-		else if (Global_idx < 3 * num_vertices) {
-			unsigned int V_index = Global_idx - 2 * num_vertices;
-			double diff_z = curr_x[Global_idx] - restShapeV[V_index].z;
-			energy_value[tid] = diff_z * diff_z;
-		}
+		if (fi < I.num_faces) {
+			const double4 dxinv = dXInv[fi];
+			const int startX = I.startVx;
+			const int startY = I.startVy;
+			const int startZ = I.startVz;
+			const double Area = restShapeArea[fi];
+			const unsigned int v0i = restShapeF[fi].x;
+			const unsigned int v1i = restShapeF[fi].y;
+			const unsigned int v2i = restShapeF[fi].z;
+			double3 V0 = make_double3(
+				curr_x[v0i + startX],
+				curr_x[v0i + startY],
+				curr_x[v0i + startZ]
+			);
+			double3 V1 = make_double3(
+				curr_x[v1i + startX],
+				curr_x[v1i + startY],
+				curr_x[v1i + startZ]
+			);
+			double3 V2 = make_double3(
+				curr_x[v2i + startX],
+				curr_x[v2i + startY],
+				curr_x[v2i + startZ]
+			);
+
+			double3 e10 = sub(V1, V0);
+			double3 e20 = sub(V2, V0);
+			double dx[3][2];
+			dx[0][0] = e10.x; dx[0][1] = e20.x;
+			dx[1][0] = e10.y; dx[1][1] = e20.y;
+			dx[2][0] = e10.z; dx[2][1] = e20.z;
+
+			double F[3][2];
+			double dxInv[2][2];
+			dxInv[0][0] = dxinv.x;
+			dxInv[0][1] = dxinv.y;
+			dxInv[1][0] = dxinv.z;
+			dxInv[1][1] = dxinv.w;
+			multiply<3, 2, 2>(dx, dxInv, F);
+
+			//compute the Green Strain = 1/2 * (F'F-I)
+			double strain[2][2];
+			multiplyTranspose<2, 3, 2>(F, F, strain);
+			strain[0][0] -= 1; strain[1][1] -= 1;
+			strain[0][0] *= 0.5;
+			strain[0][1] *= 0.5;
+			strain[1][0] *= 0.5;
+			strain[1][1] *= 0.5;
+
+			Energy[fi] =
+				shearModulus * (pow(strain[0][0], 2) + pow(strain[1][0], 2) + pow(strain[0][1], 2) + pow(strain[1][1], 2)) +
+				(bulkModulus / 2) * pow((strain[0][0] + strain[1][1]), 2);
+
+			energy_value[tid] = restShapeArea[fi] * Energy[fi];
+		}		
 		else {
 			energy_value[tid] = 0;
 		}
@@ -123,8 +169,7 @@ namespace Utils_Cuda_STVK {
 		const double4* dXInv,
 		const Cuda::indices I,
 		const double shearModulus,
-		const double bulkModulus,
-		const unsigned int size)
+		const double bulkModulus)
 	{
 		unsigned int fi = blockIdx.x * blockSize + threadIdx.x;
 		if (fi >= I.num_faces)
@@ -249,14 +294,20 @@ namespace Utils_Cuda_STVK {
 }
 	
 double Cuda_STVK::value(Cuda::Array<double>& curr_x) {
-	/*unsigned int s = 3 * num_vertices;
+	unsigned int s = mesh_indices.num_faces;
 	Utils_Cuda_STVK::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,
+		Energy.cuda_arr,
 		curr_x.cuda_arr,
-		restShapeV.cuda_arr,
-		num_vertices);
+		restShapeF.cuda_arr,
+		restShapeArea.cuda_arr,
+		dXInv.cuda_arr,
+		mesh_indices,
+		shearModulus,
+		bulkModulus);
+
 	Cuda::CheckErr(cudaDeviceSynchronize());
-	MemCpyDeviceToHost(EnergyAtomic);*/
+	MemCpyDeviceToHost(EnergyAtomic);
 	return EnergyAtomic.host_arr[0];
 }
 
@@ -276,8 +327,7 @@ Cuda::Array<double>* Cuda_STVK::gradient(Cuda::Array<double>& X)
 		dXInv.cuda_arr,
 		mesh_indices,
 		shearModulus,
-		bulkModulus,
-		grad.size);
+		bulkModulus);
 	Cuda::CheckErr(cudaDeviceSynchronize());
 	return &grad;
 }
@@ -289,6 +339,7 @@ Cuda_STVK::Cuda_STVK(){
 Cuda_STVK::~Cuda_STVK() {
 	cudaGetErrorString(cudaGetLastError());
 	FreeMemory(restShapeArea);
+	FreeMemory(Energy);
 	FreeMemory(grad);
 	FreeMemory(restShapeF);
 	FreeMemory(EnergyAtomic);

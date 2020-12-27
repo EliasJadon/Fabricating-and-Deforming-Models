@@ -47,6 +47,7 @@ STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F)
 	cuda_STVK->bulkModulus = 1.5;
 
 	Cuda::AllocateMemory(cuda_STVK->dXInv, F.rows());
+	Cuda::AllocateMemory(cuda_STVK->Energy, F.rows());
 	Cuda::AllocateMemory(cuda_STVK->restShapeF, F.rows());
 	Cuda::AllocateMemory(cuda_STVK->restShapeArea, F.rows());
 	Cuda::initIndices(cuda_STVK->mesh_indices, F.rows(), V.rows(), 0);
@@ -105,7 +106,6 @@ void STVK::setRestShapeFromCurrentConfiguration() {
 		cuda_STVK->grad.host_arr[i] = 0;
 	}
 
-
 	Cuda::MemCpyHostToDevice(cuda_STVK->restShapeF);
 	Cuda::MemCpyHostToDevice(cuda_STVK->grad);
 	Cuda::MemCpyHostToDevice(cuda_STVK->dXInv);
@@ -113,69 +113,13 @@ void STVK::setRestShapeFromCurrentConfiguration() {
 }
 
 double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
-	Cuda::MemCpyDeviceToHost(curr_x);
-	
-	
-	
-	Eigen::VectorXd Energy(restShapeF.rows());
-	for (int fi = 0; fi < restShapeF.rows(); fi++) {
-		const unsigned int v0i = restShapeF(fi, 0);
-		const unsigned int v1i = restShapeF(fi, 1);
-		const unsigned int v2i = restShapeF(fi, 2);
-		double3 V0 = make_double3(
-			curr_x.host_arr[v0i + cuda_STVK->mesh_indices.startVx],
-			curr_x.host_arr[v0i + cuda_STVK->mesh_indices.startVy],
-			curr_x.host_arr[v0i + cuda_STVK->mesh_indices.startVz]
-		);
-		double3 V1 = make_double3(
-			curr_x.host_arr[v1i + cuda_STVK->mesh_indices.startVx],
-			curr_x.host_arr[v1i + cuda_STVK->mesh_indices.startVy],
-			curr_x.host_arr[v1i + cuda_STVK->mesh_indices.startVz]
-		);
-		double3 V2 = make_double3(
-			curr_x.host_arr[v2i + cuda_STVK->mesh_indices.startVx],
-			curr_x.host_arr[v2i + cuda_STVK->mesh_indices.startVy],
-			curr_x.host_arr[v2i + cuda_STVK->mesh_indices.startVz]
-		);
+	double value = cuda_STVK->value(curr_x);
 
-		double3 e10 = sub(V1, V0);
-		double3 e20 = sub(V2, V0);
-		double dx[3][2];
-		dx[0][0] = e10.x; dx[0][1] = e20.x;
-		dx[1][0] = e10.y; dx[1][1] = e20.y;
-		dx[2][0] = e10.z; dx[2][1] = e20.z;
-
-		double F[3][2];
-		double dxInv[2][2];
-		dxInv[0][0] = cuda_STVK->dXInv.host_arr[fi].x;
-		dxInv[0][1] = cuda_STVK->dXInv.host_arr[fi].y;
-		dxInv[1][0] = cuda_STVK->dXInv.host_arr[fi].z;
-		dxInv[1][1] = cuda_STVK->dXInv.host_arr[fi].w;
-		multiply<3, 2, 2>(dx, dxInv, F);
-
-		//compute the Green Strain = 1/2 * (F'F-I)
-		double strain[2][2];
-		multiplyTranspose<2, 3, 2>(F, F, strain);
-		strain[0][0] -= 1; strain[1][1] -= 1;
-		strain[0][0] *= 0.5;
-		strain[0][1] *= 0.5;
-		strain[1][0] *= 0.5;
-		strain[1][1] *= 0.5;
-
-		Energy(fi) =
-			cuda_STVK->shearModulus * (pow(strain[0][0], 2) + pow(strain[1][0], 2) + pow(strain[0][1], 2) + pow(strain[1][1], 2)) +
-			(cuda_STVK->bulkModulus / 2) * pow((strain[0][0] + strain[1][1]), 2);
-	}
-	double total_energy = 0;
-	for (int i = 0; i < cuda_STVK->restShapeArea.size; i++) {
-		total_energy += cuda_STVK->restShapeArea.host_arr[i] * Energy(i);
-	}
-	
 	if (update) {
-		Efi = Energy;
-		energy_value = total_energy;
+		//Efi = Energy;
+		energy_value = value;
 	}
-	return total_energy;
+	return value;
 }
 
 Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)
