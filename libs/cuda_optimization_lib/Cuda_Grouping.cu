@@ -61,6 +61,7 @@ namespace Utils_Cuda_Grouping {
 		if (tid == 0) atomicAdd(g_idata, sdata[0], 0);
 	}
 
+	template<unsigned int blockSize>
 	__global__ void valueKernel(
 		double* resAtomic,
 		const double* curr_x,
@@ -71,37 +72,50 @@ namespace Utils_Cuda_Grouping {
 		const unsigned int num_clusters,
 		const unsigned int max_face_per_cluster)
 	{
-		int f1 = blockIdx.x;
-		int f2 = blockIdx.y;
-		int ci = blockIdx.z;
-		int globalIndex = f1 + f2 * max_face_per_cluster + ci * max_face_per_cluster* max_face_per_cluster;
-		if ((f1 > f2) &&
-			(ci < num_clusters) &&
-			(f1 < max_face_per_cluster) &&
-			(f2 < max_face_per_cluster))
-		{
-			const unsigned int indexF1 = Group_Ind[ci * max_face_per_cluster + f1];
-			const unsigned int indexF2 = Group_Ind[ci * max_face_per_cluster + f2];
-			if (indexF1 != -1 && indexF2 != -1) {
-				double3 NormalPos1 = make_double3(
-					curr_x[indexF1 + startX],	//X-coordinate
-					curr_x[indexF1 + startY],	//Y-coordinate
-					curr_x[indexF1 + startZ]		//Z-coordinate
-				);
-				double3 NormalPos2 = make_double3(
-					curr_x[indexF2 + startX],	//X-coordinate
-					curr_x[indexF2 + startY],	//Y-coordinate
-					curr_x[indexF2 + startZ]		//Z-coordinate
-				);
-				resAtomic[globalIndex] = Utils_Cuda_Grouping::squared_norm(Utils_Cuda_Grouping::sub(NormalPos1, NormalPos2));
-			}
-			else {
-				resAtomic[globalIndex] = 0;
+		extern __shared__ double energy_value[blockSize];
+		unsigned int tid = threadIdx.x;
+		unsigned int Global_idx = blockIdx.x * blockSize + tid;
+		energy_value[tid] = 0;
+		const int F = max_face_per_cluster;
+		const int F2 = F * F;
+		const int size = F2 * num_clusters;
+		__syncthreads();
+
+		if (Global_idx < size) {
+			int ci = (int)Global_idx / (int)F2;
+			int f2 = (int)(Global_idx - (ci * F2)) / (int)F;
+			int f1 = Global_idx - (ci * F2) - (f2 * F);
+
+			if ((f1 > f2) &&
+				(ci < num_clusters) &&
+				(f1 < max_face_per_cluster) &&
+				(f2 < max_face_per_cluster))
+			{
+				const unsigned int indexF1 = Group_Ind[ci * max_face_per_cluster + f1];
+				const unsigned int indexF2 = Group_Ind[ci * max_face_per_cluster + f2];
+				if (indexF1 != -1 && indexF2 != -1) {
+					double3 NormalPos1 = make_double3(
+						curr_x[indexF1 + startX],	//X-coordinate
+						curr_x[indexF1 + startY],	//Y-coordinate
+						curr_x[indexF1 + startZ]		//Z-coordinate
+					);
+					double3 NormalPos2 = make_double3(
+						curr_x[indexF2 + startX],	//X-coordinate
+						curr_x[indexF2 + startY],	//Y-coordinate
+						curr_x[indexF2 + startZ]		//Z-coordinate
+					);
+					energy_value[tid] = squared_norm(sub(NormalPos1, NormalPos2));
+				}
 			}
 		}
-		else {
-			resAtomic[globalIndex] = 0;
-		}
+		__syncthreads();
+
+		if (blockSize >= 1024) { if (tid < 512) { energy_value[tid] += energy_value[tid + 512]; } __syncthreads(); }
+		if (blockSize >= 512) { if (tid < 256) { energy_value[tid] += energy_value[tid + 256]; } __syncthreads(); }
+		if (blockSize >= 256) { if (tid < 128) { energy_value[tid] += energy_value[tid + 128]; } __syncthreads(); }
+		if (blockSize >= 128) { if (tid < 64) { energy_value[tid] += energy_value[tid + 64]; } __syncthreads(); }
+		if (tid < 32) warpReduce<blockSize, double>(energy_value, tid);
+		if (tid == 0) atomicAdd(resAtomic, energy_value[0], 0);
 	}
 
 	__global__ void gradientKernel(
@@ -145,10 +159,12 @@ namespace Utils_Cuda_Grouping {
 
 double Cuda_Grouping::value(Cuda::Array<double>& curr_x) 
 {
-	/*Utils_Cuda_Grouping::setZeroKernel << <EnergyAtomic.size, 1 >> > (EnergyAtomic.cuda_arr);
+	Utils_Cuda_Grouping::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
 	Cuda::CheckErr(cudaDeviceSynchronize());
-	Utils_Cuda_Grouping::valueKernel
-		<< <dim3(max_face_per_cluster, max_face_per_cluster, num_clusters), 1 >> > (
+
+
+	const unsigned int s = max_face_per_cluster * max_face_per_cluster * num_clusters;
+	Utils_Cuda_Grouping::valueKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 			EnergyAtomic.cuda_arr,
 			curr_x.cuda_arr,
 			startX,
@@ -158,16 +174,8 @@ double Cuda_Grouping::value(Cuda::Array<double>& curr_x)
 			num_clusters,
 			max_face_per_cluster);
 	Cuda::CheckErr(cudaDeviceSynchronize());
-	
-	Utils_Cuda_Grouping::sumOfArray<1024> << <ceil(EnergyAtomic.size / (double)1024), 1024 >> >
-		(EnergyAtomic.cuda_arr, EnergyAtomic.size);
-
-	Cuda::CheckErr(cudaDeviceSynchronize());
-
-	MemCpyDeviceToHost(EnergyAtomic,1);
-
-	return EnergyAtomic.host_arr[0];*/
-	return 0;
+	MemCpyDeviceToHost(EnergyAtomic);
+	return EnergyAtomic.host_arr[0];
 }
 		
 Cuda::Array<double>* Cuda_Grouping::gradient(Cuda::Array<double>& X)
