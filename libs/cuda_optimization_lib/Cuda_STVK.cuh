@@ -4,6 +4,7 @@
 class Cuda_STVK {
 public:
 	Cuda::Array<double> grad, EnergyAtomic, restShapeArea;
+	Cuda::Array<int3> restShapeF;
 	Cuda::Array<double4> dXInv;
 	Cuda::indices mesh_indices;
 	double shearModulus, bulkModulus;

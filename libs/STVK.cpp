@@ -47,6 +47,7 @@ STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F)
 	cuda_STVK->bulkModulus = 1.5;
 
 	Cuda::AllocateMemory(cuda_STVK->dXInv, F.rows());
+	Cuda::AllocateMemory(cuda_STVK->restShapeF, F.rows());
 	Cuda::AllocateMemory(cuda_STVK->restShapeArea, F.rows());
 	Cuda::initIndices(cuda_STVK->mesh_indices, F.rows(), V.rows(), 0);
 	Cuda::AllocateMemory(cuda_STVK->grad, 3 * V.rows() + 7 * F.rows());
@@ -93,12 +94,19 @@ void STVK::setRestShapeFromCurrentConfiguration() {
 	HrestShapeArea /= 2;
 	for (int fi = 0; fi < cuda_STVK->restShapeArea.size; fi++) {
 		cuda_STVK->restShapeArea.host_arr[fi] = HrestShapeArea(fi);
+		cuda_STVK->restShapeF.host_arr[fi] = make_int3(
+			restShapeF(fi, 0),
+			restShapeF(fi, 1),
+			restShapeF(fi, 2)
+		);
 	}
 	//init grad
 	for (int i = 0; i < cuda_STVK->grad.size; i++) {
 		cuda_STVK->grad.host_arr[i] = 0;
 	}
 
+
+	Cuda::MemCpyHostToDevice(cuda_STVK->restShapeF);
 	Cuda::MemCpyHostToDevice(cuda_STVK->grad);
 	Cuda::MemCpyHostToDevice(cuda_STVK->dXInv);
 	Cuda::MemCpyHostToDevice(cuda_STVK->restShapeArea);
@@ -172,126 +180,5 @@ double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
 
 Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)
 {
-	Cuda::MemCpyDeviceToHost(X);
-
-
-	for (int i = 0; i < cuda_STVK->grad.size; i++) {
-		cuda_STVK->grad.host_arr[i] = 0;
-	}
-
-	for (int fi = 0; fi < restShapeF.rows(); fi++) {
-		const unsigned int v0i = restShapeF(fi, 0);
-		const unsigned int v1i = restShapeF(fi, 1);
-		const unsigned int v2i = restShapeF(fi, 2);
-		double3 V0 = make_double3(
-			X.host_arr[v0i + cuda_STVK->mesh_indices.startVx],
-			X.host_arr[v0i + cuda_STVK->mesh_indices.startVy],
-			X.host_arr[v0i + cuda_STVK->mesh_indices.startVz]
-		);
-		double3 V1 = make_double3(
-			X.host_arr[v1i + cuda_STVK->mesh_indices.startVx],
-			X.host_arr[v1i + cuda_STVK->mesh_indices.startVy],
-			X.host_arr[v1i + cuda_STVK->mesh_indices.startVz]
-		);
-		double3 V2 = make_double3(
-			X.host_arr[v2i + cuda_STVK->mesh_indices.startVx],
-			X.host_arr[v2i + cuda_STVK->mesh_indices.startVy],
-			X.host_arr[v2i + cuda_STVK->mesh_indices.startVz]
-		);
-
-		double3 e10 = sub(V1, V0);
-		double3 e20 = sub(V2, V0);
-		double dx[3][2];
-		dx[0][0] = e10.x; dx[0][1] = e20.x;
-		dx[1][0] = e10.y; dx[1][1] = e20.y;
-		dx[2][0] = e10.z; dx[2][1] = e20.z;
-
-		double F[3][2];
-		double dxInv[2][2];
-		dxInv[0][0] = cuda_STVK->dXInv.host_arr[fi].x;
-		dxInv[0][1] = cuda_STVK->dXInv.host_arr[fi].y;
-		dxInv[1][0] = cuda_STVK->dXInv.host_arr[fi].z;
-		dxInv[1][1] = cuda_STVK->dXInv.host_arr[fi].w;
-		multiply<3, 2, 2>(dx, dxInv, F);
-
-		//compute the Green Strain = 1/2 * (F'F-I)
-		double strain[2][2];
-		multiplyTranspose<2, 3, 2>(F, F, strain);
-		strain[0][0] -= 1; strain[1][1] -= 1;
-		strain[0][0] *= 0.5;
-		strain[0][1] *= 0.5;
-		strain[1][0] *= 0.5;
-		strain[1][1] *= 0.5;
-
-		double dF_dX[6][9] = { 0 };
-		dF_dX[0][0] = -cuda_STVK->dXInv.host_arr[fi].x - cuda_STVK->dXInv.host_arr[fi].z;
-		dF_dX[0][1] = cuda_STVK->dXInv.host_arr[fi].x;
-		dF_dX[0][2] = cuda_STVK->dXInv.host_arr[fi].z;
-
-		dF_dX[1][0] = -cuda_STVK->dXInv.host_arr[fi].y - cuda_STVK->dXInv.host_arr[fi].w;
-		dF_dX[1][1] = cuda_STVK->dXInv.host_arr[fi].y;
-		dF_dX[1][2] = cuda_STVK->dXInv.host_arr[fi].w;
-
-		dF_dX[2][3] = -cuda_STVK->dXInv.host_arr[fi].x - cuda_STVK->dXInv.host_arr[fi].z;
-		dF_dX[2][4] = cuda_STVK->dXInv.host_arr[fi].x;
-		dF_dX[2][5] = cuda_STVK->dXInv.host_arr[fi].z;
-							
-		dF_dX[3][3] = -cuda_STVK->dXInv.host_arr[fi].y - cuda_STVK->dXInv.host_arr[fi].w;
-		dF_dX[3][4] = cuda_STVK->dXInv.host_arr[fi].y;
-		dF_dX[3][5] = cuda_STVK->dXInv.host_arr[fi].w;
-				
-		dF_dX[4][6] = -cuda_STVK->dXInv.host_arr[fi].x - cuda_STVK->dXInv.host_arr[fi].z;
-		dF_dX[4][7] = cuda_STVK->dXInv.host_arr[fi].x;
-		dF_dX[4][8] = cuda_STVK->dXInv.host_arr[fi].z;
-				
-		dF_dX[5][6] = -cuda_STVK->dXInv.host_arr[fi].y - cuda_STVK->dXInv.host_arr[fi].w;
-		dF_dX[5][7] = cuda_STVK->dXInv.host_arr[fi].y;
-		dF_dX[5][8] = cuda_STVK->dXInv.host_arr[fi].w;
-
-		double dstrain_dF[4][6] = { 0 };
-		dstrain_dF[0][0] = F[0][0];
-		dstrain_dF[0][2] = F[1][0];
-		dstrain_dF[0][4] = F[2][0];
-			
-		dstrain_dF[1][0] = 0.5 * F[0][1];
-		dstrain_dF[1][1] = 0.5 * F[0][0];
-		dstrain_dF[1][2] = 0.5 * F[1][1];
-		dstrain_dF[1][3] = 0.5 * F[1][0];
-		dstrain_dF[1][4] = 0.5 * F[2][1];
-		dstrain_dF[1][5] = 0.5 * F[2][0];
-			
-		dstrain_dF[2][0] = 0.5 * F[0][1];
-		dstrain_dF[2][1] = 0.5 * F[0][0];
-		dstrain_dF[2][2] = 0.5 * F[1][1];
-		dstrain_dF[2][3] = 0.5 * F[1][0];
-		dstrain_dF[2][4] = 0.5 * F[2][1];
-		dstrain_dF[2][5] = 0.5 * F[2][0];
-			
-		dstrain_dF[3][1] = F[0][1];
-		dstrain_dF[3][3] = F[1][1];
-		dstrain_dF[3][5] = F[2][1];
-		
-		double dE_dJ[1][4];
-		dE_dJ[0][0] = cuda_STVK->restShapeArea.host_arr[fi] * (2 * cuda_STVK->shearModulus * strain[0][0] + cuda_STVK->bulkModulus * (strain[0][0] + strain[1][1]));
-		dE_dJ[0][1] = cuda_STVK->restShapeArea.host_arr[fi] * (2 * cuda_STVK->shearModulus * strain[0][1]);
-		dE_dJ[0][2] = cuda_STVK->restShapeArea.host_arr[fi] * (2 * cuda_STVK->shearModulus * strain[1][0]);
-		dE_dJ[0][3] = cuda_STVK->restShapeArea.host_arr[fi] * (2 * cuda_STVK->shearModulus * strain[1][1] + cuda_STVK->bulkModulus * (strain[0][0] + strain[1][1]));
-		
-		double dE_dX[1][9];
-		double temp[1][6];
-		multiply<1, 4, 6>(dE_dJ, dstrain_dF, temp);
-		multiply<1, 6, 9>(temp, dF_dX, dE_dX);
-
-		cuda_STVK->grad.host_arr[v0i + cuda_STVK->mesh_indices.startVx] += dE_dX[0][0];
-		cuda_STVK->grad.host_arr[v1i + cuda_STVK->mesh_indices.startVx] += dE_dX[0][1];
-		cuda_STVK->grad.host_arr[v2i + cuda_STVK->mesh_indices.startVx] += dE_dX[0][2];
-		cuda_STVK->grad.host_arr[v0i + cuda_STVK->mesh_indices.startVy] += dE_dX[0][3];
-		cuda_STVK->grad.host_arr[v1i + cuda_STVK->mesh_indices.startVy] += dE_dX[0][4];
-		cuda_STVK->grad.host_arr[v2i + cuda_STVK->mesh_indices.startVy] += dE_dX[0][5];
-		cuda_STVK->grad.host_arr[v0i + cuda_STVK->mesh_indices.startVz] += dE_dX[0][6];
-		cuda_STVK->grad.host_arr[v1i + cuda_STVK->mesh_indices.startVz] += dE_dX[0][7];
-		cuda_STVK->grad.host_arr[v2i + cuda_STVK->mesh_indices.startVz] += dE_dX[0][8];
-	}
-	Cuda::MemCpyHostToDevice(cuda_STVK->grad);
-	return &cuda_STVK->grad;
+	return cuda_STVK->gradient(X);
 }
