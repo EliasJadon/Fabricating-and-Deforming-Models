@@ -1,47 +1,12 @@
 ﻿#include "STVK.h"
 
-double3 sub(const double3 a, const double3 b)
-{
-	return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
-}
-
-template<int R1, int C1_R2, int C2>
-void multiply(
-	double mat1[R1][C1_R2],
-	double mat2[C1_R2][C2],
-	double res[R1][C2])
-{
-	int i, j, k;
-	for (i = 0; i < R1; i++) {
-		for (j = 0; j < C2; j++) {
-			res[i][j] = 0;
-			for (k = 0; k < C1_R2; k++)
-				res[i][j] += mat1[i][k] * mat2[k][j];
-		}
-	}
-}
-template<int R1, int C1_R2, int C2>
-void multiplyTranspose(
-	double mat1[C1_R2][R1],
-	double mat2[C1_R2][C2],
-	double res[R1][C2])
-{
-	int i, j, k;
-	for (i = 0; i < R1; i++) {
-		for (j = 0; j < C2; j++) {
-			res[i][j] = 0;
-			for (k = 0; k < C1_R2; k++)
-				res[i][j] += mat1[k][i] * mat2[k][j];
-		}
-	}
-}
-
-
 STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) 
 {
 	init_mesh(V, F);
 	name = "STVK";
 	w = 0.6;
+	Efi.resize(F.rows());
+	Efi.setZero();
 	cuda_STVK = std::make_shared<Cuda_STVK>();
 	cuda_STVK->shearModulus = 0.3;
 	cuda_STVK->bulkModulus = 1.5;
@@ -113,10 +78,14 @@ void STVK::setRestShapeFromCurrentConfiguration() {
 }
 
 double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
-	double value = cuda_STVK->value(curr_x);
+	Cuda::Array<double>* energy;
+	double value = cuda_STVK->value(curr_x, &energy);
 
 	if (update) {
-		//Efi = Energy;
+		Cuda::MemCpyDeviceToHost(*energy);
+		for (int i = 0; i < energy->size; i++) {
+			Efi(i) = energy->host_arr[i];
+		}
 		energy_value = value;
 	}
 	return value;

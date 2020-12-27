@@ -293,7 +293,7 @@ namespace Utils_Cuda_STVK {
 	}
 }
 	
-double Cuda_STVK::value(Cuda::Array<double>& curr_x) {
+double Cuda_STVK::value(Cuda::Array<double>& curr_x, Cuda::Array<double>** energy) {
 	unsigned int s = mesh_indices.num_faces;
 	Utils_Cuda_STVK::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,
@@ -308,6 +308,7 @@ double Cuda_STVK::value(Cuda::Array<double>& curr_x) {
 
 	Cuda::CheckErr(cudaDeviceSynchronize());
 	MemCpyDeviceToHost(EnergyAtomic);
+	*energy = &Energy;
 	return EnergyAtomic.host_arr[0];
 }
 
