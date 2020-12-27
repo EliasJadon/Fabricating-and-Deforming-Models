@@ -222,7 +222,6 @@ namespace Utils_Cuda_AuxBendingNormal {
 		extern __shared__ double energy_value[blockSize];
 		unsigned int tid = threadIdx.x;
 		unsigned int Global_idx = blockIdx.x * blockSize + tid;
-		*resAtomic = 0;
 		__syncthreads();
 
 		//0	,..., F-1,		==> Call Energy(3)
@@ -458,6 +457,8 @@ namespace Utils_Cuda_AuxBendingNormal {
 
 double Cuda_AuxBendingNormal::value(Cuda::Array<double>& curr_x) {
 	const unsigned int s = mesh_indices.num_hinges + 2 * mesh_indices.num_faces;
+	EnergyAtomic.host_arr[0] = 0;
+	Cuda::MemCpyHostToDevice(EnergyAtomic);
 	Utils_Cuda_AuxBendingNormal::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,
 		w1, w2, w3,
