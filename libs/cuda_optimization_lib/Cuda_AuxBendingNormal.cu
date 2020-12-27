@@ -457,8 +457,9 @@ namespace Utils_Cuda_AuxBendingNormal {
 
 double Cuda_AuxBendingNormal::value(Cuda::Array<double>& curr_x) {
 	const unsigned int s = mesh_indices.num_hinges + 2 * mesh_indices.num_faces;
-	EnergyAtomic.host_arr[0] = 0;
-	Cuda::MemCpyHostToDevice(EnergyAtomic);
+	Utils_Cuda_AuxBendingNormal::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
+	Cuda::CheckErr(cudaDeviceSynchronize());
+	
 	Utils_Cuda_AuxBendingNormal::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,
 		w1, w2, w3,
