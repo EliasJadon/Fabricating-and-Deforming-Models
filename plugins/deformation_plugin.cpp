@@ -463,14 +463,14 @@ void deformation_plugin::Draw_energies_window()
 	//add automatic lambda change
 	if (ImGui::BeginTable("Lambda table", 8, ImGuiTableFlags_Resizable))
 	{
-		ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed);
-		ImGui::TableSetupColumn("On/Off", ImGuiTableColumnFlags_WidthFixed);
-		ImGui::TableSetupColumn("Start from iter", ImGuiTableColumnFlags_WidthFixed);
-		ImGui::TableSetupColumn("Stop at", ImGuiTableColumnFlags_WidthFixed);
-		ImGui::TableSetupColumn("number of iter per lambda reduction", ImGuiTableColumnFlags_WidthFixed);
-		ImGui::TableSetupColumn("Curr iter", ImGuiTableColumnFlags_WidthFixed);
-		ImGui::TableSetupColumn("Time per iter [ms]", ImGuiTableColumnFlags_WidthFixed);
-		ImGui::TableSetupColumn("Avg time [ms]", ImGuiTableColumnFlags_WidthFixed);
+		ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("On/Off", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("Start from iter", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("Stop at", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("number of iter per lambda reduction", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("Curr iter", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("Time per iter [ms]", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("Avg time [ms]", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableAutoHeaders();
 		ImGui::Separator();
 		ImGui::TableNextRow();
@@ -504,9 +504,9 @@ void deformation_plugin::Draw_energies_window()
 	if (Outputs.size() != 0) {
 		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 2, ImGuiTableFlags_Resizable))
 		{
-			ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthFixed);
+			ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
-				ImGui::TableSetupColumn(obj->name.c_str(), ImGuiTableColumnFlags_WidthFixed);
+				ImGui::TableSetupColumn(obj->name.c_str(), ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 			}
 			ImGui::TableAutoHeaders();
 			ImGui::Separator();
