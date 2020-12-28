@@ -1,5 +1,79 @@
 #include "TotalObjective.h"
 
+void TotalObjective::FDGradient(const Cuda::Array<double>& X, Cuda::Array<double>& grad)
+{
+	Cuda::Array<double> Xd;
+	Cuda::AllocateMemory(grad, X.size);
+	Cuda::AllocateMemory(Xd, X.size);
+	for (int i = 0; i < X.size; i++) {
+		Xd.host_arr[i] = X.host_arr[i];
+	}
+	Cuda::MemCpyHostToDevice(Xd);
+	const double dX = 1e-4;
+	double f_P, f_M;
+
+	//this is a very slow method that evaluates the gradient of the objective function through FD...
+	Cuda::Array<double>* E;
+	for (int i = 0; i < X.size; i++) {
+		Xd.host_arr[i] = X.host_arr[i] + dX;
+		Cuda::MemCpyHostToDevice(Xd);
+		f_P = value(Xd, false);
+		
+		Xd.host_arr[i] = X.host_arr[i] - dX;
+		Cuda::MemCpyHostToDevice(Xd);
+		f_M = value(Xd, false);
+		
+		//now reset the ith param value
+		Xd.host_arr[i] = X.host_arr[i];
+		grad.host_arr[i] = (f_P - f_M) / (2 * dX);
+	}
+}
+
+void TotalObjective::checkGradient(const Eigen::VectorXd& X)
+{
+	Cuda::Array<double> XX;
+	Cuda::AllocateMemory(XX, X.size());
+	for (int i = 0; i < XX.size; i++) {
+		XX.host_arr[i] = X(i);
+	}
+	Cuda::MemCpyHostToDevice(XX);
+
+	gradient(XX,false);
+	Cuda::CheckErr(cudaDeviceSynchronize());
+	Cuda::Array<double>* Analytic_gradient = &(cuda_Minimizer->g);
+	if (Analytic_gradient == NULL)
+	{
+		return;
+	}
+	Cuda::MemCpyDeviceToHost(*Analytic_gradient);
+	Cuda::Array<double> FD_gradient;
+	FDGradient(XX, FD_gradient);
+	assert(FD_gradient.size == Analytic_gradient->size && "The size of analytic gradient & FD gradient must be equal!");
+	double tol = 1e-4;
+	double eps = 1e-10;
+
+
+	double Analytic_gradient_norm = 0;
+	double FD_gradient_norm = 0;
+	for (int i = 0; i < XX.size; i++) {
+		Analytic_gradient_norm += pow(Analytic_gradient->host_arr[i], 2);
+		FD_gradient_norm += pow(FD_gradient.host_arr[i], 2);
+	}
+	//std::cout << "g= " << Analytic_gradient  << std::endl;
+	//std::cout << "FD= " << FD_gradient << std::endl;
+
+	std::cout << name << ": g.norm() = " << Analytic_gradient_norm << "(analytic) , " << FD_gradient_norm << "(FD)" << std::endl;
+	for (int i = 0; i < Analytic_gradient->size; i++) {
+		double absErr = abs(FD_gradient.host_arr[i] - Analytic_gradient->host_arr[i]);
+		double relError = 2 * absErr / (eps + Analytic_gradient->host_arr[i] + FD_gradient.host_arr[i]);
+		if (relError > tol && absErr > 1e-5) {
+			std::cout << name << "\t" << i << ":\tAnalytic val: " <<
+				Analytic_gradient->host_arr[i] << ", FD val: " << FD_gradient.host_arr[i] <<
+				". Error: " << absErr << "(" << relError * 100 << "%%)\n";
+		}
+	}
+}
+
 TotalObjective::TotalObjective()
 {
 	name = "Total objective";
@@ -42,10 +116,7 @@ double TotalObjective::value(Cuda::Array<double>& curr_x, const bool update)
 	return f;
 }
 
-void TotalObjective::gradient(
-	std::shared_ptr<Cuda_Minimizer> cuda_Minimizer,
-	Cuda::Array<double>& X, 
-	const bool update)
+void TotalObjective::gradient(Cuda::Array<double>& X, const bool update)
 {
 	for (auto& obj : objectiveList)
 		if (obj->w)

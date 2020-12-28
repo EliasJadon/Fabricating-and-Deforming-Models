@@ -312,12 +312,8 @@ void deformation_plugin::CollapsingHeader_minimizer()
 			for (auto& o : Outputs)
 				o.minimizer->constantStep_LineSearch = constantStep_LineSearch;	
 		}
-		float w = ImGui::GetContentRegionAvailWidth(), p = ImGui::GetStyle().FramePadding.x;
-		if (ImGui::Button("Check gradients", ImVec2((w - p) / 2.f, 0)))
+		if (ImGui::Button("Check gradients"))
 			checkGradients();
-		ImGui::SameLine(0, p);
-		if (ImGui::Button("Check Hessians", ImVec2((w - p) / 2.f, 0)))
-			checkHessians();
 	}
 }
 
@@ -1714,25 +1710,10 @@ void deformation_plugin::checkGradients()
 			return;
 		}
 		Eigen::VectorXd testX = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
+		o.totalObjective->checkGradient(testX);
 		for (auto const &objective : o.totalObjective->objectiveList)
 			objective->checkGradient(testX);
 	}
-}
-
-void deformation_plugin::checkHessians()
-{
-	/*stop_minimizer_thread();
-	for (auto& o : Outputs) 
-	{
-		if (!isModelLoaded) 
-		{
-			isMinimizerRunning = false;
-			return;
-		}
-		Eigen::VectorXd testX = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
-		for (auto const &objective : o.totalObjective->objectiveList)
-			objective->checkHessian(testX);
-	}*/
 }
 
 void deformation_plugin::update_data_from_minimizer()

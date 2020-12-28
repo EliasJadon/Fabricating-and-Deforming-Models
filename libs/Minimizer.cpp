@@ -37,6 +37,7 @@ void Minimizer::init(
 
 	unsigned int size = 3 * V.rows() + 7 * F.rows();
 	this->cuda_Minimizer = std::make_shared<Cuda_Minimizer>(size);
+	totalObjective->cuda_Minimizer = this->cuda_Minimizer;
 	for (int i = 0; i < 3 * V.rows(); i++)
 		cuda_Minimizer->X.host_arr[i] = X0[i];
 	for (int i = 0; i < 3 * F.rows(); i++)
@@ -90,7 +91,7 @@ void Minimizer::run_one_iteration(
 	timer_avg = timer_sum / numIteration;
 	update_lambda(lambda_counter);
 
-	totalObjective->gradient(cuda_Minimizer, cuda_Minimizer->X, true);
+	totalObjective->gradient(cuda_Minimizer->X, true);
 	if (step_type == MinimizerType::ADAM_MINIMIZER)
 		cuda_Minimizer->adam_Step();
 	currentEnergy = totalObjective->value(cuda_Minimizer->X, true);
@@ -178,7 +179,7 @@ void Minimizer::update_external_data(int steps)
 {
 	give_parameter_update_slot();
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
-	//if (steps % 10 == 0) {
+	//if (steps % 30 == 0) {
 		Cuda::MemCpyDeviceToHost(cuda_Minimizer->X);
 		for (int i = 0; i < 3 * V.rows(); i++)
 			ext_x[i] = cuda_Minimizer->X.host_arr[i];
