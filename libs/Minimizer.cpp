@@ -110,7 +110,7 @@ void Minimizer::linesearch()
 
 void Minimizer::value_linesearch()
 {	
-	step_size = 0.00390625;//1;
+	step_size = init_step_size;
 	cur_iter = 0; 
 	int MAX_STEP_SIZE_ITER = 50;
 	while (cur_iter++ < MAX_STEP_SIZE_ITER) 
@@ -128,6 +128,10 @@ void Minimizer::value_linesearch()
 			break;
 		}
 	}
+	if (cur_iter == 1)
+		init_step_size *= 2;
+	if (cur_iter > 2)
+		init_step_size /= 2;
 	std::cout << "cur_iter = " << cur_iter << std::endl;
 }
 

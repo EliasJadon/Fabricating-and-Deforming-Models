@@ -65,7 +65,7 @@ private:
 	void value_linesearch();
 	void gradNorm_linesearch();
 	void constant_linesearch();
-	double step_size;
+	double step_size, init_step_size = 1;
 	int cur_iter;
 
 	// Mutex stuff
