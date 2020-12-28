@@ -11,7 +11,10 @@ public:
 	std::shared_ptr<Cuda_Grouping> cudaGrouping;
 	Grouping(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F, const ConstraintsType type);
 	~Grouping();
-	virtual double value(Cuda::Array<double>& curr_x, const bool update) override;
+	virtual Cuda::Array<double>* getValue() override {
+		return &(cudaGrouping->EnergyAtomic);
+	}
+	virtual void value(Cuda::Array<double>& curr_x) override;
 	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) override;
 	void updateExtConstraints(std::vector < std::vector<int>>& CInd);
 };

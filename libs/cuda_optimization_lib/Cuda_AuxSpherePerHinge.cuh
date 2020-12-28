@@ -20,6 +20,6 @@ public:
 
 	Cuda_AuxSpherePerHinge();
 	~Cuda_AuxSpherePerHinge();
-	double value(Cuda::Array<double>& curr_x);
+	void value(Cuda::Array<double>& curr_x);
 	Cuda::Array<double>* gradient(Cuda::Array<double>& X);
 };

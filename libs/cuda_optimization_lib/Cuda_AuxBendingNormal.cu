@@ -453,11 +453,9 @@ namespace Utils_Cuda_AuxBendingNormal {
 	}
 }
 
-double Cuda_AuxBendingNormal::value(Cuda::Array<double>& curr_x) {
+void Cuda_AuxBendingNormal::value(Cuda::Array<double>& curr_x) {
 	const unsigned int s = mesh_indices.num_hinges + 2 * mesh_indices.num_faces;
 	Utils_Cuda_AuxBendingNormal::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	
 	Utils_Cuda_AuxBendingNormal::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,
 		w1, w2, w3,
@@ -468,10 +466,8 @@ double Cuda_AuxBendingNormal::value(Cuda::Array<double>& curr_x) {
 		planarParameter,
 		functionType,
 		mesh_indices);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	MemCpyDeviceToHost(EnergyAtomic);
-	return EnergyAtomic.host_arr[0];
 }
+
 Cuda::Array<double>* Cuda_AuxBendingNormal::gradient(Cuda::Array<double>& X)
 {
 	Utils_Cuda_AuxBendingNormal::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);

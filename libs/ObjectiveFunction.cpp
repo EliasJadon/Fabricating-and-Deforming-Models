@@ -26,14 +26,23 @@ void ObjectiveFunction::FDGradient(const Cuda::Array<double>& X, Cuda::Array<dou
 	double f_P, f_M;
 
     //this is a very slow method that evaluates the gradient of the objective function through FD...
-    for (int i = 0; i < X.size; i++) {
+	Cuda::Array<double>* E;
+	for (int i = 0; i < X.size; i++) {
         Xd.host_arr[i] = X.host_arr[i] + dX;
 		Cuda::MemCpyHostToDevice(Xd);
-        f_P = value(Xd, false);
+        value(Xd);
+		Cuda::CheckErr(cudaDeviceSynchronize());
+		E = getValue();
+		Cuda::MemCpyDeviceToHost(*E);
+		f_P = E->host_arr[0];
 
         Xd.host_arr[i] = X.host_arr[i] - dX;
 		Cuda::MemCpyHostToDevice(Xd); 
-		f_M = value(Xd, false);
+		value(Xd);
+		Cuda::CheckErr(cudaDeviceSynchronize());
+		E = getValue();
+		Cuda::MemCpyDeviceToHost(*E);
+		f_M = E->host_arr[0];
 		
         //now reset the ith param value
         Xd.host_arr[i] = X.host_arr[i];

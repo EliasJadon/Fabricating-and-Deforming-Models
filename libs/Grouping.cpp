@@ -51,14 +51,11 @@ void Grouping::updateExtConstraints(std::vector < std::vector<int>>& CInd)
 	m_value.unlock();
 }
 
-double Grouping::value(Cuda::Array<double>& curr_x, const bool update)
+void Grouping::value(Cuda::Array<double>& curr_x)
 {
 	m_value.lock();
-	double E = cudaGrouping->value(curr_x);
+	cudaGrouping->value(curr_x);
 	m_value.unlock();
-	if (update)
-		energy_value = E;
-	return E;
 }
 
 Cuda::Array<double>* Grouping::gradient(Cuda::Array<double>& X, const bool update)

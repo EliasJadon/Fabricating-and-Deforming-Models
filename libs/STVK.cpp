@@ -77,18 +77,15 @@ void STVK::setRestShapeFromCurrentConfiguration() {
 	Cuda::MemCpyHostToDevice(cuda_STVK->restShapeArea);
 }
 
-double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
-	Cuda::Array<double>* energy;
-	double value = cuda_STVK->value(curr_x, &energy);
-
-	if (update) {
+void STVK::value(Cuda::Array<double>& curr_x) {
+	cuda_STVK->value(curr_x);
+	/*if (update) {
 		Cuda::MemCpyDeviceToHost(*energy);
 		for (int i = 0; i < energy->size; i++) {
 			Efi(i) = energy->host_arr[i];
 		}
 		energy_value = value;
-	}
-	return value;
+	}*/
 }
 
 Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)

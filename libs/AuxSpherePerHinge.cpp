@@ -227,12 +227,9 @@ void AuxSpherePerHinge::calculateHinges() {
 	}
 }
 
-double AuxSpherePerHinge::value(Cuda::Array<double>& curr_x, const bool update)
+void AuxSpherePerHinge::value(Cuda::Array<double>& curr_x)
 {
-	double value = cuda_ASH->value(curr_x);
-	if (update)
-		energy_value = value;
-	return value;
+	cuda_ASH->value(curr_x);
 }
 
 Cuda::Array<double>* AuxSpherePerHinge::gradient(Cuda::Array<double>& X, const bool update)

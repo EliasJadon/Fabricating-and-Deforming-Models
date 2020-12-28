@@ -49,15 +49,11 @@ void FixChosenConstraints::updateExtConstraints(
 	m_value.unlock();
 }
 
-double FixChosenConstraints::value(Cuda::Array<double>& curr_x, const bool update)
+void FixChosenConstraints::value(Cuda::Array<double>& curr_x)
 {
 	m_value.lock();
-	double value = Cuda_FixChosConst->value(curr_x);
+	Cuda_FixChosConst->value(curr_x);
 	m_value.unlock();
-	if (update) {
-		energy_value = value;
-	}
-	return value;
 }
 
 Cuda::Array<double>* FixChosenConstraints::gradient(Cuda::Array<double>& X, const bool update)

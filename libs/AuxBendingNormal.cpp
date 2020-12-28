@@ -227,12 +227,9 @@ void AuxBendingNormal::calculateHinges() {
 	}
 }
 
-double AuxBendingNormal::value(Cuda::Array<double>& curr_x, const bool update)
+void AuxBendingNormal::value(Cuda::Array<double>& curr_x)
 {
-	double value = cuda_ABN->value(curr_x);
-	if (update)
-		energy_value = value;
-	return value;
+	cuda_ABN->value(curr_x);
 }
 
 Cuda::Array<double>* AuxBendingNormal::gradient(Cuda::Array<double>& X, const bool update)

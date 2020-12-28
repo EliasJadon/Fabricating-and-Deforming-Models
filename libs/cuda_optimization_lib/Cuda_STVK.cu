@@ -288,10 +288,9 @@ namespace Utils_Cuda_STVK {
 	}
 }
 	
-double Cuda_STVK::value(Cuda::Array<double>& curr_x, Cuda::Array<double>** energy) {
+void Cuda_STVK::value(Cuda::Array<double>& curr_x) 
+{
 	Utils_Cuda_STVK::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-
 	unsigned int s = mesh_indices.num_faces;
 	Utils_Cuda_STVK::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,
@@ -303,11 +302,6 @@ double Cuda_STVK::value(Cuda::Array<double>& curr_x, Cuda::Array<double>** energ
 		mesh_indices,
 		shearModulus,
 		bulkModulus);
-
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	MemCpyDeviceToHost(EnergyAtomic);
-	*energy = &Energy;
-	return EnergyAtomic.host_arr[0];
 }
 
 		

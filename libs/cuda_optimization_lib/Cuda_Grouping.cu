@@ -155,13 +155,9 @@ namespace Utils_Cuda_Grouping {
 	}
 }
 
-
-double Cuda_Grouping::value(Cuda::Array<double>& curr_x) 
+void Cuda_Grouping::value(Cuda::Array<double>& curr_x) 
 {
 	Utils_Cuda_Grouping::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-
-
 	const unsigned int s = max_face_per_cluster * max_face_per_cluster * num_clusters;
 	Utils_Cuda_Grouping::valueKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 			EnergyAtomic.cuda_arr,
@@ -172,9 +168,6 @@ double Cuda_Grouping::value(Cuda::Array<double>& curr_x)
 			Group_Ind.cuda_arr,
 			num_clusters,
 			max_face_per_cluster);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	MemCpyDeviceToHost(EnergyAtomic);
-	return EnergyAtomic.host_arr[0];
 }
 		
 Cuda::Array<double>* Cuda_Grouping::gradient(Cuda::Array<double>& X)

@@ -13,10 +13,22 @@ TotalObjective::~TotalObjective()
 
 double TotalObjective::value(Cuda::Array<double>& curr_x, const bool update)
 {
-	double f=0;
-	for (auto &obj : objectiveList)
+	for (auto& obj : objectiveList)
 		if (obj->w != 0)
-			f += obj->w * obj->value(curr_x, update);
+			obj->value(curr_x);
+	
+	Cuda::CheckErr(cudaDeviceSynchronize());
+
+	double f = 0;
+	for (auto& obj : objectiveList)
+		if (obj->w != 0) {
+			Cuda::Array<double>* E = obj->getValue();
+			Cuda::MemCpyDeviceToHost(*E);
+			if (update)
+				obj->energy_value = E->host_arr[0];
+			f += obj->w * E->host_arr[0];
+		}
+	
 	if (update)
 		energy_value = f;
 	return f;

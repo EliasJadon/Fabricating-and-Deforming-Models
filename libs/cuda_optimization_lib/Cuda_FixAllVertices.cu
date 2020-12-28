@@ -103,22 +103,15 @@ namespace Utils_Cuda_FixAllVertices {
 	}
 }
 	
-double Cuda_FixAllVertices::value(Cuda::Array<double>& curr_x) {
+void Cuda_FixAllVertices::value(Cuda::Array<double>& curr_x) {
 	Utils_Cuda_FixAllVertices::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-
 	unsigned int s = 3 * num_vertices;
 	Utils_Cuda_FixAllVertices::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,
 		curr_x.cuda_arr,
 		restShapeV.cuda_arr,
 		num_vertices);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	MemCpyDeviceToHost(EnergyAtomic);
-	return EnergyAtomic.host_arr[0];
 }
-
-		
 
 Cuda::Array<double>* Cuda_FixAllVertices::gradient(Cuda::Array<double>& X)
 {

@@ -19,7 +19,10 @@ public:
 		const Eigen::MatrixX3i& F,
 		const FunctionType type);
 	~AuxSpherePerHinge();
-	virtual double value(Cuda::Array<double>& curr_x, const bool update) override;
+	virtual Cuda::Array<double>* getValue() override {
+		return &(cuda_ASH->EnergyAtomic);
+	}
+	virtual void value(Cuda::Array<double>& curr_x) override;
 	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) override;
 };
 

@@ -39,12 +39,9 @@ void FixAllVertices::internalInitCuda() {
 	Cuda::MemCpyHostToDevice(cuda_FixAllV->restShapeV);
 }
 
-double FixAllVertices::value(Cuda::Array<double>& curr_x, const bool update)
+void FixAllVertices::value(Cuda::Array<double>& curr_x)
 {
-	double E = cuda_FixAllV->value(curr_x);
-	if (update)
-		energy_value = E;
-	return E;
+	cuda_FixAllV->value(curr_x);
 }
 
 Cuda::Array<double>* FixAllVertices::gradient(Cuda::Array<double>& X, const bool update)

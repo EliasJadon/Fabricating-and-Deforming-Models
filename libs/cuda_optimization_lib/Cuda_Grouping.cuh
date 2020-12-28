@@ -13,6 +13,6 @@ public:
 	unsigned int startX, startY, startZ;
 	unsigned int num_clusters, max_face_per_cluster;
 	
-	double value(Cuda::Array<double>& curr_x);
+	void value(Cuda::Array<double>& curr_x);
 	Cuda::Array<double>* gradient(Cuda::Array<double>& X);
 };

@@ -16,7 +16,7 @@ class TotalObjective
 public:
 	std::string name;
 	std::vector<std::shared_ptr<ObjectiveFunction>> objectiveList;
-	double energy_value, gradient_norm;
+	double energy_value = 0, gradient_norm = 0;
 	
 	TotalObjective();
 	~TotalObjective();

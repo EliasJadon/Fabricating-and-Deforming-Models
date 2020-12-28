@@ -13,6 +13,9 @@ public:
 	FixAllVertices(const Eigen::MatrixXd& V,
 		const Eigen::MatrixX3i& F);
 	~FixAllVertices();
-	virtual double value(Cuda::Array<double>& curr_x,const bool update) override;
+	virtual Cuda::Array<double>* getValue() override {
+		return &(cuda_FixAllV->EnergyAtomic);
+	}
+	virtual void value(Cuda::Array<double>& curr_x) override;
 	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) override;
 };

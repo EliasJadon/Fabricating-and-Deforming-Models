@@ -20,6 +20,6 @@ public:
 
 	Cuda_AuxBendingNormal();
 	~Cuda_AuxBendingNormal();
-	double value(Cuda::Array<double>& curr_x);
+	void value(Cuda::Array<double>& curr_x);
 	Cuda::Array<double>* gradient(Cuda::Array<double>& X);
 };

@@ -399,12 +399,8 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 
 }
 
-
-
-double Cuda_AuxSpherePerHinge::value(Cuda::Array<double>& curr_x) {
+void Cuda_AuxSpherePerHinge::value(Cuda::Array<double>& curr_x) {
 	Utils_Cuda_AuxSpherePerHinge::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-
 	const unsigned int s = mesh_indices.num_hinges + mesh_indices.num_faces;
 	Utils_Cuda_AuxSpherePerHinge::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,
@@ -416,9 +412,6 @@ double Cuda_AuxSpherePerHinge::value(Cuda::Array<double>& curr_x) {
 		planarParameter,
 		functionType,
 		mesh_indices);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	MemCpyDeviceToHost(EnergyAtomic);
-	return EnergyAtomic.host_arr[0];
 }
 		
 Cuda::Array<double>* Cuda_AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
