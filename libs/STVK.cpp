@@ -81,7 +81,7 @@ void STVK::value(Cuda::Array<double>& curr_x) {
 	cuda_STVK->value(curr_x);
 }
 
-Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)
+void STVK::gradient(Cuda::Array<double>& X)
 {
-	return cuda_STVK->gradient(X);
+	cuda_STVK->gradient(X);
 }

@@ -14,5 +14,5 @@ public:
 	unsigned int num_clusters, max_face_per_cluster;
 	
 	void value(Cuda::Array<double>& curr_x);
-	Cuda::Array<double>* gradient(Cuda::Array<double>& X);
+	void gradient(Cuda::Array<double>& X);
 };

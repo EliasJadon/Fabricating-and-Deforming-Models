@@ -170,10 +170,9 @@ void Cuda_Grouping::value(Cuda::Array<double>& curr_x)
 			max_face_per_cluster);
 }
 		
-Cuda::Array<double>* Cuda_Grouping::gradient(Cuda::Array<double>& X)
+void Cuda_Grouping::gradient(Cuda::Array<double>& X)
 {
 	Utils_Cuda_Grouping::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
-	Cuda::CheckErr(cudaDeviceSynchronize());
 	Utils_Cuda_Grouping::gradientKernel
 		<< <dim3(max_face_per_cluster, num_clusters,1), 3 >> > (
 			grad.cuda_arr,
@@ -185,8 +184,6 @@ Cuda::Array<double>* Cuda_Grouping::gradient(Cuda::Array<double>& X)
 			num_clusters,
 			max_face_per_cluster
 			);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	return &grad;
 }
 
 Cuda_Grouping::Cuda_Grouping(

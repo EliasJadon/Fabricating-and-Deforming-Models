@@ -114,10 +114,9 @@ void Cuda_FixChosenConstraints::value(Cuda::Array<double>& curr_x) {
 		startX, startY, startZ);
 }
 		
-Cuda::Array<double>* Cuda_FixChosenConstraints::gradient(Cuda::Array<double>& X)
+void Cuda_FixChosenConstraints::gradient(Cuda::Array<double>& X)
 {
 	Utils_Cuda_FixChosenConstraints::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
-	Cuda::CheckErr(cudaDeviceSynchronize());
 	Utils_Cuda_FixChosenConstraints::gradientKernel << <Const_Ind.size, 3 >> > (
 		grad.cuda_arr,
 		X.cuda_arr,
@@ -125,12 +124,6 @@ Cuda::Array<double>* Cuda_FixChosenConstraints::gradient(Cuda::Array<double>& X)
 		Const_Ind.cuda_arr,
 		Const_Pos.cuda_arr,
 		Const_Ind.size);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	/*MemCpyDeviceToHost(grad);
-	for (int i = 0; i < grad.size; i++) {
-		std::cout << i << ":\t" << grad.host_arr[i] << "\n";
-	}*/
-	return &grad;
 }
 
 Cuda_FixChosenConstraints::Cuda_FixChosenConstraints(

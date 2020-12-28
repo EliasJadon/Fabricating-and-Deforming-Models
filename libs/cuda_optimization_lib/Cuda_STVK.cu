@@ -306,11 +306,9 @@ void Cuda_STVK::value(Cuda::Array<double>& curr_x)
 
 		
 
-Cuda::Array<double>* Cuda_STVK::gradient(Cuda::Array<double>& X)
+void Cuda_STVK::gradient(Cuda::Array<double>& X)
 {
 	Utils_Cuda_STVK::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-
 	unsigned int s = mesh_indices.num_faces;
 	Utils_Cuda_STVK::gradientKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		grad.cuda_arr,
@@ -321,8 +319,6 @@ Cuda::Array<double>* Cuda_STVK::gradient(Cuda::Array<double>& X)
 		mesh_indices,
 		shearModulus,
 		bulkModulus);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	return &grad;
 }
 
 Cuda_STVK::Cuda_STVK(){

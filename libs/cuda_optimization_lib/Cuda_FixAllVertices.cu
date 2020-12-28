@@ -113,7 +113,7 @@ void Cuda_FixAllVertices::value(Cuda::Array<double>& curr_x) {
 		num_vertices);
 }
 
-Cuda::Array<double>* Cuda_FixAllVertices::gradient(Cuda::Array<double>& X)
+void Cuda_FixAllVertices::gradient(Cuda::Array<double>& X)
 {
 	unsigned int s = grad.size;
 	Utils_Cuda_FixAllVertices::gradientKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
@@ -122,9 +122,6 @@ Cuda::Array<double>* Cuda_FixAllVertices::gradient(Cuda::Array<double>& X)
 		restShapeV.cuda_arr,
 		num_vertices,
 		grad.size);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	//MemCpyDeviceToHost(grad);
-	return &grad;
 }
 
 Cuda_FixAllVertices::Cuda_FixAllVertices(){

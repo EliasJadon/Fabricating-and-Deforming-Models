@@ -58,10 +58,9 @@ void Grouping::value(Cuda::Array<double>& curr_x)
 	m_value.unlock();
 }
 
-Cuda::Array<double>* Grouping::gradient(Cuda::Array<double>& X, const bool update)
+void Grouping::gradient(Cuda::Array<double>& X)
 {
 	m_gradient.lock();
-	Cuda::Array<double>* g = cudaGrouping->gradient(X);
+	cudaGrouping->gradient(X);
 	m_gradient.unlock();
-	return g;
 }

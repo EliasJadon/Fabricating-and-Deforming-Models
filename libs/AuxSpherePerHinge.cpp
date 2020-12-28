@@ -232,7 +232,7 @@ void AuxSpherePerHinge::value(Cuda::Array<double>& curr_x)
 	cuda_ASH->value(curr_x);
 }
 
-Cuda::Array<double>* AuxSpherePerHinge::gradient(Cuda::Array<double>& X, const bool update)
+void AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 {
-	return cuda_ASH->gradient(X);
+	cuda_ASH->gradient(X);
 }

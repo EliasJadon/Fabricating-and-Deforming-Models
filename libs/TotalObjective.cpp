@@ -38,7 +38,6 @@ double TotalObjective::value(Cuda::Array<double>& curr_x, const bool update)
 		for (int i = 0; i < stvk->cuda_STVK->Energy.size; i++) {
 			stvk->Efi(i) = stvk->cuda_STVK->Energy.host_arr[i];
 		}
-		
 	}
 	return f;
 }
@@ -48,34 +47,23 @@ void TotalObjective::gradient(
 	Cuda::Array<double>& X, 
 	const bool update)
 {
-	
-	for (auto& obj : objectiveList) {
-		if (obj->w) {
-			Cuda::Array<double>* obj_grad = obj->gradient(X, update);
-		}
-	}
-	std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(objectiveList[0]);
-	std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(objectiveList[1]);
-	std::shared_ptr<STVK> stvk = std::dynamic_pointer_cast<STVK>(objectiveList[2]);
-	std::shared_ptr<FixAllVertices> FAV = std::dynamic_pointer_cast<FixAllVertices>(objectiveList[3]);
-	std::shared_ptr<FixChosenConstraints> FCV = std::dynamic_pointer_cast<FixChosenConstraints>(objectiveList[4]);
-	std::shared_ptr<FixChosenConstraints> FCN = std::dynamic_pointer_cast<FixChosenConstraints>(objectiveList[5]);
-	std::shared_ptr<FixChosenConstraints> FCC = std::dynamic_pointer_cast<FixChosenConstraints>(objectiveList[6]);
-	std::shared_ptr<Grouping> GroS = std::dynamic_pointer_cast<Grouping>(objectiveList[7]);
-	std::shared_ptr<Grouping> GroN = std::dynamic_pointer_cast<Grouping>(objectiveList[8]);
-
+	for (auto& obj : objectiveList)
+		if (obj->w)
+			obj->gradient(X);	
+	Cuda::CheckErr(cudaDeviceSynchronize());
 	cuda_Minimizer->TotalGradient(
-		ABN->cuda_ABN->grad.cuda_arr, ABN->w,//AuxBendingNormal
-		FAV->cuda_FixAllV->grad.cuda_arr, FAV->w,//FixAllVertices
-		ASH->cuda_ASH->grad.cuda_arr, ASH->w,//AuxSpherePerHinge
-		FCV->Cuda_FixChosConst->grad.cuda_arr, FCV->w,//FixChosenVertices
-		FCN->Cuda_FixChosConst->grad.cuda_arr, FCN->w,//FixChosenVertices
-		FCC->Cuda_FixChosConst->grad.cuda_arr, FCC->w,//FixChosenVertices
-		GroN->cudaGrouping->grad.cuda_arr, GroN->w,//GroupNormals
-		GroS->cudaGrouping->grad.cuda_arr, GroS->w,//GroupSpheres
-		stvk->cuda_STVK->grad.cuda_arr, stvk->w
+		objectiveList[0]->getGradient()->cuda_arr, objectiveList[0]->w,
+		objectiveList[1]->getGradient()->cuda_arr, objectiveList[1]->w,
+		objectiveList[2]->getGradient()->cuda_arr, objectiveList[2]->w,
+		objectiveList[3]->getGradient()->cuda_arr, objectiveList[3]->w,
+		objectiveList[4]->getGradient()->cuda_arr, objectiveList[4]->w,
+		objectiveList[5]->getGradient()->cuda_arr, objectiveList[5]->w,
+		objectiveList[6]->getGradient()->cuda_arr, objectiveList[6]->w,
+		objectiveList[7]->getGradient()->cuda_arr, objectiveList[7]->w,
+		objectiveList[8]->getGradient()->cuda_arr, objectiveList[8]->w
 	);
-			
+		
+	//TODO: update the gradient norm for all the energies
 	/*if(update)
 		gradient_norm = g.norm();*/
 }

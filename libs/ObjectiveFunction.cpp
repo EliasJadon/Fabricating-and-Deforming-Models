@@ -59,8 +59,9 @@ void ObjectiveFunction::checkGradient(const Eigen::VectorXd& X)
 	}
 	Cuda::MemCpyHostToDevice(XX);
 
-	
-	Cuda::Array<double>* Analytic_gradient = gradient(XX, false);
+	gradient(XX);
+	Cuda::CheckErr(cudaDeviceSynchronize());
+	Cuda::Array<double>* Analytic_gradient = getGradient();
 	if (Analytic_gradient == NULL)
 	{
 		return;

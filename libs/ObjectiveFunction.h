@@ -13,8 +13,9 @@ public:
 	ObjectiveFunction() {}
 	virtual ~ObjectiveFunction(){}
 	virtual Cuda::Array<double>* getValue() = 0;
+	virtual Cuda::Array<double>* getGradient() = 0;
 	virtual void value(Cuda::Array<double>& curr_x) = 0;
-	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) = 0;
+	virtual void gradient(Cuda::Array<double>& X) = 0;
 	
 	void init_mesh(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
 

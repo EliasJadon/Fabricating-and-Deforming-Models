@@ -22,7 +22,10 @@ public:
 	virtual Cuda::Array<double>* getValue() override {
 		return &(cuda_ASH->EnergyAtomic);
 	}
+	virtual Cuda::Array<double>* getGradient() override {
+		return &(cuda_ASH->grad);
+	}
 	virtual void value(Cuda::Array<double>& curr_x) override;
-	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) override;
+	virtual void gradient(Cuda::Array<double>& X) override;
 };
 

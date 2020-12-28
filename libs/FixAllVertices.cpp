@@ -44,9 +44,7 @@ void FixAllVertices::value(Cuda::Array<double>& curr_x)
 	cuda_FixAllV->value(curr_x);
 }
 
-Cuda::Array<double>* FixAllVertices::gradient(Cuda::Array<double>& X, const bool update)
+void FixAllVertices::gradient(Cuda::Array<double>& X)
 {
-	return cuda_FixAllV->gradient(X);
-	//if(update)
-	//	gradient_norm = g.norm();
+	cuda_FixAllV->gradient(X);
 }

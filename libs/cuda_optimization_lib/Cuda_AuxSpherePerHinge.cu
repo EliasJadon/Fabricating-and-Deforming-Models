@@ -414,10 +414,9 @@ void Cuda_AuxSpherePerHinge::value(Cuda::Array<double>& curr_x) {
 		mesh_indices);
 }
 		
-Cuda::Array<double>* Cuda_AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
+void Cuda_AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 {
 	Utils_Cuda_AuxSpherePerHinge::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
-	Cuda::CheckErr(cudaDeviceSynchronize());
 	Utils_Cuda_AuxSpherePerHinge::gradientKernel << <mesh_indices.num_hinges + mesh_indices.num_faces, 20 >> > (
 		grad.cuda_arr,
 		X.cuda_arr,
@@ -426,12 +425,6 @@ Cuda::Array<double>* Cuda_AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 		restAreaPerHinge.cuda_arr,
 		planarParameter, functionType,
 		w1, w2, mesh_indices);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	/*MemCpyDeviceToHost(grad);
-	for (int i = 0; i < grad.size; i++) {
-		std::cout << i << ":\t" << grad.host_arr[i] << "\n";
-	}*/
-	return &grad;
 }
 
 Cuda_AuxSpherePerHinge::Cuda_AuxSpherePerHinge() {

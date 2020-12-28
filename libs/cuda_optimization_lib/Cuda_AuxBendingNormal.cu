@@ -468,10 +468,9 @@ void Cuda_AuxBendingNormal::value(Cuda::Array<double>& curr_x) {
 		mesh_indices);
 }
 
-Cuda::Array<double>* Cuda_AuxBendingNormal::gradient(Cuda::Array<double>& X)
+void Cuda_AuxBendingNormal::gradient(Cuda::Array<double>& X)
 {
 	Utils_Cuda_AuxBendingNormal::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
-	Cuda::CheckErr(cudaDeviceSynchronize());
 	Utils_Cuda_AuxBendingNormal::gradientKernel << <mesh_indices.num_hinges + 2 * mesh_indices.num_faces, 12 >> > (
 		grad.cuda_arr,
 		X.cuda_arr,
@@ -480,9 +479,6 @@ Cuda::Array<double>* Cuda_AuxBendingNormal::gradient(Cuda::Array<double>& X)
 		restAreaPerHinge.cuda_arr,
 		planarParameter, functionType,
 		w1, w2, w3, mesh_indices);
-	Cuda::CheckErr(cudaDeviceSynchronize());
-	//MemCpyDeviceToHost(grad);
-	return &grad;
 }
 
 Cuda_AuxBendingNormal::Cuda_AuxBendingNormal() {

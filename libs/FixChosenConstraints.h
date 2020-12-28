@@ -17,7 +17,10 @@ public:
 	virtual Cuda::Array<double>* getValue() override {
 		return &(Cuda_FixChosConst->EnergyAtomic);
 	}
+	virtual Cuda::Array<double>* getGradient() override {
+		return &(Cuda_FixChosConst->grad);
+	}
 	virtual void value(Cuda::Array<double>& curr_x) override;
-	virtual Cuda::Array<double>* gradient(Cuda::Array<double>& X, const bool update) override;
+	virtual void gradient(Cuda::Array<double>& X) override;
 	void updateExtConstraints(std::vector<int>& CVInd, Eigen::MatrixX3d& CVPos);
 };

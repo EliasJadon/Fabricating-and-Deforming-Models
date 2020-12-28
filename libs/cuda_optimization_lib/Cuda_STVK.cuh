@@ -12,5 +12,5 @@ public:
 	Cuda_STVK();
 	~Cuda_STVK();
 	void value(Cuda::Array<double>& curr_x);
-	Cuda::Array<double>* gradient(Cuda::Array<double>& X);
+	void gradient(Cuda::Array<double>& X);
 };
