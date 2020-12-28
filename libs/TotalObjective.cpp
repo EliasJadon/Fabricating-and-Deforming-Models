@@ -29,8 +29,17 @@ double TotalObjective::value(Cuda::Array<double>& curr_x, const bool update)
 			f += obj->w * E->host_arr[0];
 		}
 	
-	if (update)
+	if (update) {
 		energy_value = f;
+
+		//update face coloring for STVK
+		std::shared_ptr<STVK> stvk = std::dynamic_pointer_cast<STVK>(objectiveList[2]);
+		Cuda::MemCpyDeviceToHost(stvk->cuda_STVK->Energy);
+		for (int i = 0; i < stvk->cuda_STVK->Energy.size; i++) {
+			stvk->Efi(i) = stvk->cuda_STVK->Energy.host_arr[i];
+		}
+		
+	}
 	return f;
 }
 

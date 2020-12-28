@@ -79,13 +79,6 @@ void STVK::setRestShapeFromCurrentConfiguration() {
 
 void STVK::value(Cuda::Array<double>& curr_x) {
 	cuda_STVK->value(curr_x);
-	/*if (update) {
-		Cuda::MemCpyDeviceToHost(*energy);
-		for (int i = 0; i < energy->size; i++) {
-			Efi(i) = energy->host_arr[i];
-		}
-		energy_value = value;
-	}*/
 }
 
 Cuda::Array<double>* STVK::gradient(Cuda::Array<double>& X, const bool update)
