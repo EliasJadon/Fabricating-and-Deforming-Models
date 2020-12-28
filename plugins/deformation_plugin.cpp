@@ -1249,7 +1249,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 				if (AS != NULL)
 					AS->w = 0;
 				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::NORMALS)
-					FCC->w = 100000;
+					FCC->w = 0; // 100000;
 				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::SPHERES)
 					FCC->w = 0;
 				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::NORMALS)
@@ -1282,7 +1282,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::NORMALS)
 					FCC->w = 0;
 				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::SPHERES)
-					FCC->w = 100000;
+					FCC->w = 0; // 100000;
 				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::NORMALS)
 					grouping->w = 0;
 				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::SPHERES)
