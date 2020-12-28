@@ -12,6 +12,7 @@ public:
 	Cuda::Array<int> Const_Ind;
 	Cuda::Array<double3> Const_Pos;
 	unsigned int startX, startY, startZ;
+	cudaStream_t stream_value, stream_gradient;
 
 	void value(Cuda::Array<double>& curr_x);
 	void gradient(Cuda::Array<double>& X);

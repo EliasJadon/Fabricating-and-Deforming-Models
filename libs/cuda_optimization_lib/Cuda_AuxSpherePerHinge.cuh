@@ -17,6 +17,7 @@ public:
 	Cuda::Array<Cuda::hinge> hinges_faceIndex;
 	Cuda::Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; 
 	Cuda::Array<Cuda::hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; 
+	cudaStream_t stream_value, stream_gradient;
 
 	Cuda_AuxSpherePerHinge();
 	~Cuda_AuxSpherePerHinge();

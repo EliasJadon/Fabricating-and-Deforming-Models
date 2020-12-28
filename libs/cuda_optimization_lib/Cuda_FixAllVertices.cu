@@ -104,9 +104,9 @@ namespace Utils_Cuda_FixAllVertices {
 }
 	
 void Cuda_FixAllVertices::value(Cuda::Array<double>& curr_x) {
-	Utils_Cuda_FixAllVertices::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
+	Utils_Cuda_FixAllVertices::setZeroKernel << <1, 1>> > (EnergyAtomic.cuda_arr);
 	unsigned int s = 3 * num_vertices;
-	Utils_Cuda_FixAllVertices::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
+	Utils_Cuda_FixAllVertices::EnergyKernel<1024> << <ceil(s / (double)1024), 1024>> > (
 		EnergyAtomic.cuda_arr,
 		curr_x.cuda_arr,
 		restShapeV.cuda_arr,
@@ -116,7 +116,7 @@ void Cuda_FixAllVertices::value(Cuda::Array<double>& curr_x) {
 void Cuda_FixAllVertices::gradient(Cuda::Array<double>& X)
 {
 	unsigned int s = grad.size;
-	Utils_Cuda_FixAllVertices::gradientKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
+	Utils_Cuda_FixAllVertices::gradientKernel<1024> << <ceil(s / (double)1024), 1024, 0, stream_gradient >> > (
 		grad.cuda_arr,
 		X.cuda_arr,
 		restShapeV.cuda_arr,
@@ -125,10 +125,13 @@ void Cuda_FixAllVertices::gradient(Cuda::Array<double>& X)
 }
 
 Cuda_FixAllVertices::Cuda_FixAllVertices(){
-
+	cudaStreamCreate(&stream_value);
+	cudaStreamCreate(&stream_gradient);
 }
 
 Cuda_FixAllVertices::~Cuda_FixAllVertices() {
+	cudaStreamDestroy(stream_value);
+	cudaStreamDestroy(stream_gradient);
 	cudaGetErrorString(cudaGetLastError());
 	FreeMemory(restShapeV);
 	FreeMemory(grad);

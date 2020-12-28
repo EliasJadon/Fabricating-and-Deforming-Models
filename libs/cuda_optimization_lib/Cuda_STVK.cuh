@@ -8,7 +8,8 @@ public:
 	Cuda::Array<double4> dXInv;
 	Cuda::indices mesh_indices;
 	double shearModulus, bulkModulus;
-	
+	cudaStream_t stream_value, stream_gradient;
+
 	Cuda_STVK();
 	~Cuda_STVK();
 	void value(Cuda::Array<double>& curr_x);

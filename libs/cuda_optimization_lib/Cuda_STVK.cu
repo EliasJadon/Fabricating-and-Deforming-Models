@@ -290,9 +290,9 @@ namespace Utils_Cuda_STVK {
 	
 void Cuda_STVK::value(Cuda::Array<double>& curr_x) 
 {
-	Utils_Cuda_STVK::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
+	Utils_Cuda_STVK::setZeroKernel << <1, 1>> > (EnergyAtomic.cuda_arr);
 	unsigned int s = mesh_indices.num_faces;
-	Utils_Cuda_STVK::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
+	Utils_Cuda_STVK::EnergyKernel<1024> << <ceil(s / (double)1024), 1024>> > (
 		EnergyAtomic.cuda_arr,
 		Energy.cuda_arr,
 		curr_x.cuda_arr,
@@ -308,9 +308,9 @@ void Cuda_STVK::value(Cuda::Array<double>& curr_x)
 
 void Cuda_STVK::gradient(Cuda::Array<double>& X)
 {
-	Utils_Cuda_STVK::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
+	Utils_Cuda_STVK::setZeroKernel << <grad.size, 1, 0, stream_gradient >> > (grad.cuda_arr);
 	unsigned int s = mesh_indices.num_faces;
-	Utils_Cuda_STVK::gradientKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
+	Utils_Cuda_STVK::gradientKernel<1024> << <ceil(s / (double)1024), 1024, 0, stream_gradient >> > (
 		grad.cuda_arr,
 		X.cuda_arr,
 		restShapeF.cuda_arr,
@@ -322,10 +322,13 @@ void Cuda_STVK::gradient(Cuda::Array<double>& X)
 }
 
 Cuda_STVK::Cuda_STVK(){
-
+	cudaStreamCreate(&stream_value);
+	cudaStreamCreate(&stream_gradient);
 }
 
 Cuda_STVK::~Cuda_STVK() {
+	cudaStreamDestroy(stream_value);
+	cudaStreamDestroy(stream_gradient);
 	cudaGetErrorString(cudaGetLastError());
 	FreeMemory(restShapeArea);
 	FreeMemory(Energy);

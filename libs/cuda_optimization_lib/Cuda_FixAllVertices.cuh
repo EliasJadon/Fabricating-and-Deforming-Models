@@ -6,6 +6,7 @@ public:
 	Cuda::Array<double> grad, EnergyAtomic;
 	Cuda::Array<double3> restShapeV;
 	unsigned int num_faces, num_vertices;
+	cudaStream_t stream_value, stream_gradient;
 
 	Cuda_FixAllVertices();
 	~Cuda_FixAllVertices();

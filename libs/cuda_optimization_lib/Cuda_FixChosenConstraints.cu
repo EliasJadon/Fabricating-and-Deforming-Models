@@ -103,9 +103,9 @@ namespace Utils_Cuda_FixChosenConstraints {
 
 
 void Cuda_FixChosenConstraints::value(Cuda::Array<double>& curr_x) {
-	Utils_Cuda_FixChosenConstraints::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
+	Utils_Cuda_FixChosenConstraints::setZeroKernel << <1, 1>> > (EnergyAtomic.cuda_arr);
 	const unsigned int s = Const_Ind.size;
-	Utils_Cuda_FixChosenConstraints::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
+	Utils_Cuda_FixChosenConstraints::EnergyKernel<1024> << <ceil(s / (double)1024), 1024>> > (
 		EnergyAtomic.cuda_arr,
 		curr_x.cuda_arr,
 		Const_Ind.size,
@@ -116,8 +116,8 @@ void Cuda_FixChosenConstraints::value(Cuda::Array<double>& curr_x) {
 		
 void Cuda_FixChosenConstraints::gradient(Cuda::Array<double>& X)
 {
-	Utils_Cuda_FixChosenConstraints::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
-	Utils_Cuda_FixChosenConstraints::gradientKernel << <Const_Ind.size, 3 >> > (
+	Utils_Cuda_FixChosenConstraints::setZeroKernel << <grad.size, 1, 0, stream_gradient >> > (grad.cuda_arr);
+	Utils_Cuda_FixChosenConstraints::gradientKernel << <Const_Ind.size, 3, 0, stream_gradient >> > (
 		grad.cuda_arr,
 		X.cuda_arr,
 		startX, startY, startZ,
@@ -131,6 +131,8 @@ Cuda_FixChosenConstraints::Cuda_FixChosenConstraints(
 	const unsigned int numV,
 	const ConstraintsType const_Type)
 {
+	cudaStreamCreate(&stream_value);
+	cudaStreamCreate(&stream_gradient);
 	Cuda::initIndices(mesh_indices, numF, numV, 0);
 	Cuda::AllocateMemory(grad, (3 * numV) + (7 * numF));
 	Cuda::AllocateMemory(EnergyAtomic, 1);
@@ -162,6 +164,8 @@ Cuda_FixChosenConstraints::Cuda_FixChosenConstraints(
 }
 
 Cuda_FixChosenConstraints::~Cuda_FixChosenConstraints() {
+	cudaStreamDestroy(stream_value);
+	cudaStreamDestroy(stream_gradient);
 	cudaGetErrorString(cudaGetLastError());
 	FreeMemory(grad);
 	FreeMemory(EnergyAtomic);

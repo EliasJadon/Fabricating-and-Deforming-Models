@@ -400,9 +400,9 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 }
 
 void Cuda_AuxSpherePerHinge::value(Cuda::Array<double>& curr_x) {
-	Utils_Cuda_AuxSpherePerHinge::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
+	Utils_Cuda_AuxSpherePerHinge::setZeroKernel << <1, 1>> > (EnergyAtomic.cuda_arr);
 	const unsigned int s = mesh_indices.num_hinges + mesh_indices.num_faces;
-	Utils_Cuda_AuxSpherePerHinge::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
+	Utils_Cuda_AuxSpherePerHinge::EnergyKernel<1024> << <ceil(s / (double)1024), 1024>> > (
 		EnergyAtomic.cuda_arr,
 		w1, w2,
 		curr_x.cuda_arr,
@@ -416,8 +416,8 @@ void Cuda_AuxSpherePerHinge::value(Cuda::Array<double>& curr_x) {
 		
 void Cuda_AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 {
-	Utils_Cuda_AuxSpherePerHinge::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
-	Utils_Cuda_AuxSpherePerHinge::gradientKernel << <mesh_indices.num_hinges + mesh_indices.num_faces, 20 >> > (
+	Utils_Cuda_AuxSpherePerHinge::setZeroKernel << <grad.size, 1, 0, stream_gradient >> > (grad.cuda_arr);
+	Utils_Cuda_AuxSpherePerHinge::gradientKernel << <mesh_indices.num_hinges + mesh_indices.num_faces, 20, 0, stream_gradient >> > (
 		grad.cuda_arr,
 		X.cuda_arr,
 		hinges_faceIndex.cuda_arr,
@@ -428,10 +428,13 @@ void Cuda_AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 }
 
 Cuda_AuxSpherePerHinge::Cuda_AuxSpherePerHinge() {
-
+	cudaStreamCreate(&stream_value);
+	cudaStreamCreate(&stream_gradient);
 }
 
 Cuda_AuxSpherePerHinge::~Cuda_AuxSpherePerHinge() {
+	cudaStreamDestroy(stream_value);
+	cudaStreamDestroy(stream_gradient);
 	cudaGetErrorString(cudaGetLastError());
 	FreeMemory(restShapeF);
 	FreeMemory(grad);

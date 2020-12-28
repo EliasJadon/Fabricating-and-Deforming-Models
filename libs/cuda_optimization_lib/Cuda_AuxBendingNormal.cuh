@@ -11,6 +11,7 @@ public:
 	Cuda::Array<double> EnergyAtomic;
 
 	//Static variables
+	cudaStream_t stream_value, stream_gradient;
 	Cuda::Array<int3> restShapeF;
 	Cuda::Array<double> restAreaPerFace, restAreaPerHinge; 
 	Cuda::indices mesh_indices;

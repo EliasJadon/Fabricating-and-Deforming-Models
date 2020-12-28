@@ -157,9 +157,9 @@ namespace Utils_Cuda_Grouping {
 
 void Cuda_Grouping::value(Cuda::Array<double>& curr_x) 
 {
-	Utils_Cuda_Grouping::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
+	Utils_Cuda_Grouping::setZeroKernel << <1, 1>> > (EnergyAtomic.cuda_arr);
 	const unsigned int s = max_face_per_cluster * max_face_per_cluster * num_clusters;
-	Utils_Cuda_Grouping::valueKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
+	Utils_Cuda_Grouping::valueKernel<1024> << <ceil(s / (double)1024), 1024>> > (
 			EnergyAtomic.cuda_arr,
 			curr_x.cuda_arr,
 			startX,
@@ -172,9 +172,9 @@ void Cuda_Grouping::value(Cuda::Array<double>& curr_x)
 		
 void Cuda_Grouping::gradient(Cuda::Array<double>& X)
 {
-	Utils_Cuda_Grouping::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
+	Utils_Cuda_Grouping::setZeroKernel << <grad.size, 1, 0, stream_gradient >> > (grad.cuda_arr);
 	Utils_Cuda_Grouping::gradientKernel
-		<< <dim3(max_face_per_cluster, num_clusters,1), 3 >> > (
+		<< <dim3(max_face_per_cluster, num_clusters,1), 3, 0, stream_gradient >> > (
 			grad.cuda_arr,
 			X.cuda_arr,
 			startX,
@@ -191,6 +191,8 @@ Cuda_Grouping::Cuda_Grouping(
 	const unsigned int numV,
 	const ConstraintsType const_Type)
 {
+	cudaStreamCreate(&stream_value);
+	cudaStreamCreate(&stream_gradient);
 	num_clusters = 0;
 	max_face_per_cluster = 0;
 	Cuda::initIndices(mesh_indices, numF, numV, 0);
@@ -222,6 +224,8 @@ Cuda_Grouping::Cuda_Grouping(
 }
 
 Cuda_Grouping::~Cuda_Grouping() {
+	cudaStreamDestroy(stream_value);
+	cudaStreamDestroy(stream_gradient);
 	cudaGetErrorString(cudaGetLastError());
 	FreeMemory(grad);
 	FreeMemory(EnergyAtomic);

@@ -455,8 +455,8 @@ namespace Utils_Cuda_AuxBendingNormal {
 
 void Cuda_AuxBendingNormal::value(Cuda::Array<double>& curr_x) {
 	const unsigned int s = mesh_indices.num_hinges + 2 * mesh_indices.num_faces;
-	Utils_Cuda_AuxBendingNormal::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
-	Utils_Cuda_AuxBendingNormal::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
+	Utils_Cuda_AuxBendingNormal::setZeroKernel << <1, 1>> > (EnergyAtomic.cuda_arr);
+	Utils_Cuda_AuxBendingNormal::EnergyKernel<1024> << <ceil(s / (double)1024), 1024>> > (
 		EnergyAtomic.cuda_arr,
 		w1, w2, w3,
 		curr_x.cuda_arr,
@@ -470,8 +470,8 @@ void Cuda_AuxBendingNormal::value(Cuda::Array<double>& curr_x) {
 
 void Cuda_AuxBendingNormal::gradient(Cuda::Array<double>& X)
 {
-	Utils_Cuda_AuxBendingNormal::setZeroKernel << <grad.size, 1 >> > (grad.cuda_arr);
-	Utils_Cuda_AuxBendingNormal::gradientKernel << <mesh_indices.num_hinges + 2 * mesh_indices.num_faces, 12 >> > (
+	Utils_Cuda_AuxBendingNormal::setZeroKernel << <grad.size, 1,0,stream_gradient >> > (grad.cuda_arr);
+	Utils_Cuda_AuxBendingNormal::gradientKernel << <mesh_indices.num_hinges + 2 * mesh_indices.num_faces, 12, 0, stream_gradient >> > (
 		grad.cuda_arr,
 		X.cuda_arr,
 		hinges_faceIndex.cuda_arr,
@@ -482,10 +482,13 @@ void Cuda_AuxBendingNormal::gradient(Cuda::Array<double>& X)
 }
 
 Cuda_AuxBendingNormal::Cuda_AuxBendingNormal() {
-
+	cudaStreamCreate(&stream_value);
+	cudaStreamCreate(&stream_gradient);
 }
 
 Cuda_AuxBendingNormal::~Cuda_AuxBendingNormal() {
+	cudaStreamDestroy(stream_value);
+	cudaStreamDestroy(stream_gradient);
 	cudaGetErrorString(cudaGetLastError());
 	FreeMemory(restShapeF);
 	FreeMemory(grad);
