@@ -58,10 +58,8 @@ namespace Utils_Cuda_FixChosenConstraints {
 		extern __shared__ double energy_value[blockSize];
 		unsigned int tid = threadIdx.x;
 		unsigned int Global_idx = blockIdx.x * blockSize + tid;
-		*resAtomic = 0;
-
-		__syncthreads();
-
+		energy_value[tid] = 0;
+		
 		if (Global_idx < size) {
 			double3 Vi = make_double3(
 				curr_x[Const_Ind[Global_idx] + startX],
@@ -69,9 +67,6 @@ namespace Utils_Cuda_FixChosenConstraints {
 				curr_x[Const_Ind[Global_idx] + startZ]
 			);
 			energy_value[tid] = squared_norm(sub(Vi, Const_Pos[Global_idx]));
-		}
-		else {
-			energy_value[tid] = 0;
 		}
 
 		__syncthreads();
@@ -108,6 +103,9 @@ namespace Utils_Cuda_FixChosenConstraints {
 
 
 double Cuda_FixChosenConstraints::value(Cuda::Array<double>& curr_x) {
+	Utils_Cuda_FixChosenConstraints::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
+	Cuda::CheckErr(cudaDeviceSynchronize());
+
 	const unsigned int s = Const_Ind.size;
 	Utils_Cuda_FixChosenConstraints::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,

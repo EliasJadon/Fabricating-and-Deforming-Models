@@ -55,16 +55,6 @@ void TotalObjective::gradient(
 		stvk->cuda_STVK->grad.cuda_arr, stvk->w
 	);
 			
-	/*g.setZero(variables_size);
-	for (auto &objective : objectiveList) {
-		if (objective->w != 0)
-		{
-			Eigen::VectorXd gi;
-			objective->gradient(gi, update);
-			g += objective->w*gi;
-		}
-	}
-
-	if(update)
+	/*if(update)
 		gradient_norm = g.norm();*/
 }

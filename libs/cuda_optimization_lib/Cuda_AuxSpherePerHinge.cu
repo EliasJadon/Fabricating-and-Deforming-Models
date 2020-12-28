@@ -196,9 +196,8 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		extern __shared__ double energy_value[blockSize];
 		unsigned int tid = threadIdx.x;
 		unsigned int Global_idx = blockIdx.x * blockSize + tid;
-		*resAtomic = 0;
-		__syncthreads();
-
+		energy_value[tid] = 0;
+		
 		//0	,..., F-1,	==> Call Energy(2)
 		//F ,..., F+h-1	==> Call Energy(1)
 
@@ -221,9 +220,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 				Global_idx - mesh_indices.num_faces, //hi
 				mesh_indices);
 		}
-		else {
-			energy_value[tid] = 0;
-		}
+		
 		__syncthreads();
 
 		if (blockSize >= 1024) { if (tid < 512) { energy_value[tid] += energy_value[tid + 512]; } __syncthreads(); }
@@ -405,6 +402,9 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 
 
 double Cuda_AuxSpherePerHinge::value(Cuda::Array<double>& curr_x) {
+	Utils_Cuda_AuxSpherePerHinge::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
+	Cuda::CheckErr(cudaDeviceSynchronize());
+
 	const unsigned int s = mesh_indices.num_hinges + mesh_indices.num_faces;
 	Utils_Cuda_AuxSpherePerHinge::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,

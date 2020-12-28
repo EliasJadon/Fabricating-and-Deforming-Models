@@ -222,8 +222,8 @@ namespace Utils_Cuda_AuxBendingNormal {
 		extern __shared__ double energy_value[blockSize];
 		unsigned int tid = threadIdx.x;
 		unsigned int Global_idx = blockIdx.x * blockSize + tid;
-		__syncthreads();
-
+		energy_value[tid] = 0;
+		
 		//0	,..., F-1,		==> Call Energy(3)
 		//F	,..., 2F-1,		==> Call Energy(2)
 		//2F,..., 2F+h-1	==> Call Energy(1)
@@ -253,9 +253,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 				Global_idx - (2 * mesh_indices.num_faces),
 				mesh_indices);
 		}
-		else {
-			energy_value[tid] = 0;
-		}
+
 		__syncthreads();
 
 		if (blockSize >= 1024) { if (tid < 512) { energy_value[tid] += energy_value[tid + 512]; } __syncthreads(); }

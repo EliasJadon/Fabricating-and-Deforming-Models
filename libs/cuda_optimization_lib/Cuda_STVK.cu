@@ -87,9 +87,7 @@ namespace Utils_Cuda_STVK {
 		extern __shared__ double energy_value[blockSize];
 		unsigned int tid = threadIdx.x;
 		unsigned int fi = blockIdx.x * blockSize + tid;
-		*resAtomic = 0;
-
-		__syncthreads();
+		energy_value[tid] = 0;
 
 		if (fi < I.num_faces) {
 			const double4 dxinv = dXInv[fi];
@@ -146,9 +144,6 @@ namespace Utils_Cuda_STVK {
 
 			energy_value[tid] = restShapeArea[fi] * Energy[fi];
 		}		
-		else {
-			energy_value[tid] = 0;
-		}
 
 		__syncthreads();
 
@@ -294,6 +289,9 @@ namespace Utils_Cuda_STVK {
 }
 	
 double Cuda_STVK::value(Cuda::Array<double>& curr_x, Cuda::Array<double>** energy) {
+	Utils_Cuda_STVK::setZeroKernel << <1, 1 >> > (EnergyAtomic.cuda_arr);
+	Cuda::CheckErr(cudaDeviceSynchronize());
+
 	unsigned int s = mesh_indices.num_faces;
 	Utils_Cuda_STVK::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,

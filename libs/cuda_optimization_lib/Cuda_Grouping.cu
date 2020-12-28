@@ -79,7 +79,6 @@ namespace Utils_Cuda_Grouping {
 		const int F = max_face_per_cluster;
 		const int F2 = F * F;
 		const int size = F2 * num_clusters;
-		__syncthreads();
 
 		if (Global_idx < size) {
 			int ci = (int)Global_idx / (int)F2;
