@@ -1242,10 +1242,20 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+				std::shared_ptr<FixChosenConstraints> FCC = std::dynamic_pointer_cast<FixChosenConstraints>(obj);
+				std::shared_ptr<Grouping> grouping = std::dynamic_pointer_cast<Grouping>(obj);
 				if(ABN != NULL)
 					ABN->w = 1.6;
 				if (AS != NULL)
 					AS->w = 0;
+				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::NORMALS)
+					FCC->w = 100000;
+				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::SPHERES)
+					FCC->w = 0;
+				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::NORMALS)
+					grouping->w = 0.5;
+				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::SPHERES)
+					grouping->w = 0;
 			}
 		}
 	}
@@ -1261,12 +1271,22 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		{
 			for (auto& obj : out.totalObjective->objectiveList) 
 			{
+				std::shared_ptr<FixChosenConstraints> FCC = std::dynamic_pointer_cast<FixChosenConstraints>(obj);
+				std::shared_ptr<Grouping> grouping = std::dynamic_pointer_cast<Grouping>(obj);
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 				if (ABN != NULL)
 					ABN->w = 0;
 				if (AS != NULL)
 					AS->w = 1.6;
+				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::NORMALS)
+					FCC->w = 0;
+				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::SPHERES)
+					FCC->w = 100000;
+				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::NORMALS)
+					grouping->w = 0;
+				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::SPHERES)
+					grouping->w = 0.5;
 			}
 		}
 	}

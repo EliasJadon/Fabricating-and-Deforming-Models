@@ -200,6 +200,7 @@ Cuda_Grouping::Cuda_Grouping(
 	Cuda::AllocateMemory(EnergyAtomic, 1);
 	Cuda::AllocateMemory(Group_Ind, 0);
 	//Choose the kind of constraints
+	type = const_Type;
 	if (const_Type == ConstraintsType::VERTICES) { 
 		std::cout << "Cuda_Grouping class Error! Invalid ConstraintsType.\n";
 		exit(1);

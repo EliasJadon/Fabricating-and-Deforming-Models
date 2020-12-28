@@ -139,6 +139,7 @@ Cuda_FixChosenConstraints::Cuda_FixChosenConstraints(
 	Cuda::AllocateMemory(Const_Ind, 0);
 	Cuda::AllocateMemory(Const_Pos, 0);
 	//Choose the kind of constraints
+	type = const_Type;
 	if (const_Type == ConstraintsType::VERTICES) { 
 		startX = mesh_indices.startVx;
 		startY = mesh_indices.startVy;
