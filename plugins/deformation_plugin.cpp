@@ -1226,7 +1226,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	}
 	if ((key == 's' || key == 'S') && modifiers == 1) {
 		modelPath = OptimizationUtils::ProjectPath() + 
-			"\\models\\InputModels\\from_2k_to_10k\\spot.obj";
+			"\\models\\InputModels\\from_2k_to_10k\\spot.off";
 		isLoadNeeded = true;
 	}
 	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) 
