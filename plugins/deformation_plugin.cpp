@@ -709,23 +709,15 @@ void deformation_plugin::Draw_results_window()
 		ImGui::SetWindowSize(out.screen_size);
 		ImGui::SetWindowCollapsed(false);
 		
-		/*if (clusteri!!!!!!ngType != app_utils::ClusteringType::NoClustering && out.clusters_indices.size())
-		{
-			Eigen::Vector3f _;
-			int highlightedFi = pick_face(_);
-			ImGui::TextColored(c, (std::string("Number of clusters:\t") + std::to_string(out.clusters_indices.size())).c_str());
-			for (int ci = 0; ci < out.clusters_indices.size(); ci++)
-			{
-				if (std::find(out.clusters_indices[ci].begin(), out.clusters_indices[ci].end(), highlightedFi) != out.clusters_indices[ci].end())
-				{
-					ImGui::TextColored(c, (std::string("clusters:\t") + std::to_string(ci)).c_str());
-				}
-			}
-		}
-		if (IsChoosingGroups!!!!!!!) {
-			double r = out.getRadiusOfSphere(curr_highlighted_face)
-			ImGui::TextColored(c, std::to_string(r).c_str())
-		}*/
+		
+		ImGui::TextColored(c, (
+			std::string("Num Faces: ") + 
+			std::to_string(InputModel().F.rows()) + 
+			std::string("\tNum Vertices: ") + 
+			std::to_string(InputModel().V.rows()) + 
+			std::string("\tGrad Size: ") + 
+			std::to_string(out.totalObjective->objectiveList[0]->getGradient()->size)			
+			).c_str());
 		ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" energy ") + std::to_string(out.totalObjective->energy_value)).c_str());
 		ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" gradient ") + std::to_string(out.totalObjective->gradient_norm)).c_str());
 		for (auto& obj : out.totalObjective->objectiveList) {
