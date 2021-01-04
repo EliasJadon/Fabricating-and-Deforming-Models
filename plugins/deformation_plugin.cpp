@@ -49,7 +49,9 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	Neighbors_Highlighted_face_color = Eigen::Vector3f(1, 102 / 255.0f, 1);
 	center_sphere_color = Eigen::Vector3f(0, 1, 1);
 	center_vertex_color = Eigen::Vector3f(128 / 255.0f, 128 / 255.0f, 128 / 255.0f);
-	Color_sphere_edges = Color_normal_edge = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);;
+	Color_cylinder_dir = Eigen::Vector3f(0, 0.6, 0.9);
+	Color_cylinder_edge = Color_sphere_edges =
+		Color_normal_edge = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);
 	face_norm_color = Eigen::Vector3f(0, 1, 1);
 	Fixed_vertex_color = Fixed_face_color = BLUE_COLOR;
 	Dragged_vertex_color = Dragged_face_color = GREEN_COLOR;
@@ -179,6 +181,9 @@ void deformation_plugin::CollapsingHeader_colors()
 		ImGui::ColorEdit3("Center sphere", center_sphere_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Center vertex", center_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Sphere edge", Color_sphere_edges.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Cylinder dir", Color_cylinder_dir.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		ImGui::ColorEdit3("Cylinder edge", Color_cylinder_edge.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
+		
 		ImGui::ColorEdit3("Normal edge", Color_normal_edge.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Face norm", face_norm_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Neighbors Highlighted face", Neighbors_Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
@@ -677,6 +682,13 @@ void deformation_plugin::Draw_output_window()
 		if (ImGui::Checkbox("Sphere Edges", &(out.showSphereEdges)) && isUpdateAll)
 			for (auto&oi : Outputs)
 				oi.showSphereEdges = out.showSphereEdges;
+		if (ImGui::Checkbox("Cylinder", &(out.showCylinderDir)) && isUpdateAll)
+			for (auto&oi : Outputs)
+				oi.showCylinderDir = out.showCylinderDir;
+		ImGui::SameLine();
+		if (ImGui::Checkbox("Cylinder Edges", &(out.showCylinderEdges)) && isUpdateAll)
+			for (auto&oi : Outputs)
+				oi.showCylinderEdges = out.showCylinderEdges;
 		if (ImGui::Checkbox("Face Centers", &(out.showTriangleCenters)) && isUpdateAll)
 			for (auto&oi : Outputs)
 				oi.showTriangleCenters = out.showTriangleCenters;
@@ -1226,7 +1238,9 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		neighborType = app_utils::NeighborType::LOCAL_NORMALS;
 		for (auto&out : Outputs) {
 			out.showFacesNorm = true;
-			out.showSphereEdges = out.showNormEdges = out.showTriangleCenters = out.showSphereCenters = false;
+			out.showSphereEdges = out.showNormEdges = 
+				out.showTriangleCenters = out.showSphereCenters =
+				out.showCylinderDir = out.showCylinderEdges = false;
 		}
 		for (OptimizationOutput& out : Outputs) 
 		{
@@ -1257,7 +1271,8 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		for (auto&out : Outputs) {
 			out.showSphereCenters = true;
 			out.showSphereEdges = out.showNormEdges =
-				out.showTriangleCenters = out.showFacesNorm = false;
+				out.showTriangleCenters = out.showFacesNorm =
+				out.showCylinderDir = out.showCylinderEdges = false;
 		}
 		for (OptimizationOutput& out : Outputs) 
 		{
@@ -1379,19 +1394,31 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 	draw_brush_sphere();
 
 	for (int oi = 0; oi < Outputs.size(); oi++) {
-		OutputModel(oi).clear_edges();
-		OutputModel(oi).point_size = 10;
+		auto& m = OutputModel(oi);
+		auto& o = Outputs[oi];
+		m.clear_edges();
+		m.point_size = 10;
+		if (o.getFacesNorm().size() == 0 ||
+			o.getCenterOfFaces().size() == 0 ||
+			o.getCenterOfSphere().size() == 0 ||
+			o.getCenterOfFaces().size() == 0 ||
+			o.getCylinderDir().size() == 0)
+			continue;
 			
-		if (Outputs[oi].showFacesNorm && Outputs[oi].getFacesNorm().size() != 0)
-			OutputModel(oi).add_points(Outputs[oi].getFacesNorm(), Outputs[oi].color_per_face_norm);
-		if (Outputs[oi].showTriangleCenters && Outputs[oi].getCenterOfFaces().size() != 0)
-			OutputModel(oi).add_points(Outputs[oi].getCenterOfFaces(), Outputs[oi].color_per_vertex_center);
-		if (Outputs[oi].showSphereCenters && Outputs[oi].getCenterOfSphere().size() != 0)
-			OutputModel(oi).add_points(Outputs[oi].getCenterOfSphere(), Outputs[oi].color_per_sphere_center);
-		if (Outputs[oi].showSphereEdges && Outputs[oi].getCenterOfFaces().size() != 0)
-			OutputModel(oi).add_edges(Outputs[oi].getCenterOfFaces(), Outputs[oi].getSphereEdges(), Outputs[oi].color_per_sphere_edge);
-		if (Outputs[oi].showNormEdges && Outputs[oi].getCenterOfFaces().size() != 0)
-			OutputModel(oi).add_edges(Outputs[oi].getCenterOfFaces(), Outputs[oi].getFacesNorm(), Outputs[oi].color_per_norm_edge);
+		if (o.showFacesNorm)
+			m.add_points(o.getFacesNorm(), o.color_per_face_norm);
+		if (o.showTriangleCenters)
+			m.add_points(o.getCenterOfFaces(), o.color_per_vertex_center);
+		if (o.showSphereCenters)
+			m.add_points(o.getCenterOfSphere(), o.color_per_sphere_center);
+		if (o.showSphereEdges)
+			m.add_edges(o.getCenterOfFaces(), o.getSphereEdges(), o.color_per_sphere_edge);
+		if (o.showNormEdges)
+			m.add_edges(o.getCenterOfFaces(), o.getFacesNorm(), o.color_per_norm_edge);
+		if (o.showCylinderDir)
+			m.add_points(o.getCylinderDir(), o.color_per_cylinder_dir);
+		if (o.showCylinderEdges)
+			m.add_edges(o.getCenterOfSphere(), o.getCylinderDir(), o.color_per_cylinder_edge);
 	}
 	return ImGuiMenu::pre_draw();
 }
@@ -1493,7 +1520,16 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		return;
 	for (int i = 0; i < Outputs.size(); i++) 
 	{
-		Outputs[i].initFaceColors(InputModel().F.rows(),center_sphere_color,center_vertex_color, Color_sphere_edges, Color_normal_edge, face_norm_color);
+		Outputs[i].initFaceColors(
+			InputModel().F.rows(),
+			center_sphere_color,
+			center_vertex_color, 
+			Color_sphere_edges, 
+			Color_normal_edge, 
+			Color_cylinder_dir,
+			Color_cylinder_edge,
+			face_norm_color);
+
 		UpdateEnergyColors(i);
 		//Mark the Groups faces
 		for (FacesGroup cluster : Outputs[i].UserInterface_facesGroups)
@@ -1730,16 +1766,27 @@ void deformation_plugin::checkGradients()
 
 void deformation_plugin::update_data_from_minimizer()
 {
-	std::vector<Eigen::MatrixXd> V(Outputs.size()),center(Outputs.size()),norm(Outputs.size());
-	std::vector<Eigen::VectorXd> radius(Outputs.size());
-	for (int i = 0; i < Outputs.size(); i++)
+	const unsigned int out_size = Outputs.size();
+	std::vector<Eigen::MatrixXd> V(out_size), cylinder_dir(out_size), center(out_size), norm(out_size);
+	std::vector<Eigen::VectorXd> radius(out_size);
+	for (int i = 0; i < out_size; i++)
 	{
-		Outputs[i].minimizer->get_data(V[i], center[i],radius[i],norm[i]);
-		if (Outputs[i].UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES)
-			V[i].row(Outputs[i].UserInterface_TranslateIndex) = OutputModel(i).V.row(Outputs[i].UserInterface_TranslateIndex);
-		else if (Outputs[i].UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && Outputs[i].getCenterOfSphere().size())
-			center[i].row(Outputs[i].UserInterface_TranslateIndex) = Outputs[i].getCenterOfSphere().row(Outputs[i].UserInterface_TranslateIndex);
-		Outputs[i].setAuxVariables(V[i], InputModel().F, center[i],radius[i],norm[i]);
+		auto& out = Outputs[i];
+		out.minimizer->get_data(V[i], center[i], radius[i], cylinder_dir[i], norm[i]);
+		
+		if (out.UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES)
+			V[i].row(out.UserInterface_TranslateIndex) = OutputModel(i).V.row(out.UserInterface_TranslateIndex);
+		else if (out.UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && out.getCenterOfSphere().size())
+			center[i].row(out.UserInterface_TranslateIndex) = out.getCenterOfSphere().row(out.UserInterface_TranslateIndex);
+		
+		out.setAuxVariables(
+			V[i], 
+			InputModel().F, 
+			center[i], 
+			radius[i], 
+			cylinder_dir[i], 
+			norm[i]);
+
 		set_vertices_for_mesh(V[i],i);
 	}
 }

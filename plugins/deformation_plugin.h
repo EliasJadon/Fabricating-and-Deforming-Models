@@ -28,6 +28,8 @@ private:
 		center_vertex_color,
 		face_norm_color,
 		Color_sphere_edges,
+		Color_cylinder_dir,
+		Color_cylinder_edge,
 		Color_normal_edge,
 		Neighbors_Highlighted_face_color,
 		Fixed_face_color,

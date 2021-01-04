@@ -14,15 +14,24 @@ public:
 	Minimizer(const int solverID);
 	int run();
 	
-	void run_one_iteration(const int steps,int* lambda_counter , const bool showGraph);
+	void run_one_iteration(
+		const int steps,
+		int* lambda_counter , 
+		const bool showGraph);
 	void stop();
-	void get_data(Eigen::MatrixXd& X, Eigen::MatrixXd& center, Eigen::VectorXd& radius, Eigen::MatrixXd& norm);
+	void get_data(
+		Eigen::MatrixXd& X, 
+		Eigen::MatrixXd& center, 
+		Eigen::VectorXd& radius, 
+		Eigen::MatrixXd& Cylinder_dir,
+		Eigen::MatrixXd& norm);
 	void init(
 		std::shared_ptr<TotalObjective> Tobjective,
 		const Eigen::VectorXd& X0,
 		const Eigen::VectorXd& norm0,
 		const Eigen::VectorXd& center0,
 		const Eigen::VectorXd& Radius0,
+		const Eigen::VectorXd& Cylinder_dir0,
 		const Eigen::MatrixXi& F,
 		const Eigen::MatrixXd& V);
 	
@@ -38,7 +47,7 @@ public:
 	void release_parameter_update_slot();
 
 	// External (interface) and internal working mesh
-	Eigen::VectorXd ext_x, ext_center, ext_radius, ext_norm;
+	Eigen::VectorXd ext_x, ext_center, ext_radius, ext_norm, ext_Cylinder_dir;
 	Eigen::MatrixX3i F;
 	Eigen::MatrixXd V;
 	MinimizerType step_type;

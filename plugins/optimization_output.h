@@ -5,6 +5,7 @@ class OptimizationOutput {
 private:
 	Eigen::MatrixXd center_of_faces;
 	Eigen::MatrixXd center_of_sphere;
+	Eigen::MatrixXd cylinder_dir;
 	Eigen::MatrixXd faces_normals;
 	Eigen::VectorXd radius_of_sphere;
 public:
@@ -27,6 +28,8 @@ public:
 		color_per_face,
 		color_per_vertex,
 		color_per_sphere_center,
+		color_per_cylinder_dir,
+		color_per_cylinder_edge,
 		color_per_vertex_center,
 		color_per_face_norm,
 		color_per_sphere_edge,
@@ -35,7 +38,10 @@ public:
 	bool UserInterface_IsTranslate;
 	int UserInterface_TranslateIndex;
 	ImVec2 screen_position, screen_size, results_window_position, outputs_window_position;
-	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCenters, showFacesNorm;
+	bool showSphereEdges, showNormEdges,
+		showTriangleCenters, showSphereCenters,
+		showCylinderDir, showCylinderEdges,
+		showFacesNorm;
 
 	OptimizationOutput(
 		igl::opengl::glfw::Viewer* viewer,
@@ -47,6 +53,7 @@ public:
 		const Eigen::MatrixXi& F,
 		const Eigen::MatrixXd& center_of_sphere,
 		const Eigen::VectorXd& radius_of_sphere,
+		const Eigen::MatrixXd& cylinder_dir,
 		const Eigen::MatrixXd& norm
 	);
 	double getRadiusOfSphere(int index);
@@ -69,6 +76,7 @@ public:
 	std::vector<int> adjSetOfTriangles(const Eigen::MatrixXi& F, const std::vector<int> selected, std::vector<std::vector<std::vector<int>>> TT);
 	std::vector<int> vectorsIntersection(const std::vector<int>& A, const std::vector<int>& B);
 	Eigen::MatrixXd getCenterOfSphere();
+	Eigen::MatrixXd getCylinderDir();
 	Eigen::MatrixXd getSphereEdges();
 	void initFaceColors(
 		const int numF,
@@ -76,6 +84,8 @@ public:
 		const Eigen::Vector3f center_vertex_color,
 		const Eigen::Vector3f centers_sphere_edge_color,
 		const Eigen::Vector3f centers_norm_edge_color,
+		const Eigen::Vector3f per_cylinder_dir_color,
+		const Eigen::Vector3f per_cylinder_edge_color,
 		const Eigen::Vector3f face_norm_color);
 	void updateFaceColors(const int fi, const Eigen::Vector3f color);
 	void initMinimizers(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const OptimizationUtils::InitSphereAuxiliaryVariables& typeAuxVar);

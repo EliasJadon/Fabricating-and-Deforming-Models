@@ -16,7 +16,8 @@ OptimizationOutput::OptimizationOutput(
 	updateActiveMinimizer(minimizer_type);
 	totalObjective = std::make_shared<TotalObjective>();
 	showFacesNorm = showSphereEdges = showNormEdges =
-		showTriangleCenters = showSphereCenters = false;
+		showTriangleCenters = showSphereCenters =
+		showCylinderDir = showCylinderEdges = false;
 	for (int i = 0; i < 9; i++)
 		UserInterface_facesGroups.push_back(FacesGroup(UserInterface_facesGroups.size()));
 	UserInterface_IsTranslate = false;
@@ -27,12 +28,14 @@ void OptimizationOutput::setAuxVariables(
 	const Eigen::MatrixXi& F,
 	const Eigen::MatrixXd& center_of_sphere,
 	const Eigen::VectorXd& radius_of_sphere,
+	const Eigen::MatrixXd& cylinder_dir, 
 	const Eigen::MatrixXd& norm) 
 {
 	this->center_of_faces = OptimizationUtils::center_per_triangle(V, F);
 	this->center_of_sphere = center_of_sphere;
 	this->radius_of_sphere = radius_of_sphere;
 	this->faces_normals = norm;
+	this->cylinder_dir = cylinder_dir;
 }
 
 double OptimizationOutput::getRadiusOfSphere(int index) 
@@ -447,6 +450,10 @@ Eigen::MatrixXd OptimizationOutput::getCenterOfSphere()
 	return center_of_sphere;
 }
 
+Eigen::MatrixXd OptimizationOutput::getCylinderDir(){
+	return center_of_sphere + cylinder_dir;
+}
+
 Eigen::MatrixXd OptimizationOutput::getSphereEdges() 
 {
 	int numF = center_of_sphere.rows();
@@ -467,17 +474,22 @@ void OptimizationOutput::initFaceColors(
 	const Eigen::Vector3f center_vertex_color,
 	const Eigen::Vector3f centers_sphere_edge_color,
 	const Eigen::Vector3f centers_norm_edge_color,
+	const Eigen::Vector3f per_cylinder_dir_color,
+	const Eigen::Vector3f per_cylinder_edge_color,
 	const Eigen::Vector3f face_norm_color)
 {
 	color_per_face.resize(numF, 3);
 	color_per_sphere_center.resize(numF, 3);
+	color_per_cylinder_dir.resize(numF, 3);
+	color_per_cylinder_edge.resize(numF, 3);
 	color_per_vertex_center.resize(numF, 3);
 	color_per_face_norm.resize(numF, 3);
 	color_per_sphere_edge.resize(numF, 3);
 	color_per_norm_edge.resize(numF, 3);
-
 	for (int fi = 0; fi < numF; fi++) {
 		color_per_sphere_center.row(fi) = center_sphere_color.cast<double>();
+		color_per_cylinder_dir.row(fi) = per_cylinder_dir_color.cast<double>();
+		color_per_cylinder_edge.row(fi) = per_cylinder_edge_color.cast<double>();
 		color_per_vertex_center.row(fi) = center_vertex_color.cast<double>();
 		color_per_face_norm.row(fi) = face_norm_color.cast<double>();
 		color_per_sphere_edge.row(fi) = centers_sphere_edge_color.cast<double>();
@@ -491,6 +503,8 @@ void OptimizationOutput::updateFaceColors(
 {
 	color_per_face.row(fi) = color.cast<double>();
 	color_per_sphere_center.row(fi) = color.cast<double>();
+	color_per_cylinder_dir.row(fi) = color.cast<double>();
+	color_per_cylinder_edge.row(fi) = color.cast<double>();
 	color_per_vertex_center.row(fi) = color.cast<double>();
 	color_per_face_norm.row(fi) = color.cast<double>();
 	color_per_sphere_edge.row(fi) = color.cast<double>();
@@ -506,6 +520,8 @@ void OptimizationOutput::initMinimizers(
 	Eigen::MatrixX3d normals;
 	igl::per_face_normals((Eigen::MatrixX3d)V, (Eigen::MatrixX3i)F, normals);
 	Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size());
+	
+	
 	Eigen::MatrixXd center0;
 	Eigen::VectorXd Radius0;
 	if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE)
@@ -513,7 +529,6 @@ void OptimizationOutput::initMinimizers(
 	else if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::MODEL_CENTER_POINT)
 		OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
 	else if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::MINUS_NORMALS) {
-		//OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
 		this->center_of_faces = OptimizationUtils::center_per_triangle(V, F);
 		Radius0.resize(F.rows());
 		center0.resize(F.rows(), 3);
@@ -523,13 +538,21 @@ void OptimizationOutput::initMinimizers(
 			center0.row(i) = this->center_of_faces.row(i) - Radius0(i) * normals.row(i);
 		}
 	}
-	setAuxVariables(V, F, center0, Radius0, normals);
+
+	Eigen::MatrixX3d Cylinder_dir0(F.rows(), 3);
+	for (int fi = 0; fi < F.rows(); fi++) {
+		Cylinder_dir0.row(fi) = V.row(F(fi, 1)) - V.row(F(fi, 0));
+	}
+
+	setAuxVariables(V, F, center0, Radius0, Cylinder_dir0, normals);
+
 	minimizer->init(
 		totalObjective,
 		initVertices,
 		initNormals,
 		Eigen::Map<Eigen::VectorXd>(center0.data(), F.size()),
 		Radius0,
+		Eigen::Map<Eigen::VectorXd>(Cylinder_dir0.data(), F.size()),
 		F,
 		V
 	);

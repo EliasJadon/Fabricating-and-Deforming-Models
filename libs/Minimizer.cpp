@@ -16,11 +16,15 @@ void Minimizer::init(
 	const Eigen::VectorXd& norm0,
 	const Eigen::VectorXd& center0,
 	const Eigen::VectorXd& Radius0,
+	const Eigen::VectorXd& Cylinder_dir0,
 	const Eigen::MatrixXi& F, 
 	const Eigen::MatrixXd& V) 
 {
-	assert(X0.rows() == (3 * V.rows()) && "X0 should contain the (x,y,z) coordinates for each vertice");
-	assert(norm0.rows() == (3 * F.rows()) && "norm0 should contain the (x,y,z) coordinates for each face");
+	assert(X0.rows()			== (3 * V.rows()) && "X0 size is illegal!");
+	assert(norm0.rows()			== (3 * F.rows()) && "norm0 size is illegal!");
+	assert(center0.rows()		== (3 * F.rows()) && "center0 size is illegal!");
+	assert(Radius0.rows()		== (1 * F.rows()) && "Radius0 size is illegal!");
+	assert(Cylinder_dir0.rows()	== (3 * F.rows()) && "Cylinder_dir0 size is illegal!");
 	
 	this->F = F;
 	this->V = V;
@@ -28,6 +32,7 @@ void Minimizer::init(
 	this->ext_center = center0;
 	this->ext_norm = norm0;
 	this->ext_radius = Radius0;
+	this->ext_Cylinder_dir = Cylinder_dir0;
 	this->constantStep_LineSearch = 0.01;
 	this->totalObjective = Tobjective;
 	
@@ -35,17 +40,19 @@ void Minimizer::init(
 	std::cout << "V.rows() = " << V.rows() << std::endl;
 	Cuda::initCuda();
 
-	unsigned int size = 3 * V.rows() + 7 * F.rows();
+	unsigned int size = 3 * V.rows() + 10 * F.rows();
 	this->cuda_Minimizer = std::make_shared<Cuda_Minimizer>(size);
 	totalObjective->cuda_Minimizer = this->cuda_Minimizer;
 	for (int i = 0; i < 3 * V.rows(); i++)
-		cuda_Minimizer->X.host_arr[i] = X0[i];
+		cuda_Minimizer->X.host_arr[0 * V.rows() + 0 * F.rows() + i] = X0[i];
 	for (int i = 0; i < 3 * F.rows(); i++)
-		cuda_Minimizer->X.host_arr[3 * V.rows() + i] = norm0[i];
+		cuda_Minimizer->X.host_arr[3 * V.rows() + 0 * F.rows() + i] = norm0[i];
 	for (int i = 0; i < 3 * F.rows(); i++)
 		cuda_Minimizer->X.host_arr[3 * V.rows() + 3 * F.rows() + i] = center0[i];
 	for (int i = 0; i < F.rows(); i++)
 		cuda_Minimizer->X.host_arr[3 * V.rows() + 6 * F.rows() + i] = Radius0[i];
+	for (int i = 0; i < 3 * F.rows(); i++)
+		cuda_Minimizer->X.host_arr[3 * V.rows() + 7 * F.rows() + i] = Cylinder_dir0[i];
 	Cuda::MemCpyHostToDevice(cuda_Minimizer->X);
 	Cuda::copyArrays(cuda_Minimizer->curr_x, cuda_Minimizer->X);
 }
@@ -189,6 +196,8 @@ void Minimizer::update_external_data(int steps)
 			ext_center[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 3 * F.rows() + i];
 		for (int i = 0; i < F.rows(); i++)
 			ext_radius[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 6 * F.rows() + i];
+		for (int i = 0; i < 3 * F.rows(); i++)
+			ext_Cylinder_dir[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 7 * F.rows() + i];
 	//}
 	progressed = true;
 }
@@ -197,13 +206,15 @@ void Minimizer::get_data(
 	Eigen::MatrixXd& X, 
 	Eigen::MatrixXd& center, 
 	Eigen::VectorXd& radius, 
+	Eigen::MatrixXd& cylinder_dir,
 	Eigen::MatrixXd& norm)
 {
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
-	X = Eigen::Map<Eigen::MatrixXd>(ext_x.data(), ext_x.rows() / 3, 3);
-	center = Eigen::Map<Eigen::MatrixXd>(ext_center.data(), ext_center.rows() / 3, 3);
-	radius = ext_radius;
-	norm = Eigen::Map<Eigen::MatrixXd>(ext_norm.data(), ext_norm.rows() / 3, 3);
+	X				= Eigen::Map<Eigen::MatrixXd>(ext_x.data(), ext_x.rows() / 3, 3);
+	center			= Eigen::Map<Eigen::MatrixXd>(ext_center.data(), ext_center.rows() / 3, 3);
+	radius			= ext_radius;
+	norm			= Eigen::Map<Eigen::MatrixXd>(ext_norm.data(), ext_norm.rows() / 3, 3);
+	cylinder_dir	= Eigen::Map<Eigen::MatrixXd>(ext_Cylinder_dir.data(), ext_Cylinder_dir.rows() / 3, 3);
 	progressed = false;
 }
 
