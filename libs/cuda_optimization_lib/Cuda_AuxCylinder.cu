@@ -164,7 +164,7 @@ namespace Utils_Cuda_AuxCylinder {
 		double d_center = squared_norm(sub(flatten_C1, flatten_C0));
 		double d_radius = pow(R1 - R0, 2);
 		return w1 * restAreaPerHinge[hi] *
-			Phi(d_cylinder_dir + d_center + d_radius, planarParameter, functionType);
+			Phi(d_cylinder_dir /*+ d_center*/ + d_radius, planarParameter, functionType);
 	}
 	__device__ double Energy2Kernel(
 		const double w2,
@@ -278,34 +278,62 @@ namespace Utils_Cuda_AuxCylinder {
 		int f1 = hinges_faceIndex[hi].f1;
 		if ((f0 >= I.num_faces) || (f1 >= I.num_faces))
 			return;
-		double3 N0 = make_double3(
-			X[f0 + I.startNx],
-			X[f0 + I.startNy],
-			X[f0 + I.startNz]
+		double3 A0 = make_double3(
+			X[f0 + I.startAx],
+			X[f0 + I.startAy],
+			X[f0 + I.startAz]
 		);
-		double3 N1 = make_double3(
-			X[f1 + I.startNx],
-			X[f1 + I.startNy],
-			X[f1 + I.startNz]
+		double3 A1 = make_double3(
+			X[f1 + I.startAx],
+			X[f1 + I.startAy],
+			X[f1 + I.startAz]
 		);
-		double3 diff = sub(N1, N0);
-		double d_normals = squared_norm(diff);
+		double3 C0 = make_double3(
+			X[f0 + I.startCx],
+			X[f0 + I.startCy],
+			X[f0 + I.startCz]
+		);
+		double3 C1 = make_double3(
+			X[f1 + I.startCx],
+			X[f1 + I.startCy],
+			X[f1 + I.startCz]
+		);
+		double3 flatten_C0 = make_double3(
+			C0.x - (A0.x * (C0.z / A0.z)),
+			C0.y - (A0.y * (C0.z / A0.z)),
+			0
+		);
+		double3 flatten_C1 = make_double3(
+			C1.x - (A1.x * (C1.z / A1.z)),
+			C1.y - (A1.y * (C1.z / A1.z)),
+			0
+		);
+		double R0 = X[f0 + I.startR];
+		double R1 = X[f1 + I.startR];
 
-		double coeff = w1 * restAreaPerHinge[hi] * 
-			dPhi_dm(d_normals, planarParameter, functionType);
+		double d_cylinder_dir = squared_norm(sub(A1, A0));
+		double d_center = squared_norm(sub(flatten_C1, flatten_C0));
+		double d_radius = pow(R1 - R0, 2);
+		double coeff = w1 * restAreaPerHinge[hi] *
+			dPhi_dm(d_cylinder_dir /*+ d_center*/ + d_radius, planarParameter, functionType);
 
-		if (thread == 0) //n0.x;
-			atomicAdd(&grad[f0 + I.startNx], coeff * 2 * (N0.x - N1.x), 0);
-		else if (thread == 1) //n1.x
-			atomicAdd(&grad[f1 + I.startNx], coeff * 2 * (N1.x - N0.x), 0);
-		else if (thread == 2) //n0.y
-			atomicAdd(&grad[f0 + I.startNy], coeff * 2 * (N0.y - N1.y), 0);
-		else if (thread == 3) //n1.y
-			atomicAdd(&grad[f1 + I.startNy], coeff * 2 * (N1.y - N0.y), 0);
-		else if (thread == 4) //n0.z
-			atomicAdd(&grad[f0 + I.startNz], coeff * 2 * (N0.z - N1.z), 0);
-		else if (thread == 5) //n1.z
-			atomicAdd(&grad[f1 + I.startNz], coeff * 2 * (N1.z - N0.z), 0);
+		if (thread == 0) //A0.x;
+			atomicAdd(&grad[f0 + I.startAx], coeff * 2 * (A0.x - A1.x), 0);
+		else if (thread == 1) //A1.x
+			atomicAdd(&grad[f1 + I.startAx], coeff * 2 * (A1.x - A0.x), 0);
+		else if (thread == 2) //A0.y
+			atomicAdd(&grad[f0 + I.startAy], coeff * 2 * (A0.y - A1.y), 0);
+		else if (thread == 3) //A1.y
+			atomicAdd(&grad[f1 + I.startAy], coeff * 2 * (A1.y - A0.y), 0);
+		else if (thread == 4) //A0.z
+			atomicAdd(&grad[f0 + I.startAz], coeff * 2 * (A0.z - A1.z), 0);
+		else if (thread == 5) //A1.z
+			atomicAdd(&grad[f1 + I.startAz], coeff * 2 * (A1.z - A0.z), 0);
+		else if (thread == 6) //R0
+			atomicAdd(&grad[f0 + I.startR], coeff * 2 * (R0 - R1), 0);
+		else if (thread == 7) //R1
+			atomicAdd(&grad[f1 + I.startR], coeff * 2 * (R1 - R0), 0);
+
 	}
 	__device__ void gradient2Kernel(
 		double* grad,
