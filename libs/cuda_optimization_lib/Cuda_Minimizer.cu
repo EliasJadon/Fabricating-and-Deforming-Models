@@ -23,7 +23,8 @@ namespace Utils_Cuda_Minimizer {
 		const double* g6, const double w6,
 		const double* g7, const double w7,
 		const double* g8, const double w8,
-		const double* g9, const double w9)
+		const double* g9, const double w9,
+		const double* g10, const double w10)
 	{
 		unsigned int Global_idx = threadIdx.x + blockIdx.x * blockDim.x;
 		if (Global_idx < size) {
@@ -46,6 +47,8 @@ namespace Utils_Cuda_Minimizer {
 				grad_val += w8 * g8[Global_idx];
 			if (w9 != 0)
 				grad_val += w9 * g9[Global_idx];
+			if (w10 != 0)
+				grad_val += w10 * g10[Global_idx];
 
 			total_g[Global_idx] = grad_val;
 		}
@@ -126,7 +129,8 @@ void Cuda_Minimizer::TotalGradient(
 	const double* g6, const double w6,
 	const double* g7, const double w7,
 	const double* g8, const double w8,
-	const double* g9, const double w9)
+	const double* g9, const double w9,
+	const double* g10, const double w10)
 {
 	Utils_Cuda_Minimizer::TotalGradientKernel << <ceil(g.size / (double)1024), 1024 >> > (
 		g.size, g.cuda_arr,
@@ -138,7 +142,8 @@ void Cuda_Minimizer::TotalGradient(
 		g6, w6,
 		g7, w7,
 		g8, w8,
-		g9, w9);
+		g9, w9,
+		g10, w10);
 	Cuda::CheckErr(cudaDeviceSynchronize());
 }
 
