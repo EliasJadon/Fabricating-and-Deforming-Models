@@ -25,6 +25,7 @@
 #include "../../libs/STVK.h"
 #include "../../libs/FixAllVertices.h"
 #include "../../libs/AuxBendingNormal.h"
+#include "../../libs/AuxCylinder.h"
 #include "../../libs/AuxSpherePerHinge.h"
 #include "../../libs/FixChosenConstraints.h"
 

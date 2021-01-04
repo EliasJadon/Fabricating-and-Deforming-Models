@@ -107,7 +107,7 @@ double TotalObjective::value(Cuda::Array<double>& curr_x, const bool update)
 		energy_value = f;
 
 		//update face coloring for STVK
-		std::shared_ptr<STVK> stvk = std::dynamic_pointer_cast<STVK>(objectiveList[2]);
+		std::shared_ptr<STVK> stvk = std::dynamic_pointer_cast<STVK>(objectiveList[3]);
 		Cuda::MemCpyDeviceToHost(stvk->cuda_STVK->Energy);
 		for (int i = 0; i < stvk->cuda_STVK->Energy.size; i++) {
 			stvk->Efi(i) = stvk->cuda_STVK->Energy.host_arr[i];

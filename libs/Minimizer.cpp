@@ -1,6 +1,7 @@
 #include "Minimizer.h"
 #include "AuxBendingNormal.h"
 #include "AuxSpherePerHinge.h"
+#include "AuxCylinder.h"
 
 Minimizer::Minimizer(const int solverID)
 	:
@@ -82,8 +83,10 @@ void Minimizer::update_lambda(int* lambda_counter)
 	{
 		std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
 		std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(totalObjective->objectiveList[1]);
+		std::shared_ptr<AuxCylinder> ACY = std::dynamic_pointer_cast<AuxCylinder>(totalObjective->objectiveList[2]);
 		ASH->cuda_ASH->planarParameter /= 2;
 		ABN->cuda_ABN->planarParameter /= 2;
+		ACY->cuda_ACY->planarParameter /= 2;
 		(*lambda_counter)++;
 	}
 }

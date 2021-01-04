@@ -522,12 +522,15 @@ void deformation_plugin::Draw_energies_window()
 					ImGui::PushID(id++);
 					ImGui::DragFloat("##w", &(obj->w), 0.05f, 0.0f, 100000.0f);
 					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+					auto ACY = std::dynamic_pointer_cast<AuxCylinder>(obj);
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 					if (obj->w) {
 						if (ABN != NULL)
 							ImGui::Combo("Function", (int*)(&(ABN->cuda_ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (AS != NULL)
 							ImGui::Combo("Function", (int*)(&(AS->cuda_ASH->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+						if (ACY != NULL)
+							ImGui::Combo("Function", (int*)(&(ACY->cuda_ACY->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 
 						if (ABN != NULL && ABN->cuda_ABN->functionType == FunctionType::SIGMOID) {
 							ImGui::Text(("2^" + std::to_string(int(log2(ABN->cuda_ABN->planarParameter)))).c_str());
@@ -559,8 +562,25 @@ void deformation_plugin::Draw_energies_window()
 								AS->cuda_ASH->planarParameter /= 2;
 							}
 							const double  f64_zero = 0, f64_max = 100000.0;
-							ImGui::DragScalar("w0", ImGuiDataType_Double, &(AS->cuda_ASH->w1), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->cuda_ASH->w2), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->cuda_ASH->w1), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w2", ImGuiDataType_Double, &(AS->cuda_ASH->w2), 0.05f, &f64_zero, &f64_max);
+						}
+						if (ACY != NULL && ACY->cuda_ACY->functionType == FunctionType::SIGMOID) {
+							ImGui::Text(("2^" + std::to_string(int(log2(ACY->cuda_ACY->planarParameter)))).c_str());
+							ImGui::SameLine();
+							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								ACY->cuda_ACY->planarParameter = (ACY->cuda_ACY->planarParameter * 2) > 1 ? 1 : ACY->cuda_ACY->planarParameter * 2;
+							}
+							ImGui::SameLine();
+							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+							{
+								ACY->cuda_ACY->planarParameter /= 2;
+							}
+							const double  f64_zero = 0, f64_max = 100000.0;
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(ACY->cuda_ACY->w1), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w2", ImGuiDataType_Double, &(ACY->cuda_ACY->w2), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ACY->cuda_ACY->w3), 0.05f, &f64_zero, &f64_max);
 						}
 					}
 					ImGui::TableNextCell();
@@ -1248,12 +1268,15 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+				std::shared_ptr<AuxCylinder> ACY = std::dynamic_pointer_cast<AuxCylinder>(obj);
 				std::shared_ptr<FixChosenConstraints> FCC = std::dynamic_pointer_cast<FixChosenConstraints>(obj);
 				std::shared_ptr<Grouping> grouping = std::dynamic_pointer_cast<Grouping>(obj);
 				if(ABN != NULL)
 					ABN->w = 1.6;
 				if (AS != NULL)
 					AS->w = 0;
+				if (ACY != NULL)
+					ACY->w = 0;
 				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::NORMALS)
 					FCC->w = 0; // 100000;
 				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::SPHERES)
@@ -1282,10 +1305,13 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 				std::shared_ptr<Grouping> grouping = std::dynamic_pointer_cast<Grouping>(obj);
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+				std::shared_ptr<AuxCylinder> ACY = std::dynamic_pointer_cast<AuxCylinder>(obj);
 				if (ABN != NULL)
 					ABN->w = 0;
 				if (AS != NULL)
 					AS->w = 1.6;
+				if (ACY != NULL)
+					ACY->w = 0;
 				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::NORMALS)
 					FCC->w = 0;
 				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::SPHERES)
@@ -1847,6 +1873,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
 	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(V, F, FunctionType::SIGMOID);
+	std::shared_ptr <AuxCylinder> auxCylinder = std::make_unique<AuxCylinder>(V, F, FunctionType::SIGMOID);
 	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(V, F, FunctionType::SIGMOID);
 	std::shared_ptr <STVK> stvk = std::make_unique<STVK>(V, F);
 	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>(V, F);
@@ -1875,6 +1902,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	};
 	add_obj(auxSpherePerHinge);
 	add_obj(auxBendingNormal);
+	add_obj(auxCylinder);
 	add_obj(stvk);
 	add_obj(fixAllVertices);
 	add_obj(fixChosenVertices);

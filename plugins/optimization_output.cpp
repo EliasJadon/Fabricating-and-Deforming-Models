@@ -541,7 +541,7 @@ void OptimizationOutput::initMinimizers(
 
 	Eigen::MatrixX3d Cylinder_dir0(F.rows(), 3);
 	for (int fi = 0; fi < F.rows(); fi++) {
-		Cylinder_dir0.row(fi) = V.row(F(fi, 1)) - V.row(F(fi, 0));
+		Cylinder_dir0.row(fi) = (V.row(F(fi, 1)) - V.row(F(fi, 0))).normalized();
 	}
 
 	setAuxVariables(V, F, center0, Radius0, Cylinder_dir0, normals);

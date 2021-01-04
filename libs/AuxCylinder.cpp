@@ -8,7 +8,7 @@ AuxCylinder::AuxCylinder(
 	const FunctionType type) 
 {
 	init_mesh(V, F);
-	name = "Aux Bending Normal";
+	name = "Aux Cylinder";
 	w = 1;
 	
 	//Initialize rest variables (X0) 
