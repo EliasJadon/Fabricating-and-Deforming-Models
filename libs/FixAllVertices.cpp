@@ -25,7 +25,7 @@ void FixAllVertices::internalInitCuda() {
 	
 	//alocate memory on host & device
 	Cuda::AllocateMemory(cuda_FixAllV->restShapeV, numV);
-	Cuda::AllocateMemory(cuda_FixAllV->grad, (3 * numV) + (7 * numF));
+	Cuda::AllocateMemory(cuda_FixAllV->grad, (3 * numV) + (10 * numF));
 	Cuda::AllocateMemory(cuda_FixAllV->EnergyAtomic, 1);
 	//init host buffers...
 	for (int i = 0; i < cuda_FixAllV->grad.size; i++) {

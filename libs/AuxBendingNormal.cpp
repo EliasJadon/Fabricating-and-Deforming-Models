@@ -45,7 +45,7 @@ void AuxBendingNormal::internalInitCuda() {
 	Cuda::AllocateMemory(cuda_ABN->restShapeF, numF);
 	Cuda::AllocateMemory(cuda_ABN->restAreaPerFace,numF);
 	Cuda::AllocateMemory(cuda_ABN->restAreaPerHinge,numH);
-	Cuda::AllocateMemory(cuda_ABN->grad, (3 * numV) + (7 * numF));
+	Cuda::AllocateMemory(cuda_ABN->grad, (3 * numV) + (10 * numF));
 	Cuda::AllocateMemory(cuda_ABN->EnergyAtomic,1);
 	Cuda::AllocateMemory(cuda_ABN->hinges_faceIndex,numH);
 	Cuda::AllocateMemory(cuda_ABN->x0_GlobInd,numH);

@@ -45,7 +45,7 @@ void AuxSpherePerHinge::internalInitCuda() {
 	Cuda::AllocateMemory(cuda_ASH->restShapeF, numF);
 	Cuda::AllocateMemory(cuda_ASH->restAreaPerFace, numF);
 	Cuda::AllocateMemory(cuda_ASH->restAreaPerHinge, numH);
-	Cuda::AllocateMemory(cuda_ASH->grad, (3 * numV) + (7 * numF));
+	Cuda::AllocateMemory(cuda_ASH->grad, (3 * numV) + (10 * numF));
 	Cuda::AllocateMemory(cuda_ASH->EnergyAtomic, 1);
 	Cuda::AllocateMemory(cuda_ASH->hinges_faceIndex, numH);
 	Cuda::AllocateMemory(cuda_ASH->x0_GlobInd, numH);

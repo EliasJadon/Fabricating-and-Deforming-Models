@@ -196,7 +196,7 @@ Cuda_Grouping::Cuda_Grouping(
 	num_clusters = 0;
 	max_face_per_cluster = 0;
 	Cuda::initIndices(mesh_indices, numF, numV, 0);
-	Cuda::AllocateMemory(grad, (3 * numV) + (7 * numF));
+	Cuda::AllocateMemory(grad, (3 * numV) + (10 * numF));
 	Cuda::AllocateMemory(EnergyAtomic, 1);
 	Cuda::AllocateMemory(Group_Ind, 0);
 	//Choose the kind of constraints

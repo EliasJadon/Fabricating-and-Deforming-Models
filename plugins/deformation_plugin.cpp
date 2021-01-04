@@ -1757,7 +1757,7 @@ void deformation_plugin::checkGradients()
 			isMinimizerRunning = false;
 			return;
 		}
-		Eigen::VectorXd testX = Eigen::VectorXd::Random(InputModel().V.size() + 7*InputModel().F.rows());
+		Eigen::VectorXd testX = Eigen::VectorXd::Random(o.totalObjective->objectiveList[0]->getGradient()->size);
 		o.totalObjective->checkGradient(testX);
 		for (auto const &objective : o.totalObjective->objectiveList)
 			objective->checkGradient(testX);
