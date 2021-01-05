@@ -100,6 +100,48 @@ namespace app_utils
 		translation = pos1 - pos0;
 		return translation;
 	}
+
+	static int calculateHinges(std::vector<Eigen::Vector2d>& hinges_faceIndex, const Eigen::MatrixX3i& F) {
+		std::vector<std::vector<std::vector<int>>> TT;
+		igl::triangle_triangle_adjacency(F, TT);
+		assert(TT.size() == F.rows());
+		hinges_faceIndex.clear();
+
+		///////////////////////////////////////////////////////////
+		//Part 1 - Find unique hinges
+		for (int fi = 0; fi < TT.size(); fi++) {
+			std::vector< std::vector<int>> CurrFace = TT[fi];
+			assert(CurrFace.size() == 3 && "Each face should be a triangle (not square for example)!");
+			for (std::vector<int> hinge : CurrFace) {
+				if (hinge.size() == 1) {
+					//add this "hinge"
+					int FaceIndex1 = fi;
+					int FaceIndex2 = hinge[0];
+
+					if (FaceIndex2 < FaceIndex1) {
+						//Skip
+						//This hinge already exists!
+						//Empty on purpose
+					}
+					else {
+						hinges_faceIndex.push_back(Eigen::Vector2d(FaceIndex1, FaceIndex2));
+					}
+				}
+				else if (hinge.size() == 0) {
+					//Skip
+					//This triangle has no another adjacent triangle on that edge
+					//Empty on purpose
+				}
+				else {
+					//We shouldn't get here!
+					//The mesh is invalid
+					assert("Each triangle should have only one adjacent triangle on each edge!");
+				}
+
+			}
+		}
+		return hinges_faceIndex.size(); // num_hinges
+	}
 	
 	static std::string ExtractModelName(const std::string& str)
 	{

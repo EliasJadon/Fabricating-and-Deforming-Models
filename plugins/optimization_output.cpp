@@ -539,10 +539,16 @@ void OptimizationOutput::initMinimizers(
 		}
 	}
 
+	std::vector<Eigen::Vector2d> hinges_faceIndex;
+	const int num_hinges = app_utils::calculateHinges(hinges_faceIndex, F);
 	Eigen::MatrixX3d Cylinder_dir0(F.rows(), 3);
-	for (int fi = 0; fi < F.rows(); fi++) {
-		Cylinder_dir0.row(fi) = (V.row(F(fi, 1)) - V.row(F(fi, 0))).normalized();
+	for (int hi = 0; hi < num_hinges; hi++) {
+		int f0 = hinges_faceIndex[hi](0);
+		int f1 = hinges_faceIndex[hi](1);
+		Cylinder_dir0.row(f0) = (center0.row(f1) - center0.row(f0)).normalized();
+		Cylinder_dir0.row(f1) = (center0.row(f1) - center0.row(f0)).normalized();
 	}
+	
 
 	setAuxVariables(V, F, center0, Radius0, Cylinder_dir0, normals);
 
