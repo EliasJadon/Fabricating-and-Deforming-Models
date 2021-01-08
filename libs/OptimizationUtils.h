@@ -10,7 +10,8 @@
 #include <Eigen/sparse>
 #include <igl/vertex_triangle_adjacency.h>
 #include <chrono>
-
+#include <igl/triangle_triangle_adjacency.h>
+#include <set>
 
 namespace OptimizationUtils
 {
@@ -252,7 +253,53 @@ namespace OptimizationUtils
 		}
 	}
 
+	static std::vector<std::set<int>> Triangle_triangle_adjacency(const Eigen::MatrixX3i& F) {
+		std::vector<std::vector<std::vector<int>>> TT;
+		igl::triangle_triangle_adjacency(F, TT);
+		assert(TT.size() == F.rows());
+		std::vector<std::set<int>> neigh; neigh.clear();
+
+		for (int fi = 0; fi < TT.size(); fi++) {
+			assert(TT[fi].size() == 3 && "Each face should be a triangle (not square for example)!");
+			std::set<int> neigh_faces; neigh_faces.clear();
+			neigh_faces.insert(fi);
+			for (std::vector<int> hinge : TT[fi])
+				for (int Face_neighbor : hinge)
+					neigh_faces.insert(Face_neighbor);
+			neigh.push_back(neigh_faces);
+		}
+		return neigh;
+	}
+
+	static std::set<int> Get_Vertices_Neighbors_With_distance(
+		const int fi,
+		const int distance,
+		const std::vector<std::set<int>>& TT,
+		const std::vector<std::vector<int>>& TV)
+	{
+		std::set<int> faces;
+		if (distance < 1) {
+			std::cout << "Error! Distance should be 1 or Greater!";
+			exit(1);
+		}
+		else {
+			faces = { fi };
+			for (int i = 1; i < distance; i++) {
+				std::set<int> currfaces = faces;
+				for (int neighF : currfaces)
+					faces.insert(TT[neighF].begin(), TT[neighF].end());
+			}
+		}
+
+		std::set<int> neigh; neigh.clear();
+		for (int currF : faces)
+			for (int n : TV[currF])
+				neigh.insert(n);
+		return neigh;
+	}
+
 	static void Least_Squares_Sphere_Fit(
+		const int Distance,
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixXi& F,
 		Eigen::MatrixXd& center0,
@@ -262,9 +309,14 @@ namespace OptimizationUtils
 		//https://jekel.me/2015/Least-Squares-Sphere-Fit/
 		center0.resize(F.rows(), 3);
 		radius0.resize(F.rows(), 1);
-		std::vector<std::vector<int>> adjacency = get_adjacency_vertices_per_face(V, F);
+		std::vector<std::vector<int>> TV = get_adjacency_vertices_per_face(V, F);
+		std::vector<std::set<int>> TT = Triangle_triangle_adjacency(F);
+		
 		for (int fi = 0; fi < F.rows(); fi++) {
-			std::vector<int> f_adj = adjacency[fi];
+			std::vector<int> f_adj; f_adj.clear();
+			for (int v : Get_Vertices_Neighbors_With_distance(fi, Distance, TT, TV))
+				f_adj.push_back(v);
+
 			int n = f_adj.size();
 			Eigen::MatrixXd A(n, 4);
 			Eigen::VectorXd c(4), f(n);
@@ -288,6 +340,14 @@ namespace OptimizationUtils
 			center0.row(fi) << c(0), c(1), c(2);
 			radius0(fi) = sqrt(c(3) + pow(c(0), 2) + pow(c(1), 2) + pow(c(2), 2));
 		}
+	}
+
+
+	static std::vector<std::vector<int>> Get_adjacency_vertices_per_face(
+		const Eigen::MatrixXd& V,
+		const Eigen::MatrixXi& F)
+	{
+		return get_adjacency_vertices_per_face(V, F);
 	}
 
 	

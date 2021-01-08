@@ -308,7 +308,10 @@ void deformation_plugin::CollapsingHeader_minimizer()
 			change_minimizer_type(minimizer_type);
 		if (ImGui::Combo("init sphere var", (int *)(&typeSphereAuxVar), "Sphere Fit\0Mesh Center\0Minus Normal\0\0"))
 			init_minimizer_thread();
-		
+		if (typeSphereAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE &&
+			ImGui::DragInt("", &(least_square_sphere_distance), 1, 1, 20))
+			init_minimizer_thread();
+
 		if (ImGui::Combo("line search", (int *)(&linesearch_type), "Gradient Norm\0Function Value\0Constant Step\0\0")) {
 			for (auto& o : Outputs)
 				o.minimizer->lineSearch_type = linesearch_type;
@@ -1834,7 +1837,11 @@ void deformation_plugin::init_minimizer_thread()
 {
 	stop_minimizer_thread();
 	for (int i = 0; i < Outputs.size(); i++)
-		Outputs[i].initMinimizers(OutputModel(i).V, OutputModel(i).F, typeSphereAuxVar);
+		Outputs[i].initMinimizers(
+			OutputModel(i).V, 
+			OutputModel(i).F, 
+			typeSphereAuxVar,
+			least_square_sphere_distance);
 }
 
 void deformation_plugin::run_one_minimizer_iter() 

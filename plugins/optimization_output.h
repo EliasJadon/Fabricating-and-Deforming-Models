@@ -88,6 +88,10 @@ public:
 		const Eigen::Vector3f per_cylinder_edge_color,
 		const Eigen::Vector3f face_norm_color);
 	void updateFaceColors(const int fi, const Eigen::Vector3f color);
-	void initMinimizers(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F, const OptimizationUtils::InitSphereAuxiliaryVariables& typeAuxVar);
+	void initMinimizers(
+		const Eigen::MatrixXd& V,
+		const Eigen::MatrixXi& F,
+		const OptimizationUtils::InitSphereAuxiliaryVariables& typeAuxVar,
+		const int distance);
 	void updateActiveMinimizer(const MinimizerType minimizer_type);
 };

@@ -514,7 +514,8 @@ void OptimizationOutput::updateFaceColors(
 void OptimizationOutput::initMinimizers(
 	const Eigen::MatrixXd& V, 
 	const Eigen::MatrixXi& F, 
-	const OptimizationUtils::InitSphereAuxiliaryVariables& typeAuxVar) 
+	const OptimizationUtils::InitSphereAuxiliaryVariables& typeAuxVar,
+	const int distance)
 {
 	Eigen::VectorXd initVertices = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
 	Eigen::MatrixX3d normals;
@@ -525,7 +526,7 @@ void OptimizationOutput::initMinimizers(
 	Eigen::MatrixXd center0;
 	Eigen::VectorXd Radius0;
 	if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE)
-		OptimizationUtils::Least_Squares_Sphere_Fit(V, F, center0, Radius0);
+		OptimizationUtils::Least_Squares_Sphere_Fit(distance, V, F, center0, Radius0);
 	else if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::MODEL_CENTER_POINT)
 		OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
 	else if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::MINUS_NORMALS) {

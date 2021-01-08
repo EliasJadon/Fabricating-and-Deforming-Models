@@ -18,6 +18,7 @@ private:
 	bool isUpdateAll;
 	bool isMinimizerRunning, IsMouseDraggingAnyWindow;
 	int faceColoring_type;
+	int least_square_sphere_distance = 1;
 	MinimizerType minimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
 	float constantStep_LineSearch;
