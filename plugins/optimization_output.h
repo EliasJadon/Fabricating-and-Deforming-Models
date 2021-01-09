@@ -92,6 +92,8 @@ public:
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixXi& F,
 		const OptimizationUtils::InitSphereAuxiliaryVariables& typeAuxVar,
-		const int distance);
+		const int distance,
+		const int imax,
+		const int jmax);
 	void updateActiveMinimizer(const MinimizerType minimizer_type);
 };

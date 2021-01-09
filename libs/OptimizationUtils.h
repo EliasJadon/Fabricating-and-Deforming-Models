@@ -453,8 +453,12 @@ namespace OptimizationUtils
 		const Eigen::MatrixX3d& points, 
 		double& rSqr, 
 		Eigen::Vector3d& C,
-		Eigen::Vector3d& W)
+		Eigen::Vector3d& W,
+		const int imax,
+		const int jmax)
 	{
+		//For more info:
+		// https://www.geometrictools.com/Documentation/LeastSquaresFitting.pdf
 		Eigen::MatrixX3d X(n,3);
 		Eigen::VectorXd mu(6);
 		Eigen::Vector3d average;
@@ -465,7 +469,6 @@ namespace OptimizationUtils
 		Preprocess(n, points, X, average, mu, F0, F1, F2);
 		// Choose imax and jmax as desired for the level of granularity you
 		// want for sampling W vectors on the hemisphere.
-		int imax = 100, jmax = 100;
 		double minError = std::numeric_limits<double>::infinity();
 		W = Eigen::Vector3d::Zero();
 		C = Eigen::Vector3d::Zero();
@@ -498,6 +501,8 @@ namespace OptimizationUtils
 		return minError;
 	}
 	static void Least_Squares_Cylinder_Fit(
+		const int imax,
+		const int jmax,
 		const int Distance,
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixXi& F,
@@ -527,7 +532,7 @@ namespace OptimizationUtils
 			double rSqr;
 			Eigen::Vector3d C;
 			Eigen::Vector3d W;
-			FitCylinder(n, points, rSqr, C, W);
+			FitCylinder(n, points, rSqr, C, W, imax, jmax);
 			dir0.row(fi) = (W.normalized()).transpose();
 			center0.row(fi) = C.transpose();
 			radius0(fi) = sqrt(rSqr);

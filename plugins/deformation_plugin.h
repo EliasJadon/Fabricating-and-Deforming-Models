@@ -8,6 +8,8 @@
 class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
+	int CylinderInit_imax = 9, CylinderInit_jmax = 9;
+	int InitMinimizer_NeighLevel = 3;
 	bool CollapsingHeader_curr[7], CollapsingHeader_prev[7], CollapsingHeader_change;
 	bool tips_window, outputs_window, results_window, energies_window;
 	OptimizationUtils::InitSphereAuxiliaryVariables typeSphereAuxVar;
@@ -18,7 +20,7 @@ private:
 	bool isUpdateAll;
 	bool isMinimizerRunning, IsMouseDraggingAnyWindow;
 	int faceColoring_type;
-	int least_square_sphere_distance = 1;
+	
 	MinimizerType minimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
 	float constantStep_LineSearch;

@@ -515,7 +515,9 @@ void OptimizationOutput::initMinimizers(
 	const Eigen::MatrixXd& V, 
 	const Eigen::MatrixXi& F, 
 	const OptimizationUtils::InitSphereAuxiliaryVariables& typeAuxVar,
-	const int distance)
+	const int distance,
+	const int imax,
+	const int jmax)
 {
 	Eigen::VectorXd initVertices = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
 	Eigen::MatrixX3d normals;
@@ -542,6 +544,7 @@ void OptimizationOutput::initMinimizers(
 
 
 	OptimizationUtils::Least_Squares_Cylinder_Fit(
+		imax,jmax,
 		distance,
 		V,
 		F,
