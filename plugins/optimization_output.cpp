@@ -525,7 +525,8 @@ void OptimizationOutput::initMinimizers(
 	Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size());
 	
 	
-	Eigen::MatrixXd center0, Cylinder_dir0;
+	Eigen::MatrixXd center0, Cylinder_dir0(F.rows(),3);
+	Cylinder_dir0.setConstant(1);
 	Eigen::VectorXd Radius0;
 	if (typeAuxVar == OptimizationUtils::InitAuxVariables::SPHERE_FIT)
 		OptimizationUtils::Least_Squares_Sphere_Fit(distance, V, F, center0, Radius0);
@@ -541,17 +542,16 @@ void OptimizationOutput::initMinimizers(
 			center0.row(i) = this->center_of_faces.row(i) - Radius0(i) * normals.row(i);
 		}
 	}
-
-
-	OptimizationUtils::Least_Squares_Cylinder_Fit(
-		imax,jmax,
-		distance,
-		V,
-		F,
-		center0,
-		Cylinder_dir0,
-		Radius0);
-	
+	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::CYLINDER_FIT) {
+		OptimizationUtils::Least_Squares_Cylinder_Fit(
+			imax, jmax,
+			distance,
+			V,
+			F,
+			center0,
+			Cylinder_dir0,
+			Radius0);
+	}
 
 	setAuxVariables(V, F, center0, Radius0, Cylinder_dir0, normals);
 
