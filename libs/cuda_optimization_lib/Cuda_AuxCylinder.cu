@@ -151,7 +151,7 @@ namespace Utils_Cuda_AuxCylinder {
 		double R1 = curr_x[f1 + I.startR];
 
 		double d_cylinder_dir = pow(pow(dot(A1, A0), 2) - 1, 2);
-		double d_center0 = pow(pow(dot(sub(C1, C0), A0), 2) - 1, 2);
+		double d_center0 = pow(pow(dot(normalize(sub(C1, C0)), A0), 2) - 1, 2);
 		double d_center1 = pow(pow(dot(sub(C1, C0), A1), 2) - 1, 2);
 		double d_radius = pow(R1 - R0, 2);
 		return w1 * restAreaPerHinge[hi] *
@@ -318,22 +318,26 @@ namespace Utils_Cuda_AuxCylinder {
 		double R1 = X[f1 + I.startR];
 
 		double d_cylinder_dir = pow(pow(dot(A1, A0), 2) - 1, 2);
-		double d_center0 = pow(pow(dot(sub(C1, C0), A0), 2) - 1, 2);
+		double d_center0 = pow(pow(dot(normalize(sub(C1, C0)), A0), 2) - 1, 2);
 		double d_center1 = pow(pow(dot(sub(C1, C0), A1), 2) - 1, 2);
 		double d_radius = pow(R1 - R0, 2);
 		double coeff = w1 * restAreaPerHinge[hi] *
 			dPhi_dm(d_cylinder_dir + d_center0 + d_center1 + d_radius, planarParameter, functionType);
 		
 		double cylinder_coeff = 4 * coeff * (pow(dot(A1, A0), 2) - 1) * dot(A1, A0);
-		double center0_coeff = 4 * coeff * (pow(dot(sub(C1, C0), A0), 2) - 1) * (dot(sub(C1, C0), A0));
+		double center0_coeff = 4 * coeff * (pow(dot(normalize(sub(C1, C0)), A0), 2) - 1) * (dot(normalize(sub(C1, C0)), A0));
 		double center1_coeff = 4 * coeff * (pow(dot(sub(C1, C0), A1), 2) - 1) * (dot(sub(C1, C0), A1));
 
-		
+		double3 diffC = sub(C1, C0);
+		double norm1 = norm(diffC);
+		double norm2 = norm1 * norm1;
+		double norm3 = norm2 * norm1;
+		double3 C1C0 = normalize(diffC);
 
 		if (thread == 0) //A0.x;
 			atomicAdd(&grad[f0 + I.startAx],
 				cylinder_coeff * A1.x +
-				center0_coeff * (C1.x - C0.x),
+				center0_coeff * C1C0.x,
 				0);
 		else if (thread == 1) //A1.x
 			atomicAdd(&grad[f1 + I.startAx],
@@ -343,7 +347,7 @@ namespace Utils_Cuda_AuxCylinder {
 		else if (thread == 2) //A0.y
 			atomicAdd(&grad[f0 + I.startAy],
 				cylinder_coeff * A1.y +
-				center0_coeff * (C1.y - C0.y),
+				center0_coeff * C1C0.y,
 				0);
 		else if (thread == 3) //A1.y
 			atomicAdd(&grad[f1 + I.startAy],
@@ -353,7 +357,7 @@ namespace Utils_Cuda_AuxCylinder {
 		else if (thread == 4) //A0.z
 			atomicAdd(&grad[f0 + I.startAz],
 				cylinder_coeff * A1.z +
-				center0_coeff * (C1.z - C0.z),
+				center0_coeff * C1C0.z,
 				0);
 		else if (thread == 5) //A1.z
 			atomicAdd(&grad[f1 + I.startAz],
@@ -366,34 +370,64 @@ namespace Utils_Cuda_AuxCylinder {
 			atomicAdd(&grad[f1 + I.startR], coeff * 2 * (R1 - R0), 0);
 
 		else if (thread == 8) //C0.x
-			atomicAdd(&grad[f0 + I.startCx], 
-				-center0_coeff * A0.x +
-				-center1_coeff * A1.x,
+			atomicAdd(&grad[f0 + I.startCx],
+				-(center1_coeff * A1.x)
+				+ center0_coeff *
+				(
+					-(A0.x / norm1) + ((diffC.x * diffC.x * A0.x) / norm3)
+					+ ((diffC.x * diffC.y * A0.y) / norm3)
+					+ ((diffC.x * diffC.z * A0.z) / norm3)
+					),
 				0);
 		else if (thread == 9) //C1.x
-			atomicAdd(&grad[f1 + I.startCx], 
-				center0_coeff * A0.x + 
-				center1_coeff * A1.x,
+			atomicAdd(&grad[f1 + I.startCx],  
+				center1_coeff * A1.x
+				- center0_coeff *
+				(
+					-(A0.x / norm1) + ((diffC.x * diffC.x * A0.x) / norm3)
+					+ ((diffC.x * diffC.y * A0.y) / norm3)
+					+ ((diffC.x * diffC.z * A0.z) / norm3)
+					),
 				0);
 		else if (thread == 10) //C0.y
-			atomicAdd(&grad[f0 + I.startCy], 
-				-center0_coeff * A0.y 
-				-center1_coeff * A1.y, 
+			atomicAdd(&grad[f0 + I.startCy],  
+				-center1_coeff * A1.y
+				+ center0_coeff *
+				(
+					-(A0.y / norm1) + ((diffC.y * diffC.y * A0.y) / norm3)
+					+ ((diffC.y * diffC.x * A0.x) / norm3)
+					+ ((diffC.y * diffC.z * A0.z) / norm3)
+					),
 				0);
 		else if (thread == 11) //C1.y
 			atomicAdd(&grad[f1 + I.startCy], 
-				center0_coeff * A0.y +
-				center1_coeff * A1.y, 
+				center1_coeff * A1.y
+				- center0_coeff *
+				(
+					-(A0.y / norm1) + ((diffC.y * diffC.y * A0.y) / norm3)
+					+ ((diffC.y * diffC.x * A0.x) / norm3)
+					+ ((diffC.y * diffC.z * A0.z) / norm3)
+					),
 				0);
 		else if (thread == 12) //C0.z
 			atomicAdd(&grad[f0 + I.startCz], 
-				-center0_coeff * A0.z
-				-center1_coeff * A1.z, 
+				-center1_coeff * A1.z
+				+ center0_coeff *
+				(
+					-(A0.z / norm1) + ((diffC.z * diffC.z * A0.z) / norm3)
+					+ ((diffC.z * diffC.x * A0.x) / norm3)
+					+ ((diffC.z * diffC.y * A0.y) / norm3)
+					),
 				0);
 		else if (thread == 13) //C1.z
 			atomicAdd(&grad[f1 + I.startCz], 
-				center0_coeff * A0.z +
-				center1_coeff * A1.z, 
+				center1_coeff * A1.z
+				- center0_coeff *
+				(
+					-(A0.z / norm1) + ((diffC.z * diffC.z * A0.z) / norm3)
+					+ ((diffC.z * diffC.x * A0.x) / norm3)
+					+ ((diffC.z * diffC.y * A0.y) / norm3)
+					),
 				0);
 	}
 	__device__ void gradient2Kernel(
