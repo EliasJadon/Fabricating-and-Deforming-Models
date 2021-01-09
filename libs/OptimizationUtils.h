@@ -12,6 +12,7 @@
 #include <chrono>
 #include <igl/triangle_triangle_adjacency.h>
 #include <set>
+#include <igl/PI.h>
 
 namespace OptimizationUtils
 {
@@ -339,6 +340,200 @@ namespace OptimizationUtils
 			//after we got the solution c we pick from c: radius & center=(X,Y,Z)
 			center0.row(fi) << c(0), c(1), c(2);
 			radius0(fi) = sqrt(c(3) + pow(c(0), 2) + pow(c(1), 2) + pow(c(2), 2));
+		}
+	}
+
+	static void Preprocess(
+		const int n, 
+		const Eigen::MatrixX3d& points,
+		Eigen::MatrixX3d& X,
+		Eigen::Vector3d& average, 
+		Eigen::VectorXd& mu,
+		Eigen::Matrix<double, 3, 3>& F0,
+		Eigen::Matrix<double, 3, 6>& F1,
+		Eigen::Matrix<double, 6, 6>& F2)
+	{
+		average << 0, 0, 0;
+		for(int i = 0; i < n; ++i)
+		{
+			average += points.row(i).transpose();
+		}
+		average /= n;
+		for(int i = 0; i < n; ++i)
+		{
+			X.row(i) = points.row(i) - average.transpose();
+		}
+		Eigen::MatrixXd products(n, 6);
+		products.setZero();
+		mu.resize(6);
+		mu.setZero();
+		for(int i = 0; i < n; ++i)
+		{
+			products(i, 0) = X(i, 0) * X(i, 0);
+			products(i, 1) = X(i, 0) * X(i, 1);
+			products(i, 2) = X(i, 0) * X(i, 2);
+			products(i, 3) = X(i, 1) * X(i, 1);
+			products(i, 4) = X(i, 1) * X(i, 2);
+			products(i, 5) = X(i, 2) * X(i, 2);
+			mu[0] += products(i, 0);
+			mu[1] += 2 * products(i, 1);
+			mu[2] += 2 * products(i, 2);
+			mu[3] += products(i, 3);
+			mu[4] += 2 * products(i, 4);
+			mu[5] += products(i, 5);
+		}
+		mu /= n;
+		F0.setZero();
+		F1.setZero();
+		F2.setZero();
+		for(int i = 0; i < n; ++i)
+		{
+			Eigen::RowVectorXd delta(6);
+			delta[0] = products(i, 0)		- mu[0];
+			delta[1] = 2 * products(i, 1)	- mu[1];
+			delta[2] = 2 * products(i, 2)	- mu[2];
+			delta[3] = products(i, 3)		- mu[3];
+			delta[4] = 2 * products(i, 4)	- mu[4];
+			delta[5] = products(i, 5)		- mu[5];
+			F0(0, 0) += products(i, 0);
+			F0(0, 1) += products(i, 1);
+			F0(0, 2) += products(i, 2);
+			F0(1, 1) += products(i, 3);
+			F0(1, 2) += products(i, 4);
+			F0(2, 2) += products(i, 5);
+			F1 += X.row(i).transpose() * delta;
+			F2 += delta.transpose() * delta;
+		}
+		F0 /= n;
+		F0(1, 0) = F0(0, 1);
+		F0(2, 0) = F0(0, 2);
+		F0(2, 1) = F0(1, 2);
+		F1 /= n;
+		F2 /= n;
+	}
+
+
+	static double G(
+		const int n,
+		const Eigen::MatrixX3d& X,
+		const Eigen::VectorXd& mu,
+		const Eigen::Matrix<double, 3, 3>& F0,
+		const Eigen::Matrix<double, 3, 6>& F1,
+		const Eigen::Matrix<double, 6, 6>& F2,
+		const Eigen::Vector3d& W,
+		Eigen::Vector3d& PC,
+		double& rSqr)
+	{
+		Eigen::Matrix<double, 3, 3> P, S, A, hatA, hatAA, Q;
+		// P = I - W * WˆT
+		P = Eigen::Matrix<double, 3, 3>::Identity() - W * W.transpose();
+		S <<
+			0		, -W[2]	, W[1]	,
+			W[2]	, 0		, -W[0]	,
+			-W[1]	, W[0]	, 0;
+		A = P * F0 * P;
+		hatA = - (S * A * S);
+		hatAA = hatA * A;
+		Q = hatA / hatAA.trace();
+		Eigen::VectorXd p(6);
+		p << P(0, 0), P(0, 1), P(0, 2), P(1, 1), P(1, 2), P(2, 2);
+		Eigen::Vector3d alpha = F1 * p;
+		Eigen::Vector3d beta = Q * alpha;
+		double error = (p.dot(F2 * p) - 4 * alpha.dot(beta) + 4 * beta.dot(F0 * beta)) / n;
+		PC = beta;
+		rSqr = p.dot(mu) + beta.dot(beta);
+		return error;
+	}
+
+	// The X[] are the points to be fit. The outputs rSqr , C, and W are the
+	// cylinder parameters. The function return value is the error function
+	// evaluated at the cylinder parameters.
+	static double FitCylinder(
+		const int n, 
+		const Eigen::MatrixX3d& points, 
+		double& rSqr, 
+		Eigen::Vector3d& C,
+		Eigen::Vector3d& W)
+	{
+		Eigen::MatrixX3d X(n,3);
+		Eigen::VectorXd mu(6);
+		Eigen::Vector3d average;
+		Eigen::Matrix<double, 3, 3> F0;
+		Eigen::Matrix<double, 3, 6> F1;
+		Eigen::Matrix<double, 6, 6> F2;
+
+		Preprocess(n, points, X, average, mu, F0, F1, F2);
+		// Choose imax and jmax as desired for the level of granularity you
+		// want for sampling W vectors on the hemisphere.
+		int imax = 100, jmax = 100;
+		double minError = std::numeric_limits<double>::infinity();
+		W = Eigen::Vector3d::Zero();
+		C = Eigen::Vector3d::Zero();
+		rSqr = 0;
+		for(int j = 0; j <= jmax; ++j)
+		{
+			double PI = 3.14159265358979323846;
+			double phi = (0.5 * PI * j) / jmax; // in [0, pi/2]
+			double csphi = cos(phi), snphi = sin(phi);
+			for(int i = 0; i < imax; ++i)
+			{
+				double theta = (2.0f * PI * i) / imax; // in [0, 2*pi)
+				double cstheta = cos(theta);
+				double sntheta = sin(theta);
+				Eigen::Vector3d currentW(cstheta * snphi, sntheta * snphi, csphi);
+				Eigen::Vector3d currentC;
+				double currentRSqr;
+				double error = G(n, X, mu, F0, F1, F2, currentW, currentC, currentRSqr);
+				if(error < minError)
+				{
+					minError = error;
+					W = currentW;
+					C = currentC;
+					rSqr = currentRSqr;
+				}
+			}
+		}
+		// Translate the center to the original coordinate system.
+		C += average;
+		return minError;
+	}
+	static void Least_Squares_Cylinder_Fit(
+		const int Distance,
+		const Eigen::MatrixXd& V,
+		const Eigen::MatrixXi& F,
+		Eigen::MatrixXd& center0,
+		Eigen::MatrixXd& dir0,
+		Eigen::VectorXd& radius0)
+	{
+		center0.resize(F.rows(), 3);
+		dir0.resize(F.rows(), 3);
+		radius0.resize(F.rows(), 1);
+		std::vector<std::vector<int>> TV = get_adjacency_vertices_per_face(V, F);
+		std::vector<std::set<int>> TT = Triangle_triangle_adjacency(F);
+		
+		for (int fi = 0; fi < F.rows(); fi++) {
+			std::vector<int> vertics_indices; vertics_indices.clear();
+			for (int v : Get_Vertices_Neighbors_With_distance(fi, Distance, TT, TV))
+				vertics_indices.push_back(v);
+			
+			const int n = vertics_indices.size();
+			Eigen::MatrixX3d points(n, 3);
+			for (int ni = 0; ni < n; ni++) {
+				points.row(ni) <<
+					V(vertics_indices[ni], 0),	//xi
+					V(vertics_indices[ni], 1),	//yi
+					V(vertics_indices[ni], 2);	//zi
+			}
+			double rSqr;
+			Eigen::Vector3d C;
+			Eigen::Vector3d W;
+			FitCylinder(n, points, rSqr, C, W);
+			dir0.row(fi) = (W.normalized()).transpose();
+			center0.row(fi) = C.transpose();
+			radius0(fi) = sqrt(rSqr);
+			//std::cout << "center0 = " << center0.row(fi) << std::endl;
+			//std::cout << "radius0 = " << radius0(fi) << std::endl;
+			//std::cout << "dir0 = " << dir0.row(fi) << std::endl;
 		}
 	}
 
