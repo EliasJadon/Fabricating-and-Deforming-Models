@@ -16,10 +16,11 @@
 
 namespace OptimizationUtils
 {
-	enum InitSphereAuxiliaryVariables {
-		LEAST_SQUARE_SPHERE = 0,
+	enum InitAuxVariables {
+		SPHERE_FIT = 0,
 		MODEL_CENTER_POINT,
-		MINUS_NORMALS
+		MINUS_NORMALS,
+		CYLINDER_FIT
 	};
 
 	enum LineSearch {

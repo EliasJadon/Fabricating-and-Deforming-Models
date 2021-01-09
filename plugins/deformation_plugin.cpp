@@ -21,7 +21,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	UserInterface_UpdateAllOutputs = false;
 	CollapsingHeader_change = false;
 	neighbor_distance = brush_radius = 0.3;
-	typeSphereAuxVar = OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE;
+	initAuxVariables = OptimizationUtils::InitAuxVariables::CYLINDER_FIT;
 	isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
@@ -306,15 +306,18 @@ void deformation_plugin::CollapsingHeader_minimizer()
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0"))
 			change_minimizer_type(minimizer_type);
-		if (ImGui::Combo("init sphere var", (int *)(&typeSphereAuxVar), "Sphere Fit\0Mesh Center\0Minus Normal\0\0"))
+		if (ImGui::Combo("init sphere var", (int *)(&initAuxVariables), "Sphere Fit\0Mesh Center\0Minus Normal\0Cylinder Fit\0\0"))
 			init_minimizer_thread();
-		if (typeSphereAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE &&
-			ImGui::DragInt("Neigh Level", &(InitMinimizer_NeighLevel), 1, 1, 200))
-			init_minimizer_thread();
-		if (typeSphereAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE &&
+		if (initAuxVariables == OptimizationUtils::InitAuxVariables::SPHERE_FIT ||
+			initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT) 
+		{
+			if (ImGui::DragInt("Neigh Level", &(InitMinimizer_NeighLevel), 1, 1, 200))
+				init_minimizer_thread();
+		}	
+		if (initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT &&
 			ImGui::DragInt("imax", &(CylinderInit_imax), 1, 1, 200))
 			init_minimizer_thread();
-		if (typeSphereAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE &&
+		if (initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT &&
 			ImGui::DragInt("jmax", &(CylinderInit_jmax), 1, 1, 200))
 			init_minimizer_thread();
 
@@ -1300,6 +1303,8 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if (isModelLoaded && (key == 'w' || key == 'W') && modifiers == 1) 
 	{
 		neighborType = app_utils::NeighborType::LOCAL_SPHERE;
+		initAuxVariables = OptimizationUtils::InitAuxVariables::SPHERE_FIT;
+		init_minimizer_thread();
 		for (auto&out : Outputs) {
 			out.showSphereCenters = true;
 			out.showSphereEdges = out.showNormEdges =
@@ -1332,8 +1337,46 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			}
 		}
 	}
+	if (isModelLoaded && (key == 'e' || key == 'E') && modifiers == 1) 
+	{
+		//neighborType = app_utils::NeighborType::LOCAL_SPHERE;
+		initAuxVariables = OptimizationUtils::InitAuxVariables::CYLINDER_FIT;
+		init_minimizer_thread();
+		for (auto&out : Outputs) {
+			out.showSphereCenters =
+				out.showSphereEdges = out.showNormEdges =
+				out.showTriangleCenters = out.showFacesNorm =
+				out.showCylinderDir = false;
+			out.showCylinderEdges = true;
+		}
+		for (OptimizationOutput& out : Outputs) 
+		{
+			for (auto& obj : out.totalObjective->objectiveList) 
+			{
+				std::shared_ptr<FixChosenConstraints> FCC = std::dynamic_pointer_cast<FixChosenConstraints>(obj);
+				std::shared_ptr<Grouping> grouping = std::dynamic_pointer_cast<Grouping>(obj);
+				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
+				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
+				std::shared_ptr<AuxCylinder> ACY = std::dynamic_pointer_cast<AuxCylinder>(obj);
+				if (ABN != NULL)
+					ABN->w = 0;
+				if (AS != NULL)
+					AS->w = 0;
+				if (ACY != NULL)
+					ACY->w = 1.6;
+				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::NORMALS)
+					FCC->w = 0;
+				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::SPHERES)
+					FCC->w = 0; 
+				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::NORMALS)
+					grouping->w = 0;
+				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::SPHERES)
+					grouping->w = 0;
+			}
+		}
+	}
 	
-	if ((key == ' ') && modifiers == 1)
+	if ((key == ' ') && modifiers == 1 && isModelLoaded)
 		isMinimizerRunning ? stop_minimizer_thread() : start_minimizer_thread();
 	
 	return ImGuiMenu::key_pressed(key, modifiers);
@@ -1846,7 +1889,7 @@ void deformation_plugin::init_minimizer_thread()
 		Outputs[i].initMinimizers(
 			OutputModel(i).V, 
 			OutputModel(i).F, 
-			typeSphereAuxVar,
+			initAuxVariables,
 			InitMinimizer_NeighLevel,
 			CylinderInit_imax,
 			CylinderInit_jmax);

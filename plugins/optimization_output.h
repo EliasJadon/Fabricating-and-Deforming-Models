@@ -91,7 +91,7 @@ public:
 	void initMinimizers(
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixXi& F,
-		const OptimizationUtils::InitSphereAuxiliaryVariables& typeAuxVar,
+		const OptimizationUtils::InitAuxVariables& typeAuxVar,
 		const int distance,
 		const int imax,
 		const int jmax);

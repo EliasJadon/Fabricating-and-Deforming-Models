@@ -514,7 +514,7 @@ void OptimizationOutput::updateFaceColors(
 void OptimizationOutput::initMinimizers(
 	const Eigen::MatrixXd& V, 
 	const Eigen::MatrixXi& F, 
-	const OptimizationUtils::InitSphereAuxiliaryVariables& typeAuxVar,
+	const OptimizationUtils::InitAuxVariables& typeAuxVar,
 	const int distance,
 	const int imax,
 	const int jmax)
@@ -527,11 +527,11 @@ void OptimizationOutput::initMinimizers(
 	
 	Eigen::MatrixXd center0, Cylinder_dir0;
 	Eigen::VectorXd Radius0;
-	if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE)
+	if (typeAuxVar == OptimizationUtils::InitAuxVariables::SPHERE_FIT)
 		OptimizationUtils::Least_Squares_Sphere_Fit(distance, V, F, center0, Radius0);
-	else if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::MODEL_CENTER_POINT)
+	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MODEL_CENTER_POINT)
 		OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
-	else if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::MINUS_NORMALS) {
+	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MINUS_NORMALS) {
 		this->center_of_faces = OptimizationUtils::center_per_triangle(V, F);
 		Radius0.resize(F.rows());
 		center0.resize(F.rows(), 3);

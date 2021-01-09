@@ -12,7 +12,7 @@ private:
 	int InitMinimizer_NeighLevel = 3;
 	bool CollapsingHeader_curr[7], CollapsingHeader_prev[7], CollapsingHeader_change;
 	bool tips_window, outputs_window, results_window, energies_window;
-	OptimizationUtils::InitSphereAuxiliaryVariables typeSphereAuxVar;
+	OptimizationUtils::InitAuxVariables initAuxVariables;
 	bool isLoadNeeded, isModelLoaded;
 	float Max_Distortion;
 	float neighbor_distance, brush_radius;
