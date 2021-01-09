@@ -523,7 +523,7 @@ void OptimizationOutput::initMinimizers(
 	Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size());
 	
 	
-	Eigen::MatrixXd center0;
+	Eigen::MatrixXd center0, Cylinder_dir0;
 	Eigen::VectorXd Radius0;
 	if (typeAuxVar == OptimizationUtils::InitSphereAuxiliaryVariables::LEAST_SQUARE_SPHERE)
 		OptimizationUtils::Least_Squares_Sphere_Fit(distance, V, F, center0, Radius0);
@@ -540,15 +540,14 @@ void OptimizationOutput::initMinimizers(
 		}
 	}
 
-	std::vector<Eigen::Vector2d> hinges_faceIndex;
-	const int num_hinges = app_utils::calculateHinges(hinges_faceIndex, F);
-	Eigen::MatrixX3d Cylinder_dir0(F.rows(), 3);
-	for (int hi = 0; hi < num_hinges; hi++) {
-		int f0 = hinges_faceIndex[hi](0);
-		int f1 = hinges_faceIndex[hi](1);
-		Cylinder_dir0.row(f0) = (center0.row(f1) - center0.row(f0)).normalized();
-		Cylinder_dir0.row(f1) = (center0.row(f1) - center0.row(f0)).normalized();
-	}
+
+	OptimizationUtils::Least_Squares_Cylinder_Fit(
+		distance,
+		V,
+		F,
+		center0,
+		Cylinder_dir0,
+		Radius0);
 	
 
 	setAuxVariables(V, F, center0, Radius0, Cylinder_dir0, normals);
