@@ -476,11 +476,11 @@ namespace Utils_Cuda_AuxCylinder {
 			X[fi + I.startAz]
 		);
 		double coeff = w2 * 4 * (squared_norm(A) - 1);
-		if (thread == 0) //N.x
+		if (thread == 0) //A.x
 			atomicAdd(&grad[fi + I.startAx], coeff * A.x, 0);
-		else if (thread == 1) //N.y
+		else if (thread == 1) //A.y
 			atomicAdd(&grad[fi + I.startAy], coeff * A.y, 0);
-		else if (thread == 2) //N.z
+		else if (thread == 2) //A.z
 			atomicAdd(&grad[fi + I.startAz], coeff * A.z, 0);
 	}
 	__device__ void gradient3Kernel(
