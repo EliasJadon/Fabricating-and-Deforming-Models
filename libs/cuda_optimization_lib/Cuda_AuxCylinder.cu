@@ -212,9 +212,9 @@ namespace Utils_Cuda_AuxCylinder {
 		);
 		double R = curr_x[fi + I.startR];
 		double E3 =
-			pow(squared_norm(cross(sub(V0, C), A)) - pow(R, 2), 2) +
-			pow(squared_norm(cross(sub(V1, C), A)) - pow(R, 2), 2) +
-			pow(squared_norm(cross(sub(V2, C), A)) - pow(R, 2), 2);
+			pow(squared_norm(cross(sub(V0, C), normalize(A))) - pow(R, 2), 2) +
+			pow(squared_norm(cross(sub(V1, C), normalize(A))) - pow(R, 2), 2) +
+			pow(squared_norm(cross(sub(V2, C), normalize(A))) - pow(R, 2), 2);
 		return w3 * E3;
 	}
 
@@ -599,70 +599,140 @@ namespace Utils_Cuda_AuxCylinder {
 			X[fi + I.startAz]
 		);
 		double R = X[fi + I.startR];
-		double3 crossV0 = cross(sub(V0, C), A);
-		double3 crossV1 = cross(sub(V1, C), A);
-		double3 crossV2 = cross(sub(V2, C), A);
+
+		double3 diffV0 = sub(V0, C);
+		double3 diffV1 = sub(V1, C);
+		double3 diffV2 = sub(V2, C);
+		double3 crossV0 = cross(diffV0, normalize(A));
+		double3 crossV1 = cross(diffV1, normalize(A));
+		double3 crossV2 = cross(diffV2, normalize(A));
 		double dV0 = w3 * 4 * (squared_norm(crossV0) - pow(R, 2));
 		double dV1 = w3 * 4 * (squared_norm(crossV1) - pow(R, 2));
 		double dV2 = w3 * 4 * (squared_norm(crossV2) - pow(R, 2));
-			
+		
+		double3 A_n = normalize(A);
+		double NormA1 = norm(A);
+		double NormA2 = NormA1* NormA1;
+		double NormA3 = NormA2* NormA1;
+
+		// gradient of =>	A.x / norm(A)
+		double3 dAx_norm = make_double3(
+			(A.y * A.y + A.z * A.z) / NormA3,
+			(-A.x * A.y) / NormA3,
+			(-A.x * A.z) / NormA3
+		);
+		// gradient of =>	A.y / norm(A)
+		double3 dAy_norm = make_double3(
+			(-A.x * A.y) / NormA3,
+			(A.x * A.x + A.z * A.z) / NormA3,
+			(-A.y * A.z) / NormA3
+		);
+		// gradient of =>	A.z / norm(A)
+		double3 dAz_norm = make_double3(
+			(-A.z * A.x) / NormA3,
+			(-A.y * A.z) / NormA3,
+			(A.y * A.y + A.x * A.x) / NormA3
+		);
+
 		if (thread == 0) //V0x
-			atomicAdd(&grad[x0 + I.startVx], dV0* (A.y* crossV0.z - A.z * crossV0.y), 0);
+			atomicAdd(&grad[x0 + I.startVx], dV0* (A_n.y* crossV0.z - A_n.z * crossV0.y), 0);
 		else if (thread == 1) //V0y
-			atomicAdd(&grad[x0 + I.startVy], dV0* (A.z* crossV0.x - A.x * crossV0.z), 0);
+			atomicAdd(&grad[x0 + I.startVy], dV0* (A_n.z* crossV0.x - A_n.x * crossV0.z), 0);
 		else if (thread == 2) //V0z
-			atomicAdd(&grad[x0 + I.startVz], dV0* (A.x* crossV0.y - A.y * crossV0.x), 0);
+			atomicAdd(&grad[x0 + I.startVz], dV0* (A_n.x* crossV0.y - A_n.y * crossV0.x), 0);
 
 		else if (thread == 3) //V1x
-			atomicAdd(&grad[x1 + I.startVx], dV1* (A.y* crossV1.z - A.z * crossV1.y), 0);
+			atomicAdd(&grad[x1 + I.startVx], dV1* (A_n.y* crossV1.z - A_n.z * crossV1.y), 0);
 		else if (thread == 4) //V1y
-			atomicAdd(&grad[x1 + I.startVy], dV1* (A.z* crossV1.x - A.x * crossV1.z), 0);
+			atomicAdd(&grad[x1 + I.startVy], dV1* (A_n.z* crossV1.x - A_n.x * crossV1.z), 0);
 		else if (thread == 5) //V1z
-			atomicAdd(&grad[x1 + I.startVz], dV1* (A.x* crossV1.y - A.y * crossV1.x), 0);
+			atomicAdd(&grad[x1 + I.startVz], dV1* (A_n.x* crossV1.y - A_n.y * crossV1.x), 0);
 
 		else if (thread == 6) //V2x
-			atomicAdd(&grad[x2 + I.startVx], dV2* (A.y* crossV2.z - A.z * crossV2.y), 0);
+			atomicAdd(&grad[x2 + I.startVx], dV2* (A_n.y* crossV2.z - A_n.z * crossV2.y), 0);
 		else if (thread == 7) //V2y
-			atomicAdd(&grad[x2 + I.startVy], dV2* (A.z* crossV2.x - A.x * crossV2.z), 0);
+			atomicAdd(&grad[x2 + I.startVy], dV2* (A_n.z* crossV2.x - A_n.x * crossV2.z), 0);
 		else if (thread == 8) //V2z
-			atomicAdd(&grad[x2 + I.startVz], dV2* (A.x* crossV2.y - A.y * crossV2.x), 0);
+			atomicAdd(&grad[x2 + I.startVz], dV2* (A_n.x* crossV2.y - A_n.y * crossV2.x), 0);
 
 		else if (thread == 9) //Ax
 			atomicAdd(&grad[fi + I.startAx],
-				dV0* (crossV0.y* (V0.z - C.z) - crossV0.z * (V0.y - C.y)) +
-				dV1 * (crossV1.y * (V1.z - C.z) - crossV1.z * (V1.y - C.y)) +
-				dV2 * (crossV2.y * (V2.z - C.z) - crossV2.z * (V2.y - C.y)),
+				dV0* (
+					crossV0.x * (diffV0.y * dAz_norm.x - diffV0.z * dAy_norm.x) +
+					crossV0.y * (diffV0.z * dAx_norm.x - diffV0.x * dAz_norm.x) +
+					crossV0.z * (diffV0.x * dAy_norm.x - diffV0.y * dAx_norm.x)
+					)
+				+
+				dV1* (
+					crossV1.x * (diffV1.y * dAz_norm.x - diffV1.z * dAy_norm.x) +
+					crossV1.y * (diffV1.z * dAx_norm.x - diffV1.x * dAz_norm.x) +
+					crossV1.z * (diffV1.x * dAy_norm.x - diffV1.y * dAx_norm.x)
+					)
+				+
+				dV2* (
+					crossV2.x * (diffV2.y * dAz_norm.x - diffV2.z * dAy_norm.x) +
+					crossV2.y * (diffV2.z * dAx_norm.x - diffV2.x * dAz_norm.x) +
+					crossV2.z * (diffV2.x * dAy_norm.x - diffV2.y * dAx_norm.x)
+					),
 				0);
 		else if (thread == 10) //Ay
 			atomicAdd(&grad[fi + I.startAy],
-				dV0* (crossV0.z* (V0.x - C.x) - crossV0.x * (V0.z - C.z)) +
-				dV1 * (crossV1.z * (V1.x - C.x) - crossV1.x * (V1.z - C.z)) +
-				dV2 * (crossV2.z * (V2.x - C.x) - crossV2.x * (V2.z - C.z)),
+				dV0* (
+					crossV0.x * (diffV0.y * dAz_norm.y - diffV0.z * dAy_norm.y) +
+					crossV0.y * (diffV0.z * dAx_norm.y - diffV0.x * dAz_norm.y) +
+					crossV0.z * (diffV0.x * dAy_norm.y - diffV0.y * dAx_norm.y)
+					)
+				+
+				dV1 * (
+					crossV1.x * (diffV1.y * dAz_norm.y - diffV1.z * dAy_norm.y) +
+					crossV1.y * (diffV1.z * dAx_norm.y - diffV1.x * dAz_norm.y) +
+					crossV1.z * (diffV1.x * dAy_norm.y - diffV1.y * dAx_norm.y)
+					)
+				+
+				dV2 * (
+					crossV2.x * (diffV2.y * dAz_norm.y - diffV2.z * dAy_norm.y) +
+					crossV2.y * (diffV2.z * dAx_norm.y - diffV2.x * dAz_norm.y) +
+					crossV2.z * (diffV2.x * dAy_norm.y - diffV2.y * dAx_norm.y)
+					),
 				0);
 		else if (thread == 11) //Az
 			atomicAdd(&grad[fi + I.startAz],
-				dV0* (crossV0.x* (V0.y - C.y) - crossV0.y * (V0.x - C.x)) +
-				dV1 * (crossV1.x * (V1.y - C.y) - crossV1.y * (V1.x - C.x)) +
-				dV2 * (crossV2.x * (V2.y - C.y) - crossV2.y * (V2.x - C.x)),
+				dV0* (
+					crossV0.x * (diffV0.y * dAz_norm.z - diffV0.z * dAy_norm.z) +
+					crossV0.y * (diffV0.z * dAx_norm.z - diffV0.x * dAz_norm.z) +
+					crossV0.z * (diffV0.x * dAy_norm.z - diffV0.y * dAx_norm.z)
+					)
+				+
+				dV1 * (
+					crossV1.x * (diffV1.y * dAz_norm.z - diffV1.z * dAy_norm.z) +
+					crossV1.y * (diffV1.z * dAx_norm.z - diffV1.x * dAz_norm.z) +
+					crossV1.z * (diffV1.x * dAy_norm.z - diffV1.y * dAx_norm.z)
+					)
+				+
+				dV2 * (
+					crossV2.x * (diffV2.y * dAz_norm.z - diffV2.z * dAy_norm.z) +
+					crossV2.y * (diffV2.z * dAx_norm.z - diffV2.x * dAz_norm.z) +
+					crossV2.z * (diffV2.x * dAy_norm.z - diffV2.y * dAx_norm.z)
+					),
 				0);
 
 		else if (thread == 12) //Cx
 			atomicAdd(&grad[fi + I.startCx],
-				dV0* (crossV0.y* A.z - crossV0.z * A.y) +
-				dV1 * (crossV1.y * A.z - crossV1.z * A.y) +
-				dV2 * (crossV2.y * A.z - crossV2.z * A.y),
+				dV0 * (crossV0.y * A_n.z - crossV0.z * A_n.y) +
+				dV1 * (crossV1.y * A_n.z - crossV1.z * A_n.y) +
+				dV2 * (crossV2.y * A_n.z - crossV2.z * A_n.y),
 				0);
 		else if (thread == 13) //Cy
 			atomicAdd(&grad[fi + I.startCy],
-				dV0* (crossV0.z* A.x - crossV0.x * A.z) +
-				dV1 * (crossV1.z * A.x - crossV1.x * A.z) +
-				dV2 * (crossV2.z * A.x - crossV2.x * A.z),
+				dV0 * (crossV0.z * A_n.x - crossV0.x * A_n.z) +
+				dV1 * (crossV1.z * A_n.x - crossV1.x * A_n.z) +
+				dV2 * (crossV2.z * A_n.x - crossV2.x * A_n.z),
 				0);
 		else if (thread == 14) //Cz
 			atomicAdd(&grad[fi + I.startCz],
-				dV0* (crossV0.x* A.y - crossV0.y * A.x) +
-				dV1 * (crossV1.x * A.y - crossV1.y * A.x) +
-				dV2 * (crossV2.x * A.y - crossV2.y * A.x),
+				dV0 * (crossV0.x * A_n.y - crossV0.y * A_n.x) +
+				dV1 * (crossV1.x * A_n.y - crossV1.y * A_n.x) +
+				dV2 * (crossV2.x * A_n.y - crossV2.y * A_n.x),
 				0);
 
 		else if (thread == 15) //R
