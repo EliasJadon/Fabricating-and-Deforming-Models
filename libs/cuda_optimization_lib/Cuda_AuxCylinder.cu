@@ -152,7 +152,7 @@ namespace Utils_Cuda_AuxCylinder {
 
 		double d_cylinder_dir = pow(pow(dot(A1, A0), 2) - 1, 2);
 		double d_center0 = pow(pow(dot(normalize(sub(C1, C0)), normalize(A0)), 2) - 1, 2);
-		double d_center1 = pow(pow(dot(normalize(sub(C1, C0)), A1), 2) - 1, 2);
+		double d_center1 = pow(pow(dot(normalize(sub(C1, C0)), normalize(A1)), 2) - 1, 2);
 		double d_radius = pow(R1 - R0, 2);
 		return w1 * restAreaPerHinge[hi] *
 			Phi(d_cylinder_dir + d_center0 + d_center1 + d_radius, planarParameter, functionType);
@@ -319,14 +319,14 @@ namespace Utils_Cuda_AuxCylinder {
 
 		double d_cylinder_dir = pow(pow(dot(A1, A0), 2) - 1, 2);
 		double d_center0 = pow(pow(dot(normalize(sub(C1, C0)), normalize(A0)), 2) - 1, 2);
-		double d_center1 = pow(pow(dot(normalize(sub(C1, C0)), A1), 2) - 1, 2);
+		double d_center1 = pow(pow(dot(normalize(sub(C1, C0)), normalize(A1)), 2) - 1, 2);
 		double d_radius = pow(R1 - R0, 2);
 		double coeff = w1 * restAreaPerHinge[hi] *
 			dPhi_dm(d_cylinder_dir + d_center0 + d_center1 + d_radius, planarParameter, functionType);
 		
 		double cylinder_coeff = 4 * coeff * (pow(dot(A1, A0), 2) - 1) * dot(A1, A0);
 		double center0_coeff = 4 * coeff * (pow(dot(normalize(sub(C1, C0)), normalize(A0)), 2) - 1) * (dot(normalize(sub(C1, C0)), normalize(A0)));
-		double center1_coeff = 4 * coeff * (pow(dot(normalize(sub(C1, C0)), A1), 2) - 1) * (dot(normalize(sub(C1, C0)), A1));
+		double center1_coeff = 4 * coeff * (pow(dot(normalize(sub(C1, C0)), normalize(A1)), 2) - 1) * (dot(normalize(sub(C1, C0)), normalize(A1)));
 
 		double3 diffC = sub(C1, C0);
 		double normC1 = norm(diffC);
@@ -338,6 +338,11 @@ namespace Utils_Cuda_AuxCylinder {
 		double normA02 = normA01 * normA01;
 		double normA03 = normA02 * normA01;
 		double3 A0_n = normalize(A0);
+		
+		double normA11 = norm(A1);
+		double normA12 = normA11 * normA11;
+		double normA13 = normA12 * normA11;
+		double3 A1_n = normalize(A1);
 
 		if (thread == 0) //A0.x;
 			atomicAdd(&grad[f0 + I.startAx],
@@ -352,7 +357,12 @@ namespace Utils_Cuda_AuxCylinder {
 		else if (thread == 1) //A1.x
 			atomicAdd(&grad[f1 + I.startAx],
 				cylinder_coeff * A0.x +
-				center1_coeff * diffC_n.x,
+				-center1_coeff *
+				(
+					-(diffC_n.x / normA11) + ((A1.x * A1.x * diffC_n.x) / normA13)
+					+ ((A1.x * A1.y * diffC_n.y) / normA13)
+					+ ((A1.x * A1.z * diffC_n.z) / normA13)
+					),
 				0);
 		else if (thread == 2) //A0.y
 			atomicAdd(&grad[f0 + I.startAy],
@@ -367,7 +377,12 @@ namespace Utils_Cuda_AuxCylinder {
 		else if (thread == 3) //A1.y
 			atomicAdd(&grad[f1 + I.startAy],
 				cylinder_coeff * A0.y +
-				center1_coeff * diffC_n.y,
+				-center1_coeff *
+				(
+					-(diffC_n.y / normA11) + ((A1.y * A1.y * diffC_n.y) / normA13)
+					+ ((A1.y * A1.x * diffC_n.x) / normA13)
+					+ ((A1.y * A1.z * diffC_n.z) / normA13)
+					),
 				0);
 		else if (thread == 4) //A0.z
 			atomicAdd(&grad[f0 + I.startAz],
@@ -382,7 +397,12 @@ namespace Utils_Cuda_AuxCylinder {
 		else if (thread == 5) //A1.z
 			atomicAdd(&grad[f1 + I.startAz],
 				cylinder_coeff * A0.z +
-				center1_coeff * diffC_n.z,
+				-center1_coeff *
+				(
+					-(diffC_n.z / normA11) + ((A1.z * A1.z * diffC_n.z) / normA13)
+					+ ((A1.z * A1.x * diffC_n.x) / normA13)
+					+ ((A1.z * A1.y * diffC_n.y) / normA13)
+					),
 				0);
 		else if (thread == 6) //R0
 			atomicAdd(&grad[f0 + I.startR], coeff * 2 * (R0 - R1), 0);
@@ -393,9 +413,9 @@ namespace Utils_Cuda_AuxCylinder {
 			atomicAdd(&grad[f0 + I.startCx],
 				+center1_coeff *
 				(
-					-(A1.x / normC1) + ((diffC.x * diffC.x * A1.x) / normC3)
-					+ ((diffC.x * diffC.y * A1.y) / normC3)
-					+ ((diffC.x * diffC.z * A1.z) / normC3)
+					-(A1_n.x / normC1) + ((diffC.x * diffC.x * A1_n.x) / normC3)
+					+ ((diffC.x * diffC.y * A1_n.y) / normC3)
+					+ ((diffC.x * diffC.z * A1_n.z) / normC3)
 					)
 				+ center0_coeff *
 				(
@@ -408,9 +428,9 @@ namespace Utils_Cuda_AuxCylinder {
 			atomicAdd(&grad[f1 + I.startCx],  
 				-center1_coeff *
 				(
-					-(A1.x / normC1) + ((diffC.x * diffC.x * A1.x) / normC3)
-					+ ((diffC.x * diffC.y * A1.y) / normC3)
-					+ ((diffC.x * diffC.z * A1.z) / normC3)
+					-(A1_n.x / normC1) + ((diffC.x * diffC.x * A1_n.x) / normC3)
+					+ ((diffC.x * diffC.y * A1_n.y) / normC3)
+					+ ((diffC.x * diffC.z * A1_n.z) / normC3)
 					)
 				- center0_coeff *
 				(
@@ -423,9 +443,9 @@ namespace Utils_Cuda_AuxCylinder {
 			atomicAdd(&grad[f0 + I.startCy],  
 				+center1_coeff *
 				(
-					-(A1.y / normC1) + ((diffC.y * diffC.y * A1.y) / normC3)
-					+ ((diffC.y * diffC.x * A1.x) / normC3)
-					+ ((diffC.y * diffC.z * A1.z) / normC3)
+					-(A1_n.y / normC1) + ((diffC.y * diffC.y * A1_n.y) / normC3)
+					+ ((diffC.y * diffC.x * A1_n.x) / normC3)
+					+ ((diffC.y * diffC.z * A1_n.z) / normC3)
 					)
 				+ center0_coeff *
 				(
@@ -438,9 +458,9 @@ namespace Utils_Cuda_AuxCylinder {
 			atomicAdd(&grad[f1 + I.startCy], 
 				-center1_coeff *
 				(
-					-(A1.y / normC1) + ((diffC.y * diffC.y * A1.y) / normC3)
-					+ ((diffC.y * diffC.x * A1.x) / normC3)
-					+ ((diffC.y * diffC.z * A1.z) / normC3)
+					-(A1_n.y / normC1) + ((diffC.y * diffC.y * A1_n.y) / normC3)
+					+ ((diffC.y * diffC.x * A1_n.x) / normC3)
+					+ ((diffC.y * diffC.z * A1_n.z) / normC3)
 					)
 				- center0_coeff *
 				(
@@ -453,9 +473,9 @@ namespace Utils_Cuda_AuxCylinder {
 			atomicAdd(&grad[f0 + I.startCz], 
 				+center1_coeff *
 				(
-					-(A1.z / normC1) + ((diffC.z * diffC.z * A1.z) / normC3)
-					+ ((diffC.z * diffC.x * A1.x) / normC3)
-					+ ((diffC.z * diffC.y * A1.y) / normC3)
+					-(A1_n.z / normC1) + ((diffC.z * diffC.z * A1_n.z) / normC3)
+					+ ((diffC.z * diffC.x * A1_n.x) / normC3)
+					+ ((diffC.z * diffC.y * A1_n.y) / normC3)
 					)
 				+ center0_coeff *
 				(
@@ -468,9 +488,9 @@ namespace Utils_Cuda_AuxCylinder {
 			atomicAdd(&grad[f1 + I.startCz], 
 				- center1_coeff *
 				(
-					-(A1.z / normC1) + ((diffC.z * diffC.z * A1.z) / normC3)
-					+ ((diffC.z * diffC.x * A1.x) / normC3)
-					+ ((diffC.z * diffC.y * A1.y) / normC3)
+					-(A1_n.z / normC1) + ((diffC.z * diffC.z * A1_n.z) / normC3)
+					+ ((diffC.z * diffC.x * A1_n.x) / normC3)
+					+ ((diffC.z * diffC.y * A1_n.y) / normC3)
 					)
 				- center0_coeff *
 				(
