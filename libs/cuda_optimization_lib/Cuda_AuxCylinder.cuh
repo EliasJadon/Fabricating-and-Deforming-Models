@@ -4,7 +4,7 @@
 class Cuda_AuxCylinder {
 public:
 	//Dynamic variables
-	double w1 = 1, w2 = 1, w3 = 100;
+	double w1 = 1, w2 = 100, w3 = 100;
 	FunctionType functionType; 
 	double planarParameter;
 	Cuda::Array<double> grad;
