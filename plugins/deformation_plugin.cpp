@@ -32,9 +32,12 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	isModelLoaded = false;
 	isUpdateAll = true;
 	UserInterface_colorInputModelIndex = 0;
-	clusteringType = app_utils::ClusteringType::NoClustering;
+	clusteringType = app_utils::ClusteringType::NO_CLUSTERING;
+	clustering_w = 1;
 	clusteringMSE = 0.1;
-	clusteringRatio = 0.5;
+	clustering_center_ratio = 0.5;
+	clustering_radius_ratio = 0.1;
+	clustering_dir_ratio = 1;
 	faceColoring_type = 1;
 	curr_highlighted_output = curr_highlighted_face = NOT_FOUND;
 	minimizer_type = MinimizerType::ADAM_MINIMIZER;
@@ -265,30 +268,39 @@ void deformation_plugin::CollapsingHeader_clustering()
 	{
 		CollapsingHeader_curr[3] = true;
 		bool AnyChange = false;
-		if (ImGui::Combo("Type", (int *)(&clusteringType), "None\0Normals\0Spheres\0\0"))
+		if (ImGui::Combo("Type", (int *)(&clusteringType), "NO_CLUSTERING\0CLUSTERING_NORMAL\0CLUSTERING_SPHERE\0CLUSTERING_CYLINDER\0RGB_NORMAL\0RGB_SPHERE\0RGB_CYLINDER\0\0"))
 			AnyChange = true;
-		if (ImGui::DragFloat("Tolerance", &clusteringMSE, 0.001f, 0.001f, 100.0f))
+		if (ImGui::DragFloat("Bright. Weight", &clustering_w, 0.001f, 0, 1))
 			AnyChange = true;
-		if (clusteringType == app_utils::ClusteringType::SphereClustering && 
-			ImGui::DragFloat("Ratio [cent/rad]", &clusteringRatio, 0.001f, 0.0f, 1.0f))
+		if ((clusteringType == app_utils::ClusteringType::CLUSTERING_SPHERE ||
+			clusteringType == app_utils::ClusteringType::CLUSTERING_NORMAL ||
+			clusteringType == app_utils::ClusteringType::CLUSTERING_CYLINDER) &&
+			ImGui::DragFloat("Tolerance", &clusteringMSE, 0.001f, 0.001f, 100.0f))
 			AnyChange = true;
+		if (clusteringType == app_utils::ClusteringType::CLUSTERING_SPHERE) {
+			if (ImGui::DragFloat("Center Weight", &clustering_center_ratio, 0.001f, 0, 20))
+				AnyChange = true;
+			if (ImGui::DragFloat("Radius Weight", &clustering_radius_ratio, 0.001f, 0, 20))
+				AnyChange = true;
+		}
+		if (clusteringType == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
+			if (ImGui::DragFloat("Dir Weight", &clustering_dir_ratio, 0.001f, 0, 20))
+				AnyChange = true;
+			if (ImGui::DragFloat("Center Weight", &clustering_center_ratio, 0.001f, 0, 20))
+				AnyChange = true;
+			if (ImGui::DragFloat("Radius Weight", &clustering_radius_ratio, 0.001f, 0, 20))
+				AnyChange = true;
+		}
+			
 		if(AnyChange)
 		{
-			if (clusteringType == app_utils::ClusteringType::NormalClustering)
-			{
-				for (auto& out : Outputs)
-					out.clustering(clusteringRatio, clusteringMSE, true);
-			}
-			else if (clusteringType == app_utils::ClusteringType::SphereClustering)
-			{
-				for (auto& out : Outputs)
-					out.clustering(clusteringRatio, clusteringMSE, false);
-			}
-			else
-			{
-				for (auto& out : Outputs)
-					out.clusters_indices.clear();
-			}
+			for (auto& out : Outputs)
+				out.clustering(
+					clustering_center_ratio,
+					clustering_radius_ratio,
+					clustering_dir_ratio,
+					clusteringMSE,
+					clusteringType);
 		}
 	}
 }
@@ -980,32 +992,6 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 {
 	if (!isModelLoaded || IsMouseDraggingAnyWindow)
 		return true;	
-	if (clusteringType != app_utils::ClusteringType::NoClustering && cluster_index != NOT_FOUND)
-	{
-		Eigen::Vector3f _;
-		int face_index, output_index;
-		
-		if (pick_face(&output_index, &face_index, _) && output_index != NOT_FOUND && Outputs[output_index].clusters_indices.size())
-		{
-			for (int ci = 0; ci < Outputs[output_index].clusters_indices.size(); ci++)
-			{
-				for (auto& it = Outputs[output_index].clusters_indices[ci].begin(); it != Outputs[output_index].clusters_indices[ci].end(); ++it)
-				{
-					if (face_index == *it)
-					{
-						//found
-						if (cluster_index != ci && cluster_index != NOT_FOUND)
-						{
-							Outputs[output_index].clusters_indices[cluster_index].push_back(*it);
-							Outputs[output_index].clusters_indices[ci].erase(it);
-							break;
-						}
-					}
-				}
-			}
-		}
-		return true;
-	}
 	if (IsChoosingGroups && UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
 	{
 		Eigen::Vector3f _;
@@ -1083,7 +1069,6 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 	for (auto&out : Outputs)
 		out.UserInterface_IsTranslate = false;
 	IsMouseDraggingAnyWindow = false;
-	cluster_index = NOT_FOUND;
 
 	if (IsChoosingGroups) 
 	{
@@ -1131,17 +1116,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 	down_mouse_x = viewer->current_mouse_x;
 	down_mouse_y = viewer->current_mouse_y;
 	
-	if (clusteringType != app_utils::ClusteringType::NoClustering && button == GLFW_MOUSE_BUTTON_LEFT && modifier == 2)
-	{
-		Eigen::Vector3f _;
-		int face_index,output_index;
-		pick_face(&output_index, &face_index, _, false);
-		if (Outputs[output_index].clusters_indices.size())
-			for (int ci = 0; ci < Outputs[output_index].clusters_indices.size(); ci++)
-				if (std::find(Outputs[output_index].clusters_indices[ci].begin(), Outputs[output_index].clusters_indices[ci].end(), face_index) != Outputs[output_index].clusters_indices[ci].end())
-					cluster_index = ci;
-	}
-	else if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && button == GLFW_MOUSE_BUTTON_LEFT)
+	if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
 		Eigen::Vector3f _;
 		int face_index, output_index;
@@ -1619,7 +1594,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		//Mark the highlighted face & neighbors
 		if (curr_highlighted_face != NOT_FOUND && curr_highlighted_output == i)
 		{
-			std::vector<int> neigh = Outputs[i].getNeigh(neighborType,InputModel().F, curr_highlighted_face, neighbor_distance);
+			std::vector<int> neigh = Outputs[i].getNeigh(neighborType, InputModel().F, curr_highlighted_face, neighbor_distance);
 			for (int fi : neigh)
 				Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
 			Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
@@ -1647,17 +1622,58 @@ void deformation_plugin::follow_and_mark_selected_faces()
 			Outputs[i].color_per_vertex.row(idx++) = Fixed_vertex_color.cast<double>();
 		}
 
-		if (clusteringType != app_utils::ClusteringType::NoClustering && 
-			Outputs[i].clusters_indices.size()) 
+		if (clusteringType != app_utils::ClusteringType::NO_CLUSTERING &&
+			Outputs[i].clusters_indices.size())
 		{
 			UniqueColors uniqueColors;
-			for(std::vector<int> clus: Outputs[i].clusters_indices)
+			for (std::vector<int> clus : Outputs[i].clusters_indices)
 			{
 				Eigen::Vector3f clusColor = uniqueColors.getNext();
 				for (int fi : clus)
 				{
-					Outputs[i].updateFaceColors(fi, clusColor);
+					Outputs[i].updateFaceColors(
+						fi, 
+						Eigen::Vector3f(
+							clustering_w * clusColor(0) + (1 - clustering_w),
+							clustering_w * clusColor(1) + (1 - clustering_w),
+							clustering_w * clusColor(2) + (1 - clustering_w)
+						)
+					);
 				}
+			}
+		}
+		else if (clusteringType != app_utils::ClusteringType::NO_CLUSTERING && Outputs[i].getFacesNormals().rows())
+		{
+			Eigen::MatrixXd P;
+			if (clusteringType == app_utils::ClusteringType::RGB_NORMAL)
+				P = Outputs[i].getFacesNormals();
+			if (clusteringType == app_utils::ClusteringType::RGB_SPHERE)
+				P = Outputs[i].getCenterOfFaces();
+			if (clusteringType == app_utils::ClusteringType::RGB_CYLINDER)
+				P = Outputs[i].getCylinderDirOnly();
+			Eigen::Vector3d min(P(0, 0), P(0, 1), P(0, 2));
+			Eigen::Vector3d max(P(0, 0), P(0, 1), P(0, 2));
+			for (int fi = 0; fi < P.rows(); fi++) {
+				min(0) = (P(fi, 0) < min(0)) ? P(fi, 0) : min(0);
+				min(1) = (P(fi, 1) < min(1)) ? P(fi, 1) : min(1);
+				min(2) = (P(fi, 2) < min(2)) ? P(fi, 2) : min(2);
+				max(0) = (P(fi, 0) > max(0)) ? P(fi, 0) : max(0);
+				max(1) = (P(fi, 1) > max(1)) ? P(fi, 1) : max(1);
+				max(2) = (P(fi, 2) > max(2)) ? P(fi, 2) : max(2);
+			}
+			for (int fi = 0; fi < P.rows(); fi++) {
+				P(fi, 0) = P(fi, 0) - min(0);
+				P(fi, 0) = P(fi, 0) / (max(0) - min(0));
+				P(fi, 1) = P(fi, 1) - min(1);
+				P(fi, 1) = P(fi, 1) / (max(1) - min(1));
+				P(fi, 2) = P(fi, 2) - min(2);
+				P(fi, 2) = P(fi, 2) / (max(2) - min(2));
+
+				Outputs[i].updateFaceColors(fi, Eigen::Vector3f(
+					clustering_w * P(fi, 0) + (1 - clustering_w),
+					clustering_w * P(fi, 1) + (1 - clustering_w),
+					clustering_w * P(fi, 2) + (1 - clustering_w)
+				));
 			}
 		}
 	}

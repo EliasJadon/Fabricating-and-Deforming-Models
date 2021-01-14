@@ -42,12 +42,15 @@ private:
 		Dragged_vertex_color,
 		Vertex_Energy_color,
 		text_color;
-	float core_size, clusteringMSE, clusteringRatio;
+	float core_size, clusteringMSE, 
+		clustering_center_ratio,
+		clustering_radius_ratio,
+		clustering_dir_ratio;
 	app_utils::ClusteringType clusteringType;
+	float clustering_w;
 	Eigen::Vector3f intersec_point;
 	app_utils::NeighborType neighborType;
 	std::vector<OptimizationOutput> Outputs;
-	int cluster_index = -1;
 	float prev_camera_zoom;
 	Eigen::Vector3f prev_camera_translation;
 	Eigen::Quaternionf prev_trackball_angle;

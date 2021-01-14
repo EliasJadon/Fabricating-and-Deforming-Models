@@ -57,14 +57,37 @@ public:
 		const Eigen::MatrixXd& norm
 	);
 	double getRadiusOfSphere(int index);
-	void clustering(const double ratio, const double MSE, const bool isNormal);
+	Eigen::MatrixXd getCylinderDirOnly();
+	double clustering_MSE(
+		const app_utils::ClusteringType type,
+		const int fi,
+		const double w_center,
+		const double w_radius,
+		const double w_dir,
+		const Eigen::RowVectorXd& clusters_val,
+		const Eigen::RowVectorXd& clusters_center,
+		const double& clusters_radius);
+	void OptimizationOutput::clustering_Average(
+		const app_utils::ClusteringType type,
+		const std::vector<int> clusters_ind,
+		Eigen::RowVectorXd& clusters_val,
+		Eigen::RowVectorXd& clusters_center,
+		double& clusters_radius);
+	void clustering(
+		const double center_ratio,
+		const double radius_ratio,
+		const double dir_ratio,
+		const double MSE,
+		const app_utils::ClusteringType type);
 	void clusters_init(
-		const double ratio,
+		const double center_ratio,
+		const double radius_ratio,
+		const double dir_ratio,
 		const double MSE,
 		std::vector<Eigen::RowVectorXd>& clusters_val,
 		std::vector<Eigen::RowVectorXd>& clusters_center,
 		std::vector<double>& clusters_radius,
-		const bool isNormal);
+		const app_utils::ClusteringType type);
 	void translateFaces(const int fi, const Eigen::Vector3d translateValue);
 	Eigen::MatrixXd getCenterOfFaces();
 	Eigen::MatrixXd getFacesNormals();

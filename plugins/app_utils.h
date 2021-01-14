@@ -41,9 +41,13 @@
 namespace app_utils
 {
 	enum ClusteringType {
-		NoClustering = 0,
-		NormalClustering,
-		SphereClustering
+		NO_CLUSTERING = 0,
+		CLUSTERING_NORMAL,
+		CLUSTERING_SPHERE,
+		CLUSTERING_CYLINDER,
+		RGB_NORMAL,
+		RGB_SPHERE,
+		RGB_CYLINDER
 	};
 	enum View {
 		HORIZONTAL = 0,

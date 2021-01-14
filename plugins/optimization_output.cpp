@@ -43,27 +43,132 @@ double OptimizationOutput::getRadiusOfSphere(int index)
 	return this->radius_of_sphere(index);
 }
 
-void OptimizationOutput::clustering(
-	const double ratio, 
-	const double MSE, 
-	const bool isNormal) 
+void OptimizationOutput::clustering_Average(
+	const app_utils::ClusteringType type,
+	const std::vector<int> clusters_ind,
+	Eigen::RowVectorXd& clusters_val,
+	Eigen::RowVectorXd& clusters_center,
+	double& clusters_radius)
 {
+	if (type == app_utils::ClusteringType::CLUSTERING_NORMAL) {
+		Eigen::RowVectorXd avg;
+		avg.resize(3);
+		avg << 0, 0, 0;
+		for (int currf : clusters_ind) {
+			avg += faces_normals.row(currf);
+		}
+		avg /= clusters_ind.size();
+		clusters_val = avg;
+	}
+	if (type == app_utils::ClusteringType::CLUSTERING_SPHERE) {
+		Eigen::RowVectorXd avgC;
+		double avgR = 0;
+		avgC.resize(3);
+		avgC << 0, 0, 0;
+		for (int currf : clusters_ind) {
+			avgC += center_of_sphere.row(currf);
+			avgR += radius_of_sphere(currf);
+		}
+		avgC /= clusters_ind.size();
+		avgR /= clusters_ind.size();
+		clusters_center = avgC;
+		clusters_radius = avgR;
+	}
+	if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
+		Eigen::RowVectorXd avgC, avgA;
+		double avgR = 0;
+		avgC.resize(3);
+		avgA.resize(3);
+		avgC << 0, 0, 0;
+		avgA << 0, 0, 0;
+		for (int currf : clusters_ind) {
+			avgC += center_of_sphere.row(currf);
+			avgA += cylinder_dir.row(currf);
+			avgR += radius_of_sphere(currf);
+		}
+		avgC /= clusters_ind.size();
+		avgA /= clusters_ind.size();
+		avgR /= clusters_ind.size();
+		clusters_center = avgC;
+		clusters_radius = avgR;
+		clusters_val = avgA;
+	}
+}
+
+double OptimizationOutput::clustering_MSE(
+	const app_utils::ClusteringType type,
+	const int fi,
+	const double center_ratio,
+	const double radius_ratio,
+	const double dir_ratio,
+	const Eigen::RowVectorXd& clusters_val,
+	const Eigen::RowVectorXd& clusters_center,
+	const double& clusters_radius)
+{
+	if (type == app_utils::ClusteringType::CLUSTERING_NORMAL) 
+	{
+		Eigen::RowVectorXd N1 = faces_normals.row(fi);
+		Eigen::RowVectorXd N0 = clusters_val;
+		return (N1 - N0).squaredNorm();
+	}
+	else if (type == app_utils::ClusteringType::CLUSTERING_SPHERE) 
+	{
+		Eigen::RowVectorXd C1 = center_of_sphere.row(fi);
+		Eigen::RowVectorXd C0 = clusters_center;
+		double R1 = radius_of_sphere(fi);
+		double R0 = clusters_radius;
+		return (center_ratio * ((C1 - C0).squaredNorm()) + radius_ratio * pow(R1 - R0, 2));
+	}
+	else if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER) 
+	{
+		Eigen::RowVectorXd A1 = cylinder_dir.row(fi);
+		Eigen::RowVectorXd A0 = clusters_val;
+		Eigen::RowVectorXd C1 = center_of_sphere.row(fi);
+		Eigen::RowVectorXd C0 = clusters_center;
+		double R1 = radius_of_sphere(fi);
+		double R0 = clusters_radius;
+
+		return (
+			center_ratio * pow(pow((C1 - C0).normalized() * A0.normalized().transpose(), 2) - 1, 2)
+			+
+			center_ratio * pow(pow((C0 - C1).normalized() * A1.normalized().transpose(), 2) - 1, 2)
+			+
+			dir_ratio * ((A1 - A0).squaredNorm())
+			+
+			radius_ratio * pow(R1 - R0, 2)
+			);
+	}
+	return -1; //Error
+}
+
+void OptimizationOutput::clustering(
+	const double center_ratio, 
+	const double radius_ratio, 
+	const double dir_ratio,
+	const double MSE, 
+	const app_utils::ClusteringType type)
+{
+	if (type != app_utils::ClusteringType::CLUSTERING_NORMAL &&
+		type != app_utils::ClusteringType::CLUSTERING_SPHERE &&
+		type != app_utils::ClusteringType::CLUSTERING_CYLINDER)
+	{
+		clusters_indices.clear();
+		return;
+	}
+
 	std::vector<std::vector<int>> clusters_ind;
 	std::vector<Eigen::RowVectorXd> clusters_val;
 	std::vector<Eigen::RowVectorXd> clusters_center;
 	std::vector<double> clusters_radius;
-	clusters_init(ratio, MSE, clusters_val, clusters_center, clusters_radius, isNormal);
+	clusters_init(center_ratio,radius_ratio,dir_ratio, 
+		MSE, clusters_val, clusters_center, clusters_radius, type);
 
-	int numFaces;
-	if (isNormal)
-		numFaces = faces_normals.rows();
-	else
-		numFaces = center_of_sphere.rows();
+	const int numFaces = faces_normals.rows();
 	//Do 5 rounds of K-means clustering alg.
 	for (int _ = 0; _ < 5; _++) {
 		clusters_ind.clear();
 		int numClusters;
-		if (isNormal)
+		if (type != app_utils::ClusteringType::CLUSTERING_SPHERE)
 			numClusters = clusters_val.size();
 		else
 			numClusters = clusters_center.size();
@@ -75,13 +180,10 @@ void OptimizationOutput::clustering(
 			int argmin;
 			for (int ci = 0; ci < numClusters; ci++)
 			{
-				double currMSE;
-				if (isNormal) {
-					currMSE = (faces_normals.row(fi) - clusters_val[ci]).squaredNorm();
-				}
-				else {
-					currMSE = (ratio*((center_of_sphere.row(fi) - clusters_center[ci]).norm()) + (1 - ratio)*abs(radius_of_sphere(fi) - clusters_radius[ci]));
-				}
+				double currMSE = clustering_MSE(type, fi,
+					center_ratio, radius_ratio, dir_ratio,
+					clusters_val[ci], clusters_center[ci], clusters_radius[ci]);
+
 				if (currMSE < minMSE)
 				{
 					minMSE = currMSE;
@@ -90,15 +192,18 @@ void OptimizationOutput::clustering(
 				}
 			}
 			if (found)
-			{
 				clusters_ind[argmin].push_back(fi);
-			}
 			else
 			{
 				clusters_ind.push_back({ fi });
-				if (isNormal)
+				if (type == app_utils::ClusteringType::CLUSTERING_NORMAL)
 					clusters_val.push_back(faces_normals.row(fi));
-				else {
+				if (type == app_utils::ClusteringType::CLUSTERING_SPHERE) {
+					clusters_center.push_back(center_of_sphere.row(fi));
+					clusters_radius.push_back(radius_of_sphere(fi));
+				}
+				if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
+					clusters_val.push_back(cylinder_dir.row(fi));
 					clusters_center.push_back(center_of_sphere.row(fi));
 					clusters_radius.push_back(radius_of_sphere(fi));
 				}
@@ -112,88 +217,125 @@ void OptimizationOutput::clustering(
 		while (it_i != clusters_ind.end()) {
 			if (it_i->size() == 0) {
 				it_i = clusters_ind.erase(it_i);
-				if (isNormal)
+				if (type == app_utils::ClusteringType::CLUSTERING_NORMAL)
 					it_N = clusters_val.erase(it_N);
-				else {
+				if (type == app_utils::ClusteringType::CLUSTERING_SPHERE){
 					it_C = clusters_center.erase(it_C);
 					it_R = clusters_radius.erase(it_R);
 				}
+				if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
+					it_N = clusters_val.erase(it_N);
+					it_C = clusters_center.erase(it_C);
+					it_R = clusters_radius.erase(it_R);
+				}
+
 			}
 			else {
 				it_i++;
-				if (isNormal)
+				if (type == app_utils::ClusteringType::CLUSTERING_NORMAL)
 					it_N++;
-				else {
+				if (type == app_utils::ClusteringType::CLUSTERING_SPHERE) {
+					it_R++;
+					it_C++;
+				}
+				if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
+					it_N++; 
 					it_R++;
 					it_C++;
 				}
 			}
 		}
 		//Update average
-		for (int ci = 0; ci < clusters_ind.size(); ci++) {
-			if (isNormal) {
-				Eigen::RowVectorXd avg;
-				avg.resize(3);
-				avg << 0, 0, 0;
-				for (int currf : clusters_ind[ci]) {
-					avg += faces_normals.row(currf);
-				}
-				avg /= clusters_ind[ci].size();
-				clusters_val[ci] = avg;
-			}
-			else {
-				Eigen::RowVectorXd avgC;
-				double avgR = 0;
-				avgC.resize(3);
-				avgC << 0, 0, 0;
-				for (int currf : clusters_ind[ci]) {
-					avgC += center_of_sphere.row(currf);
-					avgR += radius_of_sphere(currf);
-				}
-				avgC /= clusters_ind[ci].size();
-				avgR /= clusters_ind[ci].size();
-				clusters_center[ci] = avgC;
-				clusters_radius[ci] = avgR;
-			}
-		}
+		for (int ci = 0; ci < clusters_ind.size(); ci++)
+			clustering_Average(
+				type,
+				clusters_ind[ci],
+				clusters_val[ci],
+				clusters_center[ci],
+				clusters_radius[ci]);
 		//Union similar clusters
 		std::vector<Eigen::RowVectorXd>::iterator val1, val2, cent1, cent2;
 		std::vector<double>::iterator radius1, radius2;
-		if (isNormal) {
+		if (type == app_utils::ClusteringType::CLUSTERING_NORMAL) {
 			val1 = clusters_val.begin();
 			val2 = val1 + 1;
 		}
-		else {
+		if (type == app_utils::ClusteringType::CLUSTERING_SPHERE) {
 			cent1 = clusters_center.begin();
 			cent2 = cent1 + 1;
 			radius1 = clusters_radius.begin();
 			radius2 = radius1 + 1;
+		}
+		if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
+			cent1 = clusters_center.begin();
+			cent2 = cent1 + 1;
+			radius1 = clusters_radius.begin();
+			radius2 = radius1 + 1;
+			val1 = clusters_val.begin();
+			val2 = val1 + 1;
 		}
 
 		auto& ind1 = clusters_ind.begin();
 		auto& ind2 = ind1 + 1;
 		while (ind1 != clusters_ind.end())
 		{
-			if (isNormal) {
+			if (type == app_utils::ClusteringType::CLUSTERING_NORMAL) {
 				val2 = val1 + 1;
 			}
-			else {
+			if (type == app_utils::ClusteringType::CLUSTERING_SPHERE) {
+				cent2 = cent1 + 1;
+				radius2 = radius1 + 1;
+			}
+			if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
+				val2 = val1 + 1; 
 				cent2 = cent1 + 1;
 				radius2 = radius1 + 1;
 			}
 			for (ind2 = ind1 + 1; ind2 != clusters_ind.end();)
 			{
 				double diff;
-				if (isNormal)
-					diff = (*val1 - *val2).squaredNorm();
-				else
-					diff = (ratio*((*cent1 - *cent2).norm()) + (1 - ratio)*abs(*radius1 - *radius2));
+				if (type == app_utils::ClusteringType::CLUSTERING_NORMAL)
+				{
+					Eigen::RowVectorXd N1 = *val1;
+					Eigen::RowVectorXd N0 = *val2;
+					diff = (N1 - N0).squaredNorm();
+				}
+				else if (type == app_utils::ClusteringType::CLUSTERING_SPHERE)
+				{
+					Eigen::RowVectorXd C1 = *cent1;
+					Eigen::RowVectorXd C0 = *cent2;
+					double R1 = *radius1;
+					double R0 = *radius2;
+					diff = (center_ratio * ((C1 - C0).squaredNorm()) + radius_ratio * pow(R1 - R0, 2));
+				}
+				else if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER)
+				{
+					Eigen::RowVectorXd A1 = *val1;
+					Eigen::RowVectorXd A0 = *val2;
+					Eigen::RowVectorXd C1 = *cent1;
+					Eigen::RowVectorXd C0 = *cent2;
+					double R1 = *radius1;
+					double R0 = *radius2;
+					diff = (
+						center_ratio * pow(pow((C1 - C0).normalized() * A0.normalized().transpose(), 2) - 1, 2)
+						+
+						center_ratio * pow(pow((C0 - C1).normalized() * A1.normalized().transpose(), 2) - 1, 2)
+						+
+						dir_ratio * ((A1 - A0).squaredNorm())
+						+
+						radius_ratio * pow(R1 - R0, 2)
+						);
+				}
+
+
+
+
 
 				if (diff < MSE) {
 					for (int currf : (*ind2)) {
 						ind1->push_back(currf);
 					}
-					if (isNormal) {
+					if (type == app_utils::ClusteringType::CLUSTERING_NORMAL) {
 						Eigen::RowVectorXd avg;
 						avg.resize(3);
 						avg << 0, 0, 0;
@@ -204,7 +346,7 @@ void OptimizationOutput::clustering(
 						*val1 = avg;
 						val2 = clusters_val.erase(val2);
 					}
-					else {
+					if (type == app_utils::ClusteringType::CLUSTERING_SPHERE) {
 						Eigen::RowVectorXd avgC;
 						double avgR = 0;
 						avgC.resize(3);
@@ -220,13 +362,41 @@ void OptimizationOutput::clustering(
 						cent2 = clusters_center.erase(cent2);
 						radius2 = clusters_radius.erase(radius2);
 					}
+					if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
+						Eigen::RowVectorXd avgC, avgA;
+						double avgR = 0;
+						avgC.resize(3);
+						avgA.resize(3);
+						avgC << 0, 0, 0;
+						avgA << 0, 0, 0;
+						for (int currf : (*ind1)) {
+							avgC += center_of_sphere.row(currf);
+							avgA += cylinder_dir.row(currf);
+							avgR += radius_of_sphere(currf);
+						}
+						avgC /= ind1->size();
+						avgA /= ind1->size();
+						avgR /= ind1->size();
+						*cent1 = avgC;
+						*val1 = avgA;
+						*radius1 = avgR;
+						cent2 = clusters_center.erase(cent2);
+						radius2 = clusters_radius.erase(radius2);
+						val2 = clusters_val.erase(val2);
+					}
+
 					ind2 = clusters_ind.erase(ind2);
 				}
 				else {
-					if (isNormal) {
+					if (type == app_utils::ClusteringType::CLUSTERING_NORMAL) {
 						val2++;
 					}
-					else {
+					if (type == app_utils::ClusteringType::CLUSTERING_SPHERE) {
+						cent2++;
+						radius2++;
+					}
+					if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
+						val2++; 
 						cent2++;
 						radius2++;
 					}
@@ -234,10 +404,13 @@ void OptimizationOutput::clustering(
 				}
 			}
 
-			if (isNormal)
+			if (type == app_utils::ClusteringType::CLUSTERING_NORMAL)
 				val1++;
-			else {
+			if (type == app_utils::ClusteringType::CLUSTERING_SPHERE) {
 				cent1++; radius1++;
+			}
+			if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
+				val1++; cent1++; radius1++;
 			}
 			ind1++;
 		}
@@ -246,25 +419,36 @@ void OptimizationOutput::clustering(
 }
 
 void OptimizationOutput::clusters_init(
-	const double ratio,
+	const double center_ratio,
+	const double radius_ratio,
+	const double dir_ratio,
 	const double MSE,
 	std::vector<Eigen::RowVectorXd>& clusters_val,
 	std::vector<Eigen::RowVectorXd>& clusters_center,
 	std::vector<double>& clusters_radius,
-	const bool isNormal)
+	const app_utils::ClusteringType type)
 {
 	std::vector<std::vector<int>> clusters_ind;
 	int numFaces;
-	if (isNormal) {
+	if (type == app_utils::ClusteringType::CLUSTERING_NORMAL) {
 		clusters_val.clear();
 		clusters_val.push_back(faces_normals.row(0));
 		numFaces = faces_normals.rows();
 	}
-	else {
+	if (type == app_utils::ClusteringType::CLUSTERING_SPHERE){
 		clusters_center.clear();
 		clusters_center.push_back(center_of_sphere.row(0));
 		clusters_radius.clear();
 		clusters_radius.push_back(radius_of_sphere(0));
+		numFaces = center_of_sphere.rows();
+	}
+	if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER){
+		clusters_center.clear();
+		clusters_center.push_back(center_of_sphere.row(0));
+		clusters_radius.clear();
+		clusters_radius.push_back(radius_of_sphere(0));
+		clusters_val.clear();
+		clusters_val.push_back(cylinder_dir.row(0));
 		numFaces = center_of_sphere.rows();
 	}
 	clusters_ind.push_back({ 0 });
@@ -275,19 +459,17 @@ void OptimizationOutput::clusters_init(
 		double minMSE = MSE;
 		int argmin;
 		int numClusters;
-		if (isNormal)
+		if (type == app_utils::ClusteringType::CLUSTERING_NORMAL)
 			numClusters = clusters_val.size();
-		else
+		if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER)
+			numClusters = clusters_val.size();
+		if (type == app_utils::ClusteringType::CLUSTERING_SPHERE)
 			numClusters = clusters_center.size();
 		for (int ci = 0; ci < numClusters; ci++)
 		{
-			double currMSE;
-			if (isNormal) {
-				currMSE = (faces_normals.row(fi) - clusters_val[ci]).squaredNorm();
-			}
-			else {
-				currMSE = (ratio*((center_of_sphere.row(fi) - clusters_center[ci]).norm()) + (1 - ratio)*abs(radius_of_sphere(fi) - clusters_radius[ci]));
-			}
+			double currMSE = clustering_MSE(type, fi,
+				center_ratio, radius_ratio, dir_ratio,
+				clusters_val[ci], clusters_center[ci], clusters_radius[ci]);
 			if (currMSE < minMSE)
 			{
 				minMSE = currMSE;
@@ -298,39 +480,26 @@ void OptimizationOutput::clusters_init(
 		if (found)
 		{
 			clusters_ind[argmin].push_back(fi);
-			if (isNormal) {
-				Eigen::RowVectorXd avg;
-				avg.resize(3);
-				avg << 0, 0, 0;
-				for (int currf : clusters_ind[argmin]) {
-					avg += faces_normals.row(currf);
-				}
-				avg /= clusters_ind[argmin].size();
-				clusters_val[argmin] << avg;
-			}
-			else {
-				Eigen::RowVectorXd avgC;
-				double avgR = 0;
-				avgC.resize(3);
-				avgC << 0, 0, 0;
-				for (int currf : clusters_ind[argmin]) {
-					avgC += center_of_sphere.row(currf);
-					avgR += radius_of_sphere(currf);
-				}
-				avgC /= clusters_ind[argmin].size();
-				avgR /= clusters_ind[argmin].size();
-				clusters_center[argmin] << avgC;
-				clusters_radius[argmin] = avgR;
-			}
+			clustering_Average(
+				type,
+				clusters_ind[argmin],
+				clusters_val[argmin],
+				clusters_center[argmin],
+				clusters_radius[argmin]);
 		}
 		else
 		{
 			clusters_ind.push_back({ fi });
-			if (isNormal)
+			if (type == app_utils::ClusteringType::CLUSTERING_NORMAL)
 				clusters_val.push_back(faces_normals.row(fi));
-			else {
+			if (type == app_utils::ClusteringType::CLUSTERING_SPHERE) {
 				clusters_center.push_back(center_of_sphere.row(fi));
 				clusters_radius.push_back(radius_of_sphere(fi));
+			}
+			if (type == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
+				clusters_center.push_back(center_of_sphere.row(fi));
+				clusters_radius.push_back(radius_of_sphere(fi));
+				clusters_val.push_back(cylinder_dir.row(fi));
 			}
 		}
 	}
@@ -452,6 +621,10 @@ Eigen::MatrixXd OptimizationOutput::getCenterOfSphere()
 
 Eigen::MatrixXd OptimizationOutput::getCylinderDir(){
 	return center_of_sphere + cylinder_dir;
+}
+
+Eigen::MatrixXd OptimizationOutput::getCylinderDirOnly(){
+	return cylinder_dir;
 }
 
 Eigen::MatrixXd OptimizationOutput::getSphereEdges() 
