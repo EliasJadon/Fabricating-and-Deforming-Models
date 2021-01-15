@@ -5,11 +5,8 @@ SDenergy::SDenergy(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) {
 	name = "Symmetric Dirichlet";
 	w = 0.6;
 
-	a.resize(restShapeF.rows());
-	b.resize(restShapeF.rows());
-	c.resize(restShapeF.rows());
-	d.resize(restShapeF.rows());
-	detJ.resize(restShapeF.rows());
+	Efi.resize(F.rows());
+	Efi.setZero();
 
 	Eigen::MatrixX3d D1cols, D2cols;
 	OptimizationUtils::computeSurfaceGradientPerFace(restShapeV, restShapeF, D1cols, D2cols);
@@ -17,6 +14,7 @@ SDenergy::SDenergy(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) {
 	D2d = D2cols.transpose();
 
 	//compute the area for each triangle
+	Eigen::VectorXd restShapeArea;
 	igl::doublearea(restShapeV, restShapeF, restShapeArea);
 	restShapeArea /= 2;
 
@@ -46,8 +44,8 @@ SDenergy::~SDenergy() {
 
 void SDenergy::value(Cuda::Array<double>& curr_x) {
 	Cuda::MemCpyDeviceToHost(curr_x);
+	cuda_SD->EnergyAtomic.host_arr[0] = 0;
 
-	Eigen::VectorXd Energy(restShapeF.rows());
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
 		int v0_index = restShapeF(fi, 0);
 		int v1_index = restShapeF(fi, 1);
@@ -85,16 +83,24 @@ void SDenergy::value(Cuda::Array<double>& curr_x) {
 		Eigen::Vector3d Dx = D1d.col(fi);
 		Eigen::Vector3d Dy = D2d.col(fi);
 		//prepare jacobian		
-		a(fi) = Dx.transpose() * Xi;
-		b(fi) = Dx.transpose() * Yi;
-		c(fi) = Dy.transpose() * Xi;
-		d(fi) = Dy.transpose() * Yi;
-		detJ(fi) = a(fi) * d(fi) - b(fi) * c(fi);
+		const double a = Dx.transpose() * Xi;
+		const double b = Dx.transpose() * Yi;
+		const double c = Dy.transpose() * Xi;
+		const double d = Dy.transpose() * Yi;
+		const double detJ = a * d - b * c;
+		const double detJ2 = detJ * detJ;
+		const double a2 = a * a;
+		const double b2 = b * b;
+		const double c2 = c * c;
+		const double d2 = d * d;
 
 
-		Energy(fi) = 0.5 * (1 + 1 / pow(detJ(fi), 2)) * (pow(a(fi), 2) + pow(b(fi), 2) + pow(c(fi), 2) + pow(d(fi), 2));
+		cuda_SD->Energy.host_arr[fi] = 0.5 * cuda_SD->restShapeArea.host_arr[fi] *
+			(1 + 1 / detJ2) * (a2 + b2 + c2 + d2);
+		cuda_SD->EnergyAtomic.host_arr[0] += cuda_SD->Energy.host_arr[fi];
 	}
-	cuda_SD->EnergyAtomic.host_arr[0] = restShapeArea.transpose() * Energy;
+
+	Cuda::MemCpyHostToDevice(cuda_SD->Energy);
 	Cuda::MemCpyHostToDevice(cuda_SD->EnergyAtomic);
 
 	/*if (update) {
@@ -146,22 +152,26 @@ void SDenergy::gradient(Cuda::Array<double>& X)
 		Eigen::Vector3d Dx = D1d.col(fi);
 		Eigen::Vector3d Dy = D2d.col(fi);
 		//prepare jacobian		
-		a(fi) = Dx.transpose() * Xi;
-		b(fi) = Dx.transpose() * Yi;
-		c(fi) = Dy.transpose() * Xi;
-		d(fi) = Dy.transpose() * Yi;
-		detJ(fi) = a(fi) * d(fi) - b(fi) * c(fi);
+		const double a = Dx.transpose() * Xi;
+		const double b = Dx.transpose() * Yi;
+		const double c = Dy.transpose() * Xi;
+		const double d = Dy.transpose() * Yi;
+		const double detJ = a * d - b * c;
+		const double det2 = pow(detJ, 2);
+		const double a2 = pow(a, 2);
+		const double b2 = pow(b, 2);
+		const double c2 = pow(c, 2);
+		const double d2 = pow(d, 2);
+		const double det3 = pow(detJ, 3);
+		const double Fnorm = a2 + b2 + c2 + d2;
 
 		Eigen::Matrix<double, 1, 4> de_dJ;
-		double det2 = pow(detJ(fi), 2);
-		double det3 = pow(detJ(fi), 3);
-		double Fnorm = pow(a(fi), 2) + pow(b(fi), 2) + pow(c(fi), 2) + pow(d(fi), 2);
 		de_dJ <<
-			a(fi) + a(fi) / det2 - d(fi) * Fnorm / det3,
-			b(fi) + b(fi) / det2 + c(fi) * Fnorm / det3,
-			c(fi) + c(fi) / det2 + b(fi) * Fnorm / det3,
-			d(fi) + d(fi) / det2 - a(fi) * Fnorm / det3;
-		de_dJ *= restShapeArea[fi];
+			a + a / det2 - d * Fnorm / det3,
+			b + b / det2 + c * Fnorm / det3,
+			c + c / det2 + b * Fnorm / det3,
+			d + d / det2 - a * Fnorm / det3;
+		de_dJ *= cuda_SD->restShapeArea.host_arr[fi];
 
 		Eigen::Matrix<double, 1, 9> dE_dX = de_dJ * dJ_dX(fi, V0, V1, V2);
 		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVx] += dE_dX[0];
@@ -220,15 +230,13 @@ Eigen::Matrix<double, 3, 9> SDenergy::dB1_dX(
 {
 	Eigen::Matrix<double, 3, 9> g;
 	double Norm = (V1 - V0).norm();
-	double Qx = V1[0] - V0[0]; // x1 - x0
-	double Qy = V1[1] - V0[1]; // y1 - y0
-	double Qz = V1[2] - V0[2]; // z1 - z0	
-	double dB1x_dx0 = -(pow(Qy, 2) + pow(Qz, 2)) / pow(Norm, 3);
-	double dB1y_dy0 = -(pow(Qx, 2) + pow(Qz, 2)) / pow(Norm, 3);
-	double dB1z_dz0 = -(pow(Qx, 2) + pow(Qy, 2)) / pow(Norm, 3);
-	double dB1x_dy0 = (Qy * Qx) / pow(Norm, 3);
-	double dB1x_dz0 = (Qz * Qx) / pow(Norm, 3);
-	double dB1y_dz0 = (Qz * Qy) / pow(Norm, 3);
+	Eigen::RowVector3d e10 = V1 - V0;
+	double dB1x_dx0 = -(pow(e10(1), 2) + pow(e10(2), 2)) / pow(Norm, 3);
+	double dB1y_dy0 = -(pow(e10(0), 2) + pow(e10(2), 2)) / pow(Norm, 3);
+	double dB1z_dz0 = -(pow(e10(0), 2) + pow(e10(1), 2)) / pow(Norm, 3);
+	double dB1x_dy0 = (e10(1) * e10(0)) / pow(Norm, 3);
+	double dB1x_dz0 = (e10(2) * e10(0)) / pow(Norm, 3);
+	double dB1y_dz0 = (e10(2) * e10(1)) / pow(Norm, 3);
 	g <<
 		dB1x_dx0, -dB1x_dx0, 0, dB1x_dy0, -dB1x_dy0, 0, dB1x_dz0, -dB1x_dz0, 0,
 		dB1x_dy0, -dB1x_dy0, 0, dB1y_dy0, -dB1y_dy0, 0, dB1y_dz0, -dB1y_dz0, 0,
@@ -245,7 +253,7 @@ Eigen::Matrix<double, 3, 9> SDenergy::dB2_dX(
 	Eigen::Matrix<double, 3, 9> g;
 	Eigen::RowVector3d e10 = V1 - V0;
 	Eigen::RowVector3d e20 = V2 - V0;
-	Eigen::Matrix<double, 3, 1> b2 = -((V1 - V0).cross((V1 - V0).cross(V2 - V0)));
+	Eigen::Matrix<double, 3, 1> b2 = -(e10.cross(e10.cross(e20)));
 	double NormB2 = b2.norm();
 	double NormB2_2 = pow(NormB2, 2);
 

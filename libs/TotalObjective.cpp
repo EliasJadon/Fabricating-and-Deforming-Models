@@ -105,13 +105,15 @@ double TotalObjective::value(Cuda::Array<double>& curr_x, const bool update)
 	
 	if (update) {
 		energy_value = f;
-
-		//update face coloring for STVK
+		//update face coloring for STVK & Symmetric-Dirichlet
 		std::shared_ptr<STVK> stvk = std::dynamic_pointer_cast<STVK>(objectiveList[3]);
+		std::shared_ptr<SDenergy> SD = std::dynamic_pointer_cast<SDenergy>(objectiveList[4]);
 		Cuda::MemCpyDeviceToHost(stvk->cuda_STVK->Energy);
-		for (int i = 0; i < stvk->cuda_STVK->Energy.size; i++) {
+		Cuda::MemCpyDeviceToHost(SD->cuda_SD->Energy);
+		for (int i = 0; i < stvk->cuda_STVK->Energy.size; i++)
 			stvk->Efi(i) = stvk->cuda_STVK->Energy.host_arr[i];
-		}
+		for (int i = 0; i < SD->cuda_SD->Energy.size; i++)
+			SD->Efi(i) = SD->cuda_SD->Energy.host_arr[i];
 	}
 	return f;
 }

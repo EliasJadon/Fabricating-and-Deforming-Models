@@ -4,14 +4,7 @@
 
 class SDenergy : public ObjectiveFunction {
 private:
-	Eigen::VectorXd a;
-	Eigen::VectorXd b;
-	Eigen::VectorXd c;
-	Eigen::VectorXd d;
-	Eigen::VectorXd detJ;
 	Eigen::Matrix3Xd D1d, D2d;
-	Eigen::VectorXd restShapeArea;
-
 	Eigen::Matrix<double, 3, 9> dB1_dX(
 		int fi, 
 		const Eigen::RowVector3d V0,
