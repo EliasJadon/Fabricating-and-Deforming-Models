@@ -243,38 +243,34 @@ Eigen::Matrix<double, 3, 9> SDenergy::dB2_dX(
 	const Eigen::RowVector3d V2) 
 {
 	Eigen::Matrix<double, 3, 9> g;
-	double Qx = V1[0] - V0[0]; // Qx = x1 - x0
-	double Qy = V1[1] - V0[1]; // Qy = y1 - y0
-	double Qz = V1[2] - V0[2]; // Qz = z1 - z0
-	double Wx = V2[0] - V0[0]; // Wx = x2 - x0
-	double Wy = V2[1] - V0[1]; // Wy = y2 - y0
-	double Wz = V2[2] - V0[2]; // Wz = z2 - z0	
+	Eigen::RowVector3d e10 = V1 - V0;
+	Eigen::RowVector3d e20 = V2 - V0;
 	Eigen::Matrix<double, 3, 1> b2 = -((V1 - V0).cross((V1 - V0).cross(V2 - V0)));
 	double NormB2 = b2.norm();
 	double NormB2_2 = pow(NormB2, 2);
 
 	Eigen::Matrix<double, 3, 6> dxyz;
 	dxyz.row(0) <<
-		-Qy * Wy - Qz * Wz,
-		-Qx * Wy + 2 * Qy * Wx,
-		2 * Qz * Wx - Qx * Wz,
-		pow(Qy, 2) + pow(Qz, 2),
-		-Qy * Qx,
-		-Qx * Qz;
+		-e10(1) * e20(1) - e10(2) * e20(2),
+		-e10(0) * e20(1) + 2 * e10(1) * e20(0),
+		2 * e10(2) * e20(0) - e10(0) * e20(2),
+		pow(e10(1), 2) + pow(e10(2), 2),
+		-e10(1) * e10(0),
+		-e10(0) * e10(2);
 	dxyz.row(1) <<
-		2 * Qx * Wy - Qy * Wx,
-		-Qz * Wz - Wx * Qx,
-		-Qy * Wz + 2 * Qz * Wy,
-		-Qx * Qy,
-		pow(Qz, 2) + pow(Qx, 2),
-		-Qz * Qy;
+		2 * e10(0) * e20(1) - e10(1) * e20(0),
+		-e10(2) * e20(2) - e20(0) * e10(0),
+		-e10(1) * e20(2) + 2 * e10(2) * e20(1),
+		-e10(0) * e10(1),
+		pow(e10(2), 2) + pow(e10(0), 2),
+		-e10(2) * e10(1);
 	dxyz.row(2) <<
-		-Qz * Wx + 2 * Qx * Wz,
-		2 * Qy * Wz - Qz * Wy,
-		-Qx * Wx - Qy * Wy,
-		-Qx * Qz,
-		-Qz * Qy,
-		pow(Qx, 2) + pow(Qy, 2);
+		-e10(2) * e20(0) + 2 * e10(0) * e20(2),
+		2 * e10(1) * e20(2) - e10(2) * e20(1),
+		-e10(0) * e20(0) - e10(1) * e20(1),
+		-e10(0) * e10(2),
+		-e10(2) * e10(1),
+		pow(e10(0), 2) + pow(e10(1), 2);
 
 	Eigen::Matrix<double, 6, 1> dnorm;
 	dnorm <<
