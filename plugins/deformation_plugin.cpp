@@ -1950,6 +1950,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	std::shared_ptr <AuxCylinder> auxCylinder = std::make_unique<AuxCylinder>(V, F, FunctionType::SIGMOID);
 	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(V, F, FunctionType::SIGMOID);
 	std::shared_ptr <STVK> stvk = std::make_unique<STVK>(V, F);
+	std::shared_ptr <SDenergy> sdenergy = std::make_unique<SDenergy>(V, F);
 	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>(V, F);
 	
 	//Add User Interface Energies
@@ -1978,6 +1979,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	add_obj(auxBendingNormal);
 	add_obj(auxCylinder);
 	add_obj(stvk);
+	add_obj(sdenergy);
 	add_obj(fixAllVertices);
 	add_obj(fixChosenVertices);
 	add_obj(fixChosenNormals);

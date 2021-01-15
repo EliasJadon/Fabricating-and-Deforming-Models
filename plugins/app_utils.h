@@ -23,6 +23,7 @@
 #include "../../libs/Minimizer.h"
 #include "../../libs/Grouping.h"
 #include "../../libs/STVK.h"
+#include "../../libs/SDenergy.h"
 #include "../../libs/FixAllVertices.h"
 #include "../../libs/AuxBendingNormal.h"
 #include "../../libs/AuxCylinder.h"
