@@ -9,7 +9,6 @@ private:
 	Eigen::VectorXd c;
 	Eigen::VectorXd d;
 	Eigen::VectorXd detJ;
-	Eigen::MatrixX3d B1, B2;
 	Eigen::Matrix3Xd D1d, D2d;
 	Eigen::VectorXd restShapeArea;
 	Eigen::MatrixX3d CurrV;
