@@ -204,7 +204,7 @@ Eigen::Matrix<double, 4, 9> SDenergy::dJ_dX(
 	Eigen::RowVector3d temp = B1.cross(V2 - V0).normalized();
 	Eigen::RowVector3d B2 = temp.cross(B1).normalized();
 
-	Eigen::Matrix<double, 3, 9> YY, XX, db1_dX = dB1_dX(fi, V0, V1, V2), db2_dX = dB2_dX(fi, V0, V1, V2);
+	Eigen::Matrix<double, 3, 9> YY, XX, db1_dX = dB1_dX(fi, V1 - V0), db2_dX = dB2_dX(fi, V1 - V0, V2 - V0);
 	XX <<
 		(V0 * db1_dX + B1 * dV0_dX),
 		(V1 * db1_dX + B1 * dV1_dX),
@@ -222,21 +222,17 @@ Eigen::Matrix<double, 4, 9> SDenergy::dJ_dX(
 	return dJ;
 }
 
-Eigen::Matrix<double, 3, 9> SDenergy::dB1_dX(
-	int fi,
-	const Eigen::RowVector3d V0,
-	const Eigen::RowVector3d V1,
-	const Eigen::RowVector3d V2) 
+Eigen::Matrix<double, 3, 9> SDenergy::dB1_dX(int fi, const Eigen::RowVector3d e10) 
 {
-	Eigen::Matrix<double, 3, 9> g;
-	double Norm = (V1 - V0).norm();
-	Eigen::RowVector3d e10 = V1 - V0;
+	double Norm = e10.norm();
 	double dB1x_dx0 = -(pow(e10(1), 2) + pow(e10(2), 2)) / pow(Norm, 3);
 	double dB1y_dy0 = -(pow(e10(0), 2) + pow(e10(2), 2)) / pow(Norm, 3);
 	double dB1z_dz0 = -(pow(e10(0), 2) + pow(e10(1), 2)) / pow(Norm, 3);
 	double dB1x_dy0 = (e10(1) * e10(0)) / pow(Norm, 3);
 	double dB1x_dz0 = (e10(2) * e10(0)) / pow(Norm, 3);
 	double dB1y_dz0 = (e10(2) * e10(1)) / pow(Norm, 3);
+
+	Eigen::Matrix<double, 3, 9> g;
 	g <<
 		dB1x_dx0, -dB1x_dx0, 0, dB1x_dy0, -dB1x_dy0, 0, dB1x_dz0, -dB1x_dz0, 0,
 		dB1x_dy0, -dB1x_dy0, 0, dB1y_dy0, -dB1y_dy0, 0, dB1y_dz0, -dB1y_dz0, 0,
@@ -244,15 +240,9 @@ Eigen::Matrix<double, 3, 9> SDenergy::dB1_dX(
 	return g;
 }
 
-Eigen::Matrix<double, 3, 9> SDenergy::dB2_dX(
-	int fi,
-	const Eigen::RowVector3d V0,
-	const Eigen::RowVector3d V1,
-	const Eigen::RowVector3d V2) 
+Eigen::Matrix<double, 3, 9> SDenergy::dB2_dX(int fi, const Eigen::RowVector3d e10, const Eigen::RowVector3d e20)
 {
 	Eigen::Matrix<double, 3, 9> g;
-	Eigen::RowVector3d e10 = V1 - V0;
-	Eigen::RowVector3d e20 = V2 - V0;
 	Eigen::Matrix<double, 3, 1> b2 = -(e10.cross(e10.cross(e20)));
 	double NormB2 = b2.norm();
 	double NormB2_2 = pow(NormB2, 2);
