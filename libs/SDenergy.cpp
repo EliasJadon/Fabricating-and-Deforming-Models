@@ -44,37 +44,43 @@ SDenergy::~SDenergy() {
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void SDenergy::updateX(Cuda::Array<double>& curr_x)
-{
+void SDenergy::value(Cuda::Array<double>& curr_x) {
 	Cuda::MemCpyDeviceToHost(curr_x);
-	Eigen::VectorXd X(curr_x.size);
-	for (int i = 0; i < curr_x.size; i++)
-		X(i) = curr_x.host_arr[i];
 
-	CurrV = Eigen::Map<const Eigen::MatrixX3d>(X.middleRows(0, restShapeV.size()).data(), restShapeV.rows(), 3);
-
-
+	Eigen::VectorXd Energy(restShapeF.rows());
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
 		int v0_index = restShapeF(fi, 0);
 		int v1_index = restShapeF(fi, 1);
 		int v2_index = restShapeF(fi, 2);
-		Eigen::RowVector3d V0 = CurrV.row(v0_index);
-		Eigen::RowVector3d V1 = CurrV.row(v1_index);
-		Eigen::RowVector3d V2 = CurrV.row(v2_index);
+		Eigen::RowVector3d V0(
+			curr_x.host_arr[v0_index + cuda_SD->mesh_indices.startVx],
+			curr_x.host_arr[v0_index + cuda_SD->mesh_indices.startVy],
+			curr_x.host_arr[v0_index + cuda_SD->mesh_indices.startVz]
+		);
+		Eigen::RowVector3d V1(
+			curr_x.host_arr[v1_index + cuda_SD->mesh_indices.startVx],
+			curr_x.host_arr[v1_index + cuda_SD->mesh_indices.startVy],
+			curr_x.host_arr[v1_index + cuda_SD->mesh_indices.startVz]
+		);
+		Eigen::RowVector3d V2(
+			curr_x.host_arr[v2_index + cuda_SD->mesh_indices.startVx],
+			curr_x.host_arr[v2_index + cuda_SD->mesh_indices.startVy],
+			curr_x.host_arr[v2_index + cuda_SD->mesh_indices.startVz]
+		);
 
 		Eigen::RowVector3d B1 = (V1 - V0).normalized();
 		Eigen::RowVector3d temp = B1.cross(V2 - V0).normalized();
 		Eigen::RowVector3d B2 = temp.cross(B1).normalized();
-		
+
 		Eigen::Vector3d Xi, Yi;
 		Xi <<
-			CurrV.row(v0_index) * B1.transpose(),
-			CurrV.row(v1_index)* B1.transpose(),
-			CurrV.row(v2_index)* B1.transpose();
+			V0 * B1.transpose(),
+			V1* B1.transpose(),
+			V2* B1.transpose();
 		Yi <<
-			CurrV.row(restShapeF(fi, 0)) * B2.transpose(),
-			CurrV.row(restShapeF(fi, 1))* B2.transpose(),
-			CurrV.row(restShapeF(fi, 2))* B2.transpose();
+			V0 * B2.transpose(),
+			V1* B2.transpose(),
+			V2* B2.transpose();
 
 		Eigen::Vector3d Dx = D1d.col(fi);
 		Eigen::Vector3d Dy = D2d.col(fi);
@@ -84,14 +90,8 @@ void SDenergy::updateX(Cuda::Array<double>& curr_x)
 		c(fi) = Dy.transpose() * Xi;
 		d(fi) = Dy.transpose() * Yi;
 		detJ(fi) = a(fi) * d(fi) - b(fi) * c(fi);
-	}
-}
 
-void SDenergy::value(Cuda::Array<double>& curr_x) {
-	updateX(curr_x);
 
-	Eigen::VectorXd Energy(restShapeF.rows());
-	for (int fi = 0; fi < restShapeF.rows(); fi++) {
 		Energy(fi) = 0.5 * (1 + 1 / pow(detJ(fi), 2)) * (pow(a(fi), 2) + pow(b(fi), 2) + pow(c(fi), 2) + pow(d(fi), 2));
 	}
 	cuda_SD->EnergyAtomic.host_arr[0] = restShapeArea.transpose() * Energy;
@@ -105,11 +105,53 @@ void SDenergy::value(Cuda::Array<double>& curr_x) {
 
 void SDenergy::gradient(Cuda::Array<double>& X)
 {
-	updateX(X);
+	Cuda::MemCpyDeviceToHost(X);
 	for (int i = 0; i < cuda_SD->grad.size; i++)
 		cuda_SD->grad.host_arr[i] = 0;
 
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
+		int v0_index = restShapeF(fi, 0);
+		int v1_index = restShapeF(fi, 1);
+		int v2_index = restShapeF(fi, 2);
+		Eigen::RowVector3d V0(
+			X.host_arr[v0_index + cuda_SD->mesh_indices.startVx],
+			X.host_arr[v0_index + cuda_SD->mesh_indices.startVy],
+			X.host_arr[v0_index + cuda_SD->mesh_indices.startVz]
+		);
+		Eigen::RowVector3d V1(
+			X.host_arr[v1_index + cuda_SD->mesh_indices.startVx],
+			X.host_arr[v1_index + cuda_SD->mesh_indices.startVy],
+			X.host_arr[v1_index + cuda_SD->mesh_indices.startVz]
+		);
+		Eigen::RowVector3d V2(
+			X.host_arr[v2_index + cuda_SD->mesh_indices.startVx],
+			X.host_arr[v2_index + cuda_SD->mesh_indices.startVy],
+			X.host_arr[v2_index + cuda_SD->mesh_indices.startVz]
+		);
+
+		Eigen::RowVector3d B1 = (V1 - V0).normalized();
+		Eigen::RowVector3d temp = B1.cross(V2 - V0).normalized();
+		Eigen::RowVector3d B2 = temp.cross(B1).normalized();
+
+		Eigen::Vector3d Xi, Yi;
+		Xi <<
+			V0 * B1.transpose(),
+			V1* B1.transpose(),
+			V2* B1.transpose();
+		Yi <<
+			V0 * B2.transpose(),
+			V1* B2.transpose(),
+			V2* B2.transpose();
+
+		Eigen::Vector3d Dx = D1d.col(fi);
+		Eigen::Vector3d Dy = D2d.col(fi);
+		//prepare jacobian		
+		a(fi) = Dx.transpose() * Xi;
+		b(fi) = Dx.transpose() * Yi;
+		c(fi) = Dy.transpose() * Xi;
+		d(fi) = Dy.transpose() * Yi;
+		detJ(fi) = a(fi) * d(fi) - b(fi) * c(fi);
+
 		Eigen::Matrix<double, 1, 4> de_dJ;
 		double det2 = pow(detJ(fi), 2);
 		double det3 = pow(detJ(fi), 3);
@@ -121,7 +163,7 @@ void SDenergy::gradient(Cuda::Array<double>& X)
 			d(fi) + d(fi) / det2 - a(fi) * Fnorm / det3;
 		de_dJ *= restShapeArea[fi];
 
-		Eigen::Matrix<double, 1, 9> dE_dX = de_dJ * dJ_dX(fi);
+		Eigen::Matrix<double, 1, 9> dE_dX = de_dJ * dJ_dX(fi, V0, V1, V2);
 		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVx] += dE_dX[0];
 		cuda_SD->grad.host_arr[restShapeF(fi, 1) + cuda_SD->mesh_indices.startVx] += dE_dX[1];
 		cuda_SD->grad.host_arr[restShapeF(fi, 2) + cuda_SD->mesh_indices.startVx] += dE_dX[2];
@@ -135,12 +177,14 @@ void SDenergy::gradient(Cuda::Array<double>& X)
 	Cuda::MemCpyHostToDevice(cuda_SD->grad);
 }
 
-Eigen::Matrix<double, 4, 9> SDenergy::dJ_dX(int fi) {
+Eigen::Matrix<double, 4, 9> SDenergy::dJ_dX(
+	int fi, 
+	const Eigen::RowVector3d V0,
+	const Eigen::RowVector3d V1,
+	const Eigen::RowVector3d V2) 
+{
 	Eigen::Vector3d Dx = D1d.col(fi);
 	Eigen::Vector3d Dy = D2d.col(fi);
-	Eigen::Matrix<double, 1, 3> V0 = CurrV.row(restShapeF(fi, 0));
-	Eigen::Matrix<double, 1, 3> V1 = CurrV.row(restShapeF(fi, 1));
-	Eigen::Matrix<double, 1, 3> V2 = CurrV.row(restShapeF(fi, 2));
 	Eigen::Matrix<double, 3, 9> dV0_dX, dV1_dX, dV2_dX;
 	dV0_dX.setZero(); dV0_dX(0, 0) = 1; dV0_dX(1, 3) = 1; dV0_dX(2, 6) = 1;
 	dV1_dX.setZero(); dV1_dX(0, 1) = 1; dV1_dX(1, 4) = 1; dV1_dX(2, 7) = 1;
@@ -150,7 +194,7 @@ Eigen::Matrix<double, 4, 9> SDenergy::dJ_dX(int fi) {
 	Eigen::RowVector3d temp = B1.cross(V2 - V0).normalized();
 	Eigen::RowVector3d B2 = temp.cross(B1).normalized();
 
-	Eigen::Matrix<double, 3, 9> YY, XX, db1_dX = dB1_dX(fi), db2_dX = dB2_dX(fi);
+	Eigen::Matrix<double, 3, 9> YY, XX, db1_dX = dB1_dX(fi, V0, V1, V2), db2_dX = dB2_dX(fi, V0, V1, V2);
 	XX <<
 		(V0 * db1_dX + B1 * dV0_dX),
 		(V1 * db1_dX + B1 * dV1_dX),
@@ -168,11 +212,13 @@ Eigen::Matrix<double, 4, 9> SDenergy::dJ_dX(int fi) {
 	return dJ;
 }
 
-Eigen::Matrix<double, 3, 9> SDenergy::dB1_dX(int fi) {
+Eigen::Matrix<double, 3, 9> SDenergy::dB1_dX(
+	int fi,
+	const Eigen::RowVector3d V0,
+	const Eigen::RowVector3d V1,
+	const Eigen::RowVector3d V2) 
+{
 	Eigen::Matrix<double, 3, 9> g;
-	Eigen::Matrix<double, 3, 1> V0 = CurrV.row(restShapeF(fi, 0));
-	Eigen::Matrix<double, 3, 1> V1 = CurrV.row(restShapeF(fi, 1));
-	Eigen::Matrix<double, 3, 1> V2 = CurrV.row(restShapeF(fi, 2));
 	double Norm = (V1 - V0).norm();
 	double Qx = V1[0] - V0[0]; // x1 - x0
 	double Qy = V1[1] - V0[1]; // y1 - y0
@@ -190,11 +236,13 @@ Eigen::Matrix<double, 3, 9> SDenergy::dB1_dX(int fi) {
 	return g;
 }
 
-Eigen::Matrix<double, 3, 9> SDenergy::dB2_dX(int fi) {
+Eigen::Matrix<double, 3, 9> SDenergy::dB2_dX(
+	int fi,
+	const Eigen::RowVector3d V0,
+	const Eigen::RowVector3d V1,
+	const Eigen::RowVector3d V2) 
+{
 	Eigen::Matrix<double, 3, 9> g;
-	Eigen::Matrix<double, 3, 1> V0 = CurrV.row(restShapeF(fi, 0));
-	Eigen::Matrix<double, 3, 1> V1 = CurrV.row(restShapeF(fi, 1));
-	Eigen::Matrix<double, 3, 1> V2 = CurrV.row(restShapeF(fi, 2));
 	double Qx = V1[0] - V0[0]; // Qx = x1 - x0
 	double Qy = V1[1] - V0[1]; // Qy = y1 - y0
 	double Qz = V1[2] - V0[2]; // Qz = z1 - z0

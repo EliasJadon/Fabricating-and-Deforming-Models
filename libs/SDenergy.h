@@ -11,12 +11,22 @@ private:
 	Eigen::VectorXd detJ;
 	Eigen::Matrix3Xd D1d, D2d;
 	Eigen::VectorXd restShapeArea;
-	Eigen::MatrixX3d CurrV;
 
-	Eigen::Matrix<double, 3, 9> dB1_dX(int fi);
-	Eigen::Matrix<double, 3, 9> dB2_dX(int fi);
-	Eigen::Matrix<double, 4, 9> dJ_dX(int fi);
-	Eigen::Matrix<double, 1, 4> dE_dJ(int fi);
+	Eigen::Matrix<double, 3, 9> dB1_dX(
+		int fi, 
+		const Eigen::RowVector3d V0,
+		const Eigen::RowVector3d V1,
+		const Eigen::RowVector3d V2);
+	Eigen::Matrix<double, 3, 9> dB2_dX(
+		int fi, 
+		const Eigen::RowVector3d V0,
+		const Eigen::RowVector3d V1,
+		const Eigen::RowVector3d V2);
+	Eigen::Matrix<double, 4, 9> dJ_dX(
+		int fi, 
+		const Eigen::RowVector3d V0,
+		const Eigen::RowVector3d V1,
+		const Eigen::RowVector3d V2);
 public:
 	std::shared_ptr<Cuda_SDenergy> cuda_SD;
 	SDenergy(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
@@ -30,5 +40,4 @@ public:
 	}
 	virtual void value(Cuda::Array<double>& curr_x);
 	virtual void gradient(Cuda::Array<double>& X);
-	void updateX(Cuda::Array<double>& curr_x);
 };
