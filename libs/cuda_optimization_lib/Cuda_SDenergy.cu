@@ -6,42 +6,61 @@ namespace Utils_Cuda_SDenergy {
 	{
 		return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
 	}
+	__device__ double dot(const double3 a, const double3 b)
+	{
+		return a.x * b.x + a.y * b.y + a.z * b.z;
+	}
+	__device__ double3 mul(const double a, const double3 b)
+	{
+		return make_double3(a * b.x, a * b.y, a * b.z);
+	}
+	__device__ double squared_norm(const double3 a)
+	{
+		return dot(a, a);
+	}
+	__device__ double norm(const double3 a)
+	{
+		return sqrt(squared_norm(a));
+	}
+	__device__ double3 normalize(const double3 a)
+	{
+		return mul(1.0f / norm(a), a);
+	}
+	__device__ double3 cross(const double3 a, const double3 b)
+	{
+		return make_double3(
+			a.y * b.z - a.z * b.y,
+			a.z * b.x - a.x * b.z,
+			a.x * b.y - a.y * b.x
+		);
+	}
+	template<int N> __device__ void multiply(
+		double3 mat1,
+		double mat2[3][N],
+		double res[N])
+	{
+		for (int i = 0; i < N; i++) {
+			res[i] = mat1.x * mat2[0][i] + mat1.y * mat2[1][i] + mat1.z * mat2[2][i];
+		}
+	}
+	template<int N> __device__ void multiply(
+		double4 mat1,
+		double mat2[4][N],
+		double res[N])
+	{
+		for (int i = 0; i < N; i++) {
+			res[i] =
+				mat1.x * mat2[0][i] +
+				mat1.y * mat2[1][i] +
+				mat1.z * mat2[2][i] +
+				mat1.w * mat2[3][i];
+		}
+	}
 	template<typename T>
 	__global__ void setZeroKernel(T* vec)
 	{
 		vec[blockIdx.x] = 0;
 	}
-	template<int R1, int C1_R2, int C2> 
-	__device__ void multiply(
-		double mat1[R1][C1_R2],
-		double mat2[C1_R2][C2],
-		double res[R1][C2])
-	{
-		int i, j, k;
-		for (i = 0; i < R1; i++) {
-			for (j = 0; j < C2; j++) {
-				res[i][j] = 0;
-				for (k = 0; k < C1_R2; k++)
-					res[i][j] += mat1[i][k] * mat2[k][j];
-			}
-		}
-	}
-	template<int R1, int C1_R2, int C2> 
-	__device__ void multiplyTranspose(
-		double mat1[C1_R2][R1],
-		double mat2[C1_R2][C2],
-		double res[R1][C2])
-	{
-		int i, j, k;
-		for (i = 0; i < R1; i++) {
-			for (j = 0; j < C2; j++) {
-				res[i][j] = 0;
-				for (k = 0; k < C1_R2; k++)
-					res[i][j] += mat1[k][i] * mat2[k][j];
-			}
-		}
-	}
-
 	__device__ double atomicAdd(double* address, double val, int flag)
 	{
 		unsigned long long int* address_as_ull =
@@ -77,10 +96,9 @@ namespace Utils_Cuda_SDenergy {
 		const double* curr_x,
 		const int3* restShapeF,
 		const double* restShapeArea,
-		const double4* dXInv,
-		const Cuda::indices I,
-		const double shearModulus,
-		const double bulkModulus)
+		const double3* D1d,
+		const double3* D2d,
+		const Cuda::indices I)
 	{
 		//init data
 		extern __shared__ double energy_value[blockSize];
@@ -89,59 +107,43 @@ namespace Utils_Cuda_SDenergy {
 		energy_value[tid] = 0;
 
 		if (fi < I.num_faces) {
-			const double4 dxinv = dXInv[fi];
-			const int startX = I.startVx;
-			const int startY = I.startVy;
-			const int startZ = I.startVz;
-			const double Area = restShapeArea[fi];
-			const unsigned int v0i = restShapeF[fi].x;
-			const unsigned int v1i = restShapeF[fi].y;
-			const unsigned int v2i = restShapeF[fi].z;
+			int v0_index = restShapeF[fi].x;
+			int v1_index = restShapeF[fi].y;
+			int v2_index = restShapeF[fi].z;
 			double3 V0 = make_double3(
-				curr_x[v0i + startX],
-				curr_x[v0i + startY],
-				curr_x[v0i + startZ]
+				curr_x[v0_index + I.startVx],
+				curr_x[v0_index + I.startVy],
+				curr_x[v0_index + I.startVz]
 			);
 			double3 V1 = make_double3(
-				curr_x[v1i + startX],
-				curr_x[v1i + startY],
-				curr_x[v1i + startZ]
+				curr_x[v1_index + I.startVx],
+				curr_x[v1_index + I.startVy],
+				curr_x[v1_index + I.startVz]
 			);
 			double3 V2 = make_double3(
-				curr_x[v2i + startX],
-				curr_x[v2i + startY],
-				curr_x[v2i + startZ]
+				curr_x[v2_index + I.startVx],
+				curr_x[v2_index + I.startVy],
+				curr_x[v2_index + I.startVz]
 			);
-
 			double3 e10 = sub(V1, V0);
 			double3 e20 = sub(V2, V0);
-			double dx[3][2];
-			dx[0][0] = e10.x; dx[0][1] = e20.x;
-			dx[1][0] = e10.y; dx[1][1] = e20.y;
-			dx[2][0] = e10.z; dx[2][1] = e20.z;
-
-			double F[3][2];
-			double dxInv[2][2];
-			dxInv[0][0] = dxinv.x;
-			dxInv[0][1] = dxinv.y;
-			dxInv[1][0] = dxinv.z;
-			dxInv[1][1] = dxinv.w;
-			multiply<3, 2, 2>(dx, dxInv, F);
-
-			//compute the Green Strain = 1/2 * (F'F-I)
-			double strain[2][2];
-			multiplyTranspose<2, 3, 2>(F, F, strain);
-			strain[0][0] -= 1; strain[1][1] -= 1;
-			strain[0][0] *= 0.5;
-			strain[0][1] *= 0.5;
-			strain[1][0] *= 0.5;
-			strain[1][1] *= 0.5;
-
-			Energy[fi] =
-				shearModulus * (pow(strain[0][0], 2) + pow(strain[1][0], 2) + pow(strain[0][1], 2) + pow(strain[1][1], 2)) +
-				(bulkModulus / 2) * pow((strain[0][0] + strain[1][1]), 2);
-
-			energy_value[tid] = restShapeArea[fi] * Energy[fi];
+			double3 B1 = normalize(e10);
+			double3 B2 = normalize(cross(cross(B1, e20), B1));
+			double3 Xi = make_double3(dot(V0, B1), dot(V1, B1), dot(V2, B1));
+			double3 Yi = make_double3(dot(V0, B2), dot(V1, B2), dot(V2, B2));
+			//prepare jacobian		
+			const double a = dot(D1d[fi], Xi);
+			const double b = dot(D1d[fi], Yi);
+			const double c = dot(D2d[fi], Xi);
+			const double d = dot(D2d[fi], Yi);
+			const double detJ = a * d - b * c;
+			const double detJ2 = detJ * detJ;
+			const double a2 = a * a;
+			const double b2 = b * b;
+			const double c2 = c * c;
+			const double d2 = d * d;
+			Energy[fi] = 0.5 * restShapeArea[fi] * (1 + 1 / detJ2) * (a2 + b2 + c2 + d2);
+			energy_value[tid] = Energy[fi];
 		}		
 
 		__syncthreads();
@@ -205,11 +207,11 @@ namespace Utils_Cuda_SDenergy {
 		dxInv[0][1] = dxinv.y;
 		dxInv[1][0] = dxinv.z;
 		dxInv[1][1] = dxinv.w;
-		multiply<3, 2, 2>(dx, dxInv, F);
+		//multiply<3, 2, 2>(dx, dxInv, F);
 
 		//compute the Green Strain = 1/2 * (F'F-I)
 		double strain[2][2];
-		multiplyTranspose<2, 3, 2>(F, F, strain);
+		//multiplyTranspose<2, 3, 2>(F, F, strain);
 		strain[0][0] -= 1; strain[1][1] -= 1;
 		strain[0][0] *= 0.5;
 		strain[0][1] *= 0.5;
@@ -272,8 +274,8 @@ namespace Utils_Cuda_SDenergy {
 
 		double dE_dX[1][9];
 		double temp[1][6];
-		multiply<1, 4, 6>(dE_dJ, dstrain_dF, temp);
-		multiply<1, 6, 9>(temp, dF_dX, dE_dX);
+		//multiply<1, 4, 6>(dE_dJ, dstrain_dF, temp);
+		//multiply<1, 6, 9>(temp, dF_dX, dE_dX);
 
 		atomicAdd(&(grad[v0i + startX]), dE_dX[0][0], 0);
 		atomicAdd(&(grad[v1i + startX]), dE_dX[0][1], 0);
@@ -289,18 +291,17 @@ namespace Utils_Cuda_SDenergy {
 	
 void Cuda_SDenergy::value(Cuda::Array<double>& curr_x)
 {
-	/*Utils_Cuda_SDenergy::setZeroKernel << <1, 1>> > (EnergyAtomic.cuda_arr);
+	Utils_Cuda_SDenergy::setZeroKernel << <1, 1>> > (EnergyAtomic.cuda_arr);
 	unsigned int s = mesh_indices.num_faces;
-	Utils_Cuda_SDenergy::EnergyKernel<1024> << <ceil(s / (double)1024), 1024>> > (
+	Utils_Cuda_SDenergy::EnergyKernel<1024> << <ceil(s / (double)1024), 1024 >> > (
 		EnergyAtomic.cuda_arr,
 		Energy.cuda_arr,
 		curr_x.cuda_arr,
 		restShapeF.cuda_arr,
 		restShapeArea.cuda_arr,
-		dXInv.cuda_arr,
-		mesh_indices,
-		shearModulus,
-		bulkModulus);*/
+		D1d.cuda_arr,
+		D2d.cuda_arr,
+		mesh_indices);
 }
 
 		

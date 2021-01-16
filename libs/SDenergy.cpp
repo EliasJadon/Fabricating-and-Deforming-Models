@@ -4,10 +4,6 @@ double3 sub(const double3 a, const double3 b)
 {
 	return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
 }
-double3 add(double3 a, double3 b)
-{
-	return make_double3(a.x + b.x, a.y + b.y, a.z + b.z);
-}
 double dot(const double3 a, const double3 b)
 {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
@@ -107,64 +103,7 @@ SDenergy::~SDenergy() {
 }
 
 void SDenergy::value(Cuda::Array<double>& curr_x) {
-	Cuda::MemCpyDeviceToHost(curr_x);
-	cuda_SD->EnergyAtomic.host_arr[0] = 0;
-
-	for (int fi = 0; fi < restShapeF.rows(); fi++) {
-		int v0_index = restShapeF(fi, 0);
-		int v1_index = restShapeF(fi, 1);
-		int v2_index = restShapeF(fi, 2);
-		double3 V0 = make_double3(
-			curr_x.host_arr[v0_index + cuda_SD->mesh_indices.startVx],
-			curr_x.host_arr[v0_index + cuda_SD->mesh_indices.startVy],
-			curr_x.host_arr[v0_index + cuda_SD->mesh_indices.startVz]
-		);
-		double3 V1 = make_double3(
-			curr_x.host_arr[v1_index + cuda_SD->mesh_indices.startVx],
-			curr_x.host_arr[v1_index + cuda_SD->mesh_indices.startVy],
-			curr_x.host_arr[v1_index + cuda_SD->mesh_indices.startVz]
-		);
-		double3 V2 = make_double3(
-			curr_x.host_arr[v2_index + cuda_SD->mesh_indices.startVx],
-			curr_x.host_arr[v2_index + cuda_SD->mesh_indices.startVy],
-			curr_x.host_arr[v2_index + cuda_SD->mesh_indices.startVz]
-		);
-
-		double3 e10 = sub(V1, V0);
-		double3 e20 = sub(V2, V0);
-		double3 B1 = normalize(e10);
-		double3 B2 = normalize(cross(cross(B1, e20), B1));
-
-		double3 Xi = make_double3(
-			dot(V0, B1),
-			dot(V1, B1),
-			dot(V2, B1)
-		);
-		double3 Yi = make_double3(
-			dot(V0, B2),
-			dot(V1, B2),
-			dot(V2, B2)
-		);
-		 
-		//prepare jacobian		
-		const double a = dot(cuda_SD->D1d.host_arr[fi], Xi);
-		const double b = dot(cuda_SD->D1d.host_arr[fi], Yi);
-		const double c = dot(cuda_SD->D2d.host_arr[fi], Xi);
-		const double d = dot(cuda_SD->D2d.host_arr[fi], Yi);
-		const double detJ = a * d - b * c;
-		const double detJ2 = detJ * detJ;
-		const double a2 = a * a;
-		const double b2 = b * b;
-		const double c2 = c * c;
-		const double d2 = d * d;
-
-
-		cuda_SD->Energy.host_arr[fi] = 0.5 * cuda_SD->restShapeArea.host_arr[fi] *
-			(1 + 1 / detJ2) * (a2 + b2 + c2 + d2);
-		cuda_SD->EnergyAtomic.host_arr[0] += cuda_SD->Energy.host_arr[fi];
-	}
-	Cuda::MemCpyHostToDevice(cuda_SD->Energy);
-	Cuda::MemCpyHostToDevice(cuda_SD->EnergyAtomic);
+	cuda_SD->value(curr_x);
 }
 
 void SDenergy::gradient(Cuda::Array<double>& X)
