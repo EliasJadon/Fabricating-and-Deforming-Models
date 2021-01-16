@@ -171,8 +171,6 @@ namespace Utils_Cuda_AuxBendingNormal {
 		int x0 = restShapeF[fi].x;
 		int x1 = restShapeF[fi].y;
 		int x2 = restShapeF[fi].z;
-
-		int num_vertices2 = 2 * I.num_vertices;
 		double3 V0 = make_double3(
 			curr_x[x0 + I.startVx],
 			curr_x[x0 + I.startVy],
@@ -193,16 +191,10 @@ namespace Utils_Cuda_AuxBendingNormal {
 			curr_x[fi + I.startNy],
 			curr_x[fi + I.startNz]
 		);
-
 		double3 e21 = sub(V2, V1);
 		double3 e10 = sub(V1, V0);
 		double3 e02 = sub(V0, V2);
-		double d1 = dot(N, e21);
-		double d2 = dot(N, e10);
-		double d3 = dot(N, e02);
-		double res = d1 * d1 + d2 * d2 + d3 * d3;
-		res *= w3;
-		return res;
+		return w3 * (pow(dot(N, e21), 2) + pow(dot(N, e10), 2) + pow(dot(N, e02), 2));
 	}
 
 	template<unsigned int blockSize>
