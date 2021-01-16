@@ -39,6 +39,31 @@ double3 cross(const double3 a, const double3 b)
 Eigen::RowVector3d CastingToEigen(const double3 a) {
 	return Eigen::RowVector3d(a.x, a.y, a.z);
 }
+template<int R1, int C1_R2, int C2>
+void multiply(
+	double mat1[R1][C1_R2],
+	double mat2[C1_R2][C2],
+	double res[R1][C2])
+{
+	int i, j, k;
+	for (i = 0; i < R1; i++) {
+		for (j = 0; j < C2; j++) {
+			res[i][j] = 0;
+			for (k = 0; k < C1_R2; k++)
+				res[i][j] += mat1[i][k] * mat2[k][j];
+		}
+	}
+}
+template<int N> void multiply(
+	double3 mat1,
+	double mat2[3][N],
+	double res[N])
+{
+	for (int i = 0; i < N; i++) {
+		res[i] = mat1.x * mat2[0][i] + mat1.y * mat2[1][i] + mat1.z * mat2[2][i];
+	}
+}
+
 
 SDenergy::SDenergy(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) {
 	init_mesh(V, F);
@@ -231,54 +256,81 @@ Eigen::Matrix<double, 4, 9> SDenergy::dJ_dX(
 	const double3 V1,
 	const double3 V2)
 {
-	Eigen::Matrix<double, 3, 9> dV0_dX, dV1_dX, dV2_dX;
-	dV0_dX.setZero(); dV0_dX(0, 0) = 1; dV0_dX(1, 3) = 1; dV0_dX(2, 6) = 1;
-	dV1_dX.setZero(); dV1_dX(0, 1) = 1; dV1_dX(1, 4) = 1; dV1_dX(2, 7) = 1;
-	dV2_dX.setZero(); dV2_dX(0, 2) = 1; dV2_dX(1, 5) = 1; dV2_dX(2, 8) = 1;
+	double dV0_dX[3][9] = { 0 }, dV1_dX[3][9] = { 0 }, dV2_dX[3][9] = { 0 };
+	dV0_dX[0][0] = 1; dV0_dX[1][3] = 1; dV0_dX[2][6] = 1;
+	dV1_dX[0][1] = 1; dV1_dX[1][4] = 1; dV1_dX[2][7] = 1;
+	dV2_dX[0][2] = 1; dV2_dX[1][5] = 1; dV2_dX[2][8] = 1;
 	double3 e10 = sub(V1, V0);
 	double3 e20 = sub(V2, V0);
 	double3 B1 = normalize(e10);
 	double3 B2 = normalize(cross(cross(B1, e20), B1));
 
-	Eigen::Matrix<double, 3, 9> YY, XX, db1_dX = dB1_dX(fi, e10), db2_dX = dB2_dX(fi, e10, e20);
-	XX <<
-		(CastingToEigen(V0) * db1_dX + CastingToEigen(B1) * dV0_dX),
-		(CastingToEigen(V1) * db1_dX + CastingToEigen(B1) * dV1_dX),
-		(CastingToEigen(V2) * db1_dX + CastingToEigen(B1) * dV2_dX);
-	YY <<
-		(CastingToEigen(V0) * db2_dX + CastingToEigen(B2) * dV0_dX),
-		(CastingToEigen(V1) * db2_dX + CastingToEigen(B2) * dV1_dX),
-		(CastingToEigen(V2) * db2_dX + CastingToEigen(B2) * dV2_dX);
+	double db1_dX[3][9], db2_dX[3][9], XX[3][9], YY[3][9];
+	dB1_dX(db1_dX, fi, e10);
+	dB2_dX(db2_dX, fi, e10, e20);
+	
+	double res1[9], res2[9], res3[9], res4[9], res5[9], res6[9];
+	multiply<9>(V0, db1_dX, res1);
+	multiply<9>(V1, db1_dX, res2);
+	multiply<9>(V2, db1_dX, res3);
+	multiply<9>(B1, dV0_dX, res4);
+	multiply<9>(B1, dV1_dX, res5);
+	multiply<9>(B1, dV2_dX, res6);
+	for (int i = 0; i < 9; i++) {
+		XX[0][i] = res1[i] + res4[i];
+		XX[1][i] = res2[i] + res5[i];
+		XX[2][i] = res3[i] + res6[i];
+	}
 
+	multiply<9>(V0, db2_dX, res1);
+	multiply<9>(V1, db2_dX, res2);
+	multiply<9>(V2, db2_dX, res3);
+	multiply<9>(B2, dV0_dX, res4);
+	multiply<9>(B2, dV1_dX, res5);
+	multiply<9>(B2, dV2_dX, res6);
+	for (int i = 0; i < 9; i++) {
+		YY[0][i] = res1[i] + res4[i];
+		YY[1][i] = res2[i] + res5[i];
+		YY[2][i] = res3[i] + res6[i];
+	}
 	Eigen::Matrix<double, 4, 9> dJ;
-	dJ.row(0) = CastingToEigen(cuda_SD->D1d.host_arr[fi]) * XX;
-	dJ.row(1) = CastingToEigen(cuda_SD->D1d.host_arr[fi]) * YY;
-	dJ.row(2) = CastingToEigen(cuda_SD->D2d.host_arr[fi]) * XX;
-	dJ.row(3) = CastingToEigen(cuda_SD->D2d.host_arr[fi]) * YY;
+	multiply<9>(cuda_SD->D1d.host_arr[fi], XX, res1);
+	multiply<9>(cuda_SD->D1d.host_arr[fi], YY, res2);
+	multiply<9>(cuda_SD->D2d.host_arr[fi], XX, res3);
+	multiply<9>(cuda_SD->D2d.host_arr[fi], YY, res4);
+	for (int i = 0; i < 9; i++) {
+		dJ(0, i) = res1[i];
+		dJ(1, i) = res2[i];
+		dJ(2, i) = res3[i];
+		dJ(3, i) = res4[i];
+	}
 	return dJ;
 }
 
-Eigen::Matrix<double, 3, 9> SDenergy::dB1_dX(int fi, const double3 e10) 
+void SDenergy::dB1_dX(double g[3][9], int fi, const double3 e10)
 {
 	double Norm = norm(e10);
-	double dB1x_dx0 = -(pow(e10.y, 2) + pow(e10.z, 2)) / pow(Norm, 3);
-	double dB1y_dy0 = -(pow(e10.x, 2) + pow(e10.z, 2)) / pow(Norm, 3);
-	double dB1z_dz0 = -(pow(e10.x, 2) + pow(e10.y, 2)) / pow(Norm, 3);
-	double dB1x_dy0 = (e10.y * e10.x) / pow(Norm, 3);
-	double dB1x_dz0 = (e10.z * e10.x) / pow(Norm, 3);
-	double dB1y_dz0 = (e10.z * e10.y) / pow(Norm, 3);
-
-	Eigen::Matrix<double, 3, 9> g;
-	g <<
+	double Norm3 = pow(Norm, 3);
+	double dB1x_dx0 = -(pow(e10.y, 2) + pow(e10.z, 2)) / Norm3;
+	double dB1y_dy0 = -(pow(e10.x, 2) + pow(e10.z, 2)) / Norm3;
+	double dB1z_dz0 = -(pow(e10.x, 2) + pow(e10.y, 2)) / Norm3;
+	double dB1x_dy0 = (e10.y * e10.x) / Norm3;
+	double dB1x_dz0 = (e10.z * e10.x) / Norm3;
+	double dB1y_dz0 = (e10.z * e10.y) / Norm3;
+	double B1gradient[3][9] = {
 		dB1x_dx0, -dB1x_dx0, 0, dB1x_dy0, -dB1x_dy0, 0, dB1x_dz0, -dB1x_dz0, 0,
 		dB1x_dy0, -dB1x_dy0, 0, dB1y_dy0, -dB1y_dy0, 0, dB1y_dz0, -dB1y_dz0, 0,
-		dB1x_dz0, -dB1x_dz0, 0, dB1y_dz0, -dB1y_dz0, 0, dB1z_dz0, -dB1z_dz0, 0;
-	return g;
+		dB1x_dz0, -dB1x_dz0, 0, dB1y_dz0, -dB1y_dz0, 0, dB1z_dz0, -dB1z_dz0, 0
+	};
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 9; j++) {
+			g[i][j] = B1gradient[i][j];
+		}
+	}
 }
 
-Eigen::Matrix<double, 3, 9> SDenergy::dB2_dX(int fi, const double3 e10, const double3 e20)
+void SDenergy::dB2_dX(double outg[3][9], int fi, const double3 e10, const double3 e20)
 {
-	Eigen::Matrix<double, 3, 9> g;
 	double3 b2 = cross(cross(e10, e20), e10);
 	double NormB2 = norm(b2);
 	double NormB2_2 = pow(NormB2, 2);
@@ -306,16 +358,17 @@ Eigen::Matrix<double, 3, 9> SDenergy::dB2_dX(int fi, const double3 e10, const do
 		-e10.z * e10.y,
 		pow(e10.x, 2) + pow(e10.y, 2);
 
-	Eigen::Matrix<double, 6, 1> dnorm;
-	dnorm <<
+	double dnorm[6] = {
 		(b2.x * dxyz(0, 0) + b2.y * dxyz(1, 0) + b2.z * dxyz(2, 0)) / NormB2,
 		(b2.x * dxyz(0, 1) + b2.y * dxyz(1, 1) + b2.z * dxyz(2, 1)) / NormB2,
 		(b2.x * dxyz(0, 2) + b2.y * dxyz(1, 2) + b2.z * dxyz(2, 2)) / NormB2,
 		(b2.x * dxyz(0, 3) + b2.y * dxyz(1, 3) + b2.z * dxyz(2, 3)) / NormB2,
 		(b2.x * dxyz(0, 4) + b2.y * dxyz(1, 4) + b2.z * dxyz(2, 4)) / NormB2,
-		(b2.x * dxyz(0, 5) + b2.y * dxyz(1, 5) + b2.z * dxyz(2, 5)) / NormB2;
+		(b2.x * dxyz(0, 5) + b2.y * dxyz(1, 5) + b2.z * dxyz(2, 5)) / NormB2
+	};
+		
 
-	
+	Eigen::Matrix<double, 3, 9> g;
 	g.row(0) <<
 		0,
 		(dxyz(0, 0) * NormB2 - b2.x * dnorm[0]) / NormB2_2,
@@ -349,5 +402,10 @@ Eigen::Matrix<double, 3, 9> SDenergy::dB2_dX(int fi, const double3 e10, const do
 	
 	for (int c = 0; c < 9; c += 3)
 		g.col(c) = -g.col(c + 1) - g.col(c + 2);
-	return g;
+	
+	for (int i = 0; i < 3; i++) {
+		for (int j = 0; j < 9; j++) {
+			outg[i][j] = g(i, j);
+		}
+	}
 }

@@ -4,8 +4,8 @@
 
 class SDenergy : public ObjectiveFunction {
 private:
-	Eigen::Matrix<double, 3, 9> dB1_dX(int fi, const double3 e10);
-	Eigen::Matrix<double, 3, 9> dB2_dX(int fi, const double3 e10, const double3 e20);
+	void dB1_dX(double g[3][9], int fi, const double3 e10);
+	void dB2_dX(double outg[3][9], int fi, const double3 e10, const double3 e20);
 	Eigen::Matrix<double, 4, 9> dJ_dX(
 		int fi, 
 		const double3 V0,
