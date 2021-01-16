@@ -324,6 +324,8 @@ Cuda_SDenergy::Cuda_SDenergy(const int F, const int V) {
 	cudaStreamCreate(&stream_value);
 	cudaStreamCreate(&stream_gradient);
 	Cuda::AllocateMemory(Energy			, F);
+	Cuda::AllocateMemory(D1d			, F);
+	Cuda::AllocateMemory(D2d			, F);
 	Cuda::AllocateMemory(restShapeF		, F);
 	Cuda::AllocateMemory(restShapeArea	, F);
 	Cuda::initIndices(mesh_indices		, F, V, 0);
@@ -337,6 +339,8 @@ Cuda_SDenergy::~Cuda_SDenergy() {
 	cudaGetErrorString(cudaGetLastError());
 	FreeMemory(restShapeArea);
 	FreeMemory(Energy);
+	FreeMemory(D1d);
+	FreeMemory(D2d);
 	FreeMemory(grad);
 	FreeMemory(restShapeF);
 	FreeMemory(EnergyAtomic);

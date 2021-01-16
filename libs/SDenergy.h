@@ -4,14 +4,13 @@
 
 class SDenergy : public ObjectiveFunction {
 private:
-	Eigen::Matrix3Xd D1d, D2d;
-	Eigen::Matrix<double, 3, 9> dB1_dX(int fi, const Eigen::RowVector3d e10);
-	Eigen::Matrix<double, 3, 9> dB2_dX(int fi, const Eigen::RowVector3d e10, const Eigen::RowVector3d e20);
+	Eigen::Matrix<double, 3, 9> dB1_dX(int fi, const double3 e10);
+	Eigen::Matrix<double, 3, 9> dB2_dX(int fi, const double3 e10, const double3 e20);
 	Eigen::Matrix<double, 4, 9> dJ_dX(
 		int fi, 
-		const Eigen::RowVector3d V0,
-		const Eigen::RowVector3d V1,
-		const Eigen::RowVector3d V2);
+		const double3 V0,
+		const double3 V1,
+		const double3 V2);
 public:
 	std::shared_ptr<Cuda_SDenergy> cuda_SD;
 	SDenergy(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);

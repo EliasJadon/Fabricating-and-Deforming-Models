@@ -4,6 +4,7 @@
 class Cuda_SDenergy {
 public:
 	Cuda::Array<double> grad, Energy, EnergyAtomic, restShapeArea;
+	Cuda::Array<double3> D1d, D2d;
 	Cuda::Array<int3> restShapeF;
 	Cuda::indices mesh_indices;
 	cudaStream_t stream_value, stream_gradient;
