@@ -110,9 +110,10 @@ void SDenergy::value(Cuda::Array<double>& curr_x) {
 			curr_x.host_arr[v2_index + cuda_SD->mesh_indices.startVz]
 		);
 
-		double3 B1 = normalize(sub(V1, V0));
-		double3 temp = normalize(cross(B1, sub(V2, V0)));
-		double3 B2 = normalize(cross(temp, B1));
+		double3 e10 = sub(V1, V0);
+		double3 e20 = sub(V2, V0);
+		double3 B1 = normalize(e10);
+		double3 B2 = normalize(cross(cross(B1, e20), B1));
 
 		double3 Xi = make_double3(
 			dot(V0, B1),
@@ -172,9 +173,10 @@ void SDenergy::gradient(Cuda::Array<double>& X)
 			X.host_arr[v2_index + cuda_SD->mesh_indices.startVz]
 		);
 
-		double3 B1 = normalize(sub(V1, V0));
-		double3 temp = normalize(cross(B1, sub(V2, V0)));
-		double3 B2 = normalize(cross(temp, B1));
+		double3 e10 = sub(V1, V0);
+		double3 e20 = sub(V2, V0);
+		double3 B1 = normalize(e10);
+		double3 B2 = normalize(cross(cross(B1, e20), B1));
 
 		double3 Xi = make_double3(
 			dot(V0, B1),
@@ -236,8 +238,7 @@ Eigen::Matrix<double, 4, 9> SDenergy::dJ_dX(
 	double3 e10 = sub(V1, V0);
 	double3 e20 = sub(V2, V0);
 	double3 B1 = normalize(e10);
-	double3 temp = normalize(cross(B1, e20));
-	double3 B2 = normalize(cross(temp,B1));
+	double3 B2 = normalize(cross(cross(B1, e20), B1));
 
 	Eigen::Matrix<double, 3, 9> YY, XX, db1_dX = dB1_dX(fi, e10), db2_dX = dB2_dX(fi, e10, e20);
 	XX <<
@@ -278,7 +279,7 @@ Eigen::Matrix<double, 3, 9> SDenergy::dB1_dX(int fi, const double3 e10)
 Eigen::Matrix<double, 3, 9> SDenergy::dB2_dX(int fi, const double3 e10, const double3 e20)
 {
 	Eigen::Matrix<double, 3, 9> g;
-	double3 b2 = mul(-1, (cross(e10, cross(e10, e20))));
+	double3 b2 = cross(cross(e10, e20), e10);
 	double NormB2 = norm(b2);
 	double NormB2_2 = pow(NormB2, 2);
 
