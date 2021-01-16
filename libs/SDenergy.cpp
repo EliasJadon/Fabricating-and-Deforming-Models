@@ -36,24 +36,6 @@ double3 cross(const double3 a, const double3 b)
 		a.x * b.y - a.y * b.x
 	);
 }
-Eigen::RowVector3d CastingToEigen(const double3 a) {
-	return Eigen::RowVector3d(a.x, a.y, a.z);
-}
-template<int R1, int C1_R2, int C2>
-void multiply(
-	double mat1[R1][C1_R2],
-	double mat2[C1_R2][C2],
-	double res[R1][C2])
-{
-	int i, j, k;
-	for (i = 0; i < R1; i++) {
-		for (j = 0; j < C2; j++) {
-			res[i][j] = 0;
-			for (k = 0; k < C1_R2; k++)
-				res[i][j] += mat1[i][k] * mat2[k][j];
-		}
-	}
-}
 template<int N> void multiply(
 	double3 mat1,
 	double mat2[3][N],
@@ -61,6 +43,19 @@ template<int N> void multiply(
 {
 	for (int i = 0; i < N; i++) {
 		res[i] = mat1.x * mat2[0][i] + mat1.y * mat2[1][i] + mat1.z * mat2[2][i];
+	}
+}
+template<int N> void multiply(
+	double4 mat1,
+	double mat2[4][N],
+	double res[N])
+{
+	for (int i = 0; i < N; i++) {
+		res[i] = 
+			mat1.x * mat2[0][i] + 
+			mat1.y * mat2[1][i] + 
+			mat1.z * mat2[2][i] + 
+			mat1.w * mat2[3][i];
 	}
 }
 
@@ -228,15 +223,16 @@ void SDenergy::gradient(Cuda::Array<double>& X)
 		const double det3 = pow(detJ, 3);
 		const double Fnorm = a2 + b2 + c2 + d2;
 
-		Eigen::Matrix<double, 1, 4> de_dJ;
-		de_dJ <<
-			a + a / det2 - d * Fnorm / det3,
-			b + b / det2 + c * Fnorm / det3,
-			c + c / det2 + b * Fnorm / det3,
-			d + d / det2 - a * Fnorm / det3;
-		de_dJ *= cuda_SD->restShapeArea.host_arr[fi];
+		double4 de_dJ = make_double4(
+			cuda_SD->restShapeArea.host_arr[fi] * (a + a / det2 - d * Fnorm / det3),
+			cuda_SD->restShapeArea.host_arr[fi] * (b + b / det2 + c * Fnorm / det3),
+			cuda_SD->restShapeArea.host_arr[fi] * (c + c / det2 + b * Fnorm / det3),
+			cuda_SD->restShapeArea.host_arr[fi] * (d + d / det2 - a * Fnorm / det3)
+		);
+		double dE_dX[9],dj_dx[4][9];
+		dJ_dX(dj_dx,fi, V0, V1, V2);
+		multiply<9>(de_dJ, dj_dx, dE_dX);
 
-		Eigen::Matrix<double, 1, 9> dE_dX = de_dJ * dJ_dX(fi, V0, V1, V2);
 		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVx] += dE_dX[0];
 		cuda_SD->grad.host_arr[restShapeF(fi, 1) + cuda_SD->mesh_indices.startVx] += dE_dX[1];
 		cuda_SD->grad.host_arr[restShapeF(fi, 2) + cuda_SD->mesh_indices.startVx] += dE_dX[2];
@@ -250,7 +246,8 @@ void SDenergy::gradient(Cuda::Array<double>& X)
 	Cuda::MemCpyHostToDevice(cuda_SD->grad);
 }
 
-Eigen::Matrix<double, 4, 9> SDenergy::dJ_dX(
+void SDenergy::dJ_dX(
+	double g[4][9],
 	int fi, 
 	const double3 V0,
 	const double3 V1,
@@ -293,18 +290,16 @@ Eigen::Matrix<double, 4, 9> SDenergy::dJ_dX(
 		YY[1][i] = res2[i] + res5[i];
 		YY[2][i] = res3[i] + res6[i];
 	}
-	Eigen::Matrix<double, 4, 9> dJ;
 	multiply<9>(cuda_SD->D1d.host_arr[fi], XX, res1);
 	multiply<9>(cuda_SD->D1d.host_arr[fi], YY, res2);
 	multiply<9>(cuda_SD->D2d.host_arr[fi], XX, res3);
 	multiply<9>(cuda_SD->D2d.host_arr[fi], YY, res4);
 	for (int i = 0; i < 9; i++) {
-		dJ(0, i) = res1[i];
-		dJ(1, i) = res2[i];
-		dJ(2, i) = res3[i];
-		dJ(3, i) = res4[i];
+		g[0][i] = res1[i];
+		g[1][i] = res2[i];
+		g[2][i] = res3[i];
+		g[3][i] = res4[i];
 	}
-	return dJ;
 }
 
 void SDenergy::dB1_dX(double g[3][9], int fi, const double3 e10)
