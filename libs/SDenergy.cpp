@@ -329,7 +329,7 @@ void SDenergy::dB1_dX(double g[3][9], int fi, const double3 e10)
 	}
 }
 
-void SDenergy::dB2_dX(double outg[3][9], int fi, const double3 e10, const double3 e20)
+void SDenergy::dB2_dX(double g[3][9], int fi, const double3 e10, const double3 e20)
 {
 	double3 b2 = cross(cross(e10, e20), e10);
 	double NormB2 = norm(b2);
@@ -366,45 +366,33 @@ void SDenergy::dB2_dX(double outg[3][9], int fi, const double3 e10, const double
 		(b2.x * dxyz[0][5] + b2.y * dxyz[1][5] + b2.z * dxyz[2][5]) / NormB2
 	};
 		
+	g[0][1] = (dxyz[0][0] * NormB2 - b2.x * dnorm[0]) / NormB2_2;
+	g[0][2] = (dxyz[0][3] * NormB2 - b2.x * dnorm[3]) / NormB2_2;
+	g[0][4] = (dxyz[0][1] * NormB2 - b2.x * dnorm[1]) / NormB2_2;
+	g[0][5] = (dxyz[0][4] * NormB2 - b2.x * dnorm[4]) / NormB2_2;
+	g[0][7] = (dxyz[0][2] * NormB2 - b2.x * dnorm[2]) / NormB2_2;
+	g[0][8] = (dxyz[0][5] * NormB2 - b2.x * dnorm[5]) / NormB2_2;
+	g[0][0] = -g[0][1]- g[0][2];
+	g[0][3] = -g[0][4]- g[0][5];
+	g[0][6] = -g[0][7]- g[0][8];
 
-	Eigen::Matrix<double, 3, 9> g;
-	g.row(0) <<
-		0,
-		(dxyz[0][0] * NormB2 - b2.x * dnorm[0]) / NormB2_2,
-		(dxyz[0][3] * NormB2 - b2.x * dnorm[3]) / NormB2_2,
-		0,
-		(dxyz[0][1] * NormB2 - b2.x * dnorm[1]) / NormB2_2,
-		(dxyz[0][4] * NormB2 - b2.x * dnorm[4]) / NormB2_2,
-		0,
-		(dxyz[0][2] * NormB2 - b2.x * dnorm[2]) / NormB2_2,
-		(dxyz[0][5] * NormB2 - b2.x * dnorm[5]) / NormB2_2;
-	g.row(1) <<
-		0,
-		(dxyz[1][0] * NormB2 - b2.y * dnorm[0]) / NormB2_2,
-		(dxyz[1][3] * NormB2 - b2.y * dnorm[3]) / NormB2_2,
-		0,
-		(dxyz[1][1] * NormB2 - b2.y * dnorm[1]) / NormB2_2,
-		(dxyz[1][4] * NormB2 - b2.y * dnorm[4]) / NormB2_2,
-		0,
-		(dxyz[1][2] * NormB2 - b2.y * dnorm[2]) / NormB2_2,
-		(dxyz[1][5] * NormB2 - b2.y * dnorm[5]) / NormB2_2;
-	g.row(2) <<
-		0,
-		(dxyz[2][0] * NormB2 - b2.z * dnorm[0]) / NormB2_2,
-		(dxyz[2][3] * NormB2 - b2.z * dnorm[3]) / NormB2_2,
-		0,
-		(dxyz[2][1] * NormB2 - b2.z * dnorm[1]) / NormB2_2,
-		(dxyz[2][4] * NormB2 - b2.z * dnorm[4]) / NormB2_2,
-		0,
-		(dxyz[2][2] * NormB2 - b2.z * dnorm[2]) / NormB2_2,
-		(dxyz[2][5] * NormB2 - b2.z * dnorm[5]) / NormB2_2;
-	
-	for (int c = 0; c < 9; c += 3)
-		g.col(c) = -g.col(c + 1) - g.col(c + 2);
-	
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 9; j++) {
-			outg[i][j] = g(i, j);
-		}
-	}
+	g[1][1] = (dxyz[1][0] * NormB2 - b2.y * dnorm[0]) / NormB2_2;
+	g[1][2] = (dxyz[1][3] * NormB2 - b2.y * dnorm[3]) / NormB2_2;
+	g[1][4] = (dxyz[1][1] * NormB2 - b2.y * dnorm[1]) / NormB2_2;
+	g[1][5] = (dxyz[1][4] * NormB2 - b2.y * dnorm[4]) / NormB2_2;
+	g[1][7] = (dxyz[1][2] * NormB2 - b2.y * dnorm[2]) / NormB2_2;
+	g[1][8] = (dxyz[1][5] * NormB2 - b2.y * dnorm[5]) / NormB2_2;
+	g[1][0] = -g[1][1] - g[1][2];
+	g[1][3] = -g[1][4] - g[1][5];
+	g[1][6] = -g[1][7] - g[1][8];
+
+	g[2][1] = (dxyz[2][0] * NormB2 - b2.z * dnorm[0]) / NormB2_2;
+	g[2][2] = (dxyz[2][3] * NormB2 - b2.z * dnorm[3]) / NormB2_2;
+	g[2][4] = (dxyz[2][1] * NormB2 - b2.z * dnorm[1]) / NormB2_2;
+	g[2][5] = (dxyz[2][4] * NormB2 - b2.z * dnorm[4]) / NormB2_2;
+	g[2][7] = (dxyz[2][2] * NormB2 - b2.z * dnorm[2]) / NormB2_2;
+	g[2][8] = (dxyz[2][5] * NormB2 - b2.z * dnorm[5]) / NormB2_2;
+	g[2][0] = -g[2][1] - g[2][2];
+	g[2][3] = -g[2][4] - g[2][5];
+	g[2][6] = -g[2][7] - g[2][8];
 }
