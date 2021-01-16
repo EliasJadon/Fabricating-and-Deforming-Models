@@ -335,70 +335,69 @@ void SDenergy::dB2_dX(double outg[3][9], int fi, const double3 e10, const double
 	double NormB2 = norm(b2);
 	double NormB2_2 = pow(NormB2, 2);
 
-	Eigen::Matrix<double, 3, 6> dxyz;
-	dxyz.row(0) <<
+	double dxyz[3][6] = {
 		-e10.y * e20.y - e10.z * e20.z,
 		-e10.x * e20.y + 2 * e10.y * e20.x,
 		2 * e10.z * e20.x - e10.x * e20.z,
 		pow(e10.y, 2) + pow(e10.z, 2),
 		-e10.y * e10.x,
-		-e10.x * e10.z;
-	dxyz.row(1) <<
+		-e10.x * e10.z,
 		2 * e10.x * e20.y - e10.y * e20.x,
 		-e10.z * e20.z - e20.x * e10.x,
 		-e10.y * e20.z + 2 * e10.z * e20.y,
 		-e10.x * e10.y,
 		pow(e10.z, 2) + pow(e10.x, 2),
-		-e10.z * e10.y;
-	dxyz.row(2) <<
+		-e10.z * e10.y,
 		-e10.z * e20.x + 2 * e10.x * e20.z,
 		2 * e10.y * e20.z - e10.z * e20.y,
 		-e10.x * e20.x - e10.y * e20.y,
 		-e10.x * e10.z,
 		-e10.z * e10.y,
-		pow(e10.x, 2) + pow(e10.y, 2);
+		pow(e10.x, 2) + pow(e10.y, 2)
+	};
+		
 
 	double dnorm[6] = {
-		(b2.x * dxyz(0, 0) + b2.y * dxyz(1, 0) + b2.z * dxyz(2, 0)) / NormB2,
-		(b2.x * dxyz(0, 1) + b2.y * dxyz(1, 1) + b2.z * dxyz(2, 1)) / NormB2,
-		(b2.x * dxyz(0, 2) + b2.y * dxyz(1, 2) + b2.z * dxyz(2, 2)) / NormB2,
-		(b2.x * dxyz(0, 3) + b2.y * dxyz(1, 3) + b2.z * dxyz(2, 3)) / NormB2,
-		(b2.x * dxyz(0, 4) + b2.y * dxyz(1, 4) + b2.z * dxyz(2, 4)) / NormB2,
-		(b2.x * dxyz(0, 5) + b2.y * dxyz(1, 5) + b2.z * dxyz(2, 5)) / NormB2
+		(b2.x * dxyz[0][0] + b2.y * dxyz[1][0] + b2.z * dxyz[2][0]) / NormB2,
+		(b2.x * dxyz[0][1] + b2.y * dxyz[1][1] + b2.z * dxyz[2][1]) / NormB2,
+		(b2.x * dxyz[0][2] + b2.y * dxyz[1][2] + b2.z * dxyz[2][2]) / NormB2,
+		(b2.x * dxyz[0][3] + b2.y * dxyz[1][3] + b2.z * dxyz[2][3]) / NormB2,
+		(b2.x * dxyz[0][4] + b2.y * dxyz[1][4] + b2.z * dxyz[2][4]) / NormB2,
+		(b2.x * dxyz[0][5] + b2.y * dxyz[1][5] + b2.z * dxyz[2][5]) / NormB2
 	};
 		
 
 	Eigen::Matrix<double, 3, 9> g;
 	g.row(0) <<
 		0,
-		(dxyz(0, 0) * NormB2 - b2.x * dnorm[0]) / NormB2_2,
-		(dxyz(0, 3) * NormB2 - b2.x * dnorm[3]) / NormB2_2,
+		(dxyz[0][0] * NormB2 - b2.x * dnorm[0]) / NormB2_2,
+		(dxyz[0][3] * NormB2 - b2.x * dnorm[3]) / NormB2_2,
 		0,
-		(dxyz(0, 1) * NormB2 - b2.x * dnorm[1]) / NormB2_2,
-		(dxyz(0, 4) * NormB2 - b2.x * dnorm[4]) / NormB2_2,
+		(dxyz[0][1] * NormB2 - b2.x * dnorm[1]) / NormB2_2,
+		(dxyz[0][4] * NormB2 - b2.x * dnorm[4]) / NormB2_2,
 		0,
-		(dxyz(0, 2) * NormB2 - b2.x * dnorm[2]) / NormB2_2,
-		(dxyz(0, 5) * NormB2 - b2.x * dnorm[5]) / NormB2_2;
+		(dxyz[0][2] * NormB2 - b2.x * dnorm[2]) / NormB2_2,
+		(dxyz[0][5] * NormB2 - b2.x * dnorm[5]) / NormB2_2;
 	g.row(1) <<
 		0,
-		(dxyz(1, 0) * NormB2 - b2.y * dnorm[0]) / NormB2_2,
-		(dxyz(1, 3) * NormB2 - b2.y * dnorm[3]) / NormB2_2,
+		(dxyz[1][0] * NormB2 - b2.y * dnorm[0]) / NormB2_2,
+		(dxyz[1][3] * NormB2 - b2.y * dnorm[3]) / NormB2_2,
 		0,
-		(dxyz(1, 1) * NormB2 - b2.y * dnorm[1]) / NormB2_2,
-		(dxyz(1, 4) * NormB2 - b2.y * dnorm[4]) / NormB2_2,
+		(dxyz[1][1] * NormB2 - b2.y * dnorm[1]) / NormB2_2,
+		(dxyz[1][4] * NormB2 - b2.y * dnorm[4]) / NormB2_2,
 		0,
-		(dxyz(1, 2) * NormB2 - b2.y * dnorm[2]) / NormB2_2,
-		(dxyz(1, 5) * NormB2 - b2.y * dnorm[5]) / NormB2_2;
+		(dxyz[1][2] * NormB2 - b2.y * dnorm[2]) / NormB2_2,
+		(dxyz[1][5] * NormB2 - b2.y * dnorm[5]) / NormB2_2;
 	g.row(2) <<
 		0,
-		(dxyz(2, 0) * NormB2 - b2.z * dnorm[0]) / NormB2_2,
-		(dxyz(2, 3) * NormB2 - b2.z * dnorm[3]) / NormB2_2,
+		(dxyz[2][0] * NormB2 - b2.z * dnorm[0]) / NormB2_2,
+		(dxyz[2][3] * NormB2 - b2.z * dnorm[3]) / NormB2_2,
 		0,
-		(dxyz(2, 1) * NormB2 - b2.z * dnorm[1]) / NormB2_2,
-		(dxyz(2, 4) * NormB2 - b2.z * dnorm[4]) / NormB2_2,
+		(dxyz[2][1] * NormB2 - b2.z * dnorm[1]) / NormB2_2,
+		(dxyz[2][4] * NormB2 - b2.z * dnorm[4]) / NormB2_2,
 		0,
-		(dxyz(2, 2) * NormB2 - b2.z * dnorm[2]) / NormB2_2,
-		(dxyz(2, 5) * NormB2 - b2.z * dnorm[5]) / NormB2_2;
+		(dxyz[2][2] * NormB2 - b2.z * dnorm[2]) / NormB2_2,
+		(dxyz[2][5] * NormB2 - b2.z * dnorm[5]) / NormB2_2;
 	
 	for (int c = 0; c < 9; c += 3)
 		g.col(c) = -g.col(c + 1) - g.col(c + 2);
