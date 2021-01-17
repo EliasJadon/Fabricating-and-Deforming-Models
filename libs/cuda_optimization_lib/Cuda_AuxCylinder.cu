@@ -157,6 +157,55 @@ namespace Utils_Cuda_AuxCylinder {
 		return w1 * restAreaPerHinge[hi] *
 			Phi(d_cylinder_dir + d_center0 + d_center1 + d_radius, planarParameter, functionType);
 	}
+
+	__device__ double Energy1Kernel_simple(
+		const double w1,
+		const double* curr_x,
+		const Cuda::hinge* hinges_faceIndex,
+		const double* restAreaPerHinge,
+		const double planarParameter,
+		const FunctionType functionType,
+		const int hi,
+		const Cuda::indices I)
+	{
+		int f0 = hinges_faceIndex[hi].f0;
+		int f1 = hinges_faceIndex[hi].f1;
+		if ((f0 >= I.num_faces) || (f1 >= I.num_faces))
+			return;
+		double3 A0 = make_double3(
+			curr_x[f0 + I.startAx],
+			curr_x[f0 + I.startAy],
+			curr_x[f0 + I.startAz]
+		);
+		double3 A1 = make_double3(
+			curr_x[f1 + I.startAx],
+			curr_x[f1 + I.startAy],
+			curr_x[f1 + I.startAz]
+		);
+		double3 C0 = make_double3(
+			curr_x[f0 + I.startCx],
+			curr_x[f0 + I.startCy],
+			curr_x[f0 + I.startCz]
+		);
+		double3 C1 = make_double3(
+			curr_x[f1 + I.startCx],
+			curr_x[f1 + I.startCy],
+			curr_x[f1 + I.startCz]
+		);
+		double R0 = curr_x[f0 + I.startR];
+		double R1 = curr_x[f1 + I.startR];
+
+		double3 c10 = sub(C1, C0);
+		double3 c01 = sub(C0, C1);
+
+		double d_cylinder_dir = squared_norm(sub(A1, A0));
+		double d_center0 = squared_norm(sub(c10, mul(norm(c10), A0)));
+		double d_center1 = squared_norm(sub(c10, mul(norm(c10), A1)));
+		double d_radius = pow(R1 - R0, 2);
+		return w1 * restAreaPerHinge[hi] *
+			Phi(d_cylinder_dir + /*d_center0 + d_center1 +*/ d_radius, planarParameter, functionType);
+	}
+
 	__device__ double Energy2Kernel(
 		const double w2,
 		const double* curr_x,
@@ -256,7 +305,7 @@ namespace Utils_Cuda_AuxCylinder {
 				mesh_indices);
 		}
 		else if (Global_idx < ((2 * mesh_indices.num_faces) + mesh_indices.num_hinges)) {
-			energy_value[tid] = Energy1Kernel(
+			energy_value[tid] = Energy1Kernel_simple(
 				w1,
 				curr_x,
 				hinges_faceIndex,
@@ -536,6 +585,146 @@ namespace Utils_Cuda_AuxCylinder {
 					),
 				0);
 	}
+	
+	__device__ void gradient1Kernel_simple(
+		double* grad,
+		const double* X,
+		const Cuda::hinge* hinges_faceIndex,
+		const double* restAreaPerHinge,
+		const double planarParameter,
+		const FunctionType functionType,
+		const double w1,
+		const int hi,
+		const int thread,
+		const Cuda::indices I)
+	{
+		int f0 = hinges_faceIndex[hi].f0;
+		int f1 = hinges_faceIndex[hi].f1;
+		if ((f0 >= I.num_faces) || (f1 >= I.num_faces))
+			return;
+		double3 A0 = make_double3(
+			X[f0 + I.startAx],
+			X[f0 + I.startAy],
+			X[f0 + I.startAz]
+		);
+		double3 A1 = make_double3(
+			X[f1 + I.startAx],
+			X[f1 + I.startAy],
+			X[f1 + I.startAz]
+		);
+		double3 C0 = make_double3(
+			X[f0 + I.startCx],
+			X[f0 + I.startCy],
+			X[f0 + I.startCz]
+		);
+		double3 C1 = make_double3(
+			X[f1 + I.startCx],
+			X[f1 + I.startCy],
+			X[f1 + I.startCz]
+		);
+		double R0 = X[f0 + I.startR];
+		double R1 = X[f1 + I.startR];
+
+		double3 c10 = sub(C1, C0);
+		double norm_c10 = norm(c10);
+		double3 c01 = sub(C0, C1);
+		double norm_c01 = norm(c01);
+
+		double d_cylinder_dir = squared_norm(sub(A1, A0));
+		double3 center0 = sub(c10, mul(norm_c10, A0));
+		double d_center0 = squared_norm(center0);
+		double3 center1 = sub(c10, mul(norm_c10, A1));
+		double d_center1 = squared_norm(center1);
+		double d_radius = pow(R1 - R0, 2);
+		double coeff = w1 * restAreaPerHinge[hi] *
+			dPhi_dm(d_cylinder_dir + /*d_center0 + d_center1 +*/ d_radius, planarParameter, functionType);
+		
+		if (thread == 0) //A0.x;
+			atomicAdd(&grad[f0 + I.startAx], coeff * 2 * (A0.x - A1.x) /*- coeff * 2 * center0.x * norm_c10*/, 0);
+		else if (thread == 1) //A1.x
+			atomicAdd(&grad[f1 + I.startAx], coeff * 2 * (A1.x - A0.x) /*- coeff * 2 * center0.x * norm_c10*/, 0);
+		else if (thread == 2) //A0.y
+			atomicAdd(&grad[f0 + I.startAy], coeff * 2 * (A0.y - A1.y) /*- coeff * 2 * center0.y * norm_c10*/, 0);
+		else if (thread == 3) //A1.y
+			atomicAdd(&grad[f1 + I.startAy], coeff * 2 * (A1.y - A0.y) /*- coeff * 2 * center0.y * norm_c10*/, 0);
+		else if (thread == 4) //A0.z
+			atomicAdd(&grad[f0 + I.startAz], coeff * 2 * (A0.z - A1.z) /*- coeff * 2 * center0.z * norm_c10*/, 0);
+		else if (thread == 5) //A1.z
+			atomicAdd(&grad[f1 + I.startAz], coeff * 2 * (A1.z - A0.z) /*- coeff * 2 * center0.z * norm_c10*/, 0);
+		else if (thread == 6) //R0
+			atomicAdd(&grad[f0 + I.startR], coeff * 2 * (R0 - R1), 0);
+		else if (thread == 7) //R1
+			atomicAdd(&grad[f1 + I.startR], coeff * 2 * (R1 - R0), 0);
+
+		else if (thread == 8) //C0.x
+			atomicAdd(&grad[f0 + I.startCx],
+				0/*2 * coeff * (
+					center0.x * (-1 - A0.x * (C0.x - C1.x) / norm_c10) +
+					center0.y * (-A0.x * (C0.y - C1.y) / norm_c10) +
+					center0.z * (-A0.x * (C0.z - C1.z) / norm_c10) +
+					center1.x * (-1 - A1.x * (C0.x - C1.x) / norm_c10) +
+					center1.y * (-A1.x * (C0.y - C1.y) / norm_c10) +
+					center1.z * (-A1.x * (C0.z - C1.z) / norm_c10)
+					)*/
+				, 0);
+		else if (thread == 9) //C1.x
+			atomicAdd(&grad[f1 + I.startCx],
+				0/*2 * coeff * (
+					center0.x * (1 + A0.x * (C0.x - C1.x) / norm_c10) +
+					center0.y * (A0.x * (C0.y - C1.y) / norm_c10) +
+					center0.z * (A0.x * (C0.z - C1.z) / norm_c10) +
+					center1.x * (1 + A1.x * (C0.x - C1.x) / norm_c10) +
+					center1.y * (A1.x * (C0.y - C1.y) / norm_c10) +
+					center1.z * (A1.x * (C0.z - C1.z) / norm_c10)
+					)*/
+				, 0);
+		else if (thread == 10) //C0.y
+			atomicAdd(&grad[f0 + I.startCy],
+				0/*2 * coeff * (
+					center0.x * (-A0.y * (C0.x - C1.x) / norm_c10) +
+					center0.y * (-1 - A0.y * (C0.y - C1.y) / norm_c10) +
+					center0.z * (-A0.y * (C0.z - C1.z) / norm_c10) +
+					center1.x * (-A1.y * (C0.x - C1.x) / norm_c10) +
+					center1.y * (-1 - A1.y * (C0.y - C1.y) / norm_c10) +
+					center1.z * (-A1.y * (C0.z - C1.z) / norm_c10)
+					)*/
+				, 0);
+		else if (thread == 11) //C1.y
+			atomicAdd(&grad[f1 + I.startCy],
+				0/*2 * coeff * (
+					center0.x * (A0.y * (C0.x - C1.x) / norm_c10) +
+					center0.y * (1 + A0.y * (C0.y - C1.y) / norm_c10) +
+					center0.z * (A0.y * (C0.z - C1.z) / norm_c10) +
+					center1.x * (A1.y * (C0.x - C1.x) / norm_c10) +
+					center1.y * (1 + A1.y * (C0.y - C1.y) / norm_c10) +
+					center1.z * (A1.y * (C0.z - C1.z) / norm_c10)
+					)*/
+				, 0);
+		else if (thread == 12) //C0.z
+			atomicAdd(&grad[f0 + I.startCz],
+				0/*2 * coeff * (
+					center0.x * (-A0.z * (C0.x - C1.x) / norm_c10) +
+					center0.y * (-A0.z * (C0.y - C1.y) / norm_c10) +
+					center0.z * (-1 - A0.z * (C0.z - C1.z) / norm_c10) +
+					center1.x * (-A1.z * (C0.x - C1.x) / norm_c10) +
+					center1.y * (-A1.z * (C0.y - C1.y) / norm_c10) +
+					center1.z * (-1 - A1.z * (C0.z - C1.z) / norm_c10)
+					)*/
+				, 0);
+		else if (thread == 13) //C1.z
+			atomicAdd(&grad[f1 + I.startCz],
+				0/*2 * coeff * (
+					center0.x * (A0.z * (C0.x - C1.x) / norm_c10) +
+					center0.y * (A0.z * (C0.y - C1.y) / norm_c10) +
+					center0.z * (1 + A0.z * (C0.z - C1.z) / norm_c10) +
+					center1.x * (A1.z * (C0.x - C1.x) / norm_c10) +
+					center1.y * (A1.z * (C0.y - C1.y) / norm_c10) +
+					center1.z * (1 + A1.z * (C0.z - C1.z) / norm_c10)
+					)
+					*/
+				, 0);
+	}
+
 	__device__ void gradient2Kernel(
 		double* grad,
 		const double* X,
@@ -777,7 +966,7 @@ namespace Utils_Cuda_AuxCylinder {
 				mesh_indices);
 		}
 		else if (Bl_index < (2 * mesh_indices.num_faces + mesh_indices.num_hinges)) {
-			gradient1Kernel(
+			gradient1Kernel_simple(
 				grad,
 				X,
 				hinges_faceIndex,
