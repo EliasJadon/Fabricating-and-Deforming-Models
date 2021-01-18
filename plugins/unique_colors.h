@@ -59,3 +59,40 @@ public:
 		return c;
 	}
 };
+
+class ColorsHashMap {
+private:
+	double MinDistance;
+	std::vector<Eigen::Vector3d>* colors;
+	std::vector<Eigen::Vector3d> points;
+	double getRand() {
+		//random number from 0 to 1
+		return (double)rand() / RAND_MAX;
+	}
+public:
+	ColorsHashMap(const double MinDistance, std::vector<Eigen::Vector3d>* colors) {
+		this->MinDistance = MinDistance;
+		this->colors = colors;
+		points.clear();
+	}
+	Eigen::Vector3d getColor(Eigen::Vector3d point) {
+		//Check if the point exists
+		int argmin = -1;
+		double min = 99999;
+		for (int i = 0; i < points.size(); i++) {
+			double currDistance = (points[i] - point).squaredNorm();
+			if ((currDistance < MinDistance) && (currDistance < min)) {
+				argmin = i;
+				min = currDistance;
+			}
+		}
+		if (argmin != -1)
+			return (*colors)[argmin];
+
+		//Then, add a new point
+		points.push_back(point);
+		if (colors->size() < points.size())
+			colors->push_back(Eigen::Vector3d(getRand(), getRand(), getRand()));
+		return (*colors)[points.size() - 1];
+	}
+};

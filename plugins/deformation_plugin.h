@@ -20,7 +20,9 @@ private:
 	bool isUpdateAll;
 	bool isMinimizerRunning, IsMouseDraggingAnyWindow;
 	int faceColoring_type;
-	
+	float Clustering_MinDistance = 0.001;
+	std::vector<Eigen::Vector3d> ColorsHashMap_colors;
+	bool clustering_hashMap = true;
 	MinimizerType minimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
 	float constantStep_LineSearch;

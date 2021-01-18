@@ -272,6 +272,15 @@ void deformation_plugin::CollapsingHeader_clustering()
 			AnyChange = true;
 		if (ImGui::DragFloat("Bright. Weight", &clustering_w, 0.001f, 0, 1))
 			AnyChange = true;
+		if ((clusteringType == app_utils::ClusteringType::RGB_NORMAL ||
+			clusteringType == app_utils::ClusteringType::RGB_CYLINDER ||
+			clusteringType == app_utils::ClusteringType::RGB_SPHERE))
+		{
+			ImGui::Checkbox("Use HashMap", &clustering_hashMap);
+			if (clustering_hashMap)
+				ImGui::DragFloat("Min Distance", &Clustering_MinDistance, 0.000001f, 0, 1,"%.8f");	
+		}
+		
 		if ((clusteringType == app_utils::ClusteringType::CLUSTERING_SPHERE ||
 			clusteringType == app_utils::ClusteringType::CLUSTERING_NORMAL ||
 			clusteringType == app_utils::ClusteringType::CLUSTERING_CYLINDER) &&
@@ -1685,15 +1694,21 @@ void deformation_plugin::follow_and_mark_selected_faces()
 					maxP(xyz) = P(fi, xyz) > maxP(xyz) ? P(fi, xyz) : maxP(xyz);
 				}
 			}
+
+			ColorsHashMap DataColors(Clustering_MinDistance, &ColorsHashMap_colors);
 			for (int fi = 0; fi < P.rows(); fi++) {
 				for (int xyz = 0; xyz < 3; xyz++) {
 					P(fi, xyz) = P(fi, xyz) - minP(xyz);
 					P(fi, xyz) = P(fi, xyz) / (maxP(xyz) - minP(xyz));
 				}
+
+				Eigen::Vector3d color = P.row(fi).transpose();
+				if (clustering_hashMap)
+					color = DataColors.getColor(P.row(fi).transpose());
 				Outputs[i].updateFaceColors(fi, Eigen::Vector3f(
-					clustering_w * P(fi, 0) + (1 - clustering_w),
-					clustering_w * P(fi, 1) + (1 - clustering_w),
-					clustering_w * P(fi, 2) + (1 - clustering_w)
+					clustering_w * color(0) + (1 - clustering_w),
+					clustering_w * color(1) + (1 - clustering_w),
+					clustering_w * color(2) + (1 - clustering_w)
 				));
 			}
 			
