@@ -192,62 +192,91 @@ void SDenergy::dJ_dX(
 	double3 B1 = normalize(e10);
 	double3 B2 = normalize(cross(cross(B1, e20), B1));
 
-	double3 db1_dX[9], db2_dX[9], XX[9], YY[9];
+	double3 db1_dX[9], db2_dX[9];
 	dB1_dX(db1_dX, fi, e10);
 	dB2_dX(db2_dX, fi, e10, e20);
 	
-	for (int i = 0; i < 9; i++) {
-		XX[i].x = dot(V0, db1_dX[i]);
-		XX[i].y = dot(V1, db1_dX[i]);
-		XX[i].z = dot(V2, db1_dX[i]);
-	}
-	XX[0].x += B1.x; XX[3].x += B1.y; XX[6].x += B1.z;
-	XX[1].y += B1.x; XX[4].y += B1.y; XX[7].y += B1.z;
-	XX[2].z += B1.x; XX[5].z += B1.y; XX[8].z += B1.z;
+	double3 XX, YY;
+	XX = make_double3(dot(V0, db1_dX[0]) + B1.x, dot(V1, db1_dX[0]), dot(V2, db1_dX[0]));
+	YY = make_double3(dot(V0, db2_dX[0]) + B2.x, dot(V1, db2_dX[0]), dot(V2, db2_dX[0]));
+	g[0] = make_double4(
+		dot(cuda_SD->D1d.host_arr[fi], XX),
+		dot(cuda_SD->D1d.host_arr[fi], YY),
+		dot(cuda_SD->D2d.host_arr[fi], XX),
+		dot(cuda_SD->D2d.host_arr[fi], YY)
+	);
 
+	XX = make_double3(dot(V0, db1_dX[1]), dot(V1, db1_dX[1]) + B1.x, dot(V2, db1_dX[1]));
+	YY = make_double3(dot(V0, db2_dX[1]), dot(V1, db2_dX[1]) + B2.x, dot(V2, db2_dX[1]));
+	g[1] = make_double4(
+		dot(cuda_SD->D1d.host_arr[fi], XX),
+		dot(cuda_SD->D1d.host_arr[fi], YY),
+		dot(cuda_SD->D2d.host_arr[fi], XX),
+		dot(cuda_SD->D2d.host_arr[fi], YY)
+	);
 
-	YY[0].x = dot(V0, db2_dX[0]) + B2.x;
-	YY[0].y = dot(V1, db2_dX[0]);
-	YY[0].z = dot(V2, db2_dX[0]);
+	XX = make_double3(dot(V0, db1_dX[2]), dot(V1, db1_dX[2]), dot(V2, db1_dX[2]) + B1.x);
+	YY = make_double3(dot(V0, db2_dX[2]), dot(V1, db2_dX[2]), dot(V2, db2_dX[2]) + B2.x);
+	g[2] = make_double4(
+		dot(cuda_SD->D1d.host_arr[fi], XX),
+		dot(cuda_SD->D1d.host_arr[fi], YY),
+		dot(cuda_SD->D2d.host_arr[fi], XX),
+		dot(cuda_SD->D2d.host_arr[fi], YY)
+	);
 
-	YY[1].x = dot(V0, db2_dX[1]);
-	YY[1].y = dot(V1, db2_dX[1]) + B2.x;
-	YY[1].z = dot(V2, db2_dX[1]);
+	XX = make_double3(dot(V0, db1_dX[3]) + B1.y, dot(V1, db1_dX[3]), dot(V2, db1_dX[3]));
+	YY = make_double3(dot(V0, db2_dX[3]) + B2.y, dot(V1, db2_dX[3]), dot(V2, db2_dX[3]));
+	g[3] = make_double4(
+		dot(cuda_SD->D1d.host_arr[fi], XX),
+		dot(cuda_SD->D1d.host_arr[fi], YY),
+		dot(cuda_SD->D2d.host_arr[fi], XX),
+		dot(cuda_SD->D2d.host_arr[fi], YY)
+	);
 
-	YY[2].x = dot(V0, db2_dX[2]);
-	YY[2].y = dot(V1, db2_dX[2]);
-	YY[2].z = dot(V2, db2_dX[2]) + B2.x;
+	XX = make_double3(dot(V0, db1_dX[4]), dot(V1, db1_dX[4]) + B1.y, dot(V2, db1_dX[4]));
+	YY = make_double3(dot(V0, db2_dX[4]), dot(V1, db2_dX[4]) + B2.y, dot(V2, db2_dX[4]));
+	g[4] = make_double4(
+		dot(cuda_SD->D1d.host_arr[fi], XX),
+		dot(cuda_SD->D1d.host_arr[fi], YY),
+		dot(cuda_SD->D2d.host_arr[fi], XX),
+		dot(cuda_SD->D2d.host_arr[fi], YY)
+	);
 
-	YY[3].x = dot(V0, db2_dX[3]) + B2.y;
-	YY[3].y = dot(V1, db2_dX[3]);
-	YY[3].z = dot(V2, db2_dX[3]);
+	XX = make_double3(dot(V0, db1_dX[5]), dot(V1, db1_dX[5]), dot(V2, db1_dX[5]) + B1.y);
+	YY = make_double3(dot(V0, db2_dX[5]), dot(V1, db2_dX[5]), dot(V2, db2_dX[5]) + B2.y);
+	g[5] = make_double4(
+		dot(cuda_SD->D1d.host_arr[fi], XX),
+		dot(cuda_SD->D1d.host_arr[fi], YY),
+		dot(cuda_SD->D2d.host_arr[fi], XX),
+		dot(cuda_SD->D2d.host_arr[fi], YY)
+	);
 
-	YY[4].x = dot(V0, db2_dX[4]);
-	YY[4].y = dot(V1, db2_dX[4]) + B2.y;
-	YY[4].z = dot(V2, db2_dX[4]);
+	XX = make_double3(dot(V0, db1_dX[6]) + B1.z, dot(V1, db1_dX[6]), dot(V2, db1_dX[6]));
+	YY = make_double3(dot(V0, db2_dX[6]) + B2.z, dot(V1, db2_dX[6]), dot(V2, db2_dX[6]));
+	g[6] = make_double4(
+		dot(cuda_SD->D1d.host_arr[fi], XX),
+		dot(cuda_SD->D1d.host_arr[fi], YY),
+		dot(cuda_SD->D2d.host_arr[fi], XX),
+		dot(cuda_SD->D2d.host_arr[fi], YY)
+	);
 
-	YY[5].x = dot(V0, db2_dX[5]);
-	YY[5].y = dot(V1, db2_dX[5]);
-	YY[5].z = dot(V2, db2_dX[5]) + B2.y;
+	XX = make_double3(dot(V0, db1_dX[7]), dot(V1, db1_dX[7]) + B1.z, dot(V2, db1_dX[7]));
+	YY = make_double3(dot(V0, db2_dX[7]), dot(V1, db2_dX[7]) + B2.z, dot(V2, db2_dX[7]));
+	g[7] = make_double4(
+		dot(cuda_SD->D1d.host_arr[fi], XX),
+		dot(cuda_SD->D1d.host_arr[fi], YY),
+		dot(cuda_SD->D2d.host_arr[fi], XX),
+		dot(cuda_SD->D2d.host_arr[fi], YY)
+	);
 
-	YY[6].x = dot(V0, db2_dX[6]) + B2.z;
-	YY[6].y = dot(V1, db2_dX[6]);
-	YY[6].z = dot(V2, db2_dX[6]);
-
-	YY[7].x = dot(V0, db2_dX[7]);
-	YY[7].y = dot(V1, db2_dX[7]) + B2.z;
-	YY[7].z = dot(V2, db2_dX[7]);
-
-	YY[8].x = dot(V0, db2_dX[8]);
-	YY[8].y = dot(V1, db2_dX[8]);
-	YY[8].z = dot(V2, db2_dX[8]) + B2.z;
-
-	for (int i = 0; i < 9; i++) {
-		g[i].x = dot(cuda_SD->D1d.host_arr[fi], XX[i]);
-		g[i].y = dot(cuda_SD->D1d.host_arr[fi], YY[i]);
-		g[i].z = dot(cuda_SD->D2d.host_arr[fi], XX[i]);
-		g[i].w = dot(cuda_SD->D2d.host_arr[fi], YY[i]);
-	}
+	XX = make_double3(dot(V0, db1_dX[8]), dot(V1, db1_dX[8]), dot(V2, db1_dX[8]) + B1.z);
+	YY = make_double3(dot(V0, db2_dX[8]), dot(V1, db2_dX[8]), dot(V2, db2_dX[8]) + B2.z);
+	g[8] = make_double4(
+		dot(cuda_SD->D1d.host_arr[fi], XX),
+		dot(cuda_SD->D1d.host_arr[fi], YY),
+		dot(cuda_SD->D2d.host_arr[fi], XX),
+		dot(cuda_SD->D2d.host_arr[fi], YY)
+	);
 }
 
 void SDenergy::dB1_dX(double3 (&g)[9], int fi, const double3 e10)
