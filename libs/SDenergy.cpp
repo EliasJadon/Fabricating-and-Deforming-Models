@@ -287,9 +287,11 @@ void SDenergy::dJ_dX(
 
 void SDenergy::dB2_dX(double3 (&g)[9], int fi, const double3 e10, const double3 e20)
 {
-	double3 b2 = cross(cross(e10, e20), e10);
-	double NormB2 = norm(b2);
-	double NormB2_2 = pow(NormB2, 2);
+	double3 B2_b2 = cross(cross(e10, e20), e10);
+	double Norm_B2 = norm(B2_b2);
+	double Norm_B2_2 = pow(Norm_B2, 2);
+
+
 	double3 dxyz[6] = {
 		make_double3(-e10.y * e20.y - e10.z * e20.z,2 * e10.x * e20.y - e10.y * e20.x,-e10.z * e20.x + 2 * e10.x * e20.z),
 		make_double3(-e10.x * e20.y + 2 * e10.y * e20.x,-e10.z * e20.z - e20.x * e10.x,2 * e10.y * e20.z - e10.z * e20.y),
@@ -299,48 +301,72 @@ void SDenergy::dB2_dX(double3 (&g)[9], int fi, const double3 e10, const double3 
 		make_double3(-e10.x * e10.z,-e10.z * e10.y,pow(e10.x, 2) + pow(e10.y, 2))
 	};
 	double dnorm[6] = {
-		dot(b2, dxyz[0]) / NormB2,
-		dot(b2, dxyz[1]) / NormB2,
-		dot(b2, dxyz[2]) / NormB2,
-		dot(b2, dxyz[3]) / NormB2,
-		dot(b2, dxyz[4]) / NormB2,
-		dot(b2, dxyz[5]) / NormB2
+		dot(B2_b2, dxyz[0]) / Norm_B2,
+		dot(B2_b2, dxyz[1]) / Norm_B2,
+		dot(B2_b2, dxyz[2]) / Norm_B2,
+		dot(B2_b2, dxyz[3]) / Norm_B2,
+		dot(B2_b2, dxyz[4]) / Norm_B2,
+		dot(B2_b2, dxyz[5]) / Norm_B2
 	};
-	g[1].x = (dxyz[0].x * NormB2 - b2.x * dnorm[0]) / NormB2_2;
-	g[1].y = (dxyz[0].y * NormB2 - b2.y * dnorm[0]) / NormB2_2;
-	g[1].z = (dxyz[0].z * NormB2 - b2.z * dnorm[0]) / NormB2_2;
+	g[1] = make_double3(
+		(dxyz[0].x * Norm_B2 - B2_b2.x * dnorm[0]) / Norm_B2_2,
+		(dxyz[0].y * Norm_B2 - B2_b2.y * dnorm[0]) / Norm_B2_2,
+		(dxyz[0].z * Norm_B2 - B2_b2.z * dnorm[0]) / Norm_B2_2
+	);
 
-	g[2].x = (dxyz[3].x * NormB2 - b2.x * dnorm[3]) / NormB2_2;
-	g[2].y = (dxyz[3].y * NormB2 - b2.y * dnorm[3]) / NormB2_2;
-	g[2].z = (dxyz[3].z * NormB2 - b2.z * dnorm[3]) / NormB2_2;
-	
-	g[0].x = -g[1].x - g[2].x;
-	g[0].y = -g[1].y - g[2].y;
-	g[0].z = -g[1].z - g[2].z;
 
-	g[4].x = (dxyz[1].x * NormB2 - b2.x * dnorm[1]) / NormB2_2;
-	g[4].y = (dxyz[1].y * NormB2 - b2.y * dnorm[1]) / NormB2_2;
-	g[4].z = (dxyz[1].z * NormB2 - b2.z * dnorm[1]) / NormB2_2;
-	
-	g[5].x = (dxyz[4].x * NormB2 - b2.x * dnorm[4]) / NormB2_2;
-	g[5].y = (dxyz[4].y * NormB2 - b2.y * dnorm[4]) / NormB2_2;
-	g[5].z = (dxyz[4].z * NormB2 - b2.z * dnorm[4]) / NormB2_2;
-	
-	g[3].x = -g[4].x - g[5].x;
-	g[3].y = -g[4].y - g[5].y;
-	g[3].z = -g[4].z - g[5].z;
+	g[2] = make_double3(
+		(dxyz[3].x * Norm_B2 - B2_b2.x * dnorm[3]) / Norm_B2_2,
+		(dxyz[3].y * Norm_B2 - B2_b2.y * dnorm[3]) / Norm_B2_2,
+		(dxyz[3].z * Norm_B2 - B2_b2.z * dnorm[3]) / Norm_B2_2
+	);
 
-	g[7].x = (dxyz[2].x * NormB2 - b2.x * dnorm[2]) / NormB2_2;
-	g[7].y = (dxyz[2].y * NormB2 - b2.y * dnorm[2]) / NormB2_2;
-	g[7].z = (dxyz[2].z * NormB2 - b2.z * dnorm[2]) / NormB2_2;
 
-	g[8].x = (dxyz[5].x * NormB2 - b2.x * dnorm[5]) / NormB2_2;
-	g[8].y = (dxyz[5].y * NormB2 - b2.y * dnorm[5]) / NormB2_2;
-	g[8].z = (dxyz[5].z * NormB2 - b2.z * dnorm[5]) / NormB2_2;
-	
-	g[6].x = -g[7].x - g[8].x;
-	g[6].y = -g[7].y - g[8].y;
-	g[6].z = -g[7].z - g[8].z;
+	g[0] = make_double3(
+		-g[1].x - g[2].x,
+		-g[1].y - g[2].y,
+		-g[1].z - g[2].z
+	);
 
-	
+
+	g[4] = make_double3(
+		(dxyz[1].x * Norm_B2 - B2_b2.x * dnorm[1]) / Norm_B2_2,
+		(dxyz[1].y * Norm_B2 - B2_b2.y * dnorm[1]) / Norm_B2_2,
+		(dxyz[1].z * Norm_B2 - B2_b2.z * dnorm[1]) / Norm_B2_2
+	);
+
+
+	g[5] = make_double3(
+		(dxyz[4].x * Norm_B2 - B2_b2.x * dnorm[4]) / Norm_B2_2,
+		(dxyz[4].y * Norm_B2 - B2_b2.y * dnorm[4]) / Norm_B2_2,
+		(dxyz[4].z * Norm_B2 - B2_b2.z * dnorm[4]) / Norm_B2_2
+	);
+
+
+	g[3] = make_double3(
+		-g[4].x - g[5].x,
+		-g[4].y - g[5].y,
+		-g[4].z - g[5].z
+	);
+
+
+	g[7] = make_double3(
+		(dxyz[2].x * Norm_B2 - B2_b2.x * dnorm[2]) / Norm_B2_2,
+		(dxyz[2].y * Norm_B2 - B2_b2.y * dnorm[2]) / Norm_B2_2,
+		(dxyz[2].z * Norm_B2 - B2_b2.z * dnorm[2]) / Norm_B2_2
+	);
+
+
+	g[8] = make_double3(
+		(dxyz[5].x * Norm_B2 - B2_b2.x * dnorm[5]) / Norm_B2_2,
+		(dxyz[5].y * Norm_B2 - B2_b2.y * dnorm[5]) / Norm_B2_2,
+		(dxyz[5].z * Norm_B2 - B2_b2.z * dnorm[5]) / Norm_B2_2
+	);
+
+
+	g[6] = make_double3(
+		-g[7].x - g[8].x,
+		-g[7].y - g[8].y,
+		-g[7].z - g[8].z
+	);
 }
