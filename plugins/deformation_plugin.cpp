@@ -33,7 +33,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	isUpdateAll = true;
 	UserInterface_colorInputModelIndex = 0;
 	clusteringType = app_utils::ClusteringType::NO_CLUSTERING;
-	clustering_w = 1;
+	clustering_w = 0.65;
 	clusteringMSE = 0.1;
 	clustering_center_ratio = 0.5;
 	clustering_radius_ratio = 0.1;
@@ -1243,6 +1243,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) 
 	{
 		neighborType = app_utils::NeighborType::LOCAL_NORMALS;
+		clusteringType = app_utils::ClusteringType::RGB_NORMAL;
 		for (auto&out : Outputs) {
 			out.showFacesNorm = true;
 			out.showSphereEdges = out.showNormEdges = 
@@ -1278,6 +1279,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if (isModelLoaded && (key == 'w' || key == 'W') && modifiers == 1) 
 	{
 		neighborType = app_utils::NeighborType::LOCAL_SPHERE;
+		clusteringType = app_utils::ClusteringType::RGB_SPHERE;
 		initAuxVariables = OptimizationUtils::InitAuxVariables::SPHERE_FIT;
 		init_minimizer_thread();
 		for (auto&out : Outputs) {
@@ -1315,6 +1317,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if (isModelLoaded && (key == 'e' || key == 'E') && modifiers == 1) 
 	{
 		//neighborType = app_utils::NeighborType::LOCAL_SPHERE;
+		clusteringType = app_utils::ClusteringType::RGB_CYLINDER;
 		initAuxVariables = OptimizationUtils::InitAuxVariables::CYLINDER_FIT;
 		init_minimizer_thread();
 		for (auto&out : Outputs) {

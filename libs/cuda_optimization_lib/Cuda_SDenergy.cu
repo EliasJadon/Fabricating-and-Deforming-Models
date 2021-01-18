@@ -6,6 +6,10 @@ namespace Utils_Cuda_SDenergy {
 	{
 		return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
 	}
+	__device__ double dot4(const double4 a, const double4 b)
+	{
+		return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+	}
 	__device__ double dot(const double3 a, const double3 b)
 	{
 		return a.x * b.x + a.y * b.y + a.z * b.z;
@@ -162,130 +166,245 @@ namespace Utils_Cuda_SDenergy {
 		const double* X,
 		const int3* restShapeF,
 		const double* restShapeArea,
-		const double4* dXInv,
-		const Cuda::indices I,
-		const double shearModulus,
-		const double bulkModulus)
+		const double3* D1d,
+		const double3* D2d,
+		const Cuda::indices I)
 	{
-		unsigned int fi = blockIdx.x * blockSize + threadIdx.x;
+		unsigned int fi = blockIdx.x;// *blockSize + threadIdx.x;
 		if (fi >= I.num_faces)
 			return;
-		const double4 dxinv = dXInv[fi];
+		const int v0_index = restShapeF[fi].x;
+		const int v1_index = restShapeF[fi].y;
+		const int v2_index = restShapeF[fi].z;
 		const int startX = I.startVx;
 		const int startY = I.startVy;
 		const int startZ = I.startVz;
-		const double Area = restShapeArea[fi];
-		const unsigned int v0i = restShapeF[fi].x;
-		const unsigned int v1i = restShapeF[fi].y;
-		const unsigned int v2i = restShapeF[fi].z;
 		double3 V0 = make_double3(
-			X[v0i + startX],
-			X[v0i + startY],
-			X[v0i + startZ]
+			X[v0_index + startX],
+			X[v0_index + startY],
+			X[v0_index + startZ]
 		);
 		double3 V1 = make_double3(
-			X[v1i + startX],
-			X[v1i + startY],
-			X[v1i + startZ]
+			X[v1_index + startX],
+			X[v1_index + startY],
+			X[v1_index + startZ]
 		);
 		double3 V2 = make_double3(
-			X[v2i + startX],
-			X[v2i + startY],
-			X[v2i + startZ]
+			X[v2_index + startX],
+			X[v2_index + startY],
+			X[v2_index + startZ]
 		);
-
 		double3 e10 = sub(V1, V0);
 		double3 e20 = sub(V2, V0);
-		double dx[3][2];
-		dx[0][0] = e10.x; dx[0][1] = e20.x;
-		dx[1][0] = e10.y; dx[1][1] = e20.y;
-		dx[2][0] = e10.z; dx[2][1] = e20.z;
+		double3 B1 = normalize(e10);
+		double3 B2 = normalize(cross(cross(B1, e20), B1));
+		double3 Xi = make_double3(dot(V0, B1), dot(V1, B1), dot(V2, B1));
+		double3 Yi = make_double3(dot(V0, B2), dot(V1, B2), dot(V2, B2));
+		//prepare jacobian		
+		const double a = dot(D1d[fi], Xi);
+		const double b = dot(D1d[fi], Yi);
+		const double c = dot(D2d[fi], Xi);
+		const double d = dot(D2d[fi], Yi);
+		const double detJ = a * d - b * c;
+		const double det2 = pow(detJ, 2);
+		const double a2 = pow(a, 2);
+		const double b2 = pow(b, 2);
+		const double c2 = pow(c, 2);
+		const double d2 = pow(d, 2);
+		const double det3 = pow(detJ, 3);
+		const double Fnorm = a2 + b2 + c2 + d2;
 
-		double F[3][2];
-		double dxInv[2][2];
-		dxInv[0][0] = dxinv.x;
-		dxInv[0][1] = dxinv.y;
-		dxInv[1][0] = dxinv.z;
-		dxInv[1][1] = dxinv.w;
-		//multiply<3, 2, 2>(dx, dxInv, F);
+		double4 de_dJ = make_double4(
+			restShapeArea[fi] * (a + a / det2 - d * Fnorm / det3),
+			restShapeArea[fi] * (b + b / det2 + c * Fnorm / det3),
+			restShapeArea[fi] * (c + c / det2 + b * Fnorm / det3),
+			restShapeArea[fi] * (d + d / det2 - a * Fnorm / det3)
+		);
+		double Norm_e10_3 = pow(norm(e10), 3);
+		double3 B2_b2 = cross(cross(e10, e20), e10);
+		double Norm_B2 = norm(B2_b2);
+		double Norm_B2_2 = pow(Norm_B2, 2);
+		double3 B2_dxyz0, B2_dxyz1;
+		double B2_dnorm0, B2_dnorm1;
+		double3 db1_dX, db2_dX, XX, YY;
+		double4 dj_dx;
 
-		//compute the Green Strain = 1/2 * (F'F-I)
-		double strain[2][2];
-		//multiplyTranspose<2, 3, 2>(F, F, strain);
-		strain[0][0] -= 1; strain[1][1] -= 1;
-		strain[0][0] *= 0.5;
-		strain[0][1] *= 0.5;
-		strain[1][0] *= 0.5;
-		strain[1][1] *= 0.5;
 
-		double dF_dX[6][9] = { 0 };
-		dF_dX[0][0] = -dxinv.x - dxinv.z;
-		dF_dX[0][1] = dxinv.x;
-		dF_dX[0][2] = dxinv.z;
 
-		dF_dX[1][0] = -dxinv.y - dxinv.w;
-		dF_dX[1][1] = dxinv.y;
-		dF_dX[1][2] = dxinv.w;
-
-		dF_dX[2][3] = -dxinv.x - dxinv.z;
-		dF_dX[2][4] = dxinv.x;
-		dF_dX[2][5] = dxinv.z;
-
-		dF_dX[3][3] = -dxinv.y - dxinv.w;
-		dF_dX[3][4] = dxinv.y;
-		dF_dX[3][5] = dxinv.w;
-
-		dF_dX[4][6] = -dxinv.x - dxinv.z;
-		dF_dX[4][7] = dxinv.x;
-		dF_dX[4][8] = dxinv.z;
-
-		dF_dX[5][6] = -dxinv.y - dxinv.w;
-		dF_dX[5][7] = dxinv.y;
-		dF_dX[5][8] = dxinv.w;
-
-		double dstrain_dF[4][6] = { 0 };
-		dstrain_dF[0][0] = F[0][0];
-		dstrain_dF[0][2] = F[1][0];
-		dstrain_dF[0][4] = F[2][0];
-
-		dstrain_dF[1][0] = 0.5 * F[0][1];
-		dstrain_dF[1][1] = 0.5 * F[0][0];
-		dstrain_dF[1][2] = 0.5 * F[1][1];
-		dstrain_dF[1][3] = 0.5 * F[1][0];
-		dstrain_dF[1][4] = 0.5 * F[2][1];
-		dstrain_dF[1][5] = 0.5 * F[2][0];
-
-		dstrain_dF[2][0] = 0.5 * F[0][1];
-		dstrain_dF[2][1] = 0.5 * F[0][0];
-		dstrain_dF[2][2] = 0.5 * F[1][1];
-		dstrain_dF[2][3] = 0.5 * F[1][0];
-		dstrain_dF[2][4] = 0.5 * F[2][1];
-		dstrain_dF[2][5] = 0.5 * F[2][0];
-
-		dstrain_dF[3][1] = F[0][1];
-		dstrain_dF[3][3] = F[1][1];
-		dstrain_dF[3][5] = F[2][1];
-
-		double dE_dJ[1][4];
-		dE_dJ[0][0] = Area * (2 * shearModulus * strain[0][0] + bulkModulus * (strain[0][0] + strain[1][1]));
-		dE_dJ[0][1] = Area * (2 * shearModulus * strain[0][1]);
-		dE_dJ[0][2] = Area * (2 * shearModulus * strain[1][0]);
-		dE_dJ[0][3] = Area * (2 * shearModulus * strain[1][1] + bulkModulus * (strain[0][0] + strain[1][1]));
-
-		double dE_dX[1][9];
-		double temp[1][6];
-		//multiply<1, 4, 6>(dE_dJ, dstrain_dF, temp);
-		//multiply<1, 6, 9>(temp, dF_dX, dE_dX);
-
-		atomicAdd(&(grad[v0i + startX]), dE_dX[0][0], 0);
-		atomicAdd(&(grad[v1i + startX]), dE_dX[0][1], 0);
-		atomicAdd(&(grad[v2i + startX]), dE_dX[0][2], 0);
-		atomicAdd(&(grad[v0i + startY]), dE_dX[0][3], 0);
-		atomicAdd(&(grad[v1i + startY]), dE_dX[0][4], 0);
-		atomicAdd(&(grad[v2i + startY]), dE_dX[0][5], 0);
-		atomicAdd(&(grad[v0i + startZ]), dE_dX[0][6], 0);
-		atomicAdd(&(grad[v1i + startZ]), dE_dX[0][7], 0);
-		atomicAdd(&(grad[v2i + startZ]), dE_dX[0][8], 0);
+		if (threadIdx.x == 0) {
+			B2_dxyz0 = make_double3(-e10.y * e20.y - e10.z * e20.z, 2 * e10.x * e20.y - e10.y * e20.x, -e10.z * e20.x + 2 * e10.x * e20.z);
+			B2_dxyz1 = make_double3(pow(e10.y, 2) + pow(e10.z, 2), -e10.x * e10.y, -e10.x * e10.z);
+			B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+			B2_dnorm1 = dot(B2_b2, B2_dxyz1) / Norm_B2;
+			db2_dX = make_double3(
+				-((B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.x * Norm_B2 - B2_b2.x * B2_dnorm1) / Norm_B2_2),
+				-((B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.y * Norm_B2 - B2_b2.y * B2_dnorm1) / Norm_B2_2),
+				-((B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.z * Norm_B2 - B2_b2.z * B2_dnorm1) / Norm_B2_2)
+			);
+			db1_dX = make_double3((-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.y * e10.x) / Norm_e10_3), ((e10.z * e10.x) / Norm_e10_3));
+			XX = make_double3(dot(V0, db1_dX) + B1.x, dot(V1, db1_dX), dot(V2, db1_dX));
+			YY = make_double3(dot(V0, db2_dX) + B2.x, dot(V1, db2_dX), dot(V2, db2_dX));
+			dj_dx = make_double4(
+				dot(D1d[fi], XX),
+				dot(D1d[fi], YY),
+				dot(D2d[fi], XX),
+				dot(D2d[fi], YY)
+			);
+			atomicAdd(&(grad[v0_index + I.startVx]), dot4(de_dJ, dj_dx), 0);
+		}
+		else if (threadIdx.x == 1) {
+			B2_dxyz0 = make_double3(-e10.y * e20.y - e10.z * e20.z, 2 * e10.x * e20.y - e10.y * e20.x, -e10.z * e20.x + 2 * e10.x * e20.z);
+			B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+			db2_dX = make_double3(
+				(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+			);
+			db1_dX = make_double3(-(-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.y * e10.x) / Norm_e10_3), -((e10.z * e10.x) / Norm_e10_3));
+			XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.x, dot(V2, db1_dX));
+			YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX) + B2.x, dot(V2, db2_dX));
+			dj_dx = make_double4(
+				dot(D1d[fi], XX),
+				dot(D1d[fi], YY),
+				dot(D2d[fi], XX),
+				dot(D2d[fi], YY)
+			);
+			atomicAdd(&(grad[v1_index + I.startVx]), dot4(de_dJ, dj_dx), 0);
+		}
+		else if (threadIdx.x == 2) {
+			B2_dxyz0 = make_double3(pow(e10.y, 2) + pow(e10.z, 2), -e10.x * e10.y, -e10.x * e10.z);
+			B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+			db2_dX = make_double3(
+				(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+			);
+			XX = make_double3(0, 0, B1.x);
+			YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX), dot(V2, db2_dX) + B2.x);
+			dj_dx = make_double4(
+				dot(D1d[fi], XX),
+				dot(D1d[fi], YY),
+				dot(D2d[fi], XX),
+				dot(D2d[fi], YY)
+			);
+			atomicAdd(&(grad[v2_index + I.startVx]), dot4(de_dJ, dj_dx), 0);
+		}
+		else if (threadIdx.x == 3) {
+			B2_dxyz0 = make_double3(-e10.x * e20.y + 2 * e10.y * e20.x, -e10.z * e20.z - e20.x * e10.x, 2 * e10.y * e20.z - e10.z * e20.y);
+			B2_dxyz1 = make_double3(-e10.y * e10.x, pow(e10.z, 2) + pow(e10.x, 2), -e10.z * e10.y);
+			B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+			B2_dnorm1 = dot(B2_b2, B2_dxyz1) / Norm_B2;
+			db2_dX = make_double3(
+				-((B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.x * Norm_B2 - B2_b2.x * B2_dnorm1) / Norm_B2_2),
+				-((B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.y * Norm_B2 - B2_b2.y * B2_dnorm1) / Norm_B2_2),
+				-((B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.z * Norm_B2 - B2_b2.z * B2_dnorm1) / Norm_B2_2)
+			);
+			db1_dX = make_double3(((e10.y * e10.x) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3));
+			XX = make_double3(dot(V0, db1_dX) + B1.y, dot(V1, db1_dX), dot(V2, db1_dX));
+			YY = make_double3(dot(V0, db2_dX) + B2.y, dot(V1, db2_dX), dot(V2, db2_dX));
+			dj_dx = make_double4(
+				dot(D1d[fi], XX),
+				dot(D1d[fi], YY),
+				dot(D2d[fi], XX),
+				dot(D2d[fi], YY)
+			);
+			atomicAdd(&(grad[v0_index + I.startVy]), dot4(de_dJ, dj_dx), 0);
+		}
+		else if (threadIdx.x == 4) {
+			B2_dxyz0 = make_double3(-e10.x * e20.y + 2 * e10.y * e20.x, -e10.z * e20.z - e20.x * e10.x, 2 * e10.y * e20.z - e10.z * e20.y);
+			B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+			db2_dX = make_double3(
+				(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+			);
+			db1_dX = make_double3(-((e10.y * e10.x) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3));
+			XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.y, dot(V2, db1_dX));
+			YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX) + B2.y, dot(V2, db2_dX));
+			dj_dx = make_double4(
+				dot(D1d[fi], XX),
+				dot(D1d[fi], YY),
+				dot(D2d[fi], XX),
+				dot(D2d[fi], YY)
+			);
+			atomicAdd(&(grad[v1_index + I.startVy]), dot4(de_dJ, dj_dx), 0);
+		}
+		else if (threadIdx.x == 5) {
+			B2_dxyz0 = make_double3(-e10.y * e10.x, pow(e10.z, 2) + pow(e10.x, 2), -e10.z * e10.y);
+			B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+			db2_dX = make_double3(
+				(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+			);
+			XX = make_double3(0, 0, B1.y);
+			YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX), dot(V2, db2_dX) + B2.y);
+			dj_dx = make_double4(
+				dot(D1d[fi], XX),
+				dot(D1d[fi], YY),
+				dot(D2d[fi], XX),
+				dot(D2d[fi], YY)
+			);
+			atomicAdd(&(grad[v2_index + I.startVy]), dot4(de_dJ, dj_dx), 0);
+		}
+		else if (threadIdx.x == 6) {
+			B2_dxyz0 = make_double3(2 * e10.z * e20.x - e10.x * e20.z, -e10.y * e20.z + 2 * e10.z * e20.y, -e10.x * e20.x - e10.y * e20.y);
+			B2_dxyz1 = make_double3(-e10.x * e10.z, -e10.z * e10.y, pow(e10.x, 2) + pow(e10.y, 2));
+			B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+			B2_dnorm1 = dot(B2_b2, B2_dxyz1) / Norm_B2;
+			db2_dX = make_double3(
+				-((B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.x * Norm_B2 - B2_b2.x * B2_dnorm1) / Norm_B2_2),
+				-((B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.y * Norm_B2 - B2_b2.y * B2_dnorm1) / Norm_B2_2),
+				-((B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.z * Norm_B2 - B2_b2.z * B2_dnorm1) / Norm_B2_2)
+			);
+			db1_dX = make_double3(((e10.z * e10.x) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
+			XX = make_double3(dot(V0, db1_dX) + B1.z, dot(V1, db1_dX), dot(V2, db1_dX));
+			YY = make_double3(dot(V0, db2_dX) + B2.z, dot(V1, db2_dX), dot(V2, db2_dX));
+			dj_dx = make_double4(
+				dot(D1d[fi], XX),
+				dot(D1d[fi], YY),
+				dot(D2d[fi], XX),
+				dot(D2d[fi], YY)
+			);
+			atomicAdd(&(grad[v0_index + I.startVz]), dot4(de_dJ, dj_dx), 0);
+		}
+		else if (threadIdx.x == 7) {
+			B2_dxyz0 = make_double3(2 * e10.z * e20.x - e10.x * e20.z, -e10.y * e20.z + 2 * e10.z * e20.y, -e10.x * e20.x - e10.y * e20.y);
+			B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+			db2_dX = make_double3(
+				(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+			);
+			db1_dX = make_double3(-((e10.z * e10.x) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
+			XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.z, dot(V2, db1_dX));
+			YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX) + B2.z, dot(V2, db2_dX));
+			dj_dx = make_double4(
+				dot(D1d[fi], XX),
+				dot(D1d[fi], YY),
+				dot(D2d[fi], XX),
+				dot(D2d[fi], YY)
+			);
+			atomicAdd(&(grad[v1_index + I.startVz]), dot4(de_dJ, dj_dx), 0);
+		}
+		else if (threadIdx.x == 8) {
+			B2_dxyz0 = make_double3(-e10.x * e10.z, -e10.z * e10.y, pow(e10.x, 2) + pow(e10.y, 2));
+			B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+			db2_dX = make_double3(
+				(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+				(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+			);
+			XX = make_double3(0, 0, B1.z);
+			YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX), dot(V2, db2_dX) + B2.z);
+			dj_dx = make_double4(
+				dot(D1d[fi], XX),
+				dot(D1d[fi], YY),
+				dot(D2d[fi], XX),
+				dot(D2d[fi], YY)
+			);
+			atomicAdd(&(grad[v2_index + I.startVz]), dot4(de_dJ, dj_dx), 0);
+		}
 	}
 }
 	
@@ -308,17 +427,15 @@ void Cuda_SDenergy::value(Cuda::Array<double>& curr_x)
 
 void Cuda_SDenergy::gradient(Cuda::Array<double>& X)
 {
-	/*Utils_Cuda_SDenergy::setZeroKernel << <grad.size, 1, 0, stream_gradient >> > (grad.cuda_arr);
-	unsigned int s = mesh_indices.num_faces;
-	Utils_Cuda_SDenergy::gradientKernel<1024> << <ceil(s / (double)1024), 1024, 0, stream_gradient >> > (
+	Utils_Cuda_SDenergy::setZeroKernel << <grad.size, 1>> > (grad.cuda_arr);
+	Utils_Cuda_SDenergy::gradientKernel<1024> << <mesh_indices.num_faces, 9>> > (
 		grad.cuda_arr,
 		X.cuda_arr,
 		restShapeF.cuda_arr,
 		restShapeArea.cuda_arr,
-		dXInv.cuda_arr,
-		mesh_indices,
-		shearModulus,
-		bulkModulus);*/
+		D1d.cuda_arr,
+		D2d.cuda_arr,
+		mesh_indices);
 }
 
 Cuda_SDenergy::Cuda_SDenergy(const int F, const int V) {
