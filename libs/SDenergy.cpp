@@ -191,13 +191,14 @@ void SDenergy::dJ_dX(
 	double3 e20 = sub(V2, V0);
 	double3 B1 = normalize(e10);
 	double3 B2 = normalize(cross(cross(B1, e20), B1));
+	double Norm_e10_3 = pow(norm(e10), 3);
 
-	double3 db1_dX[9], db2_dX[9];
-	dB1_dX(db1_dX, fi, e10);
+
+	double3 db1_dX, db2_dX[9], XX, YY;
 	dB2_dX(db2_dX, fi, e10, e20);
 	
-	double3 XX, YY;
-	XX = make_double3(dot(V0, db1_dX[0]) + B1.x, dot(V1, db1_dX[0]), dot(V2, db1_dX[0]));
+	db1_dX = make_double3((-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.y * e10.x) / Norm_e10_3), ((e10.z * e10.x) / Norm_e10_3));
+	XX = make_double3(dot(V0, db1_dX) + B1.x, dot(V1, db1_dX), dot(V2, db1_dX));
 	YY = make_double3(dot(V0, db2_dX[0]) + B2.x, dot(V1, db2_dX[0]), dot(V2, db2_dX[0]));
 	g[0] = make_double4(
 		dot(cuda_SD->D1d.host_arr[fi], XX),
@@ -206,7 +207,8 @@ void SDenergy::dJ_dX(
 		dot(cuda_SD->D2d.host_arr[fi], YY)
 	);
 
-	XX = make_double3(dot(V0, db1_dX[1]), dot(V1, db1_dX[1]) + B1.x, dot(V2, db1_dX[1]));
+	db1_dX = make_double3(-(-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.y * e10.x) / Norm_e10_3), -((e10.z * e10.x) / Norm_e10_3));
+	XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.x, dot(V2, db1_dX));
 	YY = make_double3(dot(V0, db2_dX[1]), dot(V1, db2_dX[1]) + B2.x, dot(V2, db2_dX[1]));
 	g[1] = make_double4(
 		dot(cuda_SD->D1d.host_arr[fi], XX),
@@ -215,7 +217,7 @@ void SDenergy::dJ_dX(
 		dot(cuda_SD->D2d.host_arr[fi], YY)
 	);
 
-	XX = make_double3(dot(V0, db1_dX[2]), dot(V1, db1_dX[2]), dot(V2, db1_dX[2]) + B1.x);
+	XX = make_double3(0, 0, B1.x);
 	YY = make_double3(dot(V0, db2_dX[2]), dot(V1, db2_dX[2]), dot(V2, db2_dX[2]) + B2.x);
 	g[2] = make_double4(
 		dot(cuda_SD->D1d.host_arr[fi], XX),
@@ -224,7 +226,8 @@ void SDenergy::dJ_dX(
 		dot(cuda_SD->D2d.host_arr[fi], YY)
 	);
 
-	XX = make_double3(dot(V0, db1_dX[3]) + B1.y, dot(V1, db1_dX[3]), dot(V2, db1_dX[3]));
+	db1_dX = make_double3(((e10.y * e10.x) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3));
+	XX = make_double3(dot(V0, db1_dX) + B1.y, dot(V1, db1_dX), dot(V2, db1_dX));
 	YY = make_double3(dot(V0, db2_dX[3]) + B2.y, dot(V1, db2_dX[3]), dot(V2, db2_dX[3]));
 	g[3] = make_double4(
 		dot(cuda_SD->D1d.host_arr[fi], XX),
@@ -233,7 +236,8 @@ void SDenergy::dJ_dX(
 		dot(cuda_SD->D2d.host_arr[fi], YY)
 	);
 
-	XX = make_double3(dot(V0, db1_dX[4]), dot(V1, db1_dX[4]) + B1.y, dot(V2, db1_dX[4]));
+	db1_dX = make_double3(-((e10.y * e10.x) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3));
+	XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.y, dot(V2, db1_dX));
 	YY = make_double3(dot(V0, db2_dX[4]), dot(V1, db2_dX[4]) + B2.y, dot(V2, db2_dX[4]));
 	g[4] = make_double4(
 		dot(cuda_SD->D1d.host_arr[fi], XX),
@@ -242,7 +246,7 @@ void SDenergy::dJ_dX(
 		dot(cuda_SD->D2d.host_arr[fi], YY)
 	);
 
-	XX = make_double3(dot(V0, db1_dX[5]), dot(V1, db1_dX[5]), dot(V2, db1_dX[5]) + B1.y);
+	XX = make_double3(0, 0, B1.y);
 	YY = make_double3(dot(V0, db2_dX[5]), dot(V1, db2_dX[5]), dot(V2, db2_dX[5]) + B2.y);
 	g[5] = make_double4(
 		dot(cuda_SD->D1d.host_arr[fi], XX),
@@ -251,7 +255,8 @@ void SDenergy::dJ_dX(
 		dot(cuda_SD->D2d.host_arr[fi], YY)
 	);
 
-	XX = make_double3(dot(V0, db1_dX[6]) + B1.z, dot(V1, db1_dX[6]), dot(V2, db1_dX[6]));
+	db1_dX = make_double3(((e10.z * e10.x) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
+	XX = make_double3(dot(V0, db1_dX) + B1.z, dot(V1, db1_dX), dot(V2, db1_dX));
 	YY = make_double3(dot(V0, db2_dX[6]) + B2.z, dot(V1, db2_dX[6]), dot(V2, db2_dX[6]));
 	g[6] = make_double4(
 		dot(cuda_SD->D1d.host_arr[fi], XX),
@@ -260,7 +265,8 @@ void SDenergy::dJ_dX(
 		dot(cuda_SD->D2d.host_arr[fi], YY)
 	);
 
-	XX = make_double3(dot(V0, db1_dX[7]), dot(V1, db1_dX[7]) + B1.z, dot(V2, db1_dX[7]));
+	db1_dX = make_double3(-((e10.z * e10.x) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
+	XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.z, dot(V2, db1_dX));
 	YY = make_double3(dot(V0, db2_dX[7]), dot(V1, db2_dX[7]) + B2.z, dot(V2, db2_dX[7]));
 	g[7] = make_double4(
 		dot(cuda_SD->D1d.host_arr[fi], XX),
@@ -269,7 +275,7 @@ void SDenergy::dJ_dX(
 		dot(cuda_SD->D2d.host_arr[fi], YY)
 	);
 
-	XX = make_double3(dot(V0, db1_dX[8]), dot(V1, db1_dX[8]), dot(V2, db1_dX[8]) + B1.z);
+	XX = make_double3(0, 0, B1.z);
 	YY = make_double3(dot(V0, db2_dX[8]), dot(V1, db2_dX[8]), dot(V2, db2_dX[8]) + B2.z);
 	g[8] = make_double4(
 		dot(cuda_SD->D1d.host_arr[fi], XX),
@@ -277,20 +283,6 @@ void SDenergy::dJ_dX(
 		dot(cuda_SD->D2d.host_arr[fi], XX),
 		dot(cuda_SD->D2d.host_arr[fi], YY)
 	);
-}
-
-void SDenergy::dB1_dX(double3 (&g)[9], int fi, const double3 e10)
-{
-	double Norm_e10_3 = pow(norm(e10), 3);
-	g[0] = make_double3((-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.y * e10.x) / Norm_e10_3), ((e10.z * e10.x) / Norm_e10_3));
-	g[1] = make_double3(-(-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.y * e10.x) / Norm_e10_3), -((e10.z * e10.x) / Norm_e10_3));
-	g[2] = make_double3(0, 0, 0);
-	g[3] = make_double3(((e10.y * e10.x) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3));
-	g[4] = make_double3(-((e10.y * e10.x) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3));
-	g[5] = make_double3(0, 0, 0);
-	g[6] = make_double3(((e10.z * e10.x) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
-	g[7] = make_double3(-((e10.z * e10.x) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
-	g[8] = make_double3(0, 0, 0);
 }
 
 void SDenergy::dB2_dX(double3 (&g)[9], int fi, const double3 e10, const double3 e20)
