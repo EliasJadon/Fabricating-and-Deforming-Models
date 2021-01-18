@@ -292,7 +292,7 @@ void SDenergy::dB2_dX(double3 (&g)[9], int fi, const double3 e10, const double3 
 	double Norm_B2_2 = pow(Norm_B2, 2);
 
 
-	double3 dxyz[6] = {
+	double3 B2_dxyz[6] = {
 		make_double3(-e10.y * e20.y - e10.z * e20.z,2 * e10.x * e20.y - e10.y * e20.x,-e10.z * e20.x + 2 * e10.x * e20.z),
 		make_double3(-e10.x * e20.y + 2 * e10.y * e20.x,-e10.z * e20.z - e20.x * e10.x,2 * e10.y * e20.z - e10.z * e20.y),
 		make_double3(2 * e10.z * e20.x - e10.x * e20.z,-e10.y * e20.z + 2 * e10.z * e20.y,-e10.x * e20.x - e10.y * e20.y),
@@ -300,73 +300,67 @@ void SDenergy::dB2_dX(double3 (&g)[9], int fi, const double3 e10, const double3 
 		make_double3(-e10.y * e10.x,pow(e10.z, 2) + pow(e10.x, 2),-e10.z * e10.y),
 		make_double3(-e10.x * e10.z,-e10.z * e10.y,pow(e10.x, 2) + pow(e10.y, 2))
 	};
-	double dnorm[6] = {
-		dot(B2_b2, dxyz[0]) / Norm_B2,
-		dot(B2_b2, dxyz[1]) / Norm_B2,
-		dot(B2_b2, dxyz[2]) / Norm_B2,
-		dot(B2_b2, dxyz[3]) / Norm_B2,
-		dot(B2_b2, dxyz[4]) / Norm_B2,
-		dot(B2_b2, dxyz[5]) / Norm_B2
+	double B2_dnorm[6] = {
+		dot(B2_b2, B2_dxyz[0]) / Norm_B2,
+		dot(B2_b2, B2_dxyz[1]) / Norm_B2,
+		dot(B2_b2, B2_dxyz[2]) / Norm_B2,
+		dot(B2_b2, B2_dxyz[3]) / Norm_B2,
+		dot(B2_b2, B2_dxyz[4]) / Norm_B2,
+		dot(B2_b2, B2_dxyz[5]) / Norm_B2
 	};
+
+	g[0] = make_double3(
+		-((B2_dxyz[0].x * Norm_B2 - B2_b2.x * B2_dnorm[0]) / Norm_B2_2) - ((B2_dxyz[3].x * Norm_B2 - B2_b2.x * B2_dnorm[3]) / Norm_B2_2),
+		-((B2_dxyz[0].y * Norm_B2 - B2_b2.y * B2_dnorm[0]) / Norm_B2_2) - ((B2_dxyz[3].y * Norm_B2 - B2_b2.y * B2_dnorm[3]) / Norm_B2_2),
+		-((B2_dxyz[0].z * Norm_B2 - B2_b2.z * B2_dnorm[0]) / Norm_B2_2) - ((B2_dxyz[3].z * Norm_B2 - B2_b2.z * B2_dnorm[3]) / Norm_B2_2)
+	);
+
 	g[1] = make_double3(
-		(dxyz[0].x * Norm_B2 - B2_b2.x * dnorm[0]) / Norm_B2_2,
-		(dxyz[0].y * Norm_B2 - B2_b2.y * dnorm[0]) / Norm_B2_2,
-		(dxyz[0].z * Norm_B2 - B2_b2.z * dnorm[0]) / Norm_B2_2
+		(B2_dxyz[0].x * Norm_B2 - B2_b2.x * B2_dnorm[0]) / Norm_B2_2,
+		(B2_dxyz[0].y * Norm_B2 - B2_b2.y * B2_dnorm[0]) / Norm_B2_2,
+		(B2_dxyz[0].z * Norm_B2 - B2_b2.z * B2_dnorm[0]) / Norm_B2_2
 	);
 
 
 	g[2] = make_double3(
-		(dxyz[3].x * Norm_B2 - B2_b2.x * dnorm[3]) / Norm_B2_2,
-		(dxyz[3].y * Norm_B2 - B2_b2.y * dnorm[3]) / Norm_B2_2,
-		(dxyz[3].z * Norm_B2 - B2_b2.z * dnorm[3]) / Norm_B2_2
+		(B2_dxyz[3].x * Norm_B2 - B2_b2.x * B2_dnorm[3]) / Norm_B2_2,
+		(B2_dxyz[3].y * Norm_B2 - B2_b2.y * B2_dnorm[3]) / Norm_B2_2,
+		(B2_dxyz[3].z * Norm_B2 - B2_b2.z * B2_dnorm[3]) / Norm_B2_2
 	);
-
-
-	g[0] = make_double3(
-		-g[1].x - g[2].x,
-		-g[1].y - g[2].y,
-		-g[1].z - g[2].z
-	);
-
-
-	g[4] = make_double3(
-		(dxyz[1].x * Norm_B2 - B2_b2.x * dnorm[1]) / Norm_B2_2,
-		(dxyz[1].y * Norm_B2 - B2_b2.y * dnorm[1]) / Norm_B2_2,
-		(dxyz[1].z * Norm_B2 - B2_b2.z * dnorm[1]) / Norm_B2_2
-	);
-
-
-	g[5] = make_double3(
-		(dxyz[4].x * Norm_B2 - B2_b2.x * dnorm[4]) / Norm_B2_2,
-		(dxyz[4].y * Norm_B2 - B2_b2.y * dnorm[4]) / Norm_B2_2,
-		(dxyz[4].z * Norm_B2 - B2_b2.z * dnorm[4]) / Norm_B2_2
-	);
-
 
 	g[3] = make_double3(
-		-g[4].x - g[5].x,
-		-g[4].y - g[5].y,
-		-g[4].z - g[5].z
+		-((B2_dxyz[1].x * Norm_B2 - B2_b2.x * B2_dnorm[1]) / Norm_B2_2) - ((B2_dxyz[4].x * Norm_B2 - B2_b2.x * B2_dnorm[4]) / Norm_B2_2),
+		-((B2_dxyz[1].y * Norm_B2 - B2_b2.y * B2_dnorm[1]) / Norm_B2_2) - ((B2_dxyz[4].y * Norm_B2 - B2_b2.y * B2_dnorm[4]) / Norm_B2_2),
+		-((B2_dxyz[1].z * Norm_B2 - B2_b2.z * B2_dnorm[1]) / Norm_B2_2) - ((B2_dxyz[4].z * Norm_B2 - B2_b2.z * B2_dnorm[4]) / Norm_B2_2)
 	);
 
-
-	g[7] = make_double3(
-		(dxyz[2].x * Norm_B2 - B2_b2.x * dnorm[2]) / Norm_B2_2,
-		(dxyz[2].y * Norm_B2 - B2_b2.y * dnorm[2]) / Norm_B2_2,
-		(dxyz[2].z * Norm_B2 - B2_b2.z * dnorm[2]) / Norm_B2_2
+	g[4] = make_double3(
+		(B2_dxyz[1].x * Norm_B2 - B2_b2.x * B2_dnorm[1]) / Norm_B2_2,
+		(B2_dxyz[1].y * Norm_B2 - B2_b2.y * B2_dnorm[1]) / Norm_B2_2,
+		(B2_dxyz[1].z * Norm_B2 - B2_b2.z * B2_dnorm[1]) / Norm_B2_2
 	);
 
-
-	g[8] = make_double3(
-		(dxyz[5].x * Norm_B2 - B2_b2.x * dnorm[5]) / Norm_B2_2,
-		(dxyz[5].y * Norm_B2 - B2_b2.y * dnorm[5]) / Norm_B2_2,
-		(dxyz[5].z * Norm_B2 - B2_b2.z * dnorm[5]) / Norm_B2_2
+	g[5] = make_double3(
+		(B2_dxyz[4].x * Norm_B2 - B2_b2.x * B2_dnorm[4]) / Norm_B2_2,
+		(B2_dxyz[4].y * Norm_B2 - B2_b2.y * B2_dnorm[4]) / Norm_B2_2,
+		(B2_dxyz[4].z * Norm_B2 - B2_b2.z * B2_dnorm[4]) / Norm_B2_2
 	);
-
 
 	g[6] = make_double3(
-		-g[7].x - g[8].x,
-		-g[7].y - g[8].y,
-		-g[7].z - g[8].z
+		-((B2_dxyz[2].x * Norm_B2 - B2_b2.x * B2_dnorm[2]) / Norm_B2_2) - ((B2_dxyz[5].x * Norm_B2 - B2_b2.x * B2_dnorm[5]) / Norm_B2_2),
+		-((B2_dxyz[2].y * Norm_B2 - B2_b2.y * B2_dnorm[2]) / Norm_B2_2) - ((B2_dxyz[5].y * Norm_B2 - B2_b2.y * B2_dnorm[5]) / Norm_B2_2),
+		-((B2_dxyz[2].z * Norm_B2 - B2_b2.z * B2_dnorm[2]) / Norm_B2_2) - ((B2_dxyz[5].z * Norm_B2 - B2_b2.z * B2_dnorm[5]) / Norm_B2_2)
+	);
+
+	g[7] = make_double3(
+		(B2_dxyz[2].x * Norm_B2 - B2_b2.x * B2_dnorm[2]) / Norm_B2_2,
+		(B2_dxyz[2].y * Norm_B2 - B2_b2.y * B2_dnorm[2]) / Norm_B2_2,
+		(B2_dxyz[2].z * Norm_B2 - B2_b2.z * B2_dnorm[2]) / Norm_B2_2
+	);
+
+	g[8] = make_double3(
+		(B2_dxyz[5].x * Norm_B2 - B2_b2.x * B2_dnorm[5]) / Norm_B2_2,
+		(B2_dxyz[5].y * Norm_B2 - B2_b2.y * B2_dnorm[5]) / Norm_B2_2,
+		(B2_dxyz[5].z * Norm_B2 - B2_b2.z * B2_dnorm[5]) / Norm_B2_2
 	);
 }
