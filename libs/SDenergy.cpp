@@ -205,14 +205,42 @@ void SDenergy::dJ_dX(
 	XX[1].y += B1.x; XX[4].y += B1.y; XX[7].y += B1.z;
 	XX[2].z += B1.x; XX[5].z += B1.y; XX[8].z += B1.z;
 
-	for (int i = 0; i < 9; i++) {
-		YY[i].x = dot(V0, db2_dX[i]);
-		YY[i].y = dot(V1, db2_dX[i]);
-		YY[i].z = dot(V2, db2_dX[i]);
-	}
-	YY[0].x += B2.x; YY[3].x += B2.y; YY[6].x += B2.z;
-	YY[1].y += B2.x; YY[4].y += B2.y; YY[7].y += B2.z;
-	YY[2].z += B2.x; YY[5].z += B2.y; YY[8].z += B2.z;
+
+	YY[0].x = dot(V0, db2_dX[0]) + B2.x;
+	YY[0].y = dot(V1, db2_dX[0]);
+	YY[0].z = dot(V2, db2_dX[0]);
+
+	YY[1].x = dot(V0, db2_dX[1]);
+	YY[1].y = dot(V1, db2_dX[1]) + B2.x;
+	YY[1].z = dot(V2, db2_dX[1]);
+
+	YY[2].x = dot(V0, db2_dX[2]);
+	YY[2].y = dot(V1, db2_dX[2]);
+	YY[2].z = dot(V2, db2_dX[2]) + B2.x;
+
+	YY[3].x = dot(V0, db2_dX[3]) + B2.y;
+	YY[3].y = dot(V1, db2_dX[3]);
+	YY[3].z = dot(V2, db2_dX[3]);
+
+	YY[4].x = dot(V0, db2_dX[4]);
+	YY[4].y = dot(V1, db2_dX[4]) + B2.y;
+	YY[4].z = dot(V2, db2_dX[4]);
+
+	YY[5].x = dot(V0, db2_dX[5]);
+	YY[5].y = dot(V1, db2_dX[5]);
+	YY[5].z = dot(V2, db2_dX[5]) + B2.y;
+
+	YY[6].x = dot(V0, db2_dX[6]) + B2.z;
+	YY[6].y = dot(V1, db2_dX[6]);
+	YY[6].z = dot(V2, db2_dX[6]);
+
+	YY[7].x = dot(V0, db2_dX[7]);
+	YY[7].y = dot(V1, db2_dX[7]) + B2.z;
+	YY[7].z = dot(V2, db2_dX[7]);
+
+	YY[8].x = dot(V0, db2_dX[8]);
+	YY[8].y = dot(V1, db2_dX[8]);
+	YY[8].z = dot(V2, db2_dX[8]) + B2.z;
 
 	for (int i = 0; i < 9; i++) {
 		g[i].x = dot(cuda_SD->D1d.host_arr[fi], XX[i]);
@@ -265,32 +293,40 @@ void SDenergy::dB2_dX(double3 (&g)[9], int fi, const double3 e10, const double3 
 		dot(b2, dxyz[5]) / NormB2
 	};
 	g[1].x = (dxyz[0].x * NormB2 - b2.x * dnorm[0]) / NormB2_2;
-	g[2].x = (dxyz[3].x * NormB2 - b2.x * dnorm[3]) / NormB2_2;
-	g[4].x = (dxyz[1].x * NormB2 - b2.x * dnorm[1]) / NormB2_2;
-	g[5].x = (dxyz[4].x * NormB2 - b2.x * dnorm[4]) / NormB2_2;
-	g[7].x = (dxyz[2].x * NormB2 - b2.x * dnorm[2]) / NormB2_2;
-	g[8].x = (dxyz[5].x * NormB2 - b2.x * dnorm[5]) / NormB2_2;
-	g[0].x = -g[1].x - g[2].x;
-	g[3].x = -g[4].x - g[5].x;
-	g[6].x = -g[7].x - g[8].x;
-
 	g[1].y = (dxyz[0].y * NormB2 - b2.y * dnorm[0]) / NormB2_2;
-	g[2].y = (dxyz[3].y * NormB2 - b2.y * dnorm[3]) / NormB2_2;
-	g[4].y = (dxyz[1].y * NormB2 - b2.y * dnorm[1]) / NormB2_2;
-	g[5].y = (dxyz[4].y * NormB2 - b2.y * dnorm[4]) / NormB2_2;
-	g[7].y = (dxyz[2].y * NormB2 - b2.y * dnorm[2]) / NormB2_2;
-	g[8].y = (dxyz[5].y * NormB2 - b2.y * dnorm[5]) / NormB2_2;
-	g[0].y = -g[1].y - g[2].y;
-	g[3].y = -g[4].y - g[5].y;
-	g[6].y = -g[7].y - g[8].y;
-
 	g[1].z = (dxyz[0].z * NormB2 - b2.z * dnorm[0]) / NormB2_2;
+
+	g[2].x = (dxyz[3].x * NormB2 - b2.x * dnorm[3]) / NormB2_2;
+	g[2].y = (dxyz[3].y * NormB2 - b2.y * dnorm[3]) / NormB2_2;
 	g[2].z = (dxyz[3].z * NormB2 - b2.z * dnorm[3]) / NormB2_2;
-	g[4].z = (dxyz[1].z * NormB2 - b2.z * dnorm[1]) / NormB2_2;
-	g[5].z = (dxyz[4].z * NormB2 - b2.z * dnorm[4]) / NormB2_2;
-	g[7].z = (dxyz[2].z * NormB2 - b2.z * dnorm[2]) / NormB2_2;
-	g[8].z = (dxyz[5].z * NormB2 - b2.z * dnorm[5]) / NormB2_2;
+	
+	g[0].x = -g[1].x - g[2].x;
+	g[0].y = -g[1].y - g[2].y;
 	g[0].z = -g[1].z - g[2].z;
+
+	g[4].x = (dxyz[1].x * NormB2 - b2.x * dnorm[1]) / NormB2_2;
+	g[4].y = (dxyz[1].y * NormB2 - b2.y * dnorm[1]) / NormB2_2;
+	g[4].z = (dxyz[1].z * NormB2 - b2.z * dnorm[1]) / NormB2_2;
+	
+	g[5].x = (dxyz[4].x * NormB2 - b2.x * dnorm[4]) / NormB2_2;
+	g[5].y = (dxyz[4].y * NormB2 - b2.y * dnorm[4]) / NormB2_2;
+	g[5].z = (dxyz[4].z * NormB2 - b2.z * dnorm[4]) / NormB2_2;
+	
+	g[3].x = -g[4].x - g[5].x;
+	g[3].y = -g[4].y - g[5].y;
 	g[3].z = -g[4].z - g[5].z;
+
+	g[7].x = (dxyz[2].x * NormB2 - b2.x * dnorm[2]) / NormB2_2;
+	g[7].y = (dxyz[2].y * NormB2 - b2.y * dnorm[2]) / NormB2_2;
+	g[7].z = (dxyz[2].z * NormB2 - b2.z * dnorm[2]) / NormB2_2;
+
+	g[8].x = (dxyz[5].x * NormB2 - b2.x * dnorm[5]) / NormB2_2;
+	g[8].y = (dxyz[5].y * NormB2 - b2.y * dnorm[5]) / NormB2_2;
+	g[8].z = (dxyz[5].z * NormB2 - b2.z * dnorm[5]) / NormB2_2;
+	
+	g[6].x = -g[7].x - g[8].x;
+	g[6].y = -g[7].y - g[8].y;
 	g[6].z = -g[7].z - g[8].z;
+
+	
 }
