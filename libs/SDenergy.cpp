@@ -8,6 +8,10 @@ double dot(const double3 a, const double3 b)
 {
 	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
+double dot4(const double4 a, const double4 b)
+{
+	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+}
 double3 mul(const double a, const double3 b)
 {
 	return make_double3(a * b.x, a * b.y, a * b.z);
@@ -168,25 +172,24 @@ void SDenergy::gradient(Cuda::Array<double>& X)
 			cuda_SD->restShapeArea.host_arr[fi] * (c + c / det2 + b * Fnorm / det3),
 			cuda_SD->restShapeArea.host_arr[fi] * (d + d / det2 - a * Fnorm / det3)
 		);
-		double dE_dX[9],dj_dx[4][9];
-		dJ_dX(dj_dx,fi, V0, V1, V2);
-		multiply<9>(de_dJ, dj_dx, dE_dX);
+		double4 dj_dx[9];
+		dJ_dX(dj_dx, fi, V0, V1, V2);
 
-		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVx] += dE_dX[0];
-		cuda_SD->grad.host_arr[restShapeF(fi, 1) + cuda_SD->mesh_indices.startVx] += dE_dX[1];
-		cuda_SD->grad.host_arr[restShapeF(fi, 2) + cuda_SD->mesh_indices.startVx] += dE_dX[2];
-		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVy] += dE_dX[3];
-		cuda_SD->grad.host_arr[restShapeF(fi, 1) + cuda_SD->mesh_indices.startVy] += dE_dX[4];
-		cuda_SD->grad.host_arr[restShapeF(fi, 2) + cuda_SD->mesh_indices.startVy] += dE_dX[5];
-		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVz] += dE_dX[6];
-		cuda_SD->grad.host_arr[restShapeF(fi, 1) + cuda_SD->mesh_indices.startVz] += dE_dX[7];
-		cuda_SD->grad.host_arr[restShapeF(fi, 2) + cuda_SD->mesh_indices.startVz] += dE_dX[8];
+		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[0]);
+		cuda_SD->grad.host_arr[restShapeF(fi, 1) + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[1]);
+		cuda_SD->grad.host_arr[restShapeF(fi, 2) + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[2]);
+		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[3]);
+		cuda_SD->grad.host_arr[restShapeF(fi, 1) + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[4]);
+		cuda_SD->grad.host_arr[restShapeF(fi, 2) + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[5]);
+		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[6]);
+		cuda_SD->grad.host_arr[restShapeF(fi, 1) + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[7]);
+		cuda_SD->grad.host_arr[restShapeF(fi, 2) + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[8]);
 	}
 	Cuda::MemCpyHostToDevice(cuda_SD->grad);
 }
 
 void SDenergy::dJ_dX(
-	double g[4][9],
+	double4 g[9],
 	int fi, 
 	const double3 V0,
 	const double3 V1,
@@ -197,51 +200,37 @@ void SDenergy::dJ_dX(
 	double3 B1 = normalize(e10);
 	double3 B2 = normalize(cross(cross(B1, e20), B1));
 
-	double db1_dX[3][9], db2_dX[3][9], XX[3][9], YY[3][9];
+	double3 db1_dX[9], db2_dX[9], XX[9], YY[9];
 	dB1_dX(db1_dX, fi, e10);
 	dB2_dX(db2_dX, fi, e10, e20);
 	
-	double res1[9], res2[9], res3[9], res4[9];
-	multiply<9>(V0, db1_dX, res1);
-	multiply<9>(V1, db1_dX, res2);
-	multiply<9>(V2, db1_dX, res3);
 	for (int i = 0; i < 9; i++) {
-		XX[0][i] = res1[i];
-		XX[1][i] = res2[i];
-		XX[2][i] = res3[i];
+		XX[i].x = dot(V0, db1_dX[i]);
+		XX[i].y = dot(V1, db1_dX[i]);
+		XX[i].z = dot(V2, db1_dX[i]);
 	}
-	XX[0][0] += B1.x; XX[0][3] += B1.y; XX[0][6] += B1.z;
-	XX[1][1] += B1.x; XX[1][4] += B1.y; XX[1][7] += B1.z;
-	XX[2][2] += B1.x; XX[2][5] += B1.y; XX[2][8] += B1.z;
+	XX[0].x += B1.x; XX[3].x += B1.y; XX[6].x += B1.z;
+	XX[1].y += B1.x; XX[4].y += B1.y; XX[7].y += B1.z;
+	XX[2].z += B1.x; XX[5].z += B1.y; XX[8].z += B1.z;
 
-
-	multiply<9>(V0, db2_dX, res1);
-	multiply<9>(V1, db2_dX, res2);
-	multiply<9>(V2, db2_dX, res3);
 	for (int i = 0; i < 9; i++) {
-		YY[0][i] = res1[i];
-		YY[1][i] = res2[i];
-		YY[2][i] = res3[i];
+		YY[i].x = dot(V0, db2_dX[i]);
+		YY[i].y = dot(V1, db2_dX[i]);
+		YY[i].z = dot(V2, db2_dX[i]);
 	}
-	YY[0][0] += B2.x; YY[0][3] += B2.y; YY[0][6] += B2.z;
-	YY[1][1] += B2.x; YY[1][4] += B2.y; YY[1][7] += B2.z;
-	YY[2][2] += B2.x; YY[2][5] += B2.y; YY[2][8] += B2.z;
+	YY[0].x += B2.x; YY[3].x += B2.y; YY[6].x += B2.z;
+	YY[1].y += B2.x; YY[4].y += B2.y; YY[7].y += B2.z;
+	YY[2].z += B2.x; YY[5].z += B2.y; YY[8].z += B2.z;
 
-
-
-	multiply<9>(cuda_SD->D1d.host_arr[fi], XX, res1);
-	multiply<9>(cuda_SD->D1d.host_arr[fi], YY, res2);
-	multiply<9>(cuda_SD->D2d.host_arr[fi], XX, res3);
-	multiply<9>(cuda_SD->D2d.host_arr[fi], YY, res4);
 	for (int i = 0; i < 9; i++) {
-		g[0][i] = res1[i];
-		g[1][i] = res2[i];
-		g[2][i] = res3[i];
-		g[3][i] = res4[i];
+		g[i].x = dot(cuda_SD->D1d.host_arr[fi], XX[i]);
+		g[i].y = dot(cuda_SD->D1d.host_arr[fi], YY[i]);
+		g[i].z = dot(cuda_SD->D2d.host_arr[fi], XX[i]);
+		g[i].w = dot(cuda_SD->D2d.host_arr[fi], YY[i]);
 	}
 }
 
-void SDenergy::dB1_dX(double g[3][9], int fi, const double3 e10)
+void SDenergy::dB1_dX(double3 g[9], int fi, const double3 e10)
 {
 	double Norm = norm(e10);
 	double Norm3 = pow(Norm, 3);
@@ -251,82 +240,65 @@ void SDenergy::dB1_dX(double g[3][9], int fi, const double3 e10)
 	double dB1x_dy0 = (e10.y * e10.x) / Norm3;
 	double dB1x_dz0 = (e10.z * e10.x) / Norm3;
 	double dB1y_dz0 = (e10.z * e10.y) / Norm3;
-	double B1gradient[3][9] = {
-		dB1x_dx0, -dB1x_dx0, 0, dB1x_dy0, -dB1x_dy0, 0, dB1x_dz0, -dB1x_dz0, 0,
-		dB1x_dy0, -dB1x_dy0, 0, dB1y_dy0, -dB1y_dy0, 0, dB1y_dz0, -dB1y_dz0, 0,
-		dB1x_dz0, -dB1x_dz0, 0, dB1y_dz0, -dB1y_dz0, 0, dB1z_dz0, -dB1z_dz0, 0
-	};
-	for (int i = 0; i < 3; i++) {
-		for (int j = 0; j < 9; j++) {
-			g[i][j] = B1gradient[i][j];
-		}
-	}
+	g[0] = make_double3(dB1x_dx0, dB1x_dy0, dB1x_dz0);
+	g[1] = mul(-1, g[0]);
+	g[2] = make_double3(0, 0, 0);
+	g[3] = make_double3(dB1x_dy0, dB1y_dy0, dB1y_dz0);
+	g[4] = mul(-1, g[3]);
+	g[5] = make_double3(0, 0, 0);
+	g[6] = make_double3(dB1x_dz0, dB1y_dz0, dB1z_dz0);
+	g[7] = mul(-1, g[6]);
+	g[8] = make_double3(0, 0, 0);
 }
 
-void SDenergy::dB2_dX(double g[3][9], int fi, const double3 e10, const double3 e20)
+void SDenergy::dB2_dX(double3 g[9], int fi, const double3 e10, const double3 e20)
 {
 	double3 b2 = cross(cross(e10, e20), e10);
 	double NormB2 = norm(b2);
 	double NormB2_2 = pow(NormB2, 2);
-
-	double dxyz[3][6] = {
-		-e10.y * e20.y - e10.z * e20.z,
-		-e10.x * e20.y + 2 * e10.y * e20.x,
-		2 * e10.z * e20.x - e10.x * e20.z,
-		pow(e10.y, 2) + pow(e10.z, 2),
-		-e10.y * e10.x,
-		-e10.x * e10.z,
-		2 * e10.x * e20.y - e10.y * e20.x,
-		-e10.z * e20.z - e20.x * e10.x,
-		-e10.y * e20.z + 2 * e10.z * e20.y,
-		-e10.x * e10.y,
-		pow(e10.z, 2) + pow(e10.x, 2),
-		-e10.z * e10.y,
-		-e10.z * e20.x + 2 * e10.x * e20.z,
-		2 * e10.y * e20.z - e10.z * e20.y,
-		-e10.x * e20.x - e10.y * e20.y,
-		-e10.x * e10.z,
-		-e10.z * e10.y,
-		pow(e10.x, 2) + pow(e10.y, 2)
+	double3 dxyz[6] = {
+		make_double3(-e10.y * e20.y - e10.z * e20.z,2 * e10.x * e20.y - e10.y * e20.x,-e10.z * e20.x + 2 * e10.x * e20.z),
+		make_double3(-e10.x * e20.y + 2 * e10.y * e20.x,-e10.z * e20.z - e20.x * e10.x,2 * e10.y * e20.z - e10.z * e20.y),
+		make_double3(2 * e10.z * e20.x - e10.x * e20.z,-e10.y * e20.z + 2 * e10.z * e20.y,-e10.x * e20.x - e10.y * e20.y),
+		make_double3(pow(e10.y, 2) + pow(e10.z, 2),-e10.x * e10.y,-e10.x * e10.z),
+		make_double3(-e10.y * e10.x,pow(e10.z, 2) + pow(e10.x, 2),-e10.z * e10.y),
+		make_double3(-e10.x * e10.z,-e10.z * e10.y,pow(e10.x, 2) + pow(e10.y, 2))
 	};
-		
-
 	double dnorm[6] = {
-		(b2.x * dxyz[0][0] + b2.y * dxyz[1][0] + b2.z * dxyz[2][0]) / NormB2,
-		(b2.x * dxyz[0][1] + b2.y * dxyz[1][1] + b2.z * dxyz[2][1]) / NormB2,
-		(b2.x * dxyz[0][2] + b2.y * dxyz[1][2] + b2.z * dxyz[2][2]) / NormB2,
-		(b2.x * dxyz[0][3] + b2.y * dxyz[1][3] + b2.z * dxyz[2][3]) / NormB2,
-		(b2.x * dxyz[0][4] + b2.y * dxyz[1][4] + b2.z * dxyz[2][4]) / NormB2,
-		(b2.x * dxyz[0][5] + b2.y * dxyz[1][5] + b2.z * dxyz[2][5]) / NormB2
+		dot(b2, dxyz[0]) / NormB2,
+		dot(b2, dxyz[1]) / NormB2,
+		dot(b2, dxyz[2]) / NormB2,
+		dot(b2, dxyz[3]) / NormB2,
+		dot(b2, dxyz[4]) / NormB2,
+		dot(b2, dxyz[5]) / NormB2
 	};
-		
-	g[0][1] = (dxyz[0][0] * NormB2 - b2.x * dnorm[0]) / NormB2_2;
-	g[0][2] = (dxyz[0][3] * NormB2 - b2.x * dnorm[3]) / NormB2_2;
-	g[0][4] = (dxyz[0][1] * NormB2 - b2.x * dnorm[1]) / NormB2_2;
-	g[0][5] = (dxyz[0][4] * NormB2 - b2.x * dnorm[4]) / NormB2_2;
-	g[0][7] = (dxyz[0][2] * NormB2 - b2.x * dnorm[2]) / NormB2_2;
-	g[0][8] = (dxyz[0][5] * NormB2 - b2.x * dnorm[5]) / NormB2_2;
-	g[0][0] = -g[0][1]- g[0][2];
-	g[0][3] = -g[0][4]- g[0][5];
-	g[0][6] = -g[0][7]- g[0][8];
+	g[1].x = (dxyz[0].x * NormB2 - b2.x * dnorm[0]) / NormB2_2;
+	g[2].x = (dxyz[3].x * NormB2 - b2.x * dnorm[3]) / NormB2_2;
+	g[4].x = (dxyz[1].x * NormB2 - b2.x * dnorm[1]) / NormB2_2;
+	g[5].x = (dxyz[4].x * NormB2 - b2.x * dnorm[4]) / NormB2_2;
+	g[7].x = (dxyz[2].x * NormB2 - b2.x * dnorm[2]) / NormB2_2;
+	g[8].x = (dxyz[5].x * NormB2 - b2.x * dnorm[5]) / NormB2_2;
+	g[0].x = -g[1].x - g[2].x;
+	g[3].x = -g[4].x - g[5].x;
+	g[6].x = -g[7].x - g[8].x;
 
-	g[1][1] = (dxyz[1][0] * NormB2 - b2.y * dnorm[0]) / NormB2_2;
-	g[1][2] = (dxyz[1][3] * NormB2 - b2.y * dnorm[3]) / NormB2_2;
-	g[1][4] = (dxyz[1][1] * NormB2 - b2.y * dnorm[1]) / NormB2_2;
-	g[1][5] = (dxyz[1][4] * NormB2 - b2.y * dnorm[4]) / NormB2_2;
-	g[1][7] = (dxyz[1][2] * NormB2 - b2.y * dnorm[2]) / NormB2_2;
-	g[1][8] = (dxyz[1][5] * NormB2 - b2.y * dnorm[5]) / NormB2_2;
-	g[1][0] = -g[1][1] - g[1][2];
-	g[1][3] = -g[1][4] - g[1][5];
-	g[1][6] = -g[1][7] - g[1][8];
+	g[1].y = (dxyz[0].y * NormB2 - b2.y * dnorm[0]) / NormB2_2;
+	g[2].y = (dxyz[3].y * NormB2 - b2.y * dnorm[3]) / NormB2_2;
+	g[4].y = (dxyz[1].y * NormB2 - b2.y * dnorm[1]) / NormB2_2;
+	g[5].y = (dxyz[4].y * NormB2 - b2.y * dnorm[4]) / NormB2_2;
+	g[7].y = (dxyz[2].y * NormB2 - b2.y * dnorm[2]) / NormB2_2;
+	g[8].y = (dxyz[5].y * NormB2 - b2.y * dnorm[5]) / NormB2_2;
+	g[0].y = -g[1].y - g[2].y;
+	g[3].y = -g[4].y - g[5].y;
+	g[6].y = -g[7].y - g[8].y;
 
-	g[2][1] = (dxyz[2][0] * NormB2 - b2.z * dnorm[0]) / NormB2_2;
-	g[2][2] = (dxyz[2][3] * NormB2 - b2.z * dnorm[3]) / NormB2_2;
-	g[2][4] = (dxyz[2][1] * NormB2 - b2.z * dnorm[1]) / NormB2_2;
-	g[2][5] = (dxyz[2][4] * NormB2 - b2.z * dnorm[4]) / NormB2_2;
-	g[2][7] = (dxyz[2][2] * NormB2 - b2.z * dnorm[2]) / NormB2_2;
-	g[2][8] = (dxyz[2][5] * NormB2 - b2.z * dnorm[5]) / NormB2_2;
-	g[2][0] = -g[2][1] - g[2][2];
-	g[2][3] = -g[2][4] - g[2][5];
-	g[2][6] = -g[2][7] - g[2][8];
+	g[1].z = (dxyz[0].z * NormB2 - b2.z * dnorm[0]) / NormB2_2;
+	g[2].z = (dxyz[3].z * NormB2 - b2.z * dnorm[3]) / NormB2_2;
+	g[4].z = (dxyz[1].z * NormB2 - b2.z * dnorm[1]) / NormB2_2;
+	g[5].z = (dxyz[4].z * NormB2 - b2.z * dnorm[4]) / NormB2_2;
+	g[7].z = (dxyz[2].z * NormB2 - b2.z * dnorm[2]) / NormB2_2;
+	g[8].z = (dxyz[5].z * NormB2 - b2.z * dnorm[5]) / NormB2_2;
+	g[0].z = -g[1].z - g[2].z;
+	g[3].z = -g[4].z - g[5].z;
+	g[6].z = -g[7].z - g[8].z;
 }
