@@ -164,214 +164,200 @@ void SDenergy::gradient(Cuda::Array<double>& X)
 			cuda_SD->restShapeArea.host_arr[fi] * (c + c / det2 + b * Fnorm / det3),
 			cuda_SD->restShapeArea.host_arr[fi] * (d + d / det2 - a * Fnorm / det3)
 		);
-		double4 dj_dx[9];
-		dJ_dX(dj_dx, fi, V0, V1, V2);
+		double Norm_e10_3 = pow(norm(e10), 3);
+		double3 B2_b2 = cross(cross(e10, e20), e10);
+		double Norm_B2 = norm(B2_b2);
+		double Norm_B2_2 = pow(Norm_B2, 2);
+		double3 B2_dxyz0, B2_dxyz1;
+		double B2_dnorm0, B2_dnorm1;
+		double3 db1_dX, db2_dX, XX, YY;
+		double4 dj_dx;
 
-		cuda_SD->grad.host_arr[v0_index + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[0]);
-		cuda_SD->grad.host_arr[v1_index + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[1]);
-		cuda_SD->grad.host_arr[v2_index + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[2]);
-		cuda_SD->grad.host_arr[v0_index + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[3]);
-		cuda_SD->grad.host_arr[v1_index + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[4]);
-		cuda_SD->grad.host_arr[v2_index + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[5]);
-		cuda_SD->grad.host_arr[v0_index + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[6]);
-		cuda_SD->grad.host_arr[v1_index + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[7]);
-		cuda_SD->grad.host_arr[v2_index + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[8]);
+
+
+
+		B2_dxyz0 = make_double3(-e10.y * e20.y - e10.z * e20.z, 2 * e10.x * e20.y - e10.y * e20.x, -e10.z * e20.x + 2 * e10.x * e20.z);
+		B2_dxyz1 = make_double3(pow(e10.y, 2) + pow(e10.z, 2), -e10.x * e10.y, -e10.x * e10.z);
+		B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+		B2_dnorm1 = dot(B2_b2, B2_dxyz1) / Norm_B2;
+		db2_dX = make_double3(
+			-((B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.x * Norm_B2 - B2_b2.x * B2_dnorm1) / Norm_B2_2),
+			-((B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.y * Norm_B2 - B2_b2.y * B2_dnorm1) / Norm_B2_2),
+			-((B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.z * Norm_B2 - B2_b2.z * B2_dnorm1) / Norm_B2_2)
+		);
+		db1_dX = make_double3((-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.y * e10.x) / Norm_e10_3), ((e10.z * e10.x) / Norm_e10_3));
+		XX = make_double3(dot(V0, db1_dX) + B1.x, dot(V1, db1_dX), dot(V2, db1_dX));
+		YY = make_double3(dot(V0, db2_dX) + B2.x, dot(V1, db2_dX), dot(V2, db2_dX));
+		dj_dx = make_double4(
+			dot(cuda_SD->D1d.host_arr[fi], XX),
+			dot(cuda_SD->D1d.host_arr[fi], YY),
+			dot(cuda_SD->D2d.host_arr[fi], XX),
+			dot(cuda_SD->D2d.host_arr[fi], YY)
+		);
+		cuda_SD->grad.host_arr[v0_index + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx);
+
+
+
+
+		B2_dxyz0 = make_double3(-e10.y * e20.y - e10.z * e20.z, 2 * e10.x * e20.y - e10.y * e20.x, -e10.z * e20.x + 2 * e10.x * e20.z);
+		B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+		db2_dX = make_double3(
+			(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+		);
+		db1_dX = make_double3(-(-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.y * e10.x) / Norm_e10_3), -((e10.z * e10.x) / Norm_e10_3));
+		XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.x, dot(V2, db1_dX));
+		YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX) + B2.x, dot(V2, db2_dX));
+		dj_dx = make_double4(
+			dot(cuda_SD->D1d.host_arr[fi], XX),
+			dot(cuda_SD->D1d.host_arr[fi], YY),
+			dot(cuda_SD->D2d.host_arr[fi], XX),
+			dot(cuda_SD->D2d.host_arr[fi], YY)
+		);
+		cuda_SD->grad.host_arr[v1_index + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx);
+
+
+
+
+		B2_dxyz0 = make_double3(pow(e10.y, 2) + pow(e10.z, 2), -e10.x * e10.y, -e10.x * e10.z);
+		B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+		db2_dX = make_double3(
+			(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+		);
+		XX = make_double3(0, 0, B1.x);
+		YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX), dot(V2, db2_dX) + B2.x);
+		dj_dx = make_double4(
+			dot(cuda_SD->D1d.host_arr[fi], XX),
+			dot(cuda_SD->D1d.host_arr[fi], YY),
+			dot(cuda_SD->D2d.host_arr[fi], XX),
+			dot(cuda_SD->D2d.host_arr[fi], YY)
+		);
+		cuda_SD->grad.host_arr[v2_index + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx);
+
+
+		B2_dxyz0 = make_double3(-e10.x * e20.y + 2 * e10.y * e20.x, -e10.z * e20.z - e20.x * e10.x, 2 * e10.y * e20.z - e10.z * e20.y);
+		B2_dxyz1 = make_double3(-e10.y * e10.x, pow(e10.z, 2) + pow(e10.x, 2), -e10.z * e10.y);
+		B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+		B2_dnorm1 = dot(B2_b2, B2_dxyz1) / Norm_B2;
+		db2_dX = make_double3(
+			-((B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.x * Norm_B2 - B2_b2.x * B2_dnorm1) / Norm_B2_2),
+			-((B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.y * Norm_B2 - B2_b2.y * B2_dnorm1) / Norm_B2_2),
+			-((B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.z * Norm_B2 - B2_b2.z * B2_dnorm1) / Norm_B2_2)
+		);
+		db1_dX = make_double3(((e10.y * e10.x) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3));
+		XX = make_double3(dot(V0, db1_dX) + B1.y, dot(V1, db1_dX), dot(V2, db1_dX));
+		YY = make_double3(dot(V0, db2_dX) + B2.y, dot(V1, db2_dX), dot(V2, db2_dX));
+		dj_dx = make_double4(
+			dot(cuda_SD->D1d.host_arr[fi], XX),
+			dot(cuda_SD->D1d.host_arr[fi], YY),
+			dot(cuda_SD->D2d.host_arr[fi], XX),
+			dot(cuda_SD->D2d.host_arr[fi], YY)
+		);
+		cuda_SD->grad.host_arr[v0_index + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx);
+
+
+
+		B2_dxyz0 = make_double3(-e10.x * e20.y + 2 * e10.y * e20.x, -e10.z * e20.z - e20.x * e10.x, 2 * e10.y * e20.z - e10.z * e20.y);
+		B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+		db2_dX = make_double3(
+			(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+		);
+		db1_dX = make_double3(-((e10.y * e10.x) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3));
+		XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.y, dot(V2, db1_dX));
+		YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX) + B2.y, dot(V2, db2_dX));
+		dj_dx = make_double4(
+			dot(cuda_SD->D1d.host_arr[fi], XX),
+			dot(cuda_SD->D1d.host_arr[fi], YY),
+			dot(cuda_SD->D2d.host_arr[fi], XX),
+			dot(cuda_SD->D2d.host_arr[fi], YY)
+		);
+		cuda_SD->grad.host_arr[v1_index + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx);
+
+
+
+		B2_dxyz0 = make_double3(-e10.y * e10.x, pow(e10.z, 2) + pow(e10.x, 2), -e10.z * e10.y);
+		B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+		db2_dX = make_double3(
+			(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+		);
+		XX = make_double3(0, 0, B1.y);
+		YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX), dot(V2, db2_dX) + B2.y);
+		dj_dx = make_double4(
+			dot(cuda_SD->D1d.host_arr[fi], XX),
+			dot(cuda_SD->D1d.host_arr[fi], YY),
+			dot(cuda_SD->D2d.host_arr[fi], XX),
+			dot(cuda_SD->D2d.host_arr[fi], YY)
+		);
+		cuda_SD->grad.host_arr[v2_index + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx);
+
+
+
+		B2_dxyz0 = make_double3(2 * e10.z * e20.x - e10.x * e20.z, -e10.y * e20.z + 2 * e10.z * e20.y, -e10.x * e20.x - e10.y * e20.y);
+		B2_dxyz1 = make_double3(-e10.x * e10.z, -e10.z * e10.y, pow(e10.x, 2) + pow(e10.y, 2));
+		B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+		B2_dnorm1 = dot(B2_b2, B2_dxyz1) / Norm_B2;
+		db2_dX = make_double3(
+			-((B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.x * Norm_B2 - B2_b2.x * B2_dnorm1) / Norm_B2_2),
+			-((B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.y * Norm_B2 - B2_b2.y * B2_dnorm1) / Norm_B2_2),
+			-((B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.z * Norm_B2 - B2_b2.z * B2_dnorm1) / Norm_B2_2)
+		);
+		db1_dX = make_double3(((e10.z * e10.x) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
+		XX = make_double3(dot(V0, db1_dX) + B1.z, dot(V1, db1_dX), dot(V2, db1_dX));
+		YY = make_double3(dot(V0, db2_dX) + B2.z, dot(V1, db2_dX), dot(V2, db2_dX));
+		dj_dx = make_double4(
+			dot(cuda_SD->D1d.host_arr[fi], XX),
+			dot(cuda_SD->D1d.host_arr[fi], YY),
+			dot(cuda_SD->D2d.host_arr[fi], XX),
+			dot(cuda_SD->D2d.host_arr[fi], YY)
+		);
+		cuda_SD->grad.host_arr[v0_index + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx);
+
+
+
+
+		B2_dxyz0 = make_double3(2 * e10.z * e20.x - e10.x * e20.z, -e10.y * e20.z + 2 * e10.z * e20.y, -e10.x * e20.x - e10.y * e20.y);
+		B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+		db2_dX = make_double3(
+			(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+		);
+		db1_dX = make_double3(-((e10.z * e10.x) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
+		XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.z, dot(V2, db1_dX));
+		YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX) + B2.z, dot(V2, db2_dX));
+		dj_dx = make_double4(
+			dot(cuda_SD->D1d.host_arr[fi], XX),
+			dot(cuda_SD->D1d.host_arr[fi], YY),
+			dot(cuda_SD->D2d.host_arr[fi], XX),
+			dot(cuda_SD->D2d.host_arr[fi], YY)
+		);
+		cuda_SD->grad.host_arr[v1_index + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx);
+
+
+
+		B2_dxyz0 = make_double3(-e10.x * e10.z, -e10.z * e10.y, pow(e10.x, 2) + pow(e10.y, 2));
+		B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
+		db2_dX = make_double3(
+			(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
+			(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
+		);
+		XX = make_double3(0, 0, B1.z);
+		YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX), dot(V2, db2_dX) + B2.z);
+		dj_dx = make_double4(
+			dot(cuda_SD->D1d.host_arr[fi], XX),
+			dot(cuda_SD->D1d.host_arr[fi], YY),
+			dot(cuda_SD->D2d.host_arr[fi], XX),
+			dot(cuda_SD->D2d.host_arr[fi], YY)
+		);
+		cuda_SD->grad.host_arr[v2_index + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx);
 	}
 	Cuda::MemCpyHostToDevice(cuda_SD->grad);
-}
-
-void SDenergy::dJ_dX(
-	double4 (&g)[9],
-	int fi, 
-	const double3 V0,
-	const double3 V1,
-	const double3 V2)
-{
-	double3 e10 = sub(V1, V0);
-	double3 e20 = sub(V2, V0);
-	double3 B1 = normalize(e10);
-	double3 B2 = normalize(cross(cross(B1, e20), B1));
-	double Norm_e10_3 = pow(norm(e10), 3);
-	double3 B2_b2 = cross(cross(e10, e20), e10);
-	double Norm_B2 = norm(B2_b2);
-	double Norm_B2_2 = pow(Norm_B2, 2);
-	double3 B2_dxyz0, B2_dxyz1;
-	double B2_dnorm0, B2_dnorm1;
-	double3 db1_dX, db2_dX, XX, YY;
-	
-	B2_dxyz0 = make_double3(-e10.y * e20.y - e10.z * e20.z, 2 * e10.x * e20.y - e10.y * e20.x, -e10.z * e20.x + 2 * e10.x * e20.z);
-	B2_dxyz1 = make_double3(pow(e10.y, 2) + pow(e10.z, 2), -e10.x * e10.y, -e10.x * e10.z);
-	B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
-	B2_dnorm1 = dot(B2_b2, B2_dxyz1) / Norm_B2;
-	db2_dX = make_double3(
-		-((B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.x * Norm_B2 - B2_b2.x * B2_dnorm1) / Norm_B2_2),
-		-((B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.y * Norm_B2 - B2_b2.y * B2_dnorm1) / Norm_B2_2),
-		-((B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.z * Norm_B2 - B2_b2.z * B2_dnorm1) / Norm_B2_2)
-	);
-	db1_dX = make_double3((-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.y * e10.x) / Norm_e10_3), ((e10.z * e10.x) / Norm_e10_3));
-	XX = make_double3(dot(V0, db1_dX) + B1.x, dot(V1, db1_dX), dot(V2, db1_dX));
-	YY = make_double3(dot(V0, db2_dX) + B2.x, dot(V1, db2_dX), dot(V2, db2_dX));
-	g[0] = make_double4(
-		dot(cuda_SD->D1d.host_arr[fi], XX),
-		dot(cuda_SD->D1d.host_arr[fi], YY),
-		dot(cuda_SD->D2d.host_arr[fi], XX),
-		dot(cuda_SD->D2d.host_arr[fi], YY)
-	);
-
-
-
-	B2_dxyz0 = make_double3(-e10.y * e20.y - e10.z * e20.z, 2 * e10.x * e20.y - e10.y * e20.x, -e10.z * e20.x + 2 * e10.x * e20.z);
-	B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
-	db2_dX = make_double3(
-		(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
-	);
-	db1_dX = make_double3(-(-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.y * e10.x) / Norm_e10_3), -((e10.z * e10.x) / Norm_e10_3));
-	XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.x, dot(V2, db1_dX));
-	YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX) + B2.x, dot(V2, db2_dX));
-	g[1] = make_double4(
-		dot(cuda_SD->D1d.host_arr[fi], XX),
-		dot(cuda_SD->D1d.host_arr[fi], YY),
-		dot(cuda_SD->D2d.host_arr[fi], XX),
-		dot(cuda_SD->D2d.host_arr[fi], YY)
-	);
-
-
-
-	B2_dxyz0 = make_double3(pow(e10.y, 2) + pow(e10.z, 2), -e10.x * e10.y, -e10.x * e10.z);
-	B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
-	db2_dX = make_double3(
-		(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
-	);
-	XX = make_double3(0, 0, B1.x);
-	YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX), dot(V2, db2_dX) + B2.x);
-	g[2] = make_double4(
-		dot(cuda_SD->D1d.host_arr[fi], XX),
-		dot(cuda_SD->D1d.host_arr[fi], YY),
-		dot(cuda_SD->D2d.host_arr[fi], XX),
-		dot(cuda_SD->D2d.host_arr[fi], YY)
-	);
-
-
-
-
-	B2_dxyz0 = make_double3(-e10.x * e20.y + 2 * e10.y * e20.x, -e10.z * e20.z - e20.x * e10.x, 2 * e10.y * e20.z - e10.z * e20.y);
-	B2_dxyz1 = make_double3(-e10.y * e10.x, pow(e10.z, 2) + pow(e10.x, 2), -e10.z * e10.y);
-	B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
-	B2_dnorm1 = dot(B2_b2, B2_dxyz1) / Norm_B2;
-	db2_dX = make_double3(
-		-((B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.x * Norm_B2 - B2_b2.x * B2_dnorm1) / Norm_B2_2),
-		-((B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.y * Norm_B2 - B2_b2.y * B2_dnorm1) / Norm_B2_2),
-		-((B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.z * Norm_B2 - B2_b2.z * B2_dnorm1) / Norm_B2_2)
-	);
-	db1_dX = make_double3(((e10.y * e10.x) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3));
-	XX = make_double3(dot(V0, db1_dX) + B1.y, dot(V1, db1_dX), dot(V2, db1_dX));
-	YY = make_double3(dot(V0, db2_dX) + B2.y, dot(V1, db2_dX), dot(V2, db2_dX));
-	g[3] = make_double4(
-		dot(cuda_SD->D1d.host_arr[fi], XX),
-		dot(cuda_SD->D1d.host_arr[fi], YY),
-		dot(cuda_SD->D2d.host_arr[fi], XX),
-		dot(cuda_SD->D2d.host_arr[fi], YY)
-	);
-
-
-
-
-
-	B2_dxyz0 = make_double3(-e10.x * e20.y + 2 * e10.y * e20.x, -e10.z * e20.z - e20.x * e10.x, 2 * e10.y * e20.z - e10.z * e20.y);
-	B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
-	db2_dX = make_double3(
-		(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
-	);
-	db1_dX = make_double3(-((e10.y * e10.x) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3));
-	XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.y, dot(V2, db1_dX));
-	YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX) + B2.y, dot(V2, db2_dX));
-	g[4] = make_double4(
-		dot(cuda_SD->D1d.host_arr[fi], XX),
-		dot(cuda_SD->D1d.host_arr[fi], YY),
-		dot(cuda_SD->D2d.host_arr[fi], XX),
-		dot(cuda_SD->D2d.host_arr[fi], YY)
-	);
-
-
-
-
-	B2_dxyz0 = make_double3(-e10.y * e10.x, pow(e10.z, 2) + pow(e10.x, 2), -e10.z * e10.y);
-	B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
-	db2_dX = make_double3(
-		(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
-	);
-	XX = make_double3(0, 0, B1.y);
-	YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX), dot(V2, db2_dX) + B2.y);
-	g[5] = make_double4(
-		dot(cuda_SD->D1d.host_arr[fi], XX),
-		dot(cuda_SD->D1d.host_arr[fi], YY),
-		dot(cuda_SD->D2d.host_arr[fi], XX),
-		dot(cuda_SD->D2d.host_arr[fi], YY)
-	);
-
-
-
-	B2_dxyz0 = make_double3(2 * e10.z * e20.x - e10.x * e20.z, -e10.y * e20.z + 2 * e10.z * e20.y, -e10.x * e20.x - e10.y * e20.y);
-	B2_dxyz1 = make_double3(-e10.x * e10.z, -e10.z * e10.y, pow(e10.x, 2) + pow(e10.y, 2));
-	B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
-	B2_dnorm1 = dot(B2_b2, B2_dxyz1) / Norm_B2;
-	db2_dX = make_double3(
-		-((B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.x * Norm_B2 - B2_b2.x * B2_dnorm1) / Norm_B2_2),
-		-((B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.y * Norm_B2 - B2_b2.y * B2_dnorm1) / Norm_B2_2),
-		-((B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2) - ((B2_dxyz1.z * Norm_B2 - B2_b2.z * B2_dnorm1) / Norm_B2_2)
-	);
-	db1_dX = make_double3(((e10.z * e10.x) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
-	XX = make_double3(dot(V0, db1_dX) + B1.z, dot(V1, db1_dX), dot(V2, db1_dX));
-	YY = make_double3(dot(V0, db2_dX) + B2.z, dot(V1, db2_dX), dot(V2, db2_dX));
-	g[6] = make_double4(
-		dot(cuda_SD->D1d.host_arr[fi], XX),
-		dot(cuda_SD->D1d.host_arr[fi], YY),
-		dot(cuda_SD->D2d.host_arr[fi], XX),
-		dot(cuda_SD->D2d.host_arr[fi], YY)
-	);
-
-
-
-	B2_dxyz0 = make_double3(2 * e10.z * e20.x - e10.x * e20.z, -e10.y * e20.z + 2 * e10.z * e20.y, -e10.x * e20.x - e10.y * e20.y);
-	B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
-	db2_dX = make_double3(
-		(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
-	);
-	db1_dX = make_double3(-((e10.z * e10.x) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
-	XX = make_double3(dot(V0, db1_dX), dot(V1, db1_dX) + B1.z, dot(V2, db1_dX));
-	YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX) + B2.z, dot(V2, db2_dX));
-	g[7] = make_double4(
-		dot(cuda_SD->D1d.host_arr[fi], XX),
-		dot(cuda_SD->D1d.host_arr[fi], YY),
-		dot(cuda_SD->D2d.host_arr[fi], XX),
-		dot(cuda_SD->D2d.host_arr[fi], YY)
-	);
-
-
-
-	B2_dxyz0 = make_double3(-e10.x * e10.z, -e10.z * e10.y, pow(e10.x, 2) + pow(e10.y, 2));
-	B2_dnorm0 = dot(B2_b2, B2_dxyz0) / Norm_B2;
-	db2_dX = make_double3(
-		(B2_dxyz0.x * Norm_B2 - B2_b2.x * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.y * Norm_B2 - B2_b2.y * B2_dnorm0) / Norm_B2_2,
-		(B2_dxyz0.z * Norm_B2 - B2_b2.z * B2_dnorm0) / Norm_B2_2
-	);
-	XX = make_double3(0, 0, B1.z);
-	YY = make_double3(dot(V0, db2_dX), dot(V1, db2_dX), dot(V2, db2_dX) + B2.z);
-	g[8] = make_double4(
-		dot(cuda_SD->D1d.host_arr[fi], XX),
-		dot(cuda_SD->D1d.host_arr[fi], YY),
-		dot(cuda_SD->D2d.host_arr[fi], XX),
-		dot(cuda_SD->D2d.host_arr[fi], YY)
-	);
 }
