@@ -117,41 +117,33 @@ void SDenergy::gradient(Cuda::Array<double>& X)
 		cuda_SD->grad.host_arr[i] = 0;
 
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
-		int v0_index = restShapeF(fi, 0);
-		int v1_index = restShapeF(fi, 1);
-		int v2_index = restShapeF(fi, 2);
+		const int v0_index = restShapeF(fi, 0);
+		const int v1_index = restShapeF(fi, 1);
+		const int v2_index = restShapeF(fi, 2);
+		const int startX = cuda_SD->mesh_indices.startVx;
+		const int startY = cuda_SD->mesh_indices.startVy;
+		const int startZ = cuda_SD->mesh_indices.startVz;
 		double3 V0 = make_double3(
-			X.host_arr[v0_index + cuda_SD->mesh_indices.startVx],
-			X.host_arr[v0_index + cuda_SD->mesh_indices.startVy],
-			X.host_arr[v0_index + cuda_SD->mesh_indices.startVz]
+			X.host_arr[v0_index + startX],
+			X.host_arr[v0_index + startY],
+			X.host_arr[v0_index + startZ]
 		);
 		double3 V1 = make_double3(
-			X.host_arr[v1_index + cuda_SD->mesh_indices.startVx],
-			X.host_arr[v1_index + cuda_SD->mesh_indices.startVy],
-			X.host_arr[v1_index + cuda_SD->mesh_indices.startVz]
+			X.host_arr[v1_index + startX],
+			X.host_arr[v1_index + startY],
+			X.host_arr[v1_index + startZ]
 		);
 		double3 V2 = make_double3(
-			X.host_arr[v2_index + cuda_SD->mesh_indices.startVx],
-			X.host_arr[v2_index + cuda_SD->mesh_indices.startVy],
-			X.host_arr[v2_index + cuda_SD->mesh_indices.startVz]
+			X.host_arr[v2_index + startX],
+			X.host_arr[v2_index + startY],
+			X.host_arr[v2_index + startZ]
 		);
-
 		double3 e10 = sub(V1, V0);
 		double3 e20 = sub(V2, V0);
 		double3 B1 = normalize(e10);
 		double3 B2 = normalize(cross(cross(B1, e20), B1));
-
-		double3 Xi = make_double3(
-			dot(V0, B1),
-			dot(V1, B1),
-			dot(V2, B1)
-		);
-		double3 Yi = make_double3(
-			dot(V0, B2),
-			dot(V1, B2),
-			dot(V2, B2)
-		);
-
+		double3 Xi = make_double3(dot(V0, B1), dot(V1, B1), dot(V2, B1));
+		double3 Yi = make_double3(dot(V0, B2), dot(V1, B2), dot(V2, B2));
 		//prepare jacobian		
 		const double a = dot(cuda_SD->D1d.host_arr[fi], Xi);
 		const double b = dot(cuda_SD->D1d.host_arr[fi], Yi);
@@ -175,21 +167,21 @@ void SDenergy::gradient(Cuda::Array<double>& X)
 		double4 dj_dx[9];
 		dJ_dX(dj_dx, fi, V0, V1, V2);
 
-		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[0]);
-		cuda_SD->grad.host_arr[restShapeF(fi, 1) + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[1]);
-		cuda_SD->grad.host_arr[restShapeF(fi, 2) + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[2]);
-		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[3]);
-		cuda_SD->grad.host_arr[restShapeF(fi, 1) + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[4]);
-		cuda_SD->grad.host_arr[restShapeF(fi, 2) + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[5]);
-		cuda_SD->grad.host_arr[restShapeF(fi, 0) + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[6]);
-		cuda_SD->grad.host_arr[restShapeF(fi, 1) + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[7]);
-		cuda_SD->grad.host_arr[restShapeF(fi, 2) + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[8]);
+		cuda_SD->grad.host_arr[v0_index + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[0]);
+		cuda_SD->grad.host_arr[v1_index + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[1]);
+		cuda_SD->grad.host_arr[v2_index + cuda_SD->mesh_indices.startVx] += dot4(de_dJ, dj_dx[2]);
+		cuda_SD->grad.host_arr[v0_index + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[3]);
+		cuda_SD->grad.host_arr[v1_index + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[4]);
+		cuda_SD->grad.host_arr[v2_index + cuda_SD->mesh_indices.startVy] += dot4(de_dJ, dj_dx[5]);
+		cuda_SD->grad.host_arr[v0_index + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[6]);
+		cuda_SD->grad.host_arr[v1_index + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[7]);
+		cuda_SD->grad.host_arr[v2_index + cuda_SD->mesh_indices.startVz] += dot4(de_dJ, dj_dx[8]);
 	}
 	Cuda::MemCpyHostToDevice(cuda_SD->grad);
 }
 
 void SDenergy::dJ_dX(
-	double4 g[9],
+	double4 (&g)[9],
 	int fi, 
 	const double3 V0,
 	const double3 V1,
@@ -230,7 +222,7 @@ void SDenergy::dJ_dX(
 	}
 }
 
-void SDenergy::dB1_dX(double3 g[9], int fi, const double3 e10)
+void SDenergy::dB1_dX(double3 (&g)[9], int fi, const double3 e10)
 {
 	double Norm = norm(e10);
 	double Norm3 = pow(Norm, 3);
@@ -251,7 +243,7 @@ void SDenergy::dB1_dX(double3 g[9], int fi, const double3 e10)
 	g[8] = make_double3(0, 0, 0);
 }
 
-void SDenergy::dB2_dX(double3 g[9], int fi, const double3 e10, const double3 e20)
+void SDenergy::dB2_dX(double3 (&g)[9], int fi, const double3 e10, const double3 e20)
 {
 	double3 b2 = cross(cross(e10, e20), e10);
 	double NormB2 = norm(b2);
