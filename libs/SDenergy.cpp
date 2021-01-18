@@ -281,22 +281,15 @@ void SDenergy::dJ_dX(
 
 void SDenergy::dB1_dX(double3 (&g)[9], int fi, const double3 e10)
 {
-	double Norm = norm(e10);
-	double Norm3 = pow(Norm, 3);
-	double dB1x_dx0 = -(pow(e10.y, 2) + pow(e10.z, 2)) / Norm3;
-	double dB1y_dy0 = -(pow(e10.x, 2) + pow(e10.z, 2)) / Norm3;
-	double dB1z_dz0 = -(pow(e10.x, 2) + pow(e10.y, 2)) / Norm3;
-	double dB1x_dy0 = (e10.y * e10.x) / Norm3;
-	double dB1x_dz0 = (e10.z * e10.x) / Norm3;
-	double dB1y_dz0 = (e10.z * e10.y) / Norm3;
-	g[0] = make_double3(dB1x_dx0, dB1x_dy0, dB1x_dz0);
-	g[1] = mul(-1, g[0]);
+	double Norm_e10_3 = pow(norm(e10), 3);
+	g[0] = make_double3((-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.y * e10.x) / Norm_e10_3), ((e10.z * e10.x) / Norm_e10_3));
+	g[1] = make_double3(-(-(pow(e10.y, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.y * e10.x) / Norm_e10_3), -((e10.z * e10.x) / Norm_e10_3));
 	g[2] = make_double3(0, 0, 0);
-	g[3] = make_double3(dB1x_dy0, dB1y_dy0, dB1y_dz0);
-	g[4] = mul(-1, g[3]);
+	g[3] = make_double3(((e10.y * e10.x) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3));
+	g[4] = make_double3(-((e10.y * e10.x) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.z, 2)) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3));
 	g[5] = make_double3(0, 0, 0);
-	g[6] = make_double3(dB1x_dz0, dB1y_dz0, dB1z_dz0);
-	g[7] = mul(-1, g[6]);
+	g[6] = make_double3(((e10.z * e10.x) / Norm_e10_3), ((e10.z * e10.y) / Norm_e10_3), (-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
+	g[7] = make_double3(-((e10.z * e10.x) / Norm_e10_3), -((e10.z * e10.y) / Norm_e10_3), -(-(pow(e10.x, 2) + pow(e10.y, 2)) / Norm_e10_3));
 	g[8] = make_double3(0, 0, 0);
 }
 
