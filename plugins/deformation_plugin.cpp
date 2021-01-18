@@ -1651,36 +1651,52 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		else if (clusteringType != app_utils::ClusteringType::NO_CLUSTERING && Outputs[i].getFacesNormals().rows())
 		{
 			Eigen::MatrixXd P;
-			if (clusteringType == app_utils::ClusteringType::RGB_NORMAL)
+			if (clusteringType == app_utils::ClusteringType::RGB_NORMAL) {
 				P = Outputs[i].getFacesNormals();
-			if (clusteringType == app_utils::ClusteringType::RGB_SPHERE)
-				P = Outputs[i].getCenterOfFaces();
-			if (clusteringType == app_utils::ClusteringType::RGB_CYLINDER)
-				P = Outputs[i].getCylinderDirOnly();
-			Eigen::Vector3d min(P(0, 0), P(0, 1), P(0, 2));
-			Eigen::Vector3d max(P(0, 0), P(0, 1), P(0, 2));
+			}
+			if (clusteringType == app_utils::ClusteringType::RGB_SPHERE) {
+				Eigen::MatrixXd C = Outputs[i].getCenterOfSphere();
+				Eigen::VectorXd R = Outputs[i].getRadiusOfSphere();
+				P.resize(C.rows(), 3);
+				for (int fi = 0; fi < C.rows(); fi++) {
+					P(fi, 0) = C(fi, 0) * R(fi);
+					P(fi, 1) = C(fi, 1);
+					P(fi, 2) = C(fi, 2);
+				}
+			}
+			if (clusteringType == app_utils::ClusteringType::RGB_CYLINDER) {
+				Eigen::MatrixXd A = Outputs[i].getCylinderDirOnly();
+				Eigen::MatrixXd C = Outputs[i].getCenterOfSphere();
+				Eigen::VectorXd R = Outputs[i].getRadiusOfSphere();
+				P.resize(C.rows(), 3);
+				//TODO: add C Flatten!!!
+				for (int fi = 0; fi < C.rows(); fi++) {
+					P(fi, 0) = A(fi, 0) * R(fi);
+					P(fi, 1) = A(fi, 1);
+					P(fi, 2) = A(fi, 2);
+				}
+			}
+
+			Eigen::RowVector3d minP = P.row(0);
+			Eigen::RowVector3d maxP = P.row(0);
 			for (int fi = 0; fi < P.rows(); fi++) {
-				min(0) = (P(fi, 0) < min(0)) ? P(fi, 0) : min(0);
-				min(1) = (P(fi, 1) < min(1)) ? P(fi, 1) : min(1);
-				min(2) = (P(fi, 2) < min(2)) ? P(fi, 2) : min(2);
-				max(0) = (P(fi, 0) > max(0)) ? P(fi, 0) : max(0);
-				max(1) = (P(fi, 1) > max(1)) ? P(fi, 1) : max(1);
-				max(2) = (P(fi, 2) > max(2)) ? P(fi, 2) : max(2);
+				for (int xyz = 0; xyz < 3; xyz++) {
+					minP(xyz) = P(fi, xyz) < minP(xyz) ? P(fi, xyz) : minP(xyz);
+					maxP(xyz) = P(fi, xyz) > maxP(xyz) ? P(fi, xyz) : maxP(xyz);
+				}
 			}
 			for (int fi = 0; fi < P.rows(); fi++) {
-				P(fi, 0) = P(fi, 0) - min(0);
-				P(fi, 0) = P(fi, 0) / (max(0) - min(0));
-				P(fi, 1) = P(fi, 1) - min(1);
-				P(fi, 1) = P(fi, 1) / (max(1) - min(1));
-				P(fi, 2) = P(fi, 2) - min(2);
-				P(fi, 2) = P(fi, 2) / (max(2) - min(2));
-
+				for (int xyz = 0; xyz < 3; xyz++) {
+					P(fi, xyz) = P(fi, xyz) - minP(xyz);
+					P(fi, xyz) = P(fi, xyz) / (maxP(xyz) - minP(xyz));
+				}
 				Outputs[i].updateFaceColors(fi, Eigen::Vector3f(
 					clustering_w * P(fi, 0) + (1 - clustering_w),
 					clustering_w * P(fi, 1) + (1 - clustering_w),
 					clustering_w * P(fi, 2) + (1 - clustering_w)
 				));
 			}
+			
 		}
 	}
 }

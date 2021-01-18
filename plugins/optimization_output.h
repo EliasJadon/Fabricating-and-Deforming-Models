@@ -9,6 +9,7 @@ private:
 	Eigen::MatrixXd faces_normals;
 	Eigen::VectorXd radius_of_sphere;
 public:
+
 	std::shared_ptr <FixChosenConstraints> Energy_FixChosenVertices;
 	std::shared_ptr <FixChosenConstraints> Energy_FixChosenNormals;
 	std::shared_ptr< FixChosenConstraints> Energy_FixChosenSpheres;
@@ -57,6 +58,7 @@ public:
 		const Eigen::MatrixXd& norm
 	);
 	double getRadiusOfSphere(int index);
+	Eigen::VectorXd getRadiusOfSphere();
 	Eigen::MatrixXd getCylinderDirOnly();
 	double clustering_MSE(
 		const app_utils::ClusteringType type,

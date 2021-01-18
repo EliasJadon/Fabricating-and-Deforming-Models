@@ -43,6 +43,11 @@ double OptimizationOutput::getRadiusOfSphere(int index)
 	return this->radius_of_sphere(index);
 }
 
+Eigen::VectorXd OptimizationOutput::getRadiusOfSphere() 
+{
+	return this->radius_of_sphere;
+}
+
 void OptimizationOutput::clustering_Average(
 	const app_utils::ClusteringType type,
 	const std::vector<int> clusters_ind,
