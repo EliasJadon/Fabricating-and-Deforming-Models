@@ -192,10 +192,6 @@ void SDenergy::dJ_dX(
 	const double3 V1,
 	const double3 V2)
 {
-	double dV0_dX[3][9] = { 0 }, dV1_dX[3][9] = { 0 }, dV2_dX[3][9] = { 0 };
-	dV0_dX[0][0] = 1; dV0_dX[1][3] = 1; dV0_dX[2][6] = 1;
-	dV1_dX[0][1] = 1; dV1_dX[1][4] = 1; dV1_dX[2][7] = 1;
-	dV2_dX[0][2] = 1; dV2_dX[1][5] = 1; dV2_dX[2][8] = 1;
 	double3 e10 = sub(V1, V0);
 	double3 e20 = sub(V2, V0);
 	double3 B1 = normalize(e10);
@@ -205,30 +201,34 @@ void SDenergy::dJ_dX(
 	dB1_dX(db1_dX, fi, e10);
 	dB2_dX(db2_dX, fi, e10, e20);
 	
-	double res1[9], res2[9], res3[9], res4[9], res5[9], res6[9];
+	double res1[9], res2[9], res3[9], res4[9];
 	multiply<9>(V0, db1_dX, res1);
 	multiply<9>(V1, db1_dX, res2);
 	multiply<9>(V2, db1_dX, res3);
-	multiply<9>(B1, dV0_dX, res4);
-	multiply<9>(B1, dV1_dX, res5);
-	multiply<9>(B1, dV2_dX, res6);
 	for (int i = 0; i < 9; i++) {
-		XX[0][i] = res1[i] + res4[i];
-		XX[1][i] = res2[i] + res5[i];
-		XX[2][i] = res3[i] + res6[i];
+		XX[0][i] = res1[i];
+		XX[1][i] = res2[i];
+		XX[2][i] = res3[i];
 	}
+	XX[0][0] += B1.x; XX[0][3] += B1.y; XX[0][6] += B1.z;
+	XX[1][1] += B1.x; XX[1][4] += B1.y; XX[1][7] += B1.z;
+	XX[2][2] += B1.x; XX[2][5] += B1.y; XX[2][8] += B1.z;
+
 
 	multiply<9>(V0, db2_dX, res1);
 	multiply<9>(V1, db2_dX, res2);
 	multiply<9>(V2, db2_dX, res3);
-	multiply<9>(B2, dV0_dX, res4);
-	multiply<9>(B2, dV1_dX, res5);
-	multiply<9>(B2, dV2_dX, res6);
 	for (int i = 0; i < 9; i++) {
-		YY[0][i] = res1[i] + res4[i];
-		YY[1][i] = res2[i] + res5[i];
-		YY[2][i] = res3[i] + res6[i];
+		YY[0][i] = res1[i];
+		YY[1][i] = res2[i];
+		YY[2][i] = res3[i];
 	}
+	YY[0][0] += B2.x; YY[0][3] += B2.y; YY[0][6] += B2.z;
+	YY[1][1] += B2.x; YY[1][4] += B2.y; YY[1][7] += B2.z;
+	YY[2][2] += B2.x; YY[2][5] += B2.y; YY[2][8] += B2.z;
+
+
+
 	multiply<9>(cuda_SD->D1d.host_arr[fi], XX, res1);
 	multiply<9>(cuda_SD->D1d.host_arr[fi], YY, res2);
 	multiply<9>(cuda_SD->D2d.host_arr[fi], XX, res3);
