@@ -112,9 +112,10 @@ void SDenergy::value(Cuda::Array<double>& curr_x) {
 
 void SDenergy::gradient(Cuda::Array<double>& X)
 {
-	cuda_SD->gradient(X);
-	return;
-	//////////////////////////////////
+	if (using_cuda) {
+		cuda_SD->gradient(X);
+		return;
+	}
 	Cuda::MemCpyDeviceToHost(X);
 	for (int i = 0; i < cuda_SD->grad.size; i++)
 		cuda_SD->grad.host_arr[i] = 0;

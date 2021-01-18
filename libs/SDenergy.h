@@ -4,6 +4,7 @@
 
 class SDenergy : public ObjectiveFunction {
 public:
+	bool using_cuda = false;
 	std::shared_ptr<Cuda_SDenergy> cuda_SD;
 	SDenergy(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
 	~SDenergy();

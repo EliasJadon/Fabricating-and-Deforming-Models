@@ -545,10 +545,13 @@ void deformation_plugin::Draw_energies_window()
 				for (auto& obj : Outputs[i].totalObjective->objectiveList) {
 					ImGui::PushID(id++);
 					ImGui::DragFloat("##w", &(obj->w), 0.05f, 0.0f, 100000.0f);
+					auto SD = std::dynamic_pointer_cast<SDenergy>(obj);
 					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 					auto ACY = std::dynamic_pointer_cast<AuxCylinder>(obj);
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 					if (obj->w) {
+						if (SD != NULL)
+							ImGui::Checkbox("Use Cuda", &(SD->using_cuda));
 						if (ABN != NULL)
 							ImGui::Combo("Function", (int*)(&(ABN->cuda_ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (AS != NULL)
