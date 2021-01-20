@@ -693,7 +693,8 @@ void OptimizationOutput::initMinimizers(
 	const Eigen::MatrixXd& V, 
 	const Eigen::MatrixXi& F, 
 	const OptimizationUtils::InitAuxVariables& typeAuxVar,
-	const int distance,
+	const int distance_from,
+	const int distance_to,
 	const int imax,
 	const int jmax)
 {
@@ -707,7 +708,7 @@ void OptimizationOutput::initMinimizers(
 	Cylinder_dir0.setConstant(1);
 	Eigen::VectorXd Radius0;
 	if (typeAuxVar == OptimizationUtils::InitAuxVariables::SPHERE_FIT)
-		OptimizationUtils::Least_Squares_Sphere_Fit(distance, V, F, center0, Radius0);
+		OptimizationUtils::Least_Squares_Sphere_Fit(distance_from, distance_to, V, F, center0, Radius0);
 	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MODEL_CENTER_POINT)
 		OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
 	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MINUS_NORMALS) {
@@ -721,7 +722,7 @@ void OptimizationOutput::initMinimizers(
 		}
 	}
 	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::CYLINDER_FIT) {
-		OptimizationUtils::Least_Squares_Cylinder_Fit(imax, jmax, distance, V, F, center0, Cylinder_dir0, Radius0);
+		OptimizationUtils::Least_Squares_Cylinder_Fit(imax, jmax, distance_from, distance_to, V, F, center0, Cylinder_dir0, Radius0);
 
 		std::vector<std::set<int>> TT = OptimizationUtils::Triangle_triangle_adjacency(F);
 		for (int i = 0; i < 5; i++) {

@@ -332,7 +332,9 @@ void deformation_plugin::CollapsingHeader_minimizer()
 		if (initAuxVariables == OptimizationUtils::InitAuxVariables::SPHERE_FIT ||
 			initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT) 
 		{
-			if (ImGui::DragInt("Neigh Level", &(InitMinimizer_NeighLevel), 1, 1, 200))
+			if (ImGui::DragInt("Neigh From", &(InitMinimizer_NeighLevel_From), 1, 1, 200))
+				init_minimizer_thread();
+			if (ImGui::DragInt("Neigh To", &(InitMinimizer_NeighLevel_To), 1, 1, 200))
 				init_minimizer_thread();
 		}	
 		if (initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT &&
@@ -1956,12 +1958,17 @@ void deformation_plugin::stop_minimizer_thread()
 void deformation_plugin::init_minimizer_thread() 
 {
 	stop_minimizer_thread();
+	if (InitMinimizer_NeighLevel_From < 1)
+		InitMinimizer_NeighLevel_From = 1;
+	if (InitMinimizer_NeighLevel_From > InitMinimizer_NeighLevel_To)
+		InitMinimizer_NeighLevel_To = InitMinimizer_NeighLevel_From;
 	for (int i = 0; i < Outputs.size(); i++)
 		Outputs[i].initMinimizers(
-			OutputModel(i).V, 
-			OutputModel(i).F, 
+			OutputModel(i).V,
+			OutputModel(i).F,
 			initAuxVariables,
-			InitMinimizer_NeighLevel,
+			InitMinimizer_NeighLevel_From,
+			InitMinimizer_NeighLevel_To,
 			CylinderInit_imax,
 			CylinderInit_jmax);
 }

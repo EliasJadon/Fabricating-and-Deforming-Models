@@ -9,7 +9,8 @@ class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
 	int CylinderInit_imax = 9, CylinderInit_jmax = 9;
-	int InitMinimizer_NeighLevel = 3;
+	int InitMinimizer_NeighLevel_From = 1;
+	int InitMinimizer_NeighLevel_To = 10;
 	bool CollapsingHeader_curr[7], CollapsingHeader_prev[7], CollapsingHeader_change;
 	bool tips_window, outputs_window, results_window, energies_window;
 	OptimizationUtils::InitAuxVariables initAuxVariables;

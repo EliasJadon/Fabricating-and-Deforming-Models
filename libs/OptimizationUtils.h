@@ -341,7 +341,8 @@ namespace OptimizationUtils
 	}
 
 	static void Least_Squares_Sphere_Fit(
-		const int Distance,
+		const int Distance_from,
+		const int Distance_to,
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixXi& F,
 		Eigen::MatrixXd& center0,
@@ -357,7 +358,7 @@ namespace OptimizationUtils
 		for (int fi = 0; fi < F.rows(); fi++) {
 			double minMSE = std::numeric_limits<double>::infinity();
 			int argmin = -1;
-			for (int d = 1; d <= Distance; d++) {
+			for (int d = Distance_from; d <= Distance_to; d++) {
 				double currMSE = Least_Squares_Sphere_Fit_perFace(fi, V, F,
 					Vertices_Neighbors(fi, d,V, TT, TV),
 					center0, radius0);
@@ -533,7 +534,8 @@ namespace OptimizationUtils
 	static void Least_Squares_Cylinder_Fit(
 		const int imax,
 		const int jmax,
-		const int Distance,
+		const int Distance_from,
+		const int Distance_to,
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixXi& F,
 		Eigen::MatrixXd& center0,
@@ -549,7 +551,7 @@ namespace OptimizationUtils
 		for (int fi = 0; fi < F.rows(); fi++) {
 			double minMSE = std::numeric_limits<double>::infinity();
 			int argmin = -1;
-			for (int d = 1; d <= Distance; d++) {
+			for (int d = Distance_from; d <= Distance_to; d++) {
 				const Eigen::MatrixX3d& points = Vertices_Neighbors(fi, d, V, TT, TV);
 				double rSqr;
 				Eigen::Vector3d C;
