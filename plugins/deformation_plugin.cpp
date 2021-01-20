@@ -1678,11 +1678,29 @@ void deformation_plugin::follow_and_mark_selected_faces()
 				Eigen::MatrixXd C = Outputs[i].getCenterOfSphere();
 				Eigen::VectorXd R = Outputs[i].getRadiusOfSphere();
 				P.resize(C.rows(), 3);
-				//TODO: add C Flatten!!!
 				for (int fi = 0; fi < C.rows(); fi++) {
+					double Cx, Cy;
+					if ((abs(A(fi, 0)) > abs(A(fi, 1))) && (abs(A(fi, 0)) > abs(A(fi, 2)))) {
+						//A.x-coordinate
+						const double t = -C(fi, 0) / A(fi, 0);
+						Cx = A(fi, 1)* t + C(fi, 1);
+						Cy = A(fi, 2)* t + C(fi, 2);
+					}
+					else if ((abs(A(fi, 1)) > abs(A(fi, 0))) && (abs(A(fi, 1)) > abs(A(fi, 2)))) {
+						//A.y-coordinate
+						const double t = -C(fi, 1) / A(fi, 1);
+						Cx = A(fi, 0) * t + C(fi, 0);
+						Cy = A(fi, 2) * t + C(fi, 2);
+					}
+					else{
+						//A.z-coordinate
+						const double t = -C(fi, 2) / A(fi, 2);
+						Cx = A(fi, 1) * t + C(fi, 1);
+						Cy = A(fi, 0) * t + C(fi, 0);
+					}
 					P(fi, 0) = A(fi, 0) * R(fi);
-					P(fi, 1) = A(fi, 1);
-					P(fi, 2) = A(fi, 2);
+					P(fi, 1) = A(fi, 1) * Cx;
+					P(fi, 2) = A(fi, 2) * Cy;
 				}
 			}
 

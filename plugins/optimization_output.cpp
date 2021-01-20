@@ -721,14 +721,38 @@ void OptimizationOutput::initMinimizers(
 		}
 	}
 	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::CYLINDER_FIT) {
-		OptimizationUtils::Least_Squares_Cylinder_Fit(
-			imax, jmax,
-			distance,
-			V,
-			F,
-			center0,
-			Cylinder_dir0,
-			Radius0);
+		OptimizationUtils::Least_Squares_Cylinder_Fit(imax, jmax, distance, V, F, center0, Cylinder_dir0, Radius0);
+
+		std::vector<std::set<int>> TT = OptimizationUtils::Triangle_triangle_adjacency(F);
+		for (int i = 0; i < 5; i++) {
+			std::cout << "---------------Round" << i << "!!!" << std::endl;
+			for (int f1 = 0; f1 < TT.size(); f1++) {
+				for (int f2 : TT[f1]) {
+					if (f1 != f2)
+					{
+						Eigen::RowVector3d C1 = center0.row(f1);
+						Eigen::RowVector3d C2 = center0.row(f2);
+						Eigen::RowVector3d A1 = Cylinder_dir0.row(f1);
+						Eigen::RowVector3d A2 = Cylinder_dir0.row(f2);
+
+						if ((C1 - C2).norm() < 0.001) {
+							std::cout << "---------------Error3!!!" << std::endl;
+							std::cout << "f1 = " << f1 << std::endl;
+							std::cout << "f2 = " << f2 << std::endl;
+							std::cout << "A1 = " << A1 << std::endl;
+							std::cout << "A2 = " << A2 << std::endl;
+							std::cout << "C1 = " << C1 << std::endl;
+							std::cout << "C2 = " << C2 << std::endl;
+							double drand = ((double)rand() / RAND_MAX) * 10;
+							center0(f1, 0) = Cylinder_dir0(f1, 0) * drand + center0(f1, 0);
+							center0(f1, 1) = Cylinder_dir0(f1, 1) * drand + center0(f1, 1);
+							center0(f1, 2) = Cylinder_dir0(f1, 2) * drand + center0(f1, 2);
+						}
+					}
+				}
+			}
+		}
+		
 	}
 
 	setAuxVariables(V, F, center0, Radius0, Cylinder_dir0, normals);

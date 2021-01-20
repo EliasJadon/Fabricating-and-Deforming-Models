@@ -273,15 +273,16 @@ namespace OptimizationUtils
 		return neigh;
 	}
 
-	static std::set<int> Get_Vertices_Neighbors_With_distance(
+	static Eigen::MatrixX3d Vertices_Neighbors(
 		const int fi,
 		const int distance,
+		const Eigen::MatrixXd& V,
 		const std::vector<std::set<int>>& TT,
 		const std::vector<std::vector<int>>& TV)
 	{
 		std::set<int> faces;
 		if (distance < 1) {
-			std::cout << "Error! Distance should be 1 or Greater!";
+			std::cout << "Error! Distance should be 1 or Greater! (OptimizationUtils::Vertices_Neighbors)";
 			exit(1);
 		}
 		else {
@@ -297,7 +298,46 @@ namespace OptimizationUtils
 		for (int currF : faces)
 			for (int n : TV[currF])
 				neigh.insert(n);
-		return neigh;
+
+		Eigen::MatrixX3d neigh_vertices(neigh.size(), 3);
+		int i = 0;
+		for (int vi : neigh) {
+			neigh_vertices.row(i++) = V.row(vi);
+		}
+		return neigh_vertices;
+	}
+
+	static double Least_Squares_Sphere_Fit_perFace(
+		const int fi,
+		const Eigen::MatrixXd& V,
+		const Eigen::MatrixXi& F,
+		const Eigen::MatrixX3d& vertices_indices,
+		Eigen::MatrixXd& center0,
+		Eigen::VectorXd& radius0)
+	{
+		//for more info:
+		//https://jekel.me/2015/Least-Squares-Sphere-Fit/
+		const int n = vertices_indices.rows();
+		Eigen::MatrixXd A(n, 4);
+		Eigen::VectorXd c(4), f(n);
+		for (int ni = 0; ni < n; ni++) {
+			const double xi = vertices_indices(ni, 0);
+			const double yi = vertices_indices(ni, 1);
+			const double zi = vertices_indices(ni, 2);
+			A.row(ni) << 2 * xi, 2 * yi, 2 * zi, 1;
+			f(ni) = pow(xi, 2) + pow(yi, 2) + pow(zi, 2);
+		}
+		//solve Ac = f and get c!
+		c = (A.transpose() * A).colPivHouseholderQr().solve(A.transpose() * f);
+		//after we got the solution c we pick from c: radius & center=(X,Y,Z)
+		center0.row(fi) << c(0), c(1), c(2);
+		radius0(fi) = sqrt(c(3) + pow(c(0), 2) + pow(c(1), 2) + pow(c(2), 2));
+		//calculate MSE
+		double toatal_MSE = 0;
+		for (int ni = 0; ni < n; ni++)
+			toatal_MSE += pow((vertices_indices.row(ni) - center0.row(fi)).squaredNorm() - pow(radius0(fi), 2), 2);
+		toatal_MSE /= n;
+		return toatal_MSE;
 	}
 
 	static void Least_Squares_Sphere_Fit(
@@ -315,32 +355,21 @@ namespace OptimizationUtils
 		std::vector<std::set<int>> TT = Triangle_triangle_adjacency(F);
 		
 		for (int fi = 0; fi < F.rows(); fi++) {
-			std::vector<int> f_adj; f_adj.clear();
-			for (int v : Get_Vertices_Neighbors_With_distance(fi, Distance, TT, TV))
-				f_adj.push_back(v);
-
-			int n = f_adj.size();
-			Eigen::MatrixXd A(n, 4);
-			Eigen::VectorXd c(4), f(n);
-			for (int ni = 0; ni < n; ni++) {
-				double xi = V(f_adj[ni], 0);
-				double yi = V(f_adj[ni], 1);
-				double zi = V(f_adj[ni], 2);
-				A.row(ni) << 2 * xi, 2 * yi, 2 * zi, 1;
-				f(ni) = pow(xi, 2) + pow(yi, 2) + pow(zi, 2);
+			double minMSE = std::numeric_limits<double>::infinity();
+			int argmin = -1;
+			for (int d = 1; d <= Distance; d++) {
+				double currMSE = Least_Squares_Sphere_Fit_perFace(fi, V, F,
+					Vertices_Neighbors(fi, d,V, TT, TV),
+					center0, radius0);
+				if (currMSE < minMSE) {
+					minMSE = currMSE;
+					argmin = d;
+				}
 			}
-			//solve Ac = f and get c!
-			c = (A.transpose()*A).colPivHouseholderQr().solve(A.transpose()*f);
-
-			//for debugging
-			/*std::cout << "A:\n" << A << std::endl;
-			std::cout << "f:\n" << f << std::endl;
-			std::cout << "c:\n" << c << std::endl;
-			std::cout << "MSE:\n" << (A*c-f).squaredNorm() << std::endl;*/
-
-			//after we got the solution c we pick from c: radius & center=(X,Y,Z)
-			center0.row(fi) << c(0), c(1), c(2);
-			radius0(fi) = sqrt(c(3) + pow(c(0), 2) + pow(c(1), 2) + pow(c(2), 2));
+			std::cout << "fi =\t" << fi << "\t, argmin = " << argmin<< "\t, minMSE = " << minMSE << std::endl;
+			Least_Squares_Sphere_Fit_perFace(fi, V, F,
+				Vertices_Neighbors(fi, argmin,V, TT, TV),
+				center0, radius0);
 		}
 	}
 
@@ -518,25 +547,23 @@ namespace OptimizationUtils
 		std::vector<std::set<int>> TT = Triangle_triangle_adjacency(F);
 		
 		for (int fi = 0; fi < F.rows(); fi++) {
-			std::vector<int> vertics_indices; vertics_indices.clear();
-			for (int v : Get_Vertices_Neighbors_With_distance(fi, Distance, TT, TV))
-				vertics_indices.push_back(v);
-			
-			const int n = vertics_indices.size();
-			Eigen::MatrixX3d points(n, 3);
-			for (int ni = 0; ni < n; ni++) {
-				points.row(ni) <<
-					V(vertics_indices[ni], 0),	//xi
-					V(vertics_indices[ni], 1),	//yi
-					V(vertics_indices[ni], 2);	//zi
+			double minMSE = std::numeric_limits<double>::infinity();
+			int argmin = -1;
+			for (int d = 1; d <= Distance; d++) {
+				const Eigen::MatrixX3d& points = Vertices_Neighbors(fi, d, V, TT, TV);
+				double rSqr;
+				Eigen::Vector3d C;
+				Eigen::Vector3d W;
+				double currMSE = FitCylinder(points.rows(), points, rSqr, C, W, imax, jmax);
+				if (currMSE < minMSE) {
+					minMSE = currMSE;
+					argmin = d;
+					dir0.row(fi) = (W.normalized()).transpose();
+					center0.row(fi) = C.transpose();
+					radius0(fi) = sqrt(rSqr);
+				}
 			}
-			double rSqr;
-			Eigen::Vector3d C;
-			Eigen::Vector3d W;
-			FitCylinder(n, points, rSqr, C, W, imax, jmax);
-			dir0.row(fi) = (W.normalized()).transpose();
-			center0.row(fi) = C.transpose();
-			radius0(fi) = sqrt(rSqr);
+			std::cout << "fi =\t" << fi << "\t, argmin = " << argmin << "\t, minMSE = " << minMSE << std::endl;
 			//std::cout << "center0 = " << center0.row(fi) << std::endl;
 			//std::cout << "radius0 = " << radius0(fi) << std::endl;
 			//std::cout << "dir0 = " << dir0.row(fi) << std::endl;
