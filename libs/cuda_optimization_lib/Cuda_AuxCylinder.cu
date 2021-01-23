@@ -267,6 +267,52 @@ namespace Utils_Cuda_AuxCylinder {
 		return w3 * E3;
 	}
 
+	__device__ double Energy3Kernel_simple(
+		const double w3,
+		const int3* restShapeF,
+		const double* curr_x,
+		const int fi,
+		const Cuda::indices I)
+	{
+		// (N*A)^2
+		if (fi >= I.num_faces)
+			return;
+		int x0 = restShapeF[fi].x;
+		int x1 = restShapeF[fi].y;
+		int x2 = restShapeF[fi].z;
+		double3 V0 = make_double3(
+			curr_x[x0 + I.startVx],
+			curr_x[x0 + I.startVy],
+			curr_x[x0 + I.startVz]
+		);
+		double3 V1 = make_double3(
+			curr_x[x1 + I.startVx],
+			curr_x[x1 + I.startVy],
+			curr_x[x1 + I.startVz]
+		);
+		double3 V2 = make_double3(
+			curr_x[x2 + I.startVx],
+			curr_x[x2 + I.startVy],
+			curr_x[x2 + I.startVz]
+		);
+		double3 C = make_double3(
+			curr_x[fi + I.startCx],
+			curr_x[fi + I.startCy],
+			curr_x[fi + I.startCz]
+		);
+		double3 A = make_double3(
+			curr_x[fi + I.startAx],
+			curr_x[fi + I.startAy],
+			curr_x[fi + I.startAz]
+		);
+		double R = curr_x[fi + I.startR];
+		double E3 =
+			pow(squared_norm(cross(sub(V0, C), A)) - pow(R, 2), 2) +
+			pow(squared_norm(cross(sub(V1, C), A)) - pow(R, 2), 2) +
+			pow(squared_norm(cross(sub(V2, C), A)) - pow(R, 2), 2);
+		return w3 * E3;
+	}
+
 	template<unsigned int blockSize>
 	__global__ void EnergyKernel(
 		double* resAtomic,
@@ -290,7 +336,7 @@ namespace Utils_Cuda_AuxCylinder {
 		//F	,..., 2F-1,		==> Call Energy(2)
 		//2F,..., 2F+h-1	==> Call Energy(1)
 		if (Global_idx < mesh_indices.num_faces) {
-			energy_value[tid] = Energy3Kernel(
+			energy_value[tid] = Energy3Kernel_simple(
 				w3,
 				restShapeF,
 				curr_x,
@@ -930,6 +976,119 @@ namespace Utils_Cuda_AuxCylinder {
 		else if (thread == 15) //R
 			atomicAdd(&grad[fi + I.startR], -R * (dV0 + dV1 + dV2), 0);
 	}
+	__device__ void gradient3Kernel_simple(
+		double* grad,
+		const int3* restShapeF,
+		const double* X,
+		const unsigned int fi,
+		const int thread,
+		const double w3,
+		const Cuda::indices I)
+	{
+		if (fi >= I.num_faces)
+			return;
+		int x0 = restShapeF[fi].x;
+		int x1 = restShapeF[fi].y;
+		int x2 = restShapeF[fi].z;
+		double3 V0 = make_double3(
+			X[x0 + I.startVx],
+			X[x0 + I.startVy],
+			X[x0 + I.startVz]
+		);
+		double3 V1 = make_double3(
+			X[x1 + I.startVx],
+			X[x1 + I.startVy],
+			X[x1 + I.startVz]
+		);
+		double3 V2 = make_double3(
+			X[x2 + I.startVx],
+			X[x2 + I.startVy],
+			X[x2 + I.startVz]
+		);
+		double3 C = make_double3(
+			X[fi + I.startCx],
+			X[fi + I.startCy],
+			X[fi + I.startCz]
+		);
+		double3 A = make_double3(
+			X[fi + I.startAx],
+			X[fi + I.startAy],
+			X[fi + I.startAz]
+		);
+		double R = X[fi + I.startR];
+
+		double3 diffV0 = sub(V0, C);
+		double3 diffV1 = sub(V1, C);
+		double3 diffV2 = sub(V2, C);
+		double3 crossV0 = cross(diffV0, A);
+		double3 crossV1 = cross(diffV1, A);
+		double3 crossV2 = cross(diffV2, A);
+		double dV0 = w3 * 4 * (squared_norm(crossV0) - pow(R, 2));
+		double dV1 = w3 * 4 * (squared_norm(crossV1) - pow(R, 2));
+		double dV2 = w3 * 4 * (squared_norm(crossV2) - pow(R, 2));
+		
+		if (thread == 0) //V0x
+			atomicAdd(&grad[x0 + I.startVx], dV0 * (A.y * crossV0.z - A.z * crossV0.y), 0);
+		else if (thread == 1) //V0y
+			atomicAdd(&grad[x0 + I.startVy], dV0 * (A.z * crossV0.x - A.x * crossV0.z), 0);
+		else if (thread == 2) //V0z
+			atomicAdd(&grad[x0 + I.startVz], dV0 * (A.x * crossV0.y - A.y * crossV0.x), 0);
+
+		else if (thread == 3) //V1x
+			atomicAdd(&grad[x1 + I.startVx], dV1 * (A.y * crossV1.z - A.z * crossV1.y), 0);
+		else if (thread == 4) //V1y
+			atomicAdd(&grad[x1 + I.startVy], dV1 * (A.z * crossV1.x - A.x * crossV1.z), 0);
+		else if (thread == 5) //V1z
+			atomicAdd(&grad[x1 + I.startVz], dV1 * (A.x * crossV1.y - A.y * crossV1.x), 0);
+
+		else if (thread == 6) //V2x
+			atomicAdd(&grad[x2 + I.startVx], dV2 * (A.y * crossV2.z - A.z * crossV2.y), 0);
+		else if (thread == 7) //V2y
+			atomicAdd(&grad[x2 + I.startVy], dV2 * (A.z * crossV2.x - A.x * crossV2.z), 0);
+		else if (thread == 8) //V2z
+			atomicAdd(&grad[x2 + I.startVz], dV2 * (A.x * crossV2.y - A.y * crossV2.x), 0);
+
+		else if (thread == 9) //Ax
+			atomicAdd(&grad[fi + I.startAx],
+				dV0 * (crossV0.y * diffV0.z - crossV0.z * diffV0.y) +
+				dV1 * (crossV1.y * diffV1.z - crossV1.z * diffV1.y) +
+				dV2 * (crossV2.y * diffV2.z - crossV2.z * diffV2.y)
+				, 0);
+		else if (thread == 10) //Ay
+			atomicAdd(&grad[fi + I.startAy],
+				dV0 * (crossV0.z * diffV0.x - crossV0.x * diffV0.z) +
+				dV1 * (crossV1.z * diffV1.x - crossV1.x * diffV1.z) +
+				dV2 * (crossV2.z * diffV2.x - crossV2.x * diffV2.z)
+				, 0);
+		else if (thread == 11) //Az
+			atomicAdd(&grad[fi + I.startAz],
+				dV0 * (crossV0.x * diffV0.y - crossV0.y * diffV0.x) +
+				dV1 * (crossV1.x * diffV1.y - crossV1.y * diffV1.x) +
+				dV2 * (crossV2.x * diffV2.y - crossV2.y * diffV2.x)
+				, 0);
+
+		else if (thread == 12) //Cx
+			atomicAdd(&grad[fi + I.startCx],
+				dV0 * (crossV0.y * A.z - crossV0.z * A.y) +
+				dV1 * (crossV1.y * A.z - crossV1.z * A.y) +
+				dV2 * (crossV2.y * A.z - crossV2.z * A.y),
+				0);
+		else if (thread == 13) //Cy
+			atomicAdd(&grad[fi + I.startCy],
+				dV0 * (crossV0.z * A.x - crossV0.x * A.z) +
+				dV1 * (crossV1.z * A.x - crossV1.x * A.z) +
+				dV2 * (crossV2.z * A.x - crossV2.x * A.z),
+				0);
+		else if (thread == 14) //Cz
+			atomicAdd(&grad[fi + I.startCz],
+				dV0 * (crossV0.x * A.y - crossV0.y * A.x) +
+				dV1 * (crossV1.x * A.y - crossV1.y * A.x) +
+				dV2 * (crossV2.x * A.y - crossV2.y * A.x),
+				0);
+
+		else if (thread == 15) //R
+			atomicAdd(&grad[fi + I.startR], -R * (dV0 + dV1 + dV2), 0);
+	}
 
 	__global__ void gradientKernel(
 		double* grad,
@@ -950,7 +1109,7 @@ namespace Utils_Cuda_AuxCylinder {
 		//F	,..., 2F-1,		==> Call Energy(2)
 		//2F,..., 2F+h-1	==> Call Energy(1)
 		if (Bl_index < mesh_indices.num_faces) {
-			gradient3Kernel(
+			gradient3Kernel_simple(
 				grad,
 				restShapeF,
 				X,
