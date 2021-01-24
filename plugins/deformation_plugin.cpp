@@ -1541,6 +1541,7 @@ void deformation_plugin::update_ext_fixed_group_faces()
 		{
 			out.Energy_GroupNormals->updateExtConstraints(ind);
 			out.Energy_GroupSpheres->updateExtConstraints(ind);
+			out.Energy_GroupCylinders->updateExtConstraints(ind);
 		}
 	}
 }
@@ -2030,6 +2031,9 @@ void deformation_plugin::initializeMinimizer(const int index)
 
 	std::shared_ptr< Grouping> groupNormals = std::make_shared<Grouping>(V, F, ConstraintsType::NORMALS);
 	Outputs[index].Energy_GroupNormals = groupNormals;
+	
+	std::shared_ptr< Grouping> groupCylinders = std::make_shared<Grouping>(V, F, ConstraintsType::CYLINDERS);
+	Outputs[index].Energy_GroupCylinders = groupCylinders;
 
 	//init total objective
 	Outputs[index].totalObjective->objectiveList.clear();
@@ -2048,6 +2052,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	add_obj(fixChosenSpheres);
 	add_obj(groupSpheres);
 	add_obj(groupNormals);
+	add_obj(groupCylinders);
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
 	init_minimizer_thread();
 }

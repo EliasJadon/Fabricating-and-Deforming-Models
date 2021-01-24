@@ -9,7 +9,8 @@
 enum ConstraintsType {
 	VERTICES,
 	SPHERES,
-	NORMALS
+	NORMALS,
+	CYLINDERS
 };
 
 enum FunctionType 

@@ -135,7 +135,8 @@ void TotalObjective::gradient(Cuda::Array<double>& X, const bool update)
 		objectiveList[7]->getGradient()->cuda_arr, objectiveList[7]->w,
 		objectiveList[8]->getGradient()->cuda_arr, objectiveList[8]->w,
 		objectiveList[9]->getGradient()->cuda_arr, objectiveList[9]->w,
-		objectiveList[10]->getGradient()->cuda_arr, objectiveList[10]->w
+		objectiveList[10]->getGradient()->cuda_arr, objectiveList[10]->w,
+		objectiveList[11]->getGradient()->cuda_arr, objectiveList[11]->w
 	);
 		
 	//TODO: update the gradient norm for all the energies

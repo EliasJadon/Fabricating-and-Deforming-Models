@@ -215,6 +215,11 @@ Cuda_Grouping::Cuda_Grouping(
 		startY = mesh_indices.startCy;
 		startZ = mesh_indices.startCz;
 	}
+	if (const_Type == ConstraintsType::CYLINDERS) { 
+		startX = mesh_indices.startAx;
+		startY = mesh_indices.startAy;
+		startZ = mesh_indices.startAz;
+	}
 	
 	//init host buffers...
 	for (int i = 0; i < grad.size; i++) {

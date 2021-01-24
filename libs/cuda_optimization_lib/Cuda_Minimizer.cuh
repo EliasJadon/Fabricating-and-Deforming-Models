@@ -25,5 +25,6 @@ public:
 		const double* g8, const double w8,
 		const double* g9, const double w9,
 		const double* g10, const double w10,
-		const double* g11, const double w11);
+		const double* g11, const double w11,
+		const double* g12, const double w12);
 };
