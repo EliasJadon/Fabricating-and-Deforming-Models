@@ -6,6 +6,7 @@
 class Grouping : public ObjectiveFunction
 {
 private:
+	std::vector < std::vector<int>> CInd;
 	std::mutex m_value, m_gradient;
 public:
 	std::shared_ptr<Cuda_Grouping> cudaGrouping;

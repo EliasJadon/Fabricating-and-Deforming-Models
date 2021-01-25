@@ -21,7 +21,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	UserInterface_UpdateAllOutputs = false;
 	CollapsingHeader_change = false;
 	neighbor_distance = brush_radius = 0.3;
-	initAuxVariables = OptimizationUtils::InitAuxVariables::CYLINDER_FIT;
+	initAuxVariables = OptimizationUtils::InitAuxVariables::SPHERE_FIT;
 	isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
@@ -247,11 +247,11 @@ void deformation_plugin::CollapsingHeader_user_interface()
 		ImGui::Combo("Coloring Input", (int*)(&UserInterface_colorInputModelIndex), app_utils::build_inputColoring_list(Outputs.size()));
 		ImGui::Checkbox("Update All", &UserInterface_UpdateAllOutputs);
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
-			ImGui::Combo("Neighbor type", (int *)(&neighborType), "Curr Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
+			ImGui::Combo("Neighbor type", (int *)(&neighborType), "Curr Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0Local Cylinders\0Global Cylinders\0\0");
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
-			ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.05f, 0.01f, 10000.0f);
+			ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.0005f, 0.00001f, 10000.0f,"%.5f");
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH)
-			ImGui::DragFloat("Brush Radius", &brush_radius, 0.05f, 0.01f, 10000.0f);
+			ImGui::DragFloat("Brush Radius", &brush_radius, 0.01f, 0.01f, 10000.0f);
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH ||
 			UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
 			ImGui::Combo("Group Color", (int *)(&UserInterface_groupNum), app_utils::build_groups_names_list(Outputs[0].UserInterface_facesGroups));
@@ -1330,7 +1330,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	}
 	if (isModelLoaded && (key == 'e' || key == 'E') && modifiers == 1) 
 	{
-		//neighborType = app_utils::NeighborType::LOCAL_SPHERE;
+		neighborType = app_utils::NeighborType::LOCAL_CYLINDERS;
 		clusteringType = app_utils::ClusteringType::RGB_CYLINDER;
 		initAuxVariables = OptimizationUtils::InitAuxVariables::CYLINDER_FIT;
 		init_minimizer_thread();

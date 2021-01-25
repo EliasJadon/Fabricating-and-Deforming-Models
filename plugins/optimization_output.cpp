@@ -540,6 +540,32 @@ std::vector<int> OptimizationOutput::GlobNeighSphereCenters(
 	return Neighbors;
 }
 
+std::vector<int> OptimizationOutput::GlobNeighCylinders(
+	const int fi, 
+	const float distance) 
+{
+	std::vector<int> Neighbors; Neighbors.clear();
+	const Eigen::RowVectorXd A1 = cylinder_dir.row(fi);
+	const Eigen::RowVectorXd C1 = center_of_sphere.row(fi);
+	const double R1 = radius_of_sphere(fi);
+
+	for (int i = 0; i < cylinder_dir.rows(); i++) {
+		const Eigen::RowVectorXd A0 = cylinder_dir.row(i);
+		const Eigen::RowVectorXd C0 = center_of_sphere.row(i);
+		const double R0 = radius_of_sphere(i);
+
+		if ((pow(pow((C1 - C0).normalized() * A0.normalized().transpose(), 2) - 1, 2)
+			+
+			pow(pow((C0 - C1).normalized() * A1.normalized().transpose(), 2) - 1, 2)
+			+
+			((A1 - A0).squaredNorm())
+			+
+			pow(R1 - R0, 2)) < distance)
+			Neighbors.push_back(i);
+	}
+	return Neighbors;
+}
+
 std::vector<int> OptimizationOutput::FaceNeigh(
 	const Eigen::Vector3d center, 
 	const float distance) {
@@ -569,16 +595,21 @@ std::vector<int> OptimizationOutput::getNeigh(
 {
 	std::vector<int> neigh;
 	if (type == app_utils::NeighborType::CURR_FACE)
-		return neigh;
+		return { fi };
 	if (type == app_utils::NeighborType::GLOBAL_NORMALS)
 		return GlobNeighNorms(fi, distance);
 	if (type == app_utils::NeighborType::GLOBAL_SPHERE)
 		return GlobNeighSphereCenters(fi, distance);
+	if (type == app_utils::NeighborType::GLOBAL_CYLINDERS)
+		return GlobNeighCylinders(fi, distance);
 	if (type == app_utils::NeighborType::LOCAL_NORMALS)
 		neigh = GlobNeighNorms(fi, distance);
 	else if (type == app_utils::NeighborType::LOCAL_SPHERE)
 		neigh = GlobNeighSphereCenters(fi, distance);
-
+	else if (type == app_utils::NeighborType::LOCAL_CYLINDERS)
+		neigh = GlobNeighCylinders(fi, distance);
+	
+	//pick only adjanced faces in order to get local faces
 	std::vector<int> result; result.push_back(fi);
 	std::vector<std::vector<std::vector<int>>> TT;
 	igl::triangle_triangle_adjacency(F, TT);

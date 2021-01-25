@@ -96,6 +96,7 @@ public:
 	Eigen::MatrixXd getFacesNormals();
 	Eigen::MatrixXd getFacesNorm();
 	std::vector<int> GlobNeighSphereCenters(const int fi, const float distance);
+	std::vector<int> GlobNeighCylinders(const int fi, const float distance);
 	std::vector<int> FaceNeigh(const Eigen::Vector3d center, const float distance);
 	std::vector<int> GlobNeighNorms(const int fi, const float distance);
 	std::vector<int> getNeigh(const app_utils::NeighborType type, const Eigen::MatrixXi& F, const int fi, const float distance);

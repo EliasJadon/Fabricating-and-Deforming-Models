@@ -61,7 +61,9 @@ namespace app_utils
 		LOCAL_SPHERE,
 		GLOBAL_SPHERE,
 		LOCAL_NORMALS,
-		GLOBAL_NORMALS
+		GLOBAL_NORMALS,
+		LOCAL_CYLINDERS,
+		GLOBAL_CYLINDERS
 	};
 	enum UserInterfaceOptions { 
 		NONE,
