@@ -1,6 +1,8 @@
 #include "..//..//plugins/deformation_plugin.h"
 #include <igl/file_dialog_open.h>
 #include <GLFW/glfw3.h>
+#include <cmath>
+
 
 #define INPUT_MODEL_SCREEN -1
 #define NOT_FOUND -1
@@ -266,6 +268,53 @@ void deformation_plugin::CollapsingHeader_clustering()
 		ImGui::SetNextTreeNodeOpen(CollapsingHeader_curr[3]);
 	if (ImGui::CollapsingHeader("Clustering"))
 	{
+		if (ImGui::Button("Print")) {
+			Eigen::RowVector3d V0 = OutputModel(0).V.row(Outputs[0].aaaaaaaaaaaaaaaaaaaa[0]);
+			Eigen::RowVector3d V1 = OutputModel(0).V.row(Outputs[0].aaaaaaaaaaaaaaaaaaaa[1]);
+			Eigen::RowVector3d V2 = OutputModel(0).V.row(Outputs[0].aaaaaaaaaaaaaaaaaaaa[2]);
+			Eigen::RowVector3d e10 = V1 - V0;
+			Eigen::RowVector3d e20 = V2 - V0;
+			Eigen::RowVector3d B1 = e10.normalized();
+			Eigen::RowVector3d B2 = ((B1.cross(e20)).cross(B1)).normalized();
+
+			static char shiftAxis = 0;
+			std::cout << "polygon(";
+			for (int i = 0; i < Outputs[0].aaaaaaaaaaaaaaaaaaaa.size(); i++) {
+				Eigen::RowVector3d Vi = OutputModel(0).V.row(Outputs[0].aaaaaaaaaaaaaaaaaaaa[i]);
+				double x = (Vi - V0) * B1.transpose();
+				double y = (Vi - V0) * B2.transpose();
+
+				std::cout <<"(" << x + shiftAxis << " , " << y + shiftAxis << ")";
+				if (i != (Outputs[0].aaaaaaaaaaaaaaaaaaaa.size() - 1))
+					std::cout << ",";
+				else
+					std::cout << ")\n";
+			}
+			shiftAxis += 5;
+		}
+		if (Outputs[0].aaaaaaaaaaaaaaaaaaaa.size() == 3) {
+			auto& iter = Outputs[0].aaaaaaaaaaaaaaaaaaaa.begin();
+			const int v0_index = *(iter++);
+			const int v1_index = *(iter++);
+			const int v2_index = *(iter++);
+			Eigen::RowVector3d V0 = OutputModel(0).V.row(v0_index);
+			Eigen::RowVector3d V1 = OutputModel(0).V.row(v1_index);
+			Eigen::RowVector3d V2 = OutputModel(0).V.row(v2_index);
+			double edge10_length = (V1 - V0).norm();
+			double edge21_length = (V2 - V1).norm();
+			Eigen::RowVector3d e10 = (V1 - V0).normalized();
+			Eigen::RowVector3d e21 = (V2 - V1).normalized();
+			double cos_theta = (e10 * e21.transpose());
+			double sin_theta = (e10.cross(e21)).norm();
+			double angle1 = std::acos(cos_theta);
+			double angle2 = std::asin(sin_theta);
+			
+			ImGui::Text(("edge10_length = " + std::to_string(5 * edge10_length)).c_str());
+			ImGui::Text(("edge21_length = " + std::to_string(5 * edge21_length)).c_str());
+			ImGui::Text(("angle1 = " + std::to_string(angle1 * 180 / 3.1415)).c_str());
+			ImGui::Text(("angle2 = " + std::to_string(angle2 * 180 / 3.1415)).c_str());
+		}
+
 		CollapsingHeader_curr[3] = true;
 		bool AnyChange = false;
 		if (ImGui::Combo("Type", (int *)(&clusteringType), "NO_CLUSTERING\0CLUSTERING_NORMAL\0CLUSTERING_SPHERE\0CLUSTERING_CYLINDER\0RGB_NORMAL\0RGB_SPHERE\0RGB_CYLINDER\0\0"))
@@ -810,6 +859,7 @@ void deformation_plugin::clear_sellected_faces_and_vertices()
 		for (auto& c : o.UserInterface_facesGroups)
 			c.faces.clear();
 		o.UserInterface_FixedVertices.clear();
+		o.aaaaaaaaaaaaaaaaaaaa.clear();
 	}
 	update_ext_fixed_vertices();
 	update_ext_fixed_faces();
@@ -1179,6 +1229,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 				for (auto& out : Outputs)
 				{
 					out.UserInterface_FixedVertices.insert(vertex_index);
+					out.aaaaaaaaaaaaaaaaaaaa.push_back(vertex_index);
 					out.UserInterface_IsTranslate = true;
 					out.UserInterface_TranslateIndex = vertex_index;
 				}
@@ -1186,6 +1237,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			else
 			{
 				Outputs[output_index].UserInterface_FixedVertices.insert(vertex_index);
+				Outputs[output_index].aaaaaaaaaaaaaaaaaaaa.push_back(vertex_index);
 				Outputs[output_index].UserInterface_IsTranslate = true;
 				Outputs[output_index].UserInterface_TranslateIndex = vertex_index;
 			}

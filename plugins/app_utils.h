@@ -213,8 +213,7 @@ namespace app_utils
 		char* comboList = new char[listLength];
 		for (unsigned int i = 0; i < listLength; i++)
 			comboList[i] = cStr.at(i);
-		std::cout << comboList << std::endl;
-
+		
 		return comboList;
 	}
 
