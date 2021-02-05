@@ -18,7 +18,7 @@ public:
 	std::shared_ptr< Grouping> Energy_GroupCylinders;
 
 	std::set<int> UserInterface_FixedFaces, UserInterface_FixedVertices;
-	std::vector<int> aaaaaaaaaaaaaaaaaaaa;
+	std::vector<int> printNormals_saveVertices;
 	std::vector<FacesGroup> UserInterface_facesGroups;
 	std::shared_ptr<Minimizer> minimizer;
 	std::vector<std::vector<int>> clusters_indices;
