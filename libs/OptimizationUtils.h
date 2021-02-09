@@ -278,7 +278,8 @@ namespace OptimizationUtils
 		const int distance,
 		const Eigen::MatrixXd& V,
 		const std::vector<std::set<int>>& TT,
-		const std::vector<std::vector<int>>& TV)
+		const std::vector<std::vector<int>>& TV,
+		const std::vector < std::set<int>>& group_index)
 	{
 		std::set<int> faces;
 		if (distance < 1) {
@@ -295,10 +296,19 @@ namespace OptimizationUtils
 		}
 
 		std::set<int> neigh; neigh.clear();
-		for (int currF : faces)
-			for (int n : TV[currF])
-				neigh.insert(n);
-
+		for (auto& currGroup : group_index) {
+			for (int currF : currGroup) {
+				if (currF == fi) {
+					neigh = currGroup;
+				}
+			}
+		}
+		if (neigh.size() == 0) {
+			for (int currF : faces)
+				for (int n : TV[currF])
+					neigh.insert(n);
+		}
+		
 		Eigen::MatrixX3d neigh_vertices(neigh.size(), 3);
 		int i = 0;
 		for (int vi : neigh) {
@@ -346,7 +356,8 @@ namespace OptimizationUtils
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixXi& F,
 		Eigen::MatrixXd& center0,
-		Eigen::VectorXd& radius0)
+		Eigen::VectorXd& radius0,
+		const std::vector < std::set<int>>& group_index)
 	{
 		//for more info:
 		//https://jekel.me/2015/Least-Squares-Sphere-Fit/
@@ -360,7 +371,7 @@ namespace OptimizationUtils
 			int argmin = -1;
 			for (int d = Distance_from; d <= Distance_to; d++) {
 				double currMSE = Least_Squares_Sphere_Fit_perFace(fi, V, F,
-					Vertices_Neighbors(fi, d,V, TT, TV),
+					Vertices_Neighbors(fi, d,V, TT, TV, group_index),
 					center0, radius0);
 				if (currMSE < minMSE) {
 					minMSE = currMSE;
@@ -369,7 +380,7 @@ namespace OptimizationUtils
 			}
 			std::cout << "fi =\t" << fi << "\t, argmin = " << argmin<< "\t, minMSE = " << minMSE << std::endl;
 			Least_Squares_Sphere_Fit_perFace(fi, V, F,
-				Vertices_Neighbors(fi, argmin,V, TT, TV),
+				Vertices_Neighbors(fi, argmin,V, TT, TV,group_index),
 				center0, radius0);
 		}
 	}
@@ -540,7 +551,8 @@ namespace OptimizationUtils
 		const Eigen::MatrixXi& F,
 		Eigen::MatrixXd& center0,
 		Eigen::MatrixXd& dir0,
-		Eigen::VectorXd& radius0)
+		Eigen::VectorXd& radius0,
+		const std::vector < std::set<int>>& group_index)
 	{
 		center0.resize(F.rows(), 3);
 		dir0.resize(F.rows(), 3);
@@ -552,7 +564,8 @@ namespace OptimizationUtils
 			double minMSE = std::numeric_limits<double>::infinity();
 			int argmin = -1;
 			for (int d = Distance_from; d <= Distance_to; d++) {
-				const Eigen::MatrixX3d& points = Vertices_Neighbors(fi, d, V, TT, TV);
+
+				const Eigen::MatrixX3d& points = Vertices_Neighbors(fi, d, V, TT, TV, group_index);
 				double rSqr;
 				Eigen::Vector3d C;
 				Eigen::Vector3d W;

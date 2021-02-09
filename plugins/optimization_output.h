@@ -123,6 +123,9 @@ public:
 		const int distance_from,
 		const int distance_to,
 		const int imax,
-		const int jmax);
+		const int jmax,
+		const std::vector<int> copy_index,
+		const std::vector < std::set<int>> paste_index,
+		const std::vector < std::set<int>> group_index);
 	void updateActiveMinimizer(const MinimizerType minimizer_type);
 };

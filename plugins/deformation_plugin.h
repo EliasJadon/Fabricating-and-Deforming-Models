@@ -8,6 +8,9 @@
 class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
+	std::vector<int> copy_index;
+	std::vector < std::set<int>> paste_index, group_index;
+	std::vector<std::vector<int>> print_faces_index;
 	int CylinderInit_imax = 9, CylinderInit_jmax = 9;
 	int InitMinimizer_NeighLevel_From = 1;
 	int InitMinimizer_NeighLevel_To = 10;

@@ -65,17 +65,21 @@ private:
 	double MinDistance;
 	std::vector<Eigen::Vector3d>* colors;
 	std::vector<Eigen::Vector3d> points;
+	
 	double getRand() {
 		//random number from 0 to 1
 		return (double)rand() / RAND_MAX;
 	}
 public:
+	std::vector<std::vector<int>> face_index;
+
 	ColorsHashMap(const double MinDistance, std::vector<Eigen::Vector3d>* colors) {
 		this->MinDistance = MinDistance;
 		this->colors = colors;
 		points.clear();
+		face_index.clear();
 	}
-	Eigen::Vector3d getColor(Eigen::Vector3d point) {
+	Eigen::Vector3d getColor(const Eigen::Vector3d point, const int fi) {
 		//Check if the point exists
 		int argmin = -1;
 		double min = 99999;
@@ -86,11 +90,14 @@ public:
 				min = currDistance;
 			}
 		}
-		if (argmin != -1)
+		if (argmin != -1) {
+			face_index[argmin].push_back(fi);
 			return (*colors)[argmin];
+		}
 
 		//Then, add a new point
 		points.push_back(point);
+		face_index.push_back({ fi });
 		if (colors->size() < points.size())
 			colors->push_back(Eigen::Vector3d(getRand(), getRand(), getRand()));
 		return (*colors)[points.size() - 1];

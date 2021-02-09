@@ -2,7 +2,7 @@
 #include <igl/file_dialog_open.h>
 #include <GLFW/glfw3.h>
 #include <cmath>
-
+#include <igl/writeOFF.h>
 
 #define INPUT_MODEL_SCREEN -1
 #define NOT_FOUND -1
@@ -268,6 +268,50 @@ void deformation_plugin::CollapsingHeader_clustering()
 		ImGui::SetNextTreeNodeOpen(CollapsingHeader_curr[3]);
 	if (ImGui::CollapsingHeader("Clustering"))
 	{
+		if (ImGui::Button("save clusters")) {
+			if (print_faces_index.size())
+			{
+				for (int c = 0; c < print_faces_index.size(); c++)
+				{
+					std::vector<int> clus = print_faces_index[c];
+					Eigen::MatrixX3i currF(clus.size(), 3);
+					for (int fi = 0; fi < clus.size(); fi++)
+					{
+						currF(fi, 0) = OutputModel(0).F(clus[fi], 0);
+						currF(fi, 1) = OutputModel(0).F(clus[fi], 1);
+						currF(fi, 2) = OutputModel(0).F(clus[fi], 2);
+					}
+					bool out = igl::writeOFF(modelName + "_cluster" + std::to_string(c) + ".off", OutputModel(0).V, currF);
+				}
+			}
+		}
+
+		if (ImGui::Button("Copy")) {
+			int ind;
+			for (int f : Outputs[0].UserInterface_FixedFaces) {
+				ind = f;
+			}
+			copy_index.push_back(ind);
+			paste_index.push_back(Outputs[0].UserInterface_facesGroups[0].faces);
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Reset")) {
+			copy_index.clear();
+			paste_index.clear();
+		}
+
+		if (ImGui::Button("add Group")) {
+			for (FacesGroup& fg : Outputs[0].UserInterface_facesGroups) {
+				if (fg.faces.size() > 0) {
+					group_index.push_back(fg.faces);
+				}
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Reset G")) {
+			group_index.clear();
+		}
+
 		if (ImGui::Button("Print")) {
 			if (neighborType == app_utils::NeighborType::GLOBAL_NORMALS ||
 				neighborType == app_utils::NeighborType::LOCAL_NORMALS)
@@ -1355,6 +1399,8 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 					grouping->w = 0.5;
 				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::SPHERES)
 					grouping->w = 0;
+				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::CYLINDERS)
+					grouping->w = 0;
 			}
 		}
 	}
@@ -1393,6 +1439,8 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 					grouping->w = 0;
 				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::SPHERES)
 					grouping->w = 0.5;
+				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::CYLINDERS)
+					grouping->w = 0;
 			}
 		}
 	}
@@ -1432,6 +1480,8 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 					grouping->w = 0;
 				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::SPHERES)
 					grouping->w = 0;
+				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::CYLINDERS)
+					grouping->w = 0.5;
 			}
 		}
 	}
@@ -1793,14 +1843,14 @@ void deformation_plugin::follow_and_mark_selected_faces()
 
 				Eigen::Vector3d color = P.row(fi).transpose();
 				if (clustering_hashMap)
-					color = DataColors.getColor(P.row(fi).transpose());
+					color = DataColors.getColor(P.row(fi).transpose(), fi);
 				Outputs[i].updateFaceColors(fi, Eigen::Vector3f(
 					clustering_w * color(0) + (1 - clustering_w),
 					clustering_w * color(1) + (1 - clustering_w),
 					clustering_w * color(2) + (1 - clustering_w)
 				));
 			}
-			
+			print_faces_index = DataColors.face_index;
 		}
 	}
 }
@@ -2039,7 +2089,10 @@ void deformation_plugin::init_minimizer_thread()
 			InitMinimizer_NeighLevel_From,
 			InitMinimizer_NeighLevel_To,
 			CylinderInit_imax,
-			CylinderInit_jmax);
+			CylinderInit_jmax,
+			copy_index,
+			paste_index,
+			group_index);
 }
 
 void deformation_plugin::run_one_minimizer_iter() 

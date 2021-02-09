@@ -566,19 +566,20 @@ std::vector<int> OptimizationOutput::GlobNeighCylinders(
 	return Neighbors;
 }
 
-std::vector<int> OptimizationOutput::FaceNeigh(
-	const Eigen::Vector3d center, 
-	const float distance) {
+std::vector<int> OptimizationOutput::FaceNeigh(const Eigen::Vector3d center, const float distance) 
+{
 	std::vector<int> Neighbors; Neighbors.clear();
-	for (int i = 0; i < center_of_faces.rows(); i++)
-		if ((center.transpose() - center_of_faces.row(i)).norm() < distance)
+	for (int i = 0; i < center_of_faces.rows(); i++) {
+		double x = center(0) - center_of_faces(i, 0);
+		double y = center(1) - center_of_faces(i, 1);
+		double z = center(2) - center_of_faces(i, 2);
+		if ((pow(x, 2) + pow(y, 2) + pow(z, 2)) < pow(distance,2))
 			Neighbors.push_back(i);
+	}
 	return Neighbors;
 }
 
-std::vector<int> OptimizationOutput::GlobNeighNorms(
-	const int fi, 
-	const float distance) 
+std::vector<int> OptimizationOutput::GlobNeighNorms(const int fi, const float distance) 
 {
 	std::vector<int> Neighbors; Neighbors.clear();
 	for (int i = 0; i < faces_normals.rows(); i++)
@@ -727,7 +728,10 @@ void OptimizationOutput::initMinimizers(
 	const int distance_from,
 	const int distance_to,
 	const int imax,
-	const int jmax)
+	const int jmax,
+	const std::vector<int> copy_index,
+	const std::vector < std::set<int>> paste_index,
+	const std::vector < std::set<int>> group_index)
 {
 	Eigen::VectorXd initVertices = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
 	Eigen::MatrixX3d normals;
@@ -739,7 +743,7 @@ void OptimizationOutput::initMinimizers(
 	Cylinder_dir0.setConstant(1);
 	Eigen::VectorXd Radius0;
 	if (typeAuxVar == OptimizationUtils::InitAuxVariables::SPHERE_FIT)
-		OptimizationUtils::Least_Squares_Sphere_Fit(distance_from, distance_to, V, F, center0, Radius0);
+		OptimizationUtils::Least_Squares_Sphere_Fit(distance_from, distance_to, V, F, center0, Radius0, group_index);
 	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MODEL_CENTER_POINT)
 		OptimizationUtils::center_of_mesh(V, F, center0, Radius0);
 	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MINUS_NORMALS) {
@@ -753,7 +757,7 @@ void OptimizationOutput::initMinimizers(
 		}
 	}
 	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::CYLINDER_FIT) {
-		OptimizationUtils::Least_Squares_Cylinder_Fit(imax, jmax, distance_from, distance_to, V, F, center0, Cylinder_dir0, Radius0);
+		OptimizationUtils::Least_Squares_Cylinder_Fit(imax, jmax, distance_from, distance_to, V, F, center0, Cylinder_dir0, Radius0, group_index);
 
 		std::vector<std::set<int>> TT = OptimizationUtils::Triangle_triangle_adjacency(F);
 		for (int i = 0; i < 5; i++) {
@@ -786,6 +790,16 @@ void OptimizationOutput::initMinimizers(
 		}
 		
 	}
+
+	for (int i = 0; i < copy_index.size(); i++) {
+		for (int f : paste_index[i]) {
+			Radius0(f) = Radius0(copy_index[i]);
+			center0.row(f) = center0.row(copy_index[i]);
+			Cylinder_dir0.row(f) = Cylinder_dir0.row(copy_index[i]);
+			normals.row(f) = normals.row(copy_index[i]);
+		}
+	}
+	
 
 	setAuxVariables(V, F, center0, Radius0, Cylinder_dir0, normals);
 
