@@ -271,17 +271,26 @@ void deformation_plugin::CollapsingHeader_clustering()
 		if (ImGui::Button("save clusters")) {
 			if (print_faces_index.size())
 			{
+				Eigen::VectorXd Radiuses = Outputs[0].getRadiusOfSphere();
+				int factor;
+				for (auto& obj : Outputs[0].totalObjective->objectiveList) {
+					auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
+					if (fR != NULL)
+						factor = fR->factor;
+				}
 				for (int c = 0; c < print_faces_index.size(); c++)
 				{
 					std::vector<int> clus = print_faces_index[c];
 					Eigen::MatrixX3i currF(clus.size(), 3);
+					double currRadius;
 					for (int fi = 0; fi < clus.size(); fi++)
 					{
+						currRadius = factor * Radiuses(fi);
 						currF(fi, 0) = OutputModel(0).F(clus[fi], 0);
 						currF(fi, 1) = OutputModel(0).F(clus[fi], 1);
 						currF(fi, 2) = OutputModel(0).F(clus[fi], 2);
 					}
-					bool out = igl::writeOFF(modelName + "_cluster" + std::to_string(c) + ".off", OutputModel(0).V, currF);
+					igl::writeOFF(modelName + "_cluster_" + std::to_string(c) + "_radius_" + std::to_string(currRadius) + ".off", OutputModel(0).V, currF);
 				}
 			}
 		}
@@ -365,13 +374,16 @@ void deformation_plugin::CollapsingHeader_clustering()
 		}
 		if (Outputs[0].UserInterface_FixedFaces.size() > 0) {
 			Eigen::VectorXd Radiuses = Outputs[0].getRadiusOfSphere();
-			Eigen::MatrixXd Centers = Outputs[0].getCenterOfSphere();
+			int factor;
+			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
+				auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
+				if (fR != NULL)
+					factor = fR->factor;
+			}
 			for (int f : Outputs[0].UserInterface_FixedFaces) {
 				ImGui::Text(("face = " + std::to_string(f)).c_str());
 				ImGui::Text(("radius = " + std::to_string(Radiuses[f])).c_str());
-				ImGui::Text(("Center = (" + std::to_string(Centers(f,0)) + 
-					","+ std::to_string(Centers(f,1)) + 
-					","+ std::to_string(Centers(f,2)) + ")").c_str());
+				ImGui::Text(("factor*radius = " + std::to_string(factor*Radiuses[f])).c_str());
 			}
 		}
 
@@ -666,12 +678,16 @@ void deformation_plugin::Draw_energies_window()
 					ImGui::PushID(id++);
 					ImGui::DragFloat("##w", &(obj->w), 0.05f, 0.0f, 100000.0f);
 					auto SD = std::dynamic_pointer_cast<SDenergy>(obj);
+					auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
 					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 					auto ACY = std::dynamic_pointer_cast<AuxCylinder>(obj);
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 					if (obj->w) {
 						if (SD != NULL)
 							ImGui::Checkbox("Use Cuda", &(SD->using_cuda));
+						if(fR != NULL)
+							ImGui::DragInt("##factor", &(fR->factor),1,1,1000,"round(R*%d)");
+
 						if (ABN != NULL)
 							ImGui::Combo("Function", (int*)(&(ABN->cuda_ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (AS != NULL)
@@ -2136,6 +2152,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	std::shared_ptr <STVK> stvk = std::make_unique<STVK>(V, F);
 	std::shared_ptr <SDenergy> sdenergy = std::make_unique<SDenergy>(V, F);
 	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>(V, F);
+	std::shared_ptr <fixRadius> FixRadius = std::make_unique<fixRadius>(V, F);
 	
 	//Add User Interface Energies
 	auto fixChosenNormals = std::make_shared<FixChosenConstraints>(F.rows(), V.rows(), ConstraintsType::NORMALS);
@@ -2171,6 +2188,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	add_obj(fixChosenVertices);
 	add_obj(fixChosenNormals);
 	add_obj(fixChosenSpheres);
+	add_obj(FixRadius);
 	add_obj(groupSpheres);
 	add_obj(groupNormals);
 	add_obj(groupCylinders);
