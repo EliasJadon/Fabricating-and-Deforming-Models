@@ -321,6 +321,17 @@ void deformation_plugin::CollapsingHeader_clustering()
 			group_index.clear();
 		}
 
+		if (ImGui::Button("ROY 2D soup")) {
+			MeshWrapper var(InputModel().V, InputModel().F);
+			Eigen::MatrixXd V_uv_3D(var.v_im_.rows(), 3);
+			V_uv_3D.leftCols(2) = var.v_im_.leftCols(2);
+			V_uv_3D.rightCols(1).setZero();
+			
+			OutputModel(0).clear();
+			OutputModel(0).set_mesh(V_uv_3D, var.f_im_);
+			OutputModel(0).compute_normals();
+		}
+
 		if (ImGui::Button("Print")) {
 			if (neighborType == app_utils::NeighborType::GLOBAL_NORMALS ||
 				neighborType == app_utils::NeighborType::LOCAL_NORMALS)

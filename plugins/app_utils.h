@@ -21,6 +21,7 @@
 #include "unique_colors.h"
 
 #include "../../libs/Minimizer.h"
+#include "../../libs/ROY_soup2D.h"
 #include "../../libs/Grouping.h"
 #include "../../libs/STVK.h"
 #include "../../libs/SDenergy.h"
