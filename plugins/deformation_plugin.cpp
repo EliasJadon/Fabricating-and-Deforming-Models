@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #include <cmath>
 #include <igl/writeOFF.h>
+#include <igl/boundary_loop.h>
 
 #define INPUT_MODEL_SCREEN -1
 #define NOT_FOUND -1
@@ -282,15 +283,22 @@ void deformation_plugin::CollapsingHeader_clustering()
 				{
 					std::vector<int> clus = print_faces_index[c];
 					Eigen::MatrixX3i currF(clus.size(), 3);
-					double currRadius;
+					double sumRadius = 0;
 					for (int fi = 0; fi < clus.size(); fi++)
 					{
-						currRadius = factor * Radiuses(fi);
+						sumRadius += factor * Radiuses(clus[fi]);
 						currF(fi, 0) = OutputModel(0).F(clus[fi], 0);
 						currF(fi, 1) = OutputModel(0).F(clus[fi], 1);
 						currF(fi, 2) = OutputModel(0).F(clus[fi], 2);
 					}
-					igl::writeOFF(modelName + "_cluster_" + std::to_string(c) + "_radius_" + std::to_string(currRadius) + ".off", OutputModel(0).V, currF);
+					igl::writeOFF(modelName + "_cluster_" + std::to_string(c) + "_radius_" + std::to_string(sumRadius/ clus.size()) + ".off", OutputModel(0).V, currF);
+
+				//	//add the soup
+				//	MeshWrapper var(OutputModel(0).V, currF);
+				//	Eigen::MatrixXd V_uv_3D(var.v_im_.rows(), 3);
+				//	V_uv_3D.leftCols(2) = var.v_im_.leftCols(2);
+				//	V_uv_3D.rightCols(1).setZero();
+				//	igl::writeOFF(modelName + "_soup_" + std::to_string(c) + "_radius_" + std::to_string(currRadius) + ".off", V_uv_3D, var.f_im_);
 				}
 			}
 		}
@@ -326,10 +334,26 @@ void deformation_plugin::CollapsingHeader_clustering()
 			Eigen::MatrixXd V_uv_3D(var.v_im_.rows(), 3);
 			V_uv_3D.leftCols(2) = var.v_im_.leftCols(2);
 			V_uv_3D.rightCols(1).setZero();
-			
+			//OutputModel(0).clear();
+			//OutputModel(0).set_mesh(V_uv_3D, var.f_im_);
+			//OutputModel(0).compute_normals();
+			igl::writeOFF("soup" + modelName + ".off", V_uv_3D, var.f_im_);
+		}
+
+		if (ImGui::Button("Boundary loop")) {
+			Eigen::VectorXi bnd;
+			igl::boundary_loop(InputModel().F, bnd);
+
+			Eigen::MatrixXi F(bnd.size(), 3);
+			for (int i = 0; i < bnd.size(); i++) {
+				int face_index = bnd(i);
+				F.row(i) = InputModel().F.row(face_index);
+			}
+
 			OutputModel(0).clear();
-			OutputModel(0).set_mesh(V_uv_3D, var.f_im_);
+			OutputModel(0).set_mesh(InputModel().V, F);
 			OutputModel(0).compute_normals();
+
 		}
 
 		if (ImGui::Button("Print")) {
@@ -361,7 +385,7 @@ void deformation_plugin::CollapsingHeader_clustering()
 			}
 			
 		}
-		if (Outputs[0].printNormals_saveVertices.size() == 3) {
+		/*if (Outputs[0].printNormals_saveVertices.size() == 3) {
 				auto& iter = Outputs[0].printNormals_saveVertices.begin();
 				const int v0_index = *(iter++);
 				const int v1_index = *(iter++);
@@ -382,7 +406,38 @@ void deformation_plugin::CollapsingHeader_clustering()
 				ImGui::Text(("edge21_length = " + std::to_string(5 * edge21_length)).c_str());
 				ImGui::Text(("angle1 = " + std::to_string(angle1 * 180 / 3.1415)).c_str());
 				ImGui::Text(("angle2 = " + std::to_string(angle2 * 180 / 3.1415)).c_str());
+		}*/
+		if (Outputs[0].printNormals_saveVertices.size() == 3) {
+				auto& iter = Outputs[0].printNormals_saveVertices.begin();
+				const int v0_index = *(iter++);
+				const int v1_index = *(iter++);
+				const int v2_index = *(iter++);
+				Eigen::RowVector3d V0 = OutputModel(0).V.row(v0_index);
+				Eigen::RowVector3d V1 = OutputModel(0).V.row(v1_index);
+				Eigen::RowVector3d V2 = OutputModel(0).V.row(v2_index);
+				double edge10_length = (V1 - V0).norm();
+				double edge21_length = (V2 - V1).norm();
+				double edge20_length = (V2 - V0).norm();
+
+
+				const double  f64_zero = 0, f64_max = 100000.0;
+				static double r = 1;
+				ImGui::DragScalar("r", ImGuiDataType_Double, &r, 0.05f, &f64_zero, &f64_max);
+
+				double kaws10 = r * std::acos(1 - (pow(edge10_length, 2) / (2 * pow(r, 2))));
+				double kaws21 = r * std::acos(1 - (pow(edge21_length, 2) / (2 * pow(r, 2))));
+				double kaws20 = r * std::acos(1 - (pow(edge20_length, 2) / (2 * pow(r, 2))));
+				
+				ImGui::Text(("kaws10 = " + std::to_string(kaws10)).c_str());
+				ImGui::Text(("kaws21 = " + std::to_string(kaws21)).c_str());
+				ImGui::Text(("kaws20 = " + std::to_string(kaws20)).c_str());
+				ImGui::Text(("edge10_length = " + std::to_string(edge10_length)).c_str());
+				ImGui::Text(("edge21_length = " + std::to_string(edge21_length)).c_str());
+				ImGui::Text(("edge20_length = " + std::to_string(edge20_length)).c_str());
+				Eigen::VectorXd Radiuses = Outputs[0].getRadiusOfSphere();
+				ImGui::Text(("kaws20 = " + std::to_string(kaws20)).c_str());
 		}
+
 		if (Outputs[0].UserInterface_FixedFaces.size() > 0) {
 			Eigen::VectorXd Radiuses = Outputs[0].getRadiusOfSphere();
 			int factor;
@@ -1390,7 +1445,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	}
 	if ((key == 's' || key == 'S') && modifiers == 1) {
 		modelPath = OptimizationUtils::ProjectPath() + 
-			"\\models\\InputModels\\from_2k_to_10k\\spot.off";
+			"\\models\\InputModels\\Bear_without_eyes.off";
 		isLoadNeeded = true;
 	}
 	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) 
@@ -2164,6 +2219,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	std::shared_ptr <SDenergy> sdenergy = std::make_unique<SDenergy>(V, F);
 	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>(V, F);
 	std::shared_ptr <fixRadius> FixRadius = std::make_unique<fixRadius>(V, F);
+	std::shared_ptr <UniformSmoothness> uniformSmoothness = std::make_unique<UniformSmoothness>(V, F);
 	
 	//Add User Interface Energies
 	auto fixChosenNormals = std::make_shared<FixChosenConstraints>(F.rows(), V.rows(), ConstraintsType::NORMALS);
@@ -2200,6 +2256,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	add_obj(fixChosenNormals);
 	add_obj(fixChosenSpheres);
 	add_obj(FixRadius);
+	add_obj(uniformSmoothness);
 	add_obj(groupSpheres);
 	add_obj(groupNormals);
 	add_obj(groupCylinders);
