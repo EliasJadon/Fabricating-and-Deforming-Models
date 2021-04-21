@@ -60,7 +60,7 @@ public:
 	}
 	void update_lambda(int*);
 	bool isAutoLambdaRunning = true;
-	int autoLambda_from = 100, autoLambda_count = 30, autoLambda_jump = 70;
+	int autoLambda_from = 100, autoLambda_count = 40, autoLambda_jump = 70;
 protected:
 	// Give the wrapper a chance to intersect gracefully
 	void give_parameter_update_slot();

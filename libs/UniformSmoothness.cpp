@@ -7,7 +7,7 @@ UniformSmoothness::UniformSmoothness(const Eigen::MatrixXd& V, const Eigen::Matr
 {
 	init_mesh(V, F);
 	name = "Uniform Smoothness";
-	w = 0;
+	w = 0.023;
 	Cuda::AllocateMemory(grad, (3 * V.rows()) + (10 * F.rows()));
 	Cuda::AllocateMemory(EnergyAtomic, 1);
 	Cuda::initIndices(mesh_indices, F.rows(), V.rows(), 0);

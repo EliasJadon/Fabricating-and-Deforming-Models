@@ -624,7 +624,7 @@ namespace OptimizationUtils
 			double ms = duration.count() * 1000.0f;
 			*sum += ms;
 			*curr = ms;
-			std::cout << "Timer took " << ms << "ms\n";
+			//std::cout << "Timer took " << ms << "ms\n";
 		}
 	};
 }

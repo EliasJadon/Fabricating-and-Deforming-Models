@@ -143,7 +143,7 @@ void Minimizer::value_linesearch()
 		init_step_size *= 2;
 	if (cur_iter > 2)
 		init_step_size /= 2;
-	std::cout << "cur_iter = " << cur_iter << std::endl;
+	//std::cout << "cur_iter = " << cur_iter << std::endl;
 }
 
 void Minimizer::constant_linesearch()

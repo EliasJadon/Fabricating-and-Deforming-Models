@@ -273,6 +273,7 @@ void deformation_plugin::CollapsingHeader_clustering()
 			if (print_faces_index.size())
 			{
 				Eigen::VectorXd Radiuses = Outputs[0].getRadiusOfSphere();
+				Eigen::MatrixXd Centers = Outputs[0].getCenterOfSphere();
 				int factor;
 				for (auto& obj : Outputs[0].totalObjective->objectiveList) {
 					auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
@@ -283,22 +284,32 @@ void deformation_plugin::CollapsingHeader_clustering()
 				{
 					std::vector<int> clus = print_faces_index[c];
 					Eigen::MatrixX3i currF(clus.size(), 3);
+					
 					double sumRadius = 0;
+					Eigen::RowVector3d sumCenters(0, 0, 0);
 					for (int fi = 0; fi < clus.size(); fi++)
 					{
 						sumRadius += factor * Radiuses(clus[fi]);
+						sumCenters += Centers.row(clus[fi]);
 						currF(fi, 0) = OutputModel(0).F(clus[fi], 0);
 						currF(fi, 1) = OutputModel(0).F(clus[fi], 1);
 						currF(fi, 2) = OutputModel(0).F(clus[fi], 2);
 					}
-					igl::writeOFF(modelName + "_cluster_" + std::to_string(c) + "_radius_" + std::to_string(sumRadius/ clus.size()) + ".off", OutputModel(0).V, currF);
+					Eigen::RowVector3d avgCenter = sumCenters / clus.size();
+					double avgRadius = sumRadius / clus.size();
 
-				//	//add the soup
-				//	MeshWrapper var(OutputModel(0).V, currF);
-				//	Eigen::MatrixXd V_uv_3D(var.v_im_.rows(), 3);
-				//	V_uv_3D.leftCols(2) = var.v_im_.leftCols(2);
-				//	V_uv_3D.rightCols(1).setZero();
-				//	igl::writeOFF(modelName + "_soup_" + std::to_string(c) + "_radius_" + std::to_string(currRadius) + ".off", V_uv_3D, var.f_im_);
+					Eigen::MatrixX3d currV(OutputModel(0).V.rows() + 2, 3);
+					currV.setZero();
+					for (int vi = 0; vi < OutputModel(0).V.rows(); vi++)
+						currV.row(vi) = OutputModel(0).V.row(vi);
+					currV.row(OutputModel(0).V.rows()) = avgCenter;
+					currV(OutputModel(0).V.rows()+1,0) = avgRadius;
+					igl::writeOFF(
+						modelName +
+						"_cluster_" + std::to_string(c) +
+						"_radius_" + std::to_string(avgRadius) + ".off",
+						currV, currF
+					);
 				}
 			}
 		}
@@ -317,7 +328,7 @@ void deformation_plugin::CollapsingHeader_clustering()
 			paste_index.clear();
 		}
 
-		if (ImGui::Button("add Group")) {
+		/*if (ImGui::Button("add Group")) {
 			for (FacesGroup& fg : Outputs[0].UserInterface_facesGroups) {
 				if (fg.faces.size() > 0) {
 					group_index.push_back(fg.faces);
@@ -327,35 +338,20 @@ void deformation_plugin::CollapsingHeader_clustering()
 		ImGui::SameLine();
 		if (ImGui::Button("Reset G")) {
 			group_index.clear();
-		}
+		}*/
 
-		if (ImGui::Button("ROY 2D soup")) {
-			MeshWrapper var(InputModel().V, InputModel().F);
-			Eigen::MatrixXd V_uv_3D(var.v_im_.rows(), 3);
-			V_uv_3D.leftCols(2) = var.v_im_.leftCols(2);
-			V_uv_3D.rightCols(1).setZero();
-			//OutputModel(0).clear();
-			//OutputModel(0).set_mesh(V_uv_3D, var.f_im_);
-			//OutputModel(0).compute_normals();
-			igl::writeOFF("soup" + modelName + ".off", V_uv_3D, var.f_im_);
-		}
+		//if (ImGui::Button("ROY 2D soup")) {
+		//	MeshWrapper var(InputModel().V, InputModel().F);
+		//	Eigen::MatrixXd V_uv_3D(var.v_im_.rows(), 3);
+		//	V_uv_3D.leftCols(2) = var.v_im_.leftCols(2);
+		//	V_uv_3D.rightCols(1).setZero();
+		//	//OutputModel(0).clear();
+		//	//OutputModel(0).set_mesh(V_uv_3D, var.f_im_);
+		//	//OutputModel(0).compute_normals();
+		//	igl::writeOFF("soup" + modelName + ".off", V_uv_3D, var.f_im_);
+		//}
 
-		if (ImGui::Button("Boundary loop")) {
-			Eigen::VectorXi bnd;
-			igl::boundary_loop(InputModel().F, bnd);
-
-			Eigen::MatrixXi F(bnd.size(), 3);
-			for (int i = 0; i < bnd.size(); i++) {
-				int face_index = bnd(i);
-				F.row(i) = InputModel().F.row(face_index);
-			}
-
-			OutputModel(0).clear();
-			OutputModel(0).set_mesh(InputModel().V, F);
-			OutputModel(0).compute_normals();
-
-		}
-
+		
 		if (ImGui::Button("Print")) {
 			if (neighborType == app_utils::NeighborType::GLOBAL_NORMALS ||
 				neighborType == app_utils::NeighborType::LOCAL_NORMALS)
@@ -408,34 +404,114 @@ void deformation_plugin::CollapsingHeader_clustering()
 				ImGui::Text(("angle2 = " + std::to_string(angle2 * 180 / 3.1415)).c_str());
 		}*/
 		if (Outputs[0].printNormals_saveVertices.size() == 3) {
-				auto& iter = Outputs[0].printNormals_saveVertices.begin();
-				const int v0_index = *(iter++);
-				const int v1_index = *(iter++);
-				const int v2_index = *(iter++);
-				Eigen::RowVector3d V0 = OutputModel(0).V.row(v0_index);
-				Eigen::RowVector3d V1 = OutputModel(0).V.row(v1_index);
-				Eigen::RowVector3d V2 = OutputModel(0).V.row(v2_index);
-				double edge10_length = (V1 - V0).norm();
-				double edge21_length = (V2 - V1).norm();
-				double edge20_length = (V2 - V0).norm();
+			int factor;
+			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
+				auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
+				if (fR != NULL)
+					factor = fR->factor;
+			}
+
+			auto& iter = Outputs[0].printNormals_saveVertices.begin();
+			const int v0_index = *(iter++);
+			const int v1_index = *(iter++);
+			const int v2_index = *(iter++);
+			Eigen::RowVector3d V0 = OutputModel(0).V.row(v0_index);
+			Eigen::RowVector3d V1 = OutputModel(0).V.row(v1_index);
+			Eigen::RowVector3d V2 = OutputModel(0).V.row(v2_index);
+			double edge10_length = factor * (V1 - V0).norm();
+			double edge21_length = factor * (V2 - V1).norm();
+			double edge20_length = factor * (V2 - V0).norm();
 
 
-				const double  f64_zero = 0, f64_max = 100000.0;
-				static double r = 1;
-				ImGui::DragScalar("r", ImGuiDataType_Double, &r, 0.05f, &f64_zero, &f64_max);
+			const double  f64_zero = 0, f64_max = 100000.0;
+			static double r = 1;
+			ImGui::DragScalar("r", ImGuiDataType_Double, &r, 0.05f, &f64_zero, &f64_max);
 
-				double kaws10 = r * std::acos(1 - (pow(edge10_length, 2) / (2 * pow(r, 2))));
-				double kaws21 = r * std::acos(1 - (pow(edge21_length, 2) / (2 * pow(r, 2))));
-				double kaws20 = r * std::acos(1 - (pow(edge20_length, 2) / (2 * pow(r, 2))));
+			double kaws10 = r * std::acos(1 - (pow(edge10_length, 2) / (2 * pow(r, 2))));
+			double kaws21 = r * std::acos(1 - (pow(edge21_length, 2) / (2 * pow(r, 2))));
+			double kaws20 = r * std::acos(1 - (pow(edge20_length, 2) / (2 * pow(r, 2))));
 				
-				ImGui::Text(("kaws10 = " + std::to_string(kaws10)).c_str());
-				ImGui::Text(("kaws21 = " + std::to_string(kaws21)).c_str());
-				ImGui::Text(("kaws20 = " + std::to_string(kaws20)).c_str());
-				ImGui::Text(("edge10_length = " + std::to_string(edge10_length)).c_str());
-				ImGui::Text(("edge21_length = " + std::to_string(edge21_length)).c_str());
-				ImGui::Text(("edge20_length = " + std::to_string(edge20_length)).c_str());
-				Eigen::VectorXd Radiuses = Outputs[0].getRadiusOfSphere();
-				ImGui::Text(("kaws20 = " + std::to_string(kaws20)).c_str());
+			ImGui::Text(("kaws10 = " + std::to_string(kaws10)).c_str());
+			ImGui::Text(("kaws21 = " + std::to_string(kaws21)).c_str());
+			ImGui::Text(("kaws20 = " + std::to_string(kaws20)).c_str());
+			ImGui::Text(("factor *edge10_length = " + std::to_string(edge10_length)).c_str());
+			ImGui::Text(("factor *edge21_length = " + std::to_string(edge21_length)).c_str());
+			ImGui::Text(("factor *edge20_length = " + std::to_string(edge20_length)).c_str());
+		}
+
+
+		if (ImGui::Button("Boundary loop")) {
+			Eigen::VectorXi bnd;
+			igl::boundary_loop(InputModel().F, bnd);
+			for (int i = 0; i < bnd.size(); i++) {
+				const int vertex_index = bnd(i);
+				Outputs[0].UserInterface_FixedVertices.insert(vertex_index);
+				Outputs[0].printNormals_saveVertices.push_back(vertex_index);
+			}
+		}
+		ImGui::SameLine();
+		if (ImGui::Button("Print Spheres")) {
+			int factor = 0;
+			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
+				auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
+				if (fR != NULL)
+					factor = fR->factor;
+			}
+			auto& V = OutputModel(0).V;
+			int last_vertex_index = V.rows() - 1;
+			double radius_len = V(last_vertex_index, 0);
+			auto& bound_inds = Outputs[0].printNormals_saveVertices;
+
+			Eigen::RowVector3d chosen_pnt = V.row(*(bound_inds.begin()));
+			Eigen::RowVector3d axis1, axis2;
+			{
+				Eigen::RowVector3d center_pnt = V.row(last_vertex_index - 1);
+				Eigen::RowVector3d random_pnt = V.row(*(bound_inds.begin() + 1));
+				Eigen::RowVector3d random_dir = (random_pnt - chosen_pnt).normalized();
+				Eigen::RowVector3d radius_dir = (center_pnt - chosen_pnt).normalized();
+				axis1 = (random_dir.cross(radius_dir)).normalized();
+				axis2 = (axis1.cross(radius_dir)).normalized();
+				Eigen::RowVector3d axis3 = radius_dir;
+				// Start Debugging...
+				std::cout << "----------------------------------------" << std::endl;
+				std::cout << "1 == " << axis1.norm() << std::endl;
+				std::cout << "1 == " << axis2.norm() << std::endl;
+				std::cout << "1 == " << axis3.norm() << std::endl;
+				std::cout << "0 == " << axis1.dot(axis2) << std::endl;
+				std::cout << "0 == " << axis1.dot(axis3) << std::endl;
+				std::cout << "0 == " << axis2.dot(axis3) << std::endl;
+				std::cout << "factor = " << factor << std::endl;
+				std::cout << "radius_len = " << radius_len << std::endl;
+				std::cout << "center_pnt = " << center_pnt << std::endl;
+				std::cout << "axis1 = " << axis1 << std::endl;
+				std::cout << "axis2 = " << axis2 << std::endl;
+				std::cout << "chosen_pnt = " << chosen_pnt << std::endl;
+				std::cout << "chosen_index = " << *(bound_inds.begin()) << std::endl;
+				for (auto& bound_ind = bound_inds.begin(); bound_ind != bound_inds.end(); bound_ind++) {
+					Eigen::RowVector3d bound_pnt = V.row(*bound_ind);
+					double expected_radius_len = factor * (bound_pnt - center_pnt).norm();
+					std::cout << "Err:\t" << expected_radius_len - radius_len << std::endl;
+				}
+				// End Debugging
+			}
+			int count = 0;
+			for (auto& bound_ind = bound_inds.begin()+1; bound_ind != bound_inds.end(); bound_ind++) {
+				Eigen::RowVector3d bound_pnt = V.row(*bound_ind);
+				Eigen::RowVector3d bound_dir = bound_pnt - chosen_pnt;
+				Eigen::RowVector2d boundary_dir_on_new_axes(
+					bound_dir.dot(axis1),
+					bound_dir.dot(axis2)
+				);
+				boundary_dir_on_new_axes.normalize();
+				double edge_len = 0.5 * factor * bound_dir.norm();
+				double alpha_radians = std::acos(1 - (pow(edge_len, 2) / (2 * pow(radius_len, 2))));
+				double Keshet_len = radius_len * alpha_radians;
+				Eigen::RowVector2d final_point = boundary_dir_on_new_axes * Keshet_len;
+
+				if (count++ % 10 == 0)
+					std::cout << "\n\n\n";
+				std::cout << "Segment((" << final_point(0) << " ," << final_point(1) << "),(0,0))," << std::endl;
+			}
 		}
 
 		if (Outputs[0].UserInterface_FixedFaces.size() > 0) {

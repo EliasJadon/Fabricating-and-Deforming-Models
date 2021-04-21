@@ -63,7 +63,7 @@ template<int N> void multiply(
 SDenergy::SDenergy(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) {
 	init_mesh(V, F);
 	name = "Symmetric Dirichlet";
-	w = 0.6;
+	w = 0.1;
 
 	Efi.resize(F.rows());
 	Efi.setZero();
