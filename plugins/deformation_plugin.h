@@ -17,7 +17,7 @@ private:
 	bool CollapsingHeader_curr[7], CollapsingHeader_prev[7], CollapsingHeader_change;
 	bool tips_window, outputs_window, results_window, energies_window;
 	OptimizationUtils::InitAuxVariables initAuxVariables;
-	bool isLoadNeeded, isModelLoaded;
+	bool isLoadNeeded, isLoadResultsNeeded, isModelLoaded;
 	float Max_Distortion;
 	float neighbor_distance, brush_radius;
 	int Brush_face_index, Brush_output_index;

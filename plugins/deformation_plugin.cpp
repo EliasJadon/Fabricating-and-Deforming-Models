@@ -4,6 +4,7 @@
 #include <cmath>
 #include <igl/writeOFF.h>
 #include <igl/boundary_loop.h>
+#include <igl/readOFF.h>
 
 #define INPUT_MODEL_SCREEN -1
 #define NOT_FOUND -1
@@ -25,7 +26,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	CollapsingHeader_change = false;
 	neighbor_distance = brush_radius = 0.3;
 	initAuxVariables = OptimizationUtils::InitAuxVariables::SPHERE_FIT;
-	isLoadNeeded = false;
+	isLoadResultsNeeded = isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
 	energies_window = results_window = outputs_window = true;
@@ -110,6 +111,20 @@ void deformation_plugin::load_new_model(const std::string modelpath)
 	viewer->core(inputCoreID).trackball_angle = Eigen::Quaternionf::Identity();
 	viewer->core(inputCoreID).orthographic = false;
 	viewer->core(inputCoreID).set_rotation_type(igl::opengl::ViewerCore::RotationType(1));
+	if (isLoadResultsNeeded) {
+		Eigen::MatrixX3i F;
+		Eigen::MatrixX3d C, R, N;
+		{
+			std::string tmp_modelPath = modelPath;
+			tmp_modelPath.erase(tmp_modelPath.end() - 4, tmp_modelPath.end());
+			igl::readOFF(tmp_modelPath + "_Centers.off", C, F);
+			igl::readOFF(tmp_modelPath + "_Radiuses.off", R, F);
+			igl::readOFF(tmp_modelPath + "_Normals.off", N, F);
+		}
+		Outputs[0].setAuxVariables(InputModel().V, InputModel().F, C, R.col(0), C, N);
+	}
+	isLoadNeeded = false;
+	isLoadResultsNeeded = false;
 }
 
 IGL_INLINE void deformation_plugin::draw_viewer_menu()
@@ -130,16 +145,97 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		modelPath = igl::file_dialog_open();
 		isLoadNeeded = true;
 	}
-	if (isLoadNeeded) 
+	ImGui::SameLine();
+	if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0)))
+		viewer->open_dialog_save_mesh();
+	if (ImGui::Button("load Result", ImVec2((w - p) / 2.f, 0))) {
+		modelPath = igl::file_dialog_open();
+		isLoadNeeded = true;
+		isLoadResultsNeeded = true;
+	}
+	ImGui::SameLine();
+	if (ImGui::Button("save Result", ImVec2((w - p) / 2.f, 0)) && print_faces_index.size()) {
+		// Get the Auxiliary variables
+		Eigen::MatrixXd Normals = Outputs[0].getFacesNormals();
+		Eigen::VectorXd Radiuses = Outputs[0].getRadiusOfSphere();
+		Eigen::MatrixXd Centers = Outputs[0].getCenterOfSphere();
+		// Multiply all the mesh by "factor". Relevant only for spheres. 
+		int factor;
+		for (auto& obj : Outputs[0].totalObjective->objectiveList) {
+			auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
+			if (fR != NULL)
+				factor = fR->factor;
+		}
+		// Create new Directory for saving the data
+		char date_buffer[80] = { 0 };
+		{
+			time_t rawtime_;
+			struct tm* timeinfo_;
+			time(&rawtime_);
+			timeinfo_ = localtime(&rawtime_);
+			strftime(date_buffer, 80, "_%H_%M_%S__%d_%m_%Y", timeinfo_);
+		}
+		std::string Output_path = OptimizationUtils::ProjectPath() +
+			"models\\OutputModels\\" + modelName + std::string(date_buffer) + "\\";
+		if (mkdir(Output_path.c_str()) == -1) {
+			std::cerr << "Error :  " << strerror(errno) << std::endl;
+			exit(1);
+		}
+
+		// Save each cluster in the new directory
+		for (int clus_index = 0; clus_index < print_faces_index.size(); clus_index++)
+		{
+			std::vector<int> clus_faces_index = print_faces_index[clus_index];
+			Eigen::MatrixX3i clus_faces(clus_faces_index.size(), 3);
+
+			double sumRadius = 0;
+			Eigen::RowVector3d sumCenters(0, 0, 0);
+			for (int fi = 0; fi < clus_faces_index.size(); fi++)
+			{
+				sumRadius += factor * Radiuses(clus_faces_index[fi]);
+				sumCenters += Centers.row(clus_faces_index[fi]);
+				clus_faces(fi, 0) = OutputModel(0).F(clus_faces_index[fi], 0);
+				clus_faces(fi, 1) = OutputModel(0).F(clus_faces_index[fi], 1);
+				clus_faces(fi, 2) = OutputModel(0).F(clus_faces_index[fi], 2);
+			}
+			Eigen::RowVector3d avgCenter = sumCenters / clus_faces_index.size();
+			double avgRadius = sumRadius / clus_faces_index.size();
+
+			Eigen::MatrixX3d clus_vertices(OutputModel(0).V.rows() + 2, 3);
+			clus_vertices.setZero();
+			for (int vi = 0; vi < OutputModel(0).V.rows(); vi++)
+				clus_vertices.row(vi) = OutputModel(0).V.row(vi);
+			clus_vertices.row(OutputModel(0).V.rows()) = avgCenter;
+			clus_vertices(OutputModel(0).V.rows() + 1, 0) = avgRadius;
+			// Save the current cluster in "off" file format
+			std::string clus_file_name =
+				modelName + "_cluster_" + std::to_string(clus_index) +
+				"_radius_" + std::to_string(avgRadius) + ".off";
+			igl::writeOFF(Output_path + clus_file_name, clus_vertices, clus_faces);
+		}
+		// Save the final mesh in "off" file format
+		igl::writeOFF(Output_path + modelName + "_Output.off", OutputModel(0).V, OutputModel(0).F);
+
+		// Save the auxliary variables in "off" file format
+		Eigen::MatrixX3d aux_Radiuses(OutputModel(0).F.rows(), 3);
+		aux_Radiuses.setZero();
+		aux_Radiuses.col(0) = Radiuses;
+		Eigen::MatrixX3i empty(1, 3);
+		empty << 1, 2, 3;
+		igl::writeOFF(Output_path + modelName + "_Output_Normals.off", Normals, empty);
+		igl::writeOFF(Output_path + modelName + "_Output_Radiuses.off", aux_Radiuses, empty);
+		igl::writeOFF(Output_path + modelName + "_Output_Centers.off", Centers, empty);
+	}
+	
+	if (isLoadNeeded)
 	{
 		load_new_model(modelPath);
 		isLoadNeeded = false;
 	}
 	if (!isModelLoaded)
 		return;
-	ImGui::SameLine();
-	if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0)))
-		viewer->open_dialog_save_mesh();
+
+
 	ImGui::Checkbox("Outputs window", &outputs_window);
 	ImGui::Checkbox("Results window", &results_window);
 	ImGui::Checkbox("Energy window", &energies_window);
@@ -269,51 +365,6 @@ void deformation_plugin::CollapsingHeader_clustering()
 		ImGui::SetNextTreeNodeOpen(CollapsingHeader_curr[3]);
 	if (ImGui::CollapsingHeader("Clustering"))
 	{
-		if (ImGui::Button("save clusters")) {
-			if (print_faces_index.size())
-			{
-				Eigen::VectorXd Radiuses = Outputs[0].getRadiusOfSphere();
-				Eigen::MatrixXd Centers = Outputs[0].getCenterOfSphere();
-				int factor;
-				for (auto& obj : Outputs[0].totalObjective->objectiveList) {
-					auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
-					if (fR != NULL)
-						factor = fR->factor;
-				}
-				for (int c = 0; c < print_faces_index.size(); c++)
-				{
-					std::vector<int> clus = print_faces_index[c];
-					Eigen::MatrixX3i currF(clus.size(), 3);
-					
-					double sumRadius = 0;
-					Eigen::RowVector3d sumCenters(0, 0, 0);
-					for (int fi = 0; fi < clus.size(); fi++)
-					{
-						sumRadius += factor * Radiuses(clus[fi]);
-						sumCenters += Centers.row(clus[fi]);
-						currF(fi, 0) = OutputModel(0).F(clus[fi], 0);
-						currF(fi, 1) = OutputModel(0).F(clus[fi], 1);
-						currF(fi, 2) = OutputModel(0).F(clus[fi], 2);
-					}
-					Eigen::RowVector3d avgCenter = sumCenters / clus.size();
-					double avgRadius = sumRadius / clus.size();
-
-					Eigen::MatrixX3d currV(OutputModel(0).V.rows() + 2, 3);
-					currV.setZero();
-					for (int vi = 0; vi < OutputModel(0).V.rows(); vi++)
-						currV.row(vi) = OutputModel(0).V.row(vi);
-					currV.row(OutputModel(0).V.rows()) = avgCenter;
-					currV(OutputModel(0).V.rows()+1,0) = avgRadius;
-					igl::writeOFF(
-						modelName +
-						"_cluster_" + std::to_string(c) +
-						"_radius_" + std::to_string(avgRadius) + ".off",
-						currV, currF
-					);
-				}
-			}
-		}
-
 		if (ImGui::Button("Copy")) {
 			int ind;
 			for (int f : Outputs[0].UserInterface_FixedFaces) {
