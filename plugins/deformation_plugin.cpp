@@ -78,7 +78,8 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 
 void deformation_plugin::load_new_model(const std::string modelpath) 
 {
-	clear_sellected_faces_and_vertices();
+	if (isModelLoaded)
+		clear_sellected_faces_and_vertices();
 	modelPath = modelpath;
 	if (modelPath.length() == 0)
 		return;
@@ -350,7 +351,7 @@ void deformation_plugin::CollapsingHeader_user_interface()
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
 			ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.0005f, 0.00001f, 10000.0f,"%.5f");
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH)
-			ImGui::DragFloat("Brush Radius", &brush_radius, 0.01f, 0.01f, 10000.0f);
+			ImGui::DragFloat("Brush Radius", &brush_radius);
 		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH ||
 			UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
 			ImGui::Combo("Group Color", (int *)(&UserInterface_groupNum), app_utils::build_groups_names_list(Outputs[0].UserInterface_facesGroups));
@@ -1124,6 +1125,8 @@ void deformation_plugin::clear_sellected_faces_and_vertices()
 {
 	for (auto&o : Outputs)
 	{
+		o.Energy_auxSpherePerHinge->ClearHingesWeights();
+		o.Energy_auxBendingNormal->ClearHingesWeights();
 		o.UserInterface_FixedFaces.clear();
 		for (auto& c : o.UserInterface_facesGroups)
 			c.faces.clear();
@@ -1293,31 +1296,20 @@ void deformation_plugin::brush_erase_or_insert()
 {
 	if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
 	{
+		double shift = 10;
+		if (EraseOrInsert != INSERT)
+			shift = -0.05;
 		std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
-		if (EraseOrInsert == INSERT) 
-		{
-			for (int fi : brush_faces)
-			{
-				if (UserInterface_UpdateAllOutputs)
-					for (auto& out : Outputs)
-						out.UserInterface_facesGroups[UserInterface_groupNum].faces.insert(fi);
-				else
-					Outputs[Brush_output_index].UserInterface_facesGroups[UserInterface_groupNum].faces.insert(fi);
+		if (UserInterface_UpdateAllOutputs) {
+			for (auto& out : Outputs) {
+				out.Energy_auxBendingNormal->UpdateHingesWeights(brush_faces, shift);
+				out.Energy_auxSpherePerHinge->UpdateHingesWeights(brush_faces, shift);
 			}
+		}		
+		else {
+			Outputs[Brush_output_index].Energy_auxBendingNormal->UpdateHingesWeights(brush_faces, shift);
+			Outputs[Brush_output_index].Energy_auxSpherePerHinge->UpdateHingesWeights(brush_faces, shift);
 		}
-		else
-		{
-			if (UserInterface_UpdateAllOutputs)
-				for (auto& out : Outputs)
-					for (FacesGroup& clusterI : out.UserInterface_facesGroups)
-						for (int fi : brush_faces)
-							clusterI.faces.erase(fi);
-			else
-				for (FacesGroup& clusterI : Outputs[Brush_output_index].UserInterface_facesGroups)
-					for (int fi : brush_faces)
-						clusterI.faces.erase(fi);
-		}
-		update_ext_fixed_group_faces();
 	}
 }
 
@@ -1383,7 +1375,7 @@ IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y)
 	{
 		if (out.UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH)
 		{
-			brush_radius += delta_y * 0.05;
+			brush_radius += delta_y * 0.005;
 			brush_radius = std::max<float>(0.005, brush_radius);
 			return true;
 		}
@@ -1703,15 +1695,15 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 
 IGL_INLINE bool deformation_plugin::key_down(int key, int modifiers)
 {
-
 	if (key == '1')
 		UserInterface_option = app_utils::UserInterfaceOptions::FIX_VERTICES;
-	if (key == '2')
+	else if (key == '2')
 		UserInterface_option = app_utils::UserInterfaceOptions::GROUPING_BY_ADJ;
-	if (key == '3')
+	else if (key == '3')
 		UserInterface_option = app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH;
-	if (key == '4')
+	else if (key == '4')
 		UserInterface_option = app_utils::UserInterfaceOptions::FIX_FACES;
+	
 	return ImGuiMenu::key_down(key, modifiers);
 }
 
@@ -1734,25 +1726,27 @@ void deformation_plugin::draw_brush_sphere()
 		UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH))
 		return;
 	//prepare brush sphere
-	Eigen::MatrixXd sphere(36 * 36, 3);
+	const int samples = 100;
+	Eigen::MatrixXd sphere(samples * samples, 3);
 	Eigen::RowVector3d center = intersec_point.cast<double>().transpose();
 	int i, j;
-	for (double alfa = 0, i = 0; alfa < 360; i++, alfa += 10) 
+	for (double alfa = 0, i = 0; alfa < 360; i++, alfa += int(360/samples)) 
 	{
-		for (double beta = 0, j = 0; beta < 360; j++, beta += 10) 
+		for (double beta = 0, j = 0; beta < 360; j++, beta += int(360 / samples))
 		{
 			Eigen::RowVector3d dir;
 			dir << sin(alfa), cos(alfa)*cos(beta), sin(beta)*cos(alfa);
-			sphere.row(i + 36 * j) = dir * brush_radius + center;
+			if (i + samples * j < sphere.rows())
+				sphere.row(i + samples * j) = dir * brush_radius + center;
 		}
 	}
 	//prepare color
 	Eigen::MatrixXd c(1, 3);
 	if (EraseOrInsert == INSERT) {
-		c.row(0) = Outputs[Brush_output_index].UserInterface_facesGroups[UserInterface_groupNum].color.cast<double>();
+		c.row(0) = GREEN_COLOR.cast<double>();
 	}
 	else if (EraseOrInsert == ERASE) { 
-		c.row(0) << 1, 1, 1; // white color for erasing
+		c.row(0) = BLUE_COLOR.cast<double>();
 	}
 	//update data for cores
 	OutputModel(Brush_output_index).point_size = 10;
@@ -1932,21 +1926,42 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		//Mark the Groups faces
 		for (FacesGroup cluster : Outputs[i].UserInterface_facesGroups)
 			for (int fi : cluster.faces)
-				Outputs[i].updateFaceColors(fi, cluster.color);
+				Outputs[i].setFaceColors(fi, cluster.color);
 		//Mark the fixed faces
 		for (int fi : Outputs[i].UserInterface_FixedFaces)
-			Outputs[i].updateFaceColors(fi, Fixed_face_color);
+			Outputs[i].setFaceColors(fi, Fixed_face_color);
+		//Mark the selected faces by brush
+		{
+			Cuda::hinge* hinge_to_face_mapping = Outputs[i].Energy_auxBendingNormal->cuda_ABN->hinges_faceIndex.host_arr;
+			double* BN_hinges_weights = Outputs[i].Energy_auxBendingNormal->cuda_ABN->weightPerHinge.host_arr;
+			//double* AS_hinges_weights = Outputs[i].Energy_auxSpherePerHinge->cuda_ASH->weightPerHinge.host_arr;
+			int num_hinges = Outputs[i].Energy_auxSpherePerHinge->cuda_ASH->mesh_indices.num_hinges;
+			for (int hi = 0; hi < num_hinges; hi++) {
+				const int f0 = hinge_to_face_mapping[hi].f0;
+				const int f1 = hinge_to_face_mapping[hi].f1;
+				const double w = BN_hinges_weights[hi];
+				const int max_w_value = 50;
+				if (w > 1) {
+					Outputs[i].shiftFaceColors(f0, (w - 1.0f) / max_w_value, model_color, GREEN_COLOR);
+					Outputs[i].shiftFaceColors(f1, (w - 1.0f) / max_w_value, model_color, GREEN_COLOR);
+				}
+				if (w < 1) {
+					Outputs[i].shiftFaceColors(f0, 1.0f - w, model_color, BLUE_COLOR);
+					Outputs[i].shiftFaceColors(f1, 1.0f - w, model_color, BLUE_COLOR);
+				}
+			}
+		}
 		//Mark the highlighted face & neighbors
 		if (curr_highlighted_face != NOT_FOUND && curr_highlighted_output == i)
 		{
 			std::vector<int> neigh = Outputs[i].getNeigh(neighborType, InputModel().F, curr_highlighted_face, neighbor_distance);
 			for (int fi : neigh)
-				Outputs[i].updateFaceColors(fi, Neighbors_Highlighted_face_color);
-			Outputs[i].updateFaceColors(curr_highlighted_face, Highlighted_face_color);
+				Outputs[i].setFaceColors(fi, Neighbors_Highlighted_face_color);
+			Outputs[i].setFaceColors(curr_highlighted_face, Highlighted_face_color);
 		}
 		//Mark the Dragged face
 		if (Outputs[i].UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES))
-			Outputs[i].updateFaceColors(Outputs[i].UserInterface_TranslateIndex, Dragged_face_color);
+			Outputs[i].setFaceColors(Outputs[i].UserInterface_TranslateIndex, Dragged_face_color);
 		//Mark the vertices
 		int idx = 0;
 		Outputs[i].fixed_vertices_positions.resize(Outputs[i].UserInterface_FixedVertices.size(), 3);
@@ -1976,7 +1991,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 				Eigen::Vector3f clusColor = uniqueColors.getNext();
 				for (int fi : clus)
 				{
-					Outputs[i].updateFaceColors(
+					Outputs[i].setFaceColors(
 						fi, 
 						Eigen::Vector3f(
 							clustering_w * clusColor(0) + (1 - clustering_w),
@@ -2053,7 +2068,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 				Eigen::Vector3d color = P.row(fi).transpose();
 				if (clustering_hashMap)
 					color = DataColors.getColor(P.row(fi).transpose(), fi);
-				Outputs[i].updateFaceColors(fi, Eigen::Vector3f(
+				Outputs[i].setFaceColors(fi, Eigen::Vector3f(
 					clustering_w * color(0) + (1 - clustering_w),
 					clustering_w * color(1) + (1 - clustering_w),
 					clustering_w * color(2) + (1 - clustering_w)
@@ -2340,8 +2355,10 @@ void deformation_plugin::initializeMinimizer(const int index)
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
 	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(V, F, FunctionType::SIGMOID);
+	Outputs[index].Energy_auxBendingNormal = auxBendingNormal;
 	std::shared_ptr <AuxCylinder> auxCylinder = std::make_unique<AuxCylinder>(V, F, FunctionType::SIGMOID);
 	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(V, F, FunctionType::SIGMOID);
+	Outputs[index].Energy_auxSpherePerHinge = auxSpherePerHinge;
 	std::shared_ptr <STVK> stvk = std::make_unique<STVK>(V, F);
 	std::shared_ptr <SDenergy> sdenergy = std::make_unique<SDenergy>(V, F);
 	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>(V, F);

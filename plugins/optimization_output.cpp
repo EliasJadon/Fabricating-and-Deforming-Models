@@ -707,7 +707,7 @@ void OptimizationOutput::initFaceColors(
 	}
 }
 
-void OptimizationOutput::updateFaceColors(
+void OptimizationOutput::setFaceColors(
 	const int fi, 
 	const Eigen::Vector3f color) 
 {
@@ -719,6 +719,24 @@ void OptimizationOutput::updateFaceColors(
 	color_per_face_norm.row(fi) = color.cast<double>();
 	color_per_sphere_edge.row(fi) = color.cast<double>();
 	color_per_norm_edge.row(fi) = color.cast<double>();
+}
+
+void OptimizationOutput::shiftFaceColors(
+	const int fi, 
+	const double beta,
+	const Eigen::Vector3f model_color,
+	const Eigen::Vector3f color) 
+{
+	assert(beta >= 0 && beta <= 1);
+	auto averaged_c = color.cast<double>() * beta + model_color.cast<double>() * (1 - beta);
+	color_per_face.row(fi) = averaged_c;
+	color_per_sphere_center.row(fi) = averaged_c;
+	color_per_cylinder_dir.row(fi) = averaged_c;
+	color_per_cylinder_edge.row(fi) = averaged_c;
+	color_per_vertex_center.row(fi) = averaged_c;
+	color_per_face_norm.row(fi) = averaged_c;
+	color_per_sphere_edge.row(fi) = averaged_c;
+	color_per_norm_edge.row(fi) = averaged_c;
 }
 
 void OptimizationOutput::initMinimizers(

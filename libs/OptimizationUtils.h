@@ -46,6 +46,41 @@ namespace OptimizationUtils
 		return A;
 	}
 
+	/*static std::vector<std::vector<int>> FaceToHinge_indices(
+		const std::vector<Eigen::Vector2d>& HingeToFace_indices, 
+		const int numFaces)
+	{
+		const int numHinges = HingeToFace_indices.size();
+		std::vector<std::vector<int>> FH = {};
+		for (int fi = 0; fi < numFaces; fi++) {
+			std::vector<int> hingesPerFace = {};
+			for (int hi = 0; hi < numHinges; hi++) {
+				const int f1 = HingeToFace_indices[hi](0);
+				const int f2 = HingeToFace_indices[hi](1);
+				if (fi == f1 || fi == f2)
+					hingesPerFace.push_back(hi);
+			}
+			assert(hingesPerFace.size() <= 3 && hingesPerFace.size() > 0);
+			FH.push_back(hingesPerFace);
+		}
+		return FH;
+	}*/
+
+	static std::vector<int> FaceToHinge_indices(
+		const std::vector<Eigen::Vector2d>& HingeToFace_indices, const int fi)
+	{
+		const int numHinges = HingeToFace_indices.size();
+		std::vector<int> hingesPerFace = {};
+		for (int hi = 0; hi < numHinges; hi++) {
+			const int f1 = HingeToFace_indices[hi](0);
+			const int f2 = HingeToFace_indices[hi](1);
+			if (fi == f1 || fi == f2)
+				hingesPerFace.push_back(hi);
+		} 
+		assert(hingesPerFace.size() <= 3 && hingesPerFace.size() > 0);
+		return hingesPerFace;
+	}
+
 	static void LocalBasis(const Eigen::MatrixX3d &V, const Eigen::MatrixX3i &F, Eigen::MatrixX3d &B1, Eigen::MatrixX3d &B2) {
 		Eigen::MatrixX3d B3;
 		igl::local_basis(V, F, B1, B2, B3);

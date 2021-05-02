@@ -119,6 +119,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const double* curr_x,
 		const Cuda::hinge* hinges_faceIndex,
 		const double* restAreaPerHinge,
+		const double* weightPerHinge,
 		const double planarParameter,
 		const FunctionType functionType,
 		const int hi,
@@ -140,7 +141,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		);
 		double3 diff = sub(N1, N0);
 		double d_normals = squared_norm(diff);
-		return w1 * restAreaPerHinge[hi] *
+		return w1 * restAreaPerHinge[hi] * weightPerHinge[hi] *
 			Phi(d_normals, planarParameter, functionType);
 	}
 	__device__ double Energy2Kernel(
@@ -206,6 +207,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const double* curr_x,
 		const int3* restShapeF,
 		const double* restAreaPerHinge,
+		const double* weightPerHinge,
 		const Cuda::hinge* hinges_faceIndex,
 		const double planarParameter,
 		const FunctionType functionType,
@@ -240,6 +242,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 				curr_x,
 				hinges_faceIndex,
 				restAreaPerHinge,
+				weightPerHinge,
 				planarParameter,
 				functionType,
 				Global_idx - (2 * mesh_indices.num_faces),
@@ -262,6 +265,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const double* X,
 		const Cuda::hinge* hinges_faceIndex,
 		const double* restAreaPerHinge,
+		const double* weightPerHinge,
 		const double planarParameter,
 		const FunctionType functionType,
 		const double w1,
@@ -286,7 +290,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		double3 diff = sub(N1, N0);
 		double d_normals = squared_norm(diff);
 
-		double coeff = w1 * restAreaPerHinge[hi] * dPhi_dm(d_normals, planarParameter, functionType);
+		double coeff = w1 * restAreaPerHinge[hi]* weightPerHinge[hi] * dPhi_dm(d_normals, planarParameter, functionType);
 
 		if (thread == 0) //n0.x;
 			atomicAdd(&grad[f0 + I.startNx], coeff * 2 * (N0.x - N1.x), 0);
@@ -398,6 +402,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const Cuda::hinge* hinges_faceIndex,
 		const int3* restShapeF,
 		const double* restAreaPerHinge,
+		const double* weightPerHinge,
 		const double planarParameter,
 		const FunctionType functionType,
 		const double w1,
@@ -435,6 +440,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 				X,
 				hinges_faceIndex,
 				restAreaPerHinge,
+				weightPerHinge,
 				planarParameter,
 				functionType,
 				w1,
@@ -454,6 +460,7 @@ void Cuda_AuxBendingNormal::value(Cuda::Array<double>& curr_x) {
 		curr_x.cuda_arr,
 		restShapeF.cuda_arr,
 		restAreaPerHinge.cuda_arr,
+		weightPerHinge.cuda_arr,
 		hinges_faceIndex.cuda_arr,
 		planarParameter,
 		functionType,
@@ -469,6 +476,7 @@ void Cuda_AuxBendingNormal::gradient(Cuda::Array<double>& X)
 		hinges_faceIndex.cuda_arr,
 		restShapeF.cuda_arr,
 		restAreaPerHinge.cuda_arr,
+		weightPerHinge.cuda_arr,
 		planarParameter, functionType,
 		w1, w2, w3, mesh_indices);
 }
@@ -486,6 +494,7 @@ Cuda_AuxBendingNormal::~Cuda_AuxBendingNormal() {
 	FreeMemory(grad);
 	FreeMemory(restAreaPerFace);
 	FreeMemory(restAreaPerHinge);
+	FreeMemory(weightPerHinge);
 	FreeMemory(EnergyAtomic);
 	FreeMemory(hinges_faceIndex);
 	FreeMemory(x0_GlobInd);

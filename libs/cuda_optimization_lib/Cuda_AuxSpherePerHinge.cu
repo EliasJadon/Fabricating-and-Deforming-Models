@@ -118,6 +118,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const double* curr_x,
 		const Cuda::hinge* hinges_faceIndex,
 		const double* restAreaPerHinge,
+		const double* weightPerHinge,
 		const double planarParameter,
 		const FunctionType functionType,
 		const int hi,
@@ -139,7 +140,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		);
 		double d_center = squared_norm(sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
-		return w1 * restAreaPerHinge[hi] *
+		return w1 * restAreaPerHinge[hi] * weightPerHinge[hi] *
 			Phi(d_center + d_radius, planarParameter, functionType);
 	}
 	__device__ double Energy2Kernel(
@@ -188,6 +189,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const double* curr_x,
 		const int3* restShapeF,
 		const double* restAreaPerHinge,
+		const double* weightPerHinge,
 		const Cuda::hinge* hinges_faceIndex,
 		const double planarParameter,
 		const FunctionType functionType,
@@ -215,6 +217,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 				curr_x,
 				hinges_faceIndex,
 				restAreaPerHinge,
+				weightPerHinge,
 				planarParameter,
 				functionType,
 				Global_idx - mesh_indices.num_faces, //hi
@@ -236,6 +239,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const double* X,
 		const Cuda::hinge* hinges_faceIndex,
 		const double* restAreaPerHinge,
+		const double* weightPerHinge,
 		const double planarParameter,
 		const FunctionType functionType,
 		const double w1,
@@ -261,7 +265,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		);
 		double d_center = squared_norm(sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
-		double coeff = 2 * w1 * restAreaPerHinge[hi] * dPhi_dm(d_center + d_radius, planarParameter, functionType);
+		double coeff = 2 * w1 * restAreaPerHinge[hi] * weightPerHinge[hi]* dPhi_dm(d_center + d_radius, planarParameter, functionType);
 
 		if (thread == 0)
 			atomicAdd(&grad[f0 + I.startCx], (C0.x - C1.x) * coeff, 0); //C0.x
@@ -365,6 +369,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const Cuda::hinge* hinges_faceIndex,
 		const int3* restShapeF,
 		const double* restAreaPerHinge,
+		const double* weightPerHinge,
 		const double planarParameter,
 		const FunctionType functionType,
 		const double w1,
@@ -389,6 +394,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 				X,
 				hinges_faceIndex,
 				restAreaPerHinge,
+				weightPerHinge,
 				planarParameter,
 				functionType,
 				w1,
@@ -408,6 +414,7 @@ void Cuda_AuxSpherePerHinge::value(Cuda::Array<double>& curr_x) {
 		curr_x.cuda_arr,
 		restShapeF.cuda_arr,
 		restAreaPerHinge.cuda_arr,
+		weightPerHinge.cuda_arr,
 		hinges_faceIndex.cuda_arr,
 		planarParameter,
 		functionType,
@@ -423,6 +430,7 @@ void Cuda_AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 		hinges_faceIndex.cuda_arr,
 		restShapeF.cuda_arr,
 		restAreaPerHinge.cuda_arr,
+		weightPerHinge.cuda_arr,
 		planarParameter, functionType,
 		w1, w2, mesh_indices);
 }
@@ -440,6 +448,7 @@ Cuda_AuxSpherePerHinge::~Cuda_AuxSpherePerHinge() {
 	FreeMemory(grad);
 	FreeMemory(restAreaPerFace);
 	FreeMemory(restAreaPerHinge);
+	FreeMemory(weightPerHinge);
 	FreeMemory(EnergyAtomic);
 	FreeMemory(hinges_faceIndex);
 	FreeMemory(x0_GlobInd);

@@ -14,6 +14,8 @@ private:
 	void internalInitCuda();
 public:
 	std::shared_ptr<Cuda_AuxBendingNormal> cuda_ABN;
+	void UpdateHingesWeights(const std::vector<int> faces, const double add);
+	void ClearHingesWeights();
 	AuxBendingNormal(
 		const Eigen::MatrixXd& V, 
 		const Eigen::MatrixX3i& F,

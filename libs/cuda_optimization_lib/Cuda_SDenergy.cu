@@ -146,8 +146,8 @@ namespace Utils_Cuda_SDenergy {
 			const double b2 = b * b;
 			const double c2 = c * c;
 			const double d2 = d * d;
-			Energy[fi] = 0.5 * restShapeArea[fi] * (1 + 1 / detJ2) * (a2 + b2 + c2 + d2);
-			energy_value[tid] = Energy[fi];
+			Energy[fi] = 0.5 * (1 + 1 / detJ2) * (a2 + b2 + c2 + d2);
+			energy_value[tid] = restShapeArea[fi] * Energy[fi];
 		}		
 
 		__syncthreads();

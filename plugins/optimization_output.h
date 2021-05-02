@@ -9,7 +9,8 @@ private:
 	Eigen::MatrixXd faces_normals;
 	Eigen::VectorXd radius_of_sphere;
 public:
-
+	std::shared_ptr <AuxSpherePerHinge> Energy_auxSpherePerHinge;
+	std::shared_ptr <AuxBendingNormal> Energy_auxBendingNormal;
 	std::shared_ptr <FixChosenConstraints> Energy_FixChosenVertices;
 	std::shared_ptr <FixChosenConstraints> Energy_FixChosenNormals;
 	std::shared_ptr< FixChosenConstraints> Energy_FixChosenSpheres;
@@ -115,7 +116,8 @@ public:
 		const Eigen::Vector3f per_cylinder_dir_color,
 		const Eigen::Vector3f per_cylinder_edge_color,
 		const Eigen::Vector3f face_norm_color);
-	void updateFaceColors(const int fi, const Eigen::Vector3f color);
+	void setFaceColors(const int fi, const Eigen::Vector3f color);
+	void shiftFaceColors(const int fi, const double beta, const Eigen::Vector3f model_color, const Eigen::Vector3f color);
 	void initMinimizers(
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixXi& F,

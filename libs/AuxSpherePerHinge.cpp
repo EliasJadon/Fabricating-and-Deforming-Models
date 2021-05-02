@@ -44,6 +44,7 @@ void AuxSpherePerHinge::internalInitCuda() {
 
 	Cuda::AllocateMemory(cuda_ASH->restShapeF, numF);
 	Cuda::AllocateMemory(cuda_ASH->restAreaPerFace, numF);
+	Cuda::AllocateMemory(cuda_ASH->weightPerHinge, numH);
 	Cuda::AllocateMemory(cuda_ASH->restAreaPerHinge, numH);
 	Cuda::AllocateMemory(cuda_ASH->grad, (3 * numV) + (10 * numF));
 	Cuda::AllocateMemory(cuda_ASH->EnergyAtomic, 1);
@@ -66,6 +67,7 @@ void AuxSpherePerHinge::internalInitCuda() {
 		cuda_ASH->restAreaPerFace.host_arr[f] = restAreaPerFace[f];
 	}
 	for (int h = 0; h < num_hinges; h++) {
+		cuda_ASH->weightPerHinge.host_arr[h] = 1;
 		cuda_ASH->restAreaPerHinge.host_arr[h] = restAreaPerHinge[h];
 		cuda_ASH->hinges_faceIndex.host_arr[h] = Cuda::newHinge(hinges_faceIndex[h][0], hinges_faceIndex[h][1]);
 		cuda_ASH->x0_GlobInd.host_arr[h] = x0_GlobInd[h];
@@ -82,6 +84,7 @@ void AuxSpherePerHinge::internalInitCuda() {
 	Cuda::MemCpyHostToDevice(cuda_ASH->grad);
 	Cuda::MemCpyHostToDevice(cuda_ASH->restShapeF);
 	Cuda::MemCpyHostToDevice(cuda_ASH->restAreaPerFace);
+	Cuda::MemCpyHostToDevice(cuda_ASH->weightPerHinge);
 	Cuda::MemCpyHostToDevice(cuda_ASH->restAreaPerHinge);
 	Cuda::MemCpyHostToDevice(cuda_ASH->hinges_faceIndex);
 	Cuda::MemCpyHostToDevice(cuda_ASH->x0_GlobInd);
@@ -225,6 +228,32 @@ void AuxSpherePerHinge::calculateHinges() {
 		else if (V3 == x1_GlobInd(hi))
 			x1_LocInd(hi, 1) = 2;
 	}
+}
+
+void AuxSpherePerHinge::UpdateHingesWeights(
+	const std::vector<int> faces_indices, 
+	const double add) 
+{
+	for (int fi : faces_indices) {
+		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, fi);
+		for (int hi : H) {
+			cuda_ASH->weightPerHinge.host_arr[hi] += add;
+			if (cuda_ASH->weightPerHinge.host_arr[hi] < 0) {
+				cuda_ASH->weightPerHinge.host_arr[hi] = 0;
+			}
+		}
+	}
+	/*for (int hi = 0; hi < num_hinges; hi++) {
+		std::cout << hi << ":\t" << cuda_ASH->weightPerHinge.host_arr[hi] << "\n";
+	}*/
+	Cuda::MemCpyHostToDevice(cuda_ASH->weightPerHinge);
+}
+
+void AuxSpherePerHinge::ClearHingesWeights() {
+	for (int hi = 0; hi < num_hinges; hi++) {
+		cuda_ASH->weightPerHinge.host_arr[hi] = 1;
+	}
+	Cuda::MemCpyHostToDevice(cuda_ASH->weightPerHinge);
 }
 
 void AuxSpherePerHinge::value(Cuda::Array<double>& curr_x)

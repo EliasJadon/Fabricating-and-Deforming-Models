@@ -45,6 +45,7 @@ void AuxBendingNormal::internalInitCuda() {
 	Cuda::AllocateMemory(cuda_ABN->restShapeF, numF);
 	Cuda::AllocateMemory(cuda_ABN->restAreaPerFace,numF);
 	Cuda::AllocateMemory(cuda_ABN->restAreaPerHinge,numH);
+	Cuda::AllocateMemory(cuda_ABN->weightPerHinge, numH);
 	Cuda::AllocateMemory(cuda_ABN->grad, (3 * numV) + (10 * numF));
 	Cuda::AllocateMemory(cuda_ABN->EnergyAtomic,1);
 	Cuda::AllocateMemory(cuda_ABN->hinges_faceIndex,numH);
@@ -67,6 +68,7 @@ void AuxBendingNormal::internalInitCuda() {
 	}
 	for (int h = 0; h < num_hinges; h++) {
 		cuda_ABN->restAreaPerHinge.host_arr[h] = restAreaPerHinge[h];
+		cuda_ABN->weightPerHinge.host_arr[h] = 1;
 		cuda_ABN->hinges_faceIndex.host_arr[h] = Cuda::newHinge(hinges_faceIndex[h][0], hinges_faceIndex[h][1]);
 		cuda_ABN->x0_GlobInd.host_arr[h] = x0_GlobInd[h];
 		cuda_ABN->x1_GlobInd.host_arr[h] = x1_GlobInd[h];
@@ -83,6 +85,7 @@ void AuxBendingNormal::internalInitCuda() {
 	Cuda::MemCpyHostToDevice(cuda_ABN->restShapeF);
 	Cuda::MemCpyHostToDevice(cuda_ABN->restAreaPerFace);
 	Cuda::MemCpyHostToDevice(cuda_ABN->restAreaPerHinge);
+	Cuda::MemCpyHostToDevice(cuda_ABN->weightPerHinge);
 	Cuda::MemCpyHostToDevice(cuda_ABN->hinges_faceIndex);
 	Cuda::MemCpyHostToDevice(cuda_ABN->x0_GlobInd);
 	Cuda::MemCpyHostToDevice(cuda_ABN->x1_GlobInd);
@@ -225,6 +228,39 @@ void AuxBendingNormal::calculateHinges() {
 		else if (V3 == x1_GlobInd(hi))
 			x1_LocInd(hi, 1) = 2;
 	}
+}
+
+void AuxBendingNormal::UpdateHingesWeights(
+	const std::vector<int> faces_indices,
+	const double add)
+{
+	std::cout << "--------------------------------------------------------\n";
+	for (int fi : faces_indices) {
+		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, fi);
+		std::cout << "fi = " << fi << "\n";
+
+		std::cout << "H = "; 
+		
+		for (int hi : H) {
+			std::cout << hi << " ";
+			cuda_ABN->weightPerHinge.host_arr[hi] += add;
+			if (cuda_ABN->weightPerHinge.host_arr[hi] < 0) {
+				cuda_ABN->weightPerHinge.host_arr[hi] = 0;
+			}
+		}
+		std::cout << "\n";
+	}
+	for (int hi = 0; hi < num_hinges; hi++) {
+		std::cout << hi << ":\t" << cuda_ABN->weightPerHinge.host_arr[hi] << "\n";
+	}
+	Cuda::MemCpyHostToDevice(cuda_ABN->weightPerHinge);
+}
+
+void AuxBendingNormal::ClearHingesWeights() {
+	for (int hi = 0; hi < num_hinges; hi++) {
+		cuda_ABN->weightPerHinge.host_arr[hi] = 1;
+	}
+	Cuda::MemCpyHostToDevice(cuda_ABN->weightPerHinge);
 }
 
 void AuxBendingNormal::value(Cuda::Array<double>& curr_x)

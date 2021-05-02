@@ -12,7 +12,7 @@ public:
 
 	//Static variables
 	Cuda::Array<int3> restShapeF;
-	Cuda::Array<double> restAreaPerFace, restAreaPerHinge; 
+	Cuda::Array<double> restAreaPerFace, restAreaPerHinge, weightPerHinge; 
 	Cuda::indices mesh_indices;
 	Cuda::Array<Cuda::hinge> hinges_faceIndex;
 	Cuda::Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd; 
