@@ -329,6 +329,66 @@ void AuxSpherePerHinge::ClearHingesWeights() {
 void AuxSpherePerHinge::value(Cuda::Array<double>& curr_x)
 {
 	cuda_ASH->value(curr_x);
+	return;
+	
+	Cuda::MemCpyDeviceToHost(curr_x);
+	cuda_ASH->EnergyAtomic.host_arr[0] = 0;
+
+	auto& I = cuda_ASH->mesh_indices;
+	for (int hi = 0; hi < num_hinges; hi++) {
+		int f0 = cuda_ASH->hinges_faceIndex.host_arr[hi].f0;
+		int f1 = cuda_ASH->hinges_faceIndex.host_arr[hi].f1;
+		double R0 = curr_x.host_arr[f0 + I.startR];
+		double R1 = curr_x.host_arr[f1 + I.startR];
+		double3 C0 = make_double3(
+			curr_x.host_arr[f0 + I.startCx],
+			curr_x.host_arr[f0 + I.startCy],
+			curr_x.host_arr[f0 + I.startCz]
+		);
+		double3 C1 = make_double3(
+			curr_x.host_arr[f1 + I.startCx],
+			curr_x.host_arr[f1 + I.startCy],
+			curr_x.host_arr[f1 + I.startCz]
+		);
+		double d_center = EliasMath::squared_norm(EliasMath::sub(C1, C0));
+		double d_radius = pow(R1 - R0, 2);
+		cuda_ASH->EnergyAtomic.host_arr[0] += cuda_ASH->w1 * restAreaPerHinge[hi] * cuda_ASH->weightPerHinge.host_arr[hi] *
+			EliasMath::Phi(d_center + d_radius, cuda_ASH->planarParameter, cuda_ASH->functionType, cuda_ASH->weightPerHinge.host_arr[hi]);
+	}
+	
+
+	for (int fi = 0; fi < restShapeF.rows(); fi++) {
+		const unsigned int x0 = cuda_ASH->restShapeF.host_arr[fi].x;
+		const unsigned int x1 = cuda_ASH->restShapeF.host_arr[fi].y;
+		const unsigned int x2 = cuda_ASH->restShapeF.host_arr[fi].z;
+		double3 V0 = make_double3(
+			curr_x.host_arr[x0 + I.startVx],
+			curr_x.host_arr[x0 + I.startVy],
+			curr_x.host_arr[x0 + I.startVz]
+		);
+		double3 V1 = make_double3(
+			curr_x.host_arr[x1 + I.startVx],
+			curr_x.host_arr[x1 + I.startVy],
+			curr_x.host_arr[x1 + I.startVz]
+		);
+		double3 V2 = make_double3(
+			curr_x.host_arr[x2 + I.startVx],
+			curr_x.host_arr[x2 + I.startVy],
+			curr_x.host_arr[x2 + I.startVz]
+		);
+		double3 C = make_double3(
+			curr_x.host_arr[fi + I.startCx],
+			curr_x.host_arr[fi + I.startCy],
+			curr_x.host_arr[fi + I.startCz]
+		);
+		double R = curr_x.host_arr[fi + I.startR];
+		double res =
+			pow(EliasMath::squared_norm(EliasMath::sub(V0, C)) - pow(R, 2), 2) +
+			pow(EliasMath::squared_norm(EliasMath::sub(V1, C)) - pow(R, 2), 2) +
+			pow(EliasMath::squared_norm(EliasMath::sub(V2, C)) - pow(R, 2), 2);
+		cuda_ASH->EnergyAtomic.host_arr[0] += cuda_ASH->w2 * res;
+	}
+	Cuda::MemCpyHostToDevice(cuda_ASH->EnergyAtomic);
 }
 
 void AuxSpherePerHinge::pre_minimizer() {
@@ -342,7 +402,6 @@ void AuxSpherePerHinge::pre_minimizer() {
 
 void AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 {
-	//cuda_ASH->gradient(X);
 	Cuda::MemCpyDeviceToHost(X);
 	for (int i = 0; i < cuda_ASH->grad.size; i++)
 		cuda_ASH->grad.host_arr[i] = 0;
@@ -439,7 +498,5 @@ void AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 				(E1 * (-1) * R) +
 				(E2 * (-1) * R); //r
 	}
-	
-	
 	Cuda::MemCpyHostToDevice(cuda_ASH->grad);
 }
