@@ -13,6 +13,7 @@ private:
 	void calculateHinges();	
 	void internalInitCuda();
 public:
+	void pre_minimizer();
 	std::shared_ptr<Cuda_AuxBendingNormal> cuda_ABN;
 	void UpdateHingesWeights(const std::vector<int> faces, const double add);
 	void ClearHingesWeights();

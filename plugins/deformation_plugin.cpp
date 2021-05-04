@@ -1296,19 +1296,19 @@ void deformation_plugin::brush_erase_or_insert()
 {
 	if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
 	{
-		double shift = 10;
+		double factor = 10;
 		if (EraseOrInsert != INSERT)
-			shift = -0.05;
-		std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
+			factor = -4;
+		const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
 		if (UserInterface_UpdateAllOutputs) {
 			for (auto& out : Outputs) {
-				out.Energy_auxBendingNormal->UpdateHingesWeights(brush_faces, shift);
-				out.Energy_auxSpherePerHinge->UpdateHingesWeights(brush_faces, shift);
+				out.Energy_auxBendingNormal->UpdateHingesWeights(brush_faces, factor);
+				out.Energy_auxSpherePerHinge->UpdateHingesWeights(brush_faces, factor);
 			}
 		}		
 		else {
-			Outputs[Brush_output_index].Energy_auxBendingNormal->UpdateHingesWeights(brush_faces, shift);
-			Outputs[Brush_output_index].Energy_auxSpherePerHinge->UpdateHingesWeights(brush_faces, shift);
+			Outputs[Brush_output_index].Energy_auxBendingNormal->UpdateHingesWeights(brush_faces, factor);
+			Outputs[Brush_output_index].Energy_auxSpherePerHinge->UpdateHingesWeights(brush_faces, factor);
 		}
 	}
 }

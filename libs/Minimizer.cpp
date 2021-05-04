@@ -66,6 +66,10 @@ int Minimizer::run()
 	int lambda_counter = 0;
 	do 
 	{
+		std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
+		std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(totalObjective->objectiveList[1]);
+		ASH->pre_minimizer();
+		ABN->pre_minimizer();
 		run_one_iteration(numIteration, &lambda_counter, false);
 		numIteration++;
 	} while (!halt);

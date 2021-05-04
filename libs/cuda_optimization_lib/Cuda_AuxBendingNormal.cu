@@ -11,10 +11,11 @@ namespace Utils_Cuda_AuxBendingNormal {
 	__device__ double Phi(
 		const double x,
 		const double planarParameter,
-		const FunctionType functionType)
+		const FunctionType functionType,
+		const double weight)
 	{
 		if (functionType == FunctionType::SIGMOID) {
-			double x2 = pow(x, 2);
+			double x2 = pow(x / weight, 2);
 			return x2 / (x2 + planarParameter);
 		}
 		if (functionType == FunctionType::QUADRATIC)
@@ -78,10 +79,12 @@ namespace Utils_Cuda_AuxBendingNormal {
 	__device__ double dPhi_dm(
 		const double x,
 		const double planarParameter,
-		const FunctionType functionType)
+		const FunctionType functionType,
+		const double weight)
 	{
+		const double w2 = pow(weight, 2);
 		if (functionType == FunctionType::SIGMOID)
-			return (2 * x * planarParameter) / pow(x * x + planarParameter, 2);
+			return (2 * x * w2 * planarParameter) / pow(x * x + planarParameter * w2, 2);
 		if (functionType == FunctionType::QUADRATIC)
 			return 2 * x;
 		if (functionType == FunctionType::EXPONENTIAL)
@@ -142,7 +145,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		double3 diff = sub(N1, N0);
 		double d_normals = squared_norm(diff);
 		return w1 * restAreaPerHinge[hi] * weightPerHinge[hi] *
-			Phi(d_normals, planarParameter, functionType);
+			Phi(d_normals, planarParameter, functionType, weightPerHinge[hi]);
 	}
 	__device__ double Energy2Kernel(
 		const double w2,
@@ -290,7 +293,8 @@ namespace Utils_Cuda_AuxBendingNormal {
 		double3 diff = sub(N1, N0);
 		double d_normals = squared_norm(diff);
 
-		double coeff = w1 * restAreaPerHinge[hi]* weightPerHinge[hi] * dPhi_dm(d_normals, planarParameter, functionType);
+		double coeff = w1 * restAreaPerHinge[hi]* weightPerHinge[hi] * 
+			dPhi_dm(d_normals, planarParameter, functionType, weightPerHinge[hi]);
 
 		if (thread == 0) //n0.x;
 			atomicAdd(&grad[f0 + I.startNx], coeff * 2 * (N0.x - N1.x), 0);

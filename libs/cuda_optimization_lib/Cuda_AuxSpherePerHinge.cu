@@ -10,10 +10,11 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 	__device__ double Phi(
 		const double x,
 		const double planarParameter,
-		const FunctionType functionType)
+		const FunctionType functionType,
+		const double weight)
 	{
 		if (functionType == FunctionType::SIGMOID) {
-			double x2 = pow(x, 2);
+			double x2 = pow(x / weight, 2);
 			return x2 / (x2 + planarParameter);
 		}
 		if (functionType == FunctionType::QUADRATIC)
@@ -77,10 +78,12 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 	__device__ double dPhi_dm(
 		const double x,
 		const double planarParameter,
-		const FunctionType functionType)
+		const FunctionType functionType,
+		const double weight)
 	{
+		const double w2 = pow(weight, 2);
 		if (functionType == FunctionType::SIGMOID)
-			return (2 * x * planarParameter) / pow(x * x + planarParameter, 2);
+			return (2 * x * w2 * planarParameter) / pow(x * x + planarParameter * w2, 2);
 		if (functionType == FunctionType::QUADRATIC)
 			return 2 * x;
 		if (functionType == FunctionType::EXPONENTIAL)
@@ -141,7 +144,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		double d_center = squared_norm(sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
 		return w1 * restAreaPerHinge[hi] * weightPerHinge[hi] *
-			Phi(d_center + d_radius, planarParameter, functionType);
+			Phi(d_center + d_radius, planarParameter, functionType, weightPerHinge[hi]);
 	}
 	__device__ double Energy2Kernel(
 		const double w2,
@@ -265,7 +268,8 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		);
 		double d_center = squared_norm(sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
-		double coeff = 2 * w1 * restAreaPerHinge[hi] * weightPerHinge[hi]* dPhi_dm(d_center + d_radius, planarParameter, functionType);
+		double coeff = 2 * w1 * restAreaPerHinge[hi] * weightPerHinge[hi] *
+			dPhi_dm(d_center + d_radius, planarParameter, functionType, weightPerHinge[hi]);
 
 		if (thread == 0)
 			atomicAdd(&grad[f0 + I.startCx], (C0.x - C1.x) * coeff, 0); //C0.x

@@ -3,6 +3,79 @@
 #include <igl/triangle_triangle_adjacency.h>
 
 
+namespace EliasMath {
+	double Phi(
+		const double x,
+		const double planarParameter,
+		const FunctionType functionType,
+		const double weight)
+	{
+		if (functionType == FunctionType::SIGMOID) {
+			double x2 = pow(x / weight, 2);
+			return x2 / (x2 + planarParameter);
+		}
+		if (functionType == FunctionType::QUADRATIC)
+			return pow(x, 2);
+		if (functionType == FunctionType::EXPONENTIAL)
+			return exp(x * x);
+	}
+	double3 sub(const double3 a, const double3 b)
+	{
+		return make_double3(a.x - b.x, a.y - b.y, a.z - b.z);
+	}
+	double3 add(double3 a, double3 b)
+	{
+		return make_double3(a.x + b.x, a.y + b.y, a.z + b.z);
+	}
+	double dot(const double3 a, const double3 b)
+	{
+		return a.x * b.x + a.y * b.y + a.z * b.z;
+	}
+	double3 mul(const double a, const double3 b)
+	{
+		return make_double3(a * b.x, a * b.y, a * b.z);
+	}
+	double squared_norm(const double3 a)
+	{
+		return dot(a, a);
+	}
+	double norm(const double3 a)
+	{
+		return sqrt(squared_norm(a));
+	}
+	double3 normalize(const double3 a)
+	{
+		return mul(1.0f / norm(a), a);
+	}
+	double3 cross(const double3 a, const double3 b)
+	{
+		return make_double3(
+			a.y * b.z - a.z * b.y,
+			a.z * b.x - a.x * b.z,
+			a.x * b.y - a.y * b.x
+		);
+	}
+	double dPhi_dm(
+		const double x,
+		const double planarParameter,
+		const FunctionType functionType,
+		const double weight)
+	{
+		const double w2 = pow(weight, 2);
+		if (functionType == FunctionType::SIGMOID)
+			return (2 * x * w2 * planarParameter) / pow(x * x + planarParameter * w2, 2);
+		if (functionType == FunctionType::QUADRATIC)
+			return 2 * x;
+		if (functionType == FunctionType::EXPONENTIAL)
+			return 2 * x * exp(x * x);
+	}
+}
+
+
+
+
+
+
 AuxSpherePerHinge::AuxSpherePerHinge(
 	const Eigen::MatrixXd& V, 
 	const Eigen::MatrixX3i& F,
@@ -238,14 +311,11 @@ void AuxSpherePerHinge::UpdateHingesWeights(
 		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, fi);
 		for (int hi : H) {
 			cuda_ASH->weightPerHinge.host_arr[hi] += add;
-			if (cuda_ASH->weightPerHinge.host_arr[hi] < 0) {
-				cuda_ASH->weightPerHinge.host_arr[hi] = 0;
+			if (cuda_ASH->weightPerHinge.host_arr[hi] < 1e-10) {
+				cuda_ASH->weightPerHinge.host_arr[hi] = 1e-10;
 			}
 		}
 	}
-	/*for (int hi = 0; hi < num_hinges; hi++) {
-		std::cout << hi << ":\t" << cuda_ASH->weightPerHinge.host_arr[hi] << "\n";
-	}*/
 	Cuda::MemCpyHostToDevice(cuda_ASH->weightPerHinge);
 }
 
@@ -261,7 +331,115 @@ void AuxSpherePerHinge::value(Cuda::Array<double>& curr_x)
 	cuda_ASH->value(curr_x);
 }
 
+void AuxSpherePerHinge::pre_minimizer() {
+	/*for (int hi = 0; hi < num_hinges; hi++) {
+		cuda_ASH->weightPerHinge.host_arr[hi] -= 0.1;
+		if (cuda_ASH->weightPerHinge.host_arr[hi] < 1)
+			cuda_ASH->weightPerHinge.host_arr[hi] = 1;
+	}
+	Cuda::MemCpyHostToDevice(cuda_ASH->weightPerHinge);*/
+}
+
 void AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 {
-	cuda_ASH->gradient(X);
+	//cuda_ASH->gradient(X);
+	Cuda::MemCpyDeviceToHost(X);
+	for (int i = 0; i < cuda_ASH->grad.size; i++)
+		cuda_ASH->grad.host_arr[i] = 0;
+
+	for (int hi = 0; hi < num_hinges; hi++) {
+		int f0 = cuda_ASH->hinges_faceIndex.host_arr[hi].f0;
+		int f1 = cuda_ASH->hinges_faceIndex.host_arr[hi].f1;
+		if (f0 >= cuda_ASH->mesh_indices.num_faces || f1 >= cuda_ASH->mesh_indices.num_faces) {
+			std::cerr << "Error: in AuxSpherePerHinge::gradient!";
+			exit(-1);
+		}
+		double R0 = X.host_arr[f0 + cuda_ASH->mesh_indices.startR];
+		double R1 = X.host_arr[f1 + cuda_ASH->mesh_indices.startR];
+		double3 C0 = make_double3(
+			X.host_arr[f0 + cuda_ASH->mesh_indices.startCx],
+			X.host_arr[f0 + cuda_ASH->mesh_indices.startCy],
+			X.host_arr[f0 + cuda_ASH->mesh_indices.startCz]
+		);
+		double3 C1 = make_double3(
+			X.host_arr[f1 + cuda_ASH->mesh_indices.startCx],
+			X.host_arr[f1 + cuda_ASH->mesh_indices.startCy],
+			X.host_arr[f1 + cuda_ASH->mesh_indices.startCz]
+		);
+		double d_center = EliasMath::squared_norm(EliasMath::sub(C1, C0));
+		double d_radius = pow(R1 - R0, 2);
+		double coeff = 2 * cuda_ASH->w1 * restAreaPerHinge[hi] * cuda_ASH->weightPerHinge.host_arr[hi] *
+			EliasMath::dPhi_dm(d_center + d_radius, cuda_ASH->planarParameter, cuda_ASH->functionType, cuda_ASH->weightPerHinge.host_arr[hi]);
+
+		cuda_ASH->grad.host_arr[f0 + cuda_ASH->mesh_indices.startCx] += (C0.x - C1.x) * coeff; //C0.x
+		cuda_ASH->grad.host_arr[f0 + cuda_ASH->mesh_indices.startCy] += (C0.y - C1.y) * coeff;	//C0.y
+		cuda_ASH->grad.host_arr[f0 + cuda_ASH->mesh_indices.startCz] += (C0.z - C1.z) * coeff;	//C0.z
+		cuda_ASH->grad.host_arr[f1 + cuda_ASH->mesh_indices.startCx] += (C1.x - C0.x) * coeff;	//C1.x
+		cuda_ASH->grad.host_arr[f1 + cuda_ASH->mesh_indices.startCy] += (C1.y - C0.y) * coeff;	//C1.y
+		cuda_ASH->grad.host_arr[f1 + cuda_ASH->mesh_indices.startCz] += (C1.z - C0.z) * coeff;	//C1.z
+		cuda_ASH->grad.host_arr[f0 + cuda_ASH->mesh_indices.startR] += (R0 - R1) * coeff;		//r0
+		cuda_ASH->grad.host_arr[f1 + cuda_ASH->mesh_indices.startR] += (R1 - R0) * coeff;		//r1
+	}
+	
+
+	for (int fi = 0; fi < restShapeF.rows(); fi++) {
+		const unsigned int x0 = cuda_ASH->restShapeF.host_arr[fi].x;
+		const unsigned int x1 = cuda_ASH->restShapeF.host_arr[fi].y;
+		const unsigned int x2 = cuda_ASH->restShapeF.host_arr[fi].z;
+		double3 V0 = make_double3(
+			X.host_arr[x0 + cuda_ASH->mesh_indices.startVx],
+			X.host_arr[x0 + cuda_ASH->mesh_indices.startVy],
+			X.host_arr[x0 + cuda_ASH->mesh_indices.startVz]
+		);
+		double3 V1 = make_double3(
+			X.host_arr[x1 + cuda_ASH->mesh_indices.startVx],
+			X.host_arr[x1 + cuda_ASH->mesh_indices.startVy],
+			X.host_arr[x1 + cuda_ASH->mesh_indices.startVz]
+		);
+		double3 V2 = make_double3(
+			X.host_arr[x2 + cuda_ASH->mesh_indices.startVx],
+			X.host_arr[x2 + cuda_ASH->mesh_indices.startVy],
+			X.host_arr[x2 + cuda_ASH->mesh_indices.startVz]
+		);
+		double3 C = make_double3(
+			X.host_arr[fi + cuda_ASH->mesh_indices.startCx],
+			X.host_arr[fi + cuda_ASH->mesh_indices.startCy],
+			X.host_arr[fi + cuda_ASH->mesh_indices.startCz]
+		);
+		double R = X.host_arr[fi + cuda_ASH->mesh_indices.startR];
+
+		double coeff = cuda_ASH->w2 * 4;
+		double E0 = coeff * (EliasMath::squared_norm(EliasMath::sub(V0, C)) - pow(R, 2));
+		double E1 = coeff * (EliasMath::squared_norm(EliasMath::sub(V1, C)) - pow(R, 2));
+		double E2 = coeff * (EliasMath::squared_norm(EliasMath::sub(V2, C)) - pow(R, 2));
+
+		cuda_ASH->grad.host_arr[x0 + cuda_ASH->mesh_indices.startVx] += E0 * (V0.x - C.x); // V0x
+		cuda_ASH->grad.host_arr[x0 + cuda_ASH->mesh_indices.startVy] += E0 * (V0.y - C.y); // V0y
+		cuda_ASH->grad.host_arr[x0 + cuda_ASH->mesh_indices.startVz] += E0 * (V0.z - C.z); // V0z
+		cuda_ASH->grad.host_arr[x1 + cuda_ASH->mesh_indices.startVx] += E1 * (V1.x - C.x); // V1x
+		cuda_ASH->grad.host_arr[x1 + cuda_ASH->mesh_indices.startVy] += E1 * (V1.y - C.y); // V1y
+		cuda_ASH->grad.host_arr[x1 + cuda_ASH->mesh_indices.startVz] += E1 * (V1.z - C.z); // V1z
+		cuda_ASH->grad.host_arr[x2 + cuda_ASH->mesh_indices.startVx] += E2 * (V2.x - C.x); // V2x
+		cuda_ASH->grad.host_arr[x2 + cuda_ASH->mesh_indices.startVy] += E2 * (V2.y - C.y); // V2y
+		cuda_ASH->grad.host_arr[x2 + cuda_ASH->mesh_indices.startVz] += E2 * (V2.z - C.z); // V2z
+		cuda_ASH->grad.host_arr[fi + cuda_ASH->mesh_indices.startCx] +=
+			(E0 * (C.x - V0.x)) +
+				(E1 * (C.x - V1.x)) +
+				(E2 * (C.x - V2.x)); // Cx
+		cuda_ASH->grad.host_arr[fi + cuda_ASH->mesh_indices.startCy] +=
+			(E0 * (C.y - V0.y)) +
+				(E1 * (C.y - V1.y)) +
+				(E2 * (C.y - V2.y)); // Cy
+		cuda_ASH->grad.host_arr[fi + cuda_ASH->mesh_indices.startCz] +=
+			(E0 * (C.z - V0.z)) +
+				(E1 * (C.z - V1.z)) +
+				(E2 * (C.z - V2.z)); // Cz
+		cuda_ASH->grad.host_arr[fi + cuda_ASH->mesh_indices.startR] +=
+			(E0 * (-1) * R) +
+				(E1 * (-1) * R) +
+				(E2 * (-1) * R); //r
+	}
+	
+	
+	Cuda::MemCpyHostToDevice(cuda_ASH->grad);
 }
