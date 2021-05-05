@@ -152,6 +152,13 @@ void Minimizer::value_linesearch()
 
 void Minimizer::constant_linesearch()
 {
+	
+	//Eigen::VectorXd curr_x = X + step_size * p;
+	cuda_Minimizer->linesearch_currX(constantStep_LineSearch);
+	//X = curr_x;
+	Cuda::copyArrays(cuda_Minimizer->X, cuda_Minimizer->curr_x);
+			
+	//std::cout << "cur_iter = " << cur_iter << std::endl;
 	/*step_size = constantStep_LineSearch;
 	cur_iter = 0;
 	X = X + step_size * p;*/

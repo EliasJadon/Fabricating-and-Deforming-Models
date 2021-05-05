@@ -67,15 +67,26 @@ namespace OptimizationUtils
 	}*/
 
 	static std::vector<int> FaceToHinge_indices(
-		const std::vector<Eigen::Vector2d>& HingeToFace_indices, const int fi)
+		const std::vector<Eigen::Vector2d>& HingeToFace_indices, 
+		const std::vector<int>& faces_indices,
+		const int fi)
 	{
 		const int numHinges = HingeToFace_indices.size();
 		std::vector<int> hingesPerFace = {};
 		for (int hi = 0; hi < numHinges; hi++) {
 			const int f1 = HingeToFace_indices[hi](0);
 			const int f2 = HingeToFace_indices[hi](1);
-			if (fi == f1 || fi == f2)
-				hingesPerFace.push_back(hi);
+			if (fi == f1) {
+				for (int second_f : faces_indices)
+					if(f2 == second_f)
+						hingesPerFace.push_back(hi);
+			}
+			else if (fi == f2) {
+				for (int second_f : faces_indices)
+					if (f1 == second_f)
+						hingesPerFace.push_back(hi);
+			}
+				
 		} 
 		assert(hingesPerFace.size() <= 3 && hingesPerFace.size() > 0);
 		return hingesPerFace;

@@ -235,7 +235,7 @@ void AuxBendingNormal::UpdateHingesWeights(
 	const double add)
 {
 	for (int fi : faces_indices) {
-		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, fi);
+		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
 		for (int hi : H) {
 			cuda_ABN->weightPerHinge.host_arr[hi] += add;
 			if (cuda_ABN->weightPerHinge.host_arr[hi] < 1e-10) {
@@ -260,9 +260,10 @@ void AuxBendingNormal::value(Cuda::Array<double>& curr_x)
 
 void AuxBendingNormal::pre_minimizer() {
 	/*for (int hi = 0; hi < num_hinges; hi++) {
-		cuda_ABN->weightPerHinge.host_arr[hi] -= 0.1;
-		if (cuda_ABN->weightPerHinge.host_arr[hi] < 1)
-			cuda_ABN->weightPerHinge.host_arr[hi] = 1;
+		if (cuda_ABN->weightPerHinge.host_arr[hi] != 1)
+			cuda_ABN->weightPerHinge.host_arr[hi] *= 0.99;
+		if (cuda_ABN->weightPerHinge.host_arr[hi] < 1e-10)
+			cuda_ABN->weightPerHinge.host_arr[hi] = 1e-10;
 	}
 	Cuda::MemCpyHostToDevice(cuda_ABN->weightPerHinge);*/
 }
