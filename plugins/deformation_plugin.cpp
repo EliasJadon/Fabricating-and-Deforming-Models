@@ -663,7 +663,7 @@ void deformation_plugin::CollapsingHeader_minimizer()
 			for (auto& o : Outputs)
 				o.minimizer->lineSearch_type = linesearch_type;
 		}
-		if (linesearch_type == OptimizationUtils::LineSearch::CONSTANT_STEP && ImGui::DragFloat("Step value", &constantStep_LineSearch, 0.0001f, 0.0f, 1.0f)) {
+		if (linesearch_type == OptimizationUtils::LineSearch::CONSTANT_STEP && ImGui::DragFloat("Step value", &constantStep_LineSearch, 0.0001f, 0.0f, 1.0f, "%.7f")) {
 			for (auto& o : Outputs)
 				o.minimizer->constantStep_LineSearch = constantStep_LineSearch;	
 		}
@@ -894,7 +894,8 @@ void deformation_plugin::Draw_energies_window()
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								ABN->cuda_ABN->planarParameter = (ABN->cuda_ABN->planarParameter * 2) > 1 ? 1 : ABN->cuda_ABN->planarParameter * 2;
+								//ABN->cuda_ABN->planarParameter = (ABN->cuda_ABN->planarParameter * 2) > 1 ? 1 : ABN->cuda_ABN->planarParameter * 2;
+								ABN->cuda_ABN->planarParameter *= 2;
 							}
 							ImGui::SameLine();
 							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -911,7 +912,7 @@ void deformation_plugin::Draw_energies_window()
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								AS->cuda_ASH->planarParameter = (AS->cuda_ASH->planarParameter * 2) > 1 ? 1 : AS->cuda_ASH->planarParameter * 2;
+								AS->cuda_ASH->planarParameter *= 2;
 							}
 							ImGui::SameLine();
 							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -927,7 +928,7 @@ void deformation_plugin::Draw_energies_window()
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								ACY->cuda_ACY->planarParameter = (ACY->cuda_ACY->planarParameter * 2) > 1 ? 1 : ACY->cuda_ACY->planarParameter * 2;
+								ACY->cuda_ACY->planarParameter *= 2;
 							}
 							ImGui::SameLine();
 							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -1556,6 +1557,16 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 {
 	if ((key == 'c' || key == 'C') && modifiers == 1)
 		clear_sellected_faces_and_vertices();
+	if ((key == 'x' || key == 'X') && modifiers == 1) {
+		if (clusteringType == app_utils::ClusteringType::RGB_SPHERE ||
+			clusteringType == app_utils::ClusteringType::RGB_NORMAL)
+			clusteringType = app_utils::ClusteringType::NO_CLUSTERING;
+		else {
+			clusteringType = app_utils::ClusteringType::RGB_SPHERE;
+			if (neighborType == app_utils::NeighborType::LOCAL_NORMALS)
+				clusteringType = app_utils::ClusteringType::RGB_NORMAL;
+		}
+	}
 	if ((key == 'a' || key == 'A') && modifiers == 1) 
 	{
 		modelPath = OptimizationUtils::ProjectPath() + 
