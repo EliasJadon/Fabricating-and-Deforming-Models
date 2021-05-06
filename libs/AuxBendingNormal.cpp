@@ -10,7 +10,9 @@ AuxBendingNormal::AuxBendingNormal(
 	init_mesh(V, F);
 	name = "Aux Bending Normal";
 	w = 1;
-	
+	colorP = Eigen::Vector3f(51 / 255.0f, 1, 1);
+	colorM = Eigen::Vector3f(1, 51 / 255.0f, 1);
+
 	//Initialize rest variables (X0) 
 	calculateHinges();
 	restAreaPerHinge.resize(num_hinges);

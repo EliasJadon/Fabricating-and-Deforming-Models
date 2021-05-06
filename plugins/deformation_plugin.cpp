@@ -11,6 +11,10 @@
 #define INSERT false
 #define ERASE true
 
+#define ADDING_WEIGHT_PER_HINGE_VALUE 10.0f
+#define MAX_WEIGHT_PER_HINGE_VALUE  300.0f //30.0f*ADDING_WEIGHT_PER_HINGE_VALUE
+
+
 deformation_plugin::deformation_plugin() :
 	igl::opengl::glfw::imgui::ImGuiMenu(){}
 
@@ -894,7 +898,6 @@ void deformation_plugin::Draw_energies_window()
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								//ABN->cuda_ABN->planarParameter = (ABN->cuda_ABN->planarParameter * 2) > 1 ? 1 : ABN->cuda_ABN->planarParameter * 2;
 								ABN->cuda_ABN->planarParameter *= 2;
 							}
 							ImGui::SameLine();
@@ -1297,7 +1300,7 @@ void deformation_plugin::brush_erase_or_insert()
 {
 	if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
 	{
-		double factor = 10;
+		double factor = ADDING_WEIGHT_PER_HINGE_VALUE;
 		if (EraseOrInsert != INSERT)
 			factor = -4;
 		const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
@@ -1404,8 +1407,23 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		int face_index, output_index;
 		if (pick_face(&output_index, &face_index, _))
 		{
-			std::vector<int> neigh = Outputs[output_index].getNeigh(neighborType, InputModel().F, face_index, neighbor_distance);
-			if (EraseOrInsert == ERASE)
+			std::vector<int> neigh_faces = Outputs[output_index].getNeigh(neighborType, InputModel().F, face_index, neighbor_distance);
+			
+			double factor = ADDING_WEIGHT_PER_HINGE_VALUE;
+			if (EraseOrInsert != INSERT)
+				factor = -4;
+			if (UserInterface_UpdateAllOutputs) {
+				for (auto& out : Outputs) {
+					out.Energy_auxBendingNormal->UpdateHingesWeights(neigh_faces, factor);
+					out.Energy_auxSpherePerHinge->UpdateHingesWeights(neigh_faces, factor);
+				}
+			}
+			else {
+				Outputs[output_index].Energy_auxBendingNormal->UpdateHingesWeights(neigh_faces, factor);
+				Outputs[output_index].Energy_auxSpherePerHinge->UpdateHingesWeights(neigh_faces, factor);
+			}
+			
+			/*if (EraseOrInsert == ERASE)
 			{
 				if (UserInterface_UpdateAllOutputs)
 					for (auto& out : Outputs)
@@ -1428,8 +1446,7 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 						Outputs[output_index].UserInterface_facesGroups[UserInterface_groupNum].faces.insert(currF);
 
 			}
-				
-			update_ext_fixed_group_faces();
+			update_ext_fixed_group_faces();*/
 		}
 	}
 	return false;
@@ -1754,10 +1771,10 @@ void deformation_plugin::draw_brush_sphere()
 	//prepare color
 	Eigen::MatrixXd c(1, 3);
 	if (EraseOrInsert == INSERT) {
-		c.row(0) = GREEN_COLOR.cast<double>();
+		c.row(0) = Outputs[0].Energy_auxBendingNormal->colorP.cast<double>();
 	}
 	else if (EraseOrInsert == ERASE) { 
-		c.row(0) = BLUE_COLOR.cast<double>();
+		c.row(0) = Outputs[0].Energy_auxBendingNormal->colorM.cast<double>();
 	}
 	//update data for cores
 	OutputModel(Brush_output_index).point_size = 10;
@@ -1951,14 +1968,15 @@ void deformation_plugin::follow_and_mark_selected_faces()
 				const int f0 = hinge_to_face_mapping[hi].f0;
 				const int f1 = hinge_to_face_mapping[hi].f1;
 				const double w = BN_hinges_weights[hi];
-				const int max_w_value = 50;
+				
 				if (w > 1) {
-					Outputs[i].shiftFaceColors(f0, (w - 1.0f) / max_w_value, model_color, GREEN_COLOR);
-					Outputs[i].shiftFaceColors(f1, (w - 1.0f) / max_w_value, model_color, GREEN_COLOR);
+					const double alpha = (w - 1.0f) / MAX_WEIGHT_PER_HINGE_VALUE;
+					Outputs[i].shiftFaceColors(f0, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
+					Outputs[i].shiftFaceColors(f1, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
 				}
 				if (w < 1) {
-					Outputs[i].shiftFaceColors(f0, 1.0f - w, model_color, BLUE_COLOR);
-					Outputs[i].shiftFaceColors(f1, 1.0f - w, model_color, BLUE_COLOR);
+					Outputs[i].shiftFaceColors(f0, 1.0f - w, model_color, Outputs[i].Energy_auxBendingNormal->colorM);
+					Outputs[i].shiftFaceColors(f1, 1.0f - w, model_color, Outputs[i].Energy_auxBendingNormal->colorM);
 				}
 			}
 		}

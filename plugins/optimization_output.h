@@ -117,7 +117,7 @@ public:
 		const Eigen::Vector3f per_cylinder_edge_color,
 		const Eigen::Vector3f face_norm_color);
 	void setFaceColors(const int fi, const Eigen::Vector3f color);
-	void shiftFaceColors(const int fi, const double beta, const Eigen::Vector3f model_color, const Eigen::Vector3f color);
+	void shiftFaceColors(const int fi, const double alpha, const Eigen::Vector3f model_color, const Eigen::Vector3f color);
 	void initMinimizers(
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixXi& F,
