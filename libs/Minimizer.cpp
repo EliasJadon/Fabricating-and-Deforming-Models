@@ -88,9 +88,9 @@ void Minimizer::update_lambda(int* lambda_counter)
 		std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
 		std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(totalObjective->objectiveList[1]);
 		std::shared_ptr<AuxCylinder> ACY = std::dynamic_pointer_cast<AuxCylinder>(totalObjective->objectiveList[2]);
-		ASH->cuda_ASH->planarParameter /= 2;
-		ABN->cuda_ABN->planarParameter /= 2;
-		ACY->cuda_ACY->planarParameter /= 2;
+		ASH->cuda_ASH->Dec_SigmoidParameter();
+		ABN->cuda_ABN->Dec_SigmoidParameter();
+		ACY->cuda_ACY->Dec_SigmoidParameter();
 		(*lambda_counter)++;
 	}
 }

@@ -2,13 +2,24 @@
 #include "Cuda_Basics.cuh"
 
 class Cuda_AuxSpherePerHinge {
+private:
+	double SigmoidParameter;
 public:
 	//Dynamic variables
 	double w1 = 1, w2 = 100;
 	FunctionType functionType; 
-	double planarParameter;
 	Cuda::Array<double> grad;
 	Cuda::Array<double> EnergyAtomic;
+	void Inc_SigmoidParameter() {
+		SigmoidParameter *= 2;
+	}
+	void Dec_SigmoidParameter() {
+		SigmoidParameter /= 2;
+	}
+	double get_SigmoidParameter() {
+		return SigmoidParameter;
+	}
+
 
 	//Static variables
 	Cuda::Array<int3> restShapeF;
@@ -19,7 +30,7 @@ public:
 	Cuda::Array<Cuda::hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; 
 	cudaStream_t stream_value, stream_gradient;
 
-	Cuda_AuxSpherePerHinge();
+	Cuda_AuxSpherePerHinge(const FunctionType type, const int numF, const int numV, const int numH);
 	~Cuda_AuxSpherePerHinge();
 	void value(Cuda::Array<double>& curr_x);
 	void gradient(Cuda::Array<double>& X);

@@ -2,13 +2,23 @@
 #include "Cuda_Basics.cuh"
 
 class Cuda_AuxBendingNormal {
+private:
+	double SigmoidParameter;
 public:
 	//Dynamic variables
 	double w1 = 1, w2 = 100, w3 = 100;
 	FunctionType functionType; 
-	double planarParameter;
 	Cuda::Array<double> grad;
 	Cuda::Array<double> EnergyAtomic;
+	void Inc_SigmoidParameter() {
+		SigmoidParameter *= 2;
+	}
+	void Dec_SigmoidParameter() {
+		SigmoidParameter /= 2;
+	}
+	double get_SigmoidParameter() {
+		return SigmoidParameter;
+	}
 
 	//Static variables
 	cudaStream_t stream_value, stream_gradient;
@@ -19,7 +29,7 @@ public:
 	Cuda::Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd;
 	Cuda::Array<Cuda::hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd;
 
-	Cuda_AuxBendingNormal();
+	Cuda_AuxBendingNormal(const FunctionType type, const int numF, const int numV, const int numH);
 	~Cuda_AuxBendingNormal();
 	void value(Cuda::Array<double>& curr_x);
 	void gradient(Cuda::Array<double>& X);

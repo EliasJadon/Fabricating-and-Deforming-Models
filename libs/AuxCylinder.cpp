@@ -21,12 +21,13 @@ AuxCylinder::AuxCylinder(
 		int f1 = hinges_faceIndex[hi](1);
 		restAreaPerHinge(hi) = (restAreaPerFace(f0) + restAreaPerFace(f1)) / 2;
 	}
-
-	//Init Cuda variables
-	cuda_ACY = std::make_shared<Cuda_AuxCylinder>();
-	cuda_ACY->functionType = type;
-	cuda_ACY->planarParameter = 1;
 	Efi.setZero();
+	
+	//Init Cuda variables
+	const unsigned int numF = restShapeF.rows();
+	const unsigned int numV = restShapeV.rows();
+	const unsigned int numH = num_hinges;
+	cuda_ACY = std::make_shared<Cuda_AuxCylinder>(type, numF, numV, numH);
 	internalInitCuda();
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
@@ -36,27 +37,6 @@ AuxCylinder::~AuxCylinder() {
 }
 
 void AuxCylinder::internalInitCuda() {
-	const unsigned int numF = restShapeF.rows();
-	const unsigned int numV = restShapeV.rows();
-	const unsigned int numH = num_hinges;
-
-	Cuda::initIndices(cuda_ACY->mesh_indices, numF, numV, numH);
-	
-	Cuda::AllocateMemory(cuda_ACY->restShapeF, numF);
-	Cuda::AllocateMemory(cuda_ACY->restAreaPerFace,numF);
-	Cuda::AllocateMemory(cuda_ACY->restAreaPerHinge,numH);
-	Cuda::AllocateMemory(cuda_ACY->grad, (3 * numV) + (10 * numF));
-	Cuda::AllocateMemory(cuda_ACY->EnergyAtomic,1);
-	Cuda::AllocateMemory(cuda_ACY->hinges_faceIndex,numH);
-	Cuda::AllocateMemory(cuda_ACY->x0_GlobInd,numH);
-	Cuda::AllocateMemory(cuda_ACY->x1_GlobInd,numH);
-	Cuda::AllocateMemory(cuda_ACY->x2_GlobInd,numH);
-	Cuda::AllocateMemory(cuda_ACY->x3_GlobInd,numH);
-	Cuda::AllocateMemory(cuda_ACY->x0_LocInd,numH);
-	Cuda::AllocateMemory(cuda_ACY->x1_LocInd,numH);
-	Cuda::AllocateMemory(cuda_ACY->x2_LocInd,numH);
-	Cuda::AllocateMemory(cuda_ACY->x3_LocInd,numH);
-
 	//init host buffers...
 	for (int i = 0; i < cuda_ACY->grad.size; i++) {
 		cuda_ACY->grad.host_arr[i] = 0;

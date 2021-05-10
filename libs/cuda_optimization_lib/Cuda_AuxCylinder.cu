@@ -9,12 +9,12 @@ namespace Utils_Cuda_AuxCylinder {
 	}
 	__device__ double Phi(
 		const double x,
-		const double planarParameter,
+		const double SigmoidParameter,
 		const FunctionType functionType)
 	{
 		if (functionType == FunctionType::SIGMOID) {
 			double x2 = pow(x, 2);
-			return x2 / (x2 + planarParameter);
+			return x2 / (x2 + SigmoidParameter);
 		}
 		if (functionType == FunctionType::QUADRATIC)
 			return pow(x, 2);
@@ -76,11 +76,11 @@ namespace Utils_Cuda_AuxCylinder {
 	}
 	__device__ double dPhi_dm(
 		const double x,
-		const double planarParameter,
+		const double SigmoidParameter,
 		const FunctionType functionType)
 	{
 		if (functionType == FunctionType::SIGMOID)
-			return (2 * x * planarParameter) / pow(x * x + planarParameter, 2);
+			return (2 * x * SigmoidParameter) / pow(x * x + SigmoidParameter, 2);
 		if (functionType == FunctionType::QUADRATIC)
 			return 2 * x;
 		if (functionType == FunctionType::EXPONENTIAL)
@@ -118,7 +118,7 @@ namespace Utils_Cuda_AuxCylinder {
 		const double* curr_x,
 		const Cuda::hinge* hinges_faceIndex,
 		const double* restAreaPerHinge,
-		const double planarParameter,
+		const double SigmoidParameter,
 		const FunctionType functionType,
 		const int hi,
 		const Cuda::indices I)
@@ -155,7 +155,7 @@ namespace Utils_Cuda_AuxCylinder {
 		double d_center1 = pow(pow(dot(normalize(sub(C1, C0)), normalize(A1)), 2) - 1, 2);
 		double d_radius = pow(R1 - R0, 2);
 		return w1 * restAreaPerHinge[hi] *
-			Phi(d_cylinder_dir + d_center0 + d_center1 + d_radius, planarParameter, functionType);
+			Phi(d_cylinder_dir + d_center0 + d_center1 + d_radius, SigmoidParameter, functionType);
 	}
 
 	__device__ double Energy1Kernel_simple(
@@ -163,7 +163,7 @@ namespace Utils_Cuda_AuxCylinder {
 		const double* curr_x,
 		const Cuda::hinge* hinges_faceIndex,
 		const double* restAreaPerHinge,
-		const double planarParameter,
+		const double SigmoidParameter,
 		const FunctionType functionType,
 		const int hi,
 		const Cuda::indices I)
@@ -203,7 +203,7 @@ namespace Utils_Cuda_AuxCylinder {
 		double d_center1 = squared_norm(sub(c10, mul(norm(c10), A1)));
 		double d_radius = pow(R1 - R0, 2);
 		return w1 * restAreaPerHinge[hi] *
-			Phi(d_cylinder_dir + d_center0 + d_center1 + d_radius, planarParameter, functionType);
+			Phi(d_cylinder_dir + d_center0 + d_center1 + d_radius, SigmoidParameter, functionType);
 	}
 
 	__device__ double Energy2Kernel(
@@ -323,7 +323,7 @@ namespace Utils_Cuda_AuxCylinder {
 		const int3* restShapeF,
 		const double* restAreaPerHinge,
 		const Cuda::hinge* hinges_faceIndex,
-		const double planarParameter,
+		const double SigmoidParameter,
 		const FunctionType functionType,
 		const Cuda::indices mesh_indices)
 	{
@@ -356,7 +356,7 @@ namespace Utils_Cuda_AuxCylinder {
 				curr_x,
 				hinges_faceIndex,
 				restAreaPerHinge,
-				planarParameter,
+				SigmoidParameter,
 				functionType,
 				Global_idx - (2 * mesh_indices.num_faces),
 				mesh_indices);
@@ -378,7 +378,7 @@ namespace Utils_Cuda_AuxCylinder {
 		const double* X,
 		const Cuda::hinge* hinges_faceIndex,
 		const double* restAreaPerHinge,
-		const double planarParameter,
+		const double SigmoidParameter,
 		const FunctionType functionType,
 		const double w1,
 		const int hi,
@@ -417,7 +417,7 @@ namespace Utils_Cuda_AuxCylinder {
 		double d_center1 = pow(pow(dot(normalize(sub(C1, C0)), normalize(A1)), 2) - 1, 2);
 		double d_radius = pow(R1 - R0, 2);
 		double coeff = w1 * restAreaPerHinge[hi] *
-			dPhi_dm(d_cylinder_dir + d_center0 + d_center1 + d_radius, planarParameter, functionType);
+			dPhi_dm(d_cylinder_dir + d_center0 + d_center1 + d_radius, SigmoidParameter, functionType);
 		
 		double cylinder_coeff = 4 * coeff * (pow(dot(normalize(A1), normalize(A0)), 2) - 1) * dot(normalize(A1), normalize(A0));
 		double center0_coeff = 4 * coeff * (pow(dot(normalize(sub(C1, C0)), normalize(A0)), 2) - 1) * (dot(normalize(sub(C1, C0)), normalize(A0)));
@@ -637,7 +637,7 @@ namespace Utils_Cuda_AuxCylinder {
 		const double* X,
 		const Cuda::hinge* hinges_faceIndex,
 		const double* restAreaPerHinge,
-		const double planarParameter,
+		const double SigmoidParameter,
 		const FunctionType functionType,
 		const double w1,
 		const int hi,
@@ -681,7 +681,7 @@ namespace Utils_Cuda_AuxCylinder {
 		double d_center1 = squared_norm(center1);
 		double d_radius = pow(R1 - R0, 2);
 		double coeff = w1 * restAreaPerHinge[hi] *
-			dPhi_dm(d_cylinder_dir + d_center0 + d_center1 + d_radius, planarParameter, functionType);
+			dPhi_dm(d_cylinder_dir + d_center0 + d_center1 + d_radius, SigmoidParameter, functionType);
 		
 		if (thread == 0) //A0.x;
 			atomicAdd(&grad[f0 + I.startAx], (coeff * 2 * (A0.x - A1.x)) - (coeff * 2 * center0.x * norm_c10), 0);
@@ -1096,7 +1096,7 @@ namespace Utils_Cuda_AuxCylinder {
 		const Cuda::hinge* hinges_faceIndex,
 		const int3* restShapeF,
 		const double* restAreaPerHinge,
-		const double planarParameter,
+		const double SigmoidParameter,
 		const FunctionType functionType,
 		const double w1,
 		const double w2,
@@ -1133,7 +1133,7 @@ namespace Utils_Cuda_AuxCylinder {
 				X,
 				hinges_faceIndex,
 				restAreaPerHinge,
-				planarParameter,
+				SigmoidParameter,
 				functionType,
 				w1,
 				Bl_index - (2 * mesh_indices.num_faces),
@@ -1153,7 +1153,7 @@ void Cuda_AuxCylinder::value(Cuda::Array<double>& curr_x) {
 		restShapeF.cuda_arr,
 		restAreaPerHinge.cuda_arr,
 		hinges_faceIndex.cuda_arr,
-		planarParameter,
+		SigmoidParameter,
 		functionType,
 		mesh_indices);
 }
@@ -1167,13 +1167,33 @@ void Cuda_AuxCylinder::gradient(Cuda::Array<double>& X)
 		hinges_faceIndex.cuda_arr,
 		restShapeF.cuda_arr,
 		restAreaPerHinge.cuda_arr,
-		planarParameter, functionType,
+		SigmoidParameter, functionType,
 		w1, w2, w3, mesh_indices);
 }
 
-Cuda_AuxCylinder::Cuda_AuxCylinder() {
+Cuda_AuxCylinder::Cuda_AuxCylinder(const FunctionType type, const int numF, const int numV, const int numH) {
+	functionType = type;
+	SigmoidParameter = 1;
+	
 	cudaStreamCreate(&stream_value);
 	cudaStreamCreate(&stream_gradient);
+
+	Cuda::initIndices(mesh_indices, numF, numV, numH);
+	Cuda::AllocateMemory(restShapeF, numF);
+	Cuda::AllocateMemory(restAreaPerFace, numF);
+	Cuda::AllocateMemory(restAreaPerHinge, numH);
+	Cuda::AllocateMemory(grad, (3 * numV) + (10 * numF));
+	Cuda::AllocateMemory(EnergyAtomic, 1);
+	Cuda::AllocateMemory(hinges_faceIndex, numH);
+	Cuda::AllocateMemory(x0_GlobInd, numH);
+	Cuda::AllocateMemory(x1_GlobInd, numH);
+	Cuda::AllocateMemory(x2_GlobInd, numH);
+	Cuda::AllocateMemory(x3_GlobInd, numH);
+	Cuda::AllocateMemory(x0_LocInd, numH);
+	Cuda::AllocateMemory(x1_LocInd, numH);
+	Cuda::AllocateMemory(x2_LocInd, numH);
+	Cuda::AllocateMemory(x3_LocInd, numH);
+
 }
 
 Cuda_AuxCylinder::~Cuda_AuxCylinder() {

@@ -5,7 +5,7 @@
 AuxBendingNormal::AuxBendingNormal(
 	const Eigen::MatrixXd& V, 
 	const Eigen::MatrixX3i& F,
-	const FunctionType type) 
+	const FunctionType functiontype) 
 {
 	init_mesh(V, F);
 	name = "Aux Bending Normal";
@@ -23,13 +23,16 @@ AuxBendingNormal::AuxBendingNormal(
 		int f1 = hinges_faceIndex[hi](1);
 		restAreaPerHinge(hi) = (restAreaPerFace(f0) + restAreaPerFace(f1)) / 2;
 	}
+	Efi.setZero();
 
 	//Init Cuda variables
-	cuda_ABN = std::make_shared<Cuda_AuxBendingNormal>();
-	cuda_ABN->functionType = type;
-	cuda_ABN->planarParameter = 1;
-	Efi.setZero();
+	const unsigned int numF = restShapeF.rows();
+	const unsigned int numV = restShapeV.rows();
+	const unsigned int numH = num_hinges;
+	cuda_ABN = std::make_shared<Cuda_AuxBendingNormal>(functiontype, numF, numV, numH);
 	internalInitCuda();
+
+
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
@@ -38,28 +41,6 @@ AuxBendingNormal::~AuxBendingNormal() {
 }
 
 void AuxBendingNormal::internalInitCuda() {
-	const unsigned int numF = restShapeF.rows();
-	const unsigned int numV = restShapeV.rows();
-	const unsigned int numH = num_hinges;
-
-	Cuda::initIndices(cuda_ABN->mesh_indices, numF, numV, numH);
-	
-	Cuda::AllocateMemory(cuda_ABN->restShapeF, numF);
-	Cuda::AllocateMemory(cuda_ABN->restAreaPerFace,numF);
-	Cuda::AllocateMemory(cuda_ABN->restAreaPerHinge,numH);
-	Cuda::AllocateMemory(cuda_ABN->weightPerHinge, numH);
-	Cuda::AllocateMemory(cuda_ABN->grad, (3 * numV) + (10 * numF));
-	Cuda::AllocateMemory(cuda_ABN->EnergyAtomic,1);
-	Cuda::AllocateMemory(cuda_ABN->hinges_faceIndex,numH);
-	Cuda::AllocateMemory(cuda_ABN->x0_GlobInd,numH);
-	Cuda::AllocateMemory(cuda_ABN->x1_GlobInd,numH);
-	Cuda::AllocateMemory(cuda_ABN->x2_GlobInd,numH);
-	Cuda::AllocateMemory(cuda_ABN->x3_GlobInd,numH);
-	Cuda::AllocateMemory(cuda_ABN->x0_LocInd,numH);
-	Cuda::AllocateMemory(cuda_ABN->x1_LocInd,numH);
-	Cuda::AllocateMemory(cuda_ABN->x2_LocInd,numH);
-	Cuda::AllocateMemory(cuda_ABN->x3_LocInd,numH);
-
 	//init host buffers...
 	for (int i = 0; i < cuda_ABN->grad.size; i++) {
 		cuda_ABN->grad.host_arr[i] = 0;

@@ -894,16 +894,16 @@ void deformation_plugin::Draw_energies_window()
 							ImGui::Combo("Function", (int*)(&(ACY->cuda_ACY->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
 
 						if (ABN != NULL && ABN->cuda_ABN->functionType == FunctionType::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(ABN->cuda_ABN->planarParameter)))).c_str());
+							ImGui::Text(("2^" + std::to_string(int(log2(ABN->cuda_ABN->get_SigmoidParameter())))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								ABN->cuda_ABN->planarParameter *= 2;
+								ABN->cuda_ABN->Inc_SigmoidParameter();
 							}
 							ImGui::SameLine();
 							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								ABN->cuda_ABN->planarParameter /= 2;
+								ABN->cuda_ABN->Dec_SigmoidParameter();
 							}
 							const double  f64_zero = 0, f64_max = 100000.0;
 							ImGui::DragScalar("w1", ImGuiDataType_Double, &(ABN->cuda_ABN->w1), 0.05f, &f64_zero, &f64_max);
@@ -911,32 +911,32 @@ void deformation_plugin::Draw_energies_window()
 							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ABN->cuda_ABN->w3), 0.05f, &f64_zero, &f64_max);
 						}
 						if (AS != NULL && AS->cuda_ASH->functionType == FunctionType::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(AS->cuda_ASH->planarParameter)))).c_str());
+							ImGui::Text(("2^" + std::to_string(int(log2(AS->cuda_ASH->get_SigmoidParameter())))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								AS->cuda_ASH->planarParameter *= 2;
+								AS->cuda_ASH->Inc_SigmoidParameter();
 							}
 							ImGui::SameLine();
 							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								AS->cuda_ASH->planarParameter /= 2;
+								AS->cuda_ASH->Dec_SigmoidParameter();
 							}
 							const double  f64_zero = 0, f64_max = 100000.0;
 							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->cuda_ASH->w1), 0.05f, &f64_zero, &f64_max);
 							ImGui::DragScalar("w2", ImGuiDataType_Double, &(AS->cuda_ASH->w2), 0.05f, &f64_zero, &f64_max);
 						}
 						if (ACY != NULL && ACY->cuda_ACY->functionType == FunctionType::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(ACY->cuda_ACY->planarParameter)))).c_str());
+							ImGui::Text(("2^" + std::to_string(int(log2(ACY->cuda_ACY->get_SigmoidParameter())))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								ACY->cuda_ACY->planarParameter *= 2;
+								ACY->cuda_ACY->Inc_SigmoidParameter();
 							}
 							ImGui::SameLine();
 							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								ACY->cuda_ACY->planarParameter /= 2;
+								ACY->cuda_ACY->Dec_SigmoidParameter();
 							}
 							const double  f64_zero = 0, f64_max = 100000.0;
 							ImGui::DragScalar("w1", ImGuiDataType_Double, &(ACY->cuda_ACY->w1), 0.05f, &f64_zero, &f64_max);

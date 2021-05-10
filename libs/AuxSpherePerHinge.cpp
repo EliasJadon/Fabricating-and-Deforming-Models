@@ -6,13 +6,13 @@
 namespace EliasMath {
 	double Phi(
 		const double x,
-		const double planarParameter,
+		const double SigmoidParameter,
 		const FunctionType functionType,
 		const double weight)
 	{
 		if (functionType == FunctionType::SIGMOID) {
 			double x2 = pow(x / weight, 2);
-			return x2 / (x2 + planarParameter);
+			return x2 / (x2 + SigmoidParameter);
 		}
 		if (functionType == FunctionType::QUADRATIC)
 			return pow(x, 2);
@@ -57,13 +57,13 @@ namespace EliasMath {
 	}
 	double dPhi_dm(
 		const double x,
-		const double planarParameter,
+		const double SigmoidParameter,
 		const FunctionType functionType,
 		const double weight)
 	{
 		const double w2 = pow(weight, 2);
 		if (functionType == FunctionType::SIGMOID)
-			return (2 * x * w2 * planarParameter) / pow(x * x + planarParameter * w2, 2);
+			return (2 * x * w2 * SigmoidParameter) / pow(x * x + SigmoidParameter * w2, 2);
 		if (functionType == FunctionType::QUADRATIC)
 			return 2 * x;
 		if (functionType == FunctionType::EXPONENTIAL)
@@ -97,11 +97,13 @@ AuxSpherePerHinge::AuxSpherePerHinge(
 		int f1 = hinges_faceIndex[hi](1);
 		restAreaPerHinge(hi) = (restAreaPerFace(f0) + restAreaPerFace(f1)) / 2;
 	}
+	Efi.setZero();
 
 	//Init Cuda variables
-	cuda_ASH = std::make_shared<Cuda_AuxSpherePerHinge>();
-	cuda_ASH->functionType = type;
-	cuda_ASH->planarParameter = 1;
+	const unsigned int numF = restShapeF.rows();
+	const unsigned int numV = restShapeV.rows();
+	const unsigned int numH = num_hinges;
+	cuda_ASH = std::make_shared<Cuda_AuxSpherePerHinge>(type, numF, numV, numH);
 	internalInitCuda();
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
@@ -111,28 +113,6 @@ AuxSpherePerHinge::~AuxSpherePerHinge() {
 }
 
 void AuxSpherePerHinge::internalInitCuda() {
-	const unsigned int numF = restShapeF.rows();
-	const unsigned int numV = restShapeV.rows();
-	const unsigned int numH = num_hinges;
-
-	Cuda::initIndices(cuda_ASH->mesh_indices, numF, numV, numH);
-
-	Cuda::AllocateMemory(cuda_ASH->restShapeF, numF);
-	Cuda::AllocateMemory(cuda_ASH->restAreaPerFace, numF);
-	Cuda::AllocateMemory(cuda_ASH->weightPerHinge, numH);
-	Cuda::AllocateMemory(cuda_ASH->restAreaPerHinge, numH);
-	Cuda::AllocateMemory(cuda_ASH->grad, (3 * numV) + (10 * numF));
-	Cuda::AllocateMemory(cuda_ASH->EnergyAtomic, 1);
-	Cuda::AllocateMemory(cuda_ASH->hinges_faceIndex, numH);
-	Cuda::AllocateMemory(cuda_ASH->x0_GlobInd, numH);
-	Cuda::AllocateMemory(cuda_ASH->x1_GlobInd, numH);
-	Cuda::AllocateMemory(cuda_ASH->x2_GlobInd, numH);
-	Cuda::AllocateMemory(cuda_ASH->x3_GlobInd, numH);
-	Cuda::AllocateMemory(cuda_ASH->x0_LocInd, numH);
-	Cuda::AllocateMemory(cuda_ASH->x1_LocInd, numH);
-	Cuda::AllocateMemory(cuda_ASH->x2_LocInd, numH);
-	Cuda::AllocateMemory(cuda_ASH->x3_LocInd, numH);
-
 	//init host buffers...
 	for (int i = 0; i < cuda_ASH->grad.size; i++) {
 		cuda_ASH->grad.host_arr[i] = 0;
@@ -355,7 +335,7 @@ void AuxSpherePerHinge::value(Cuda::Array<double>& curr_x)
 		double d_center = EliasMath::squared_norm(EliasMath::sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
 		cuda_ASH->EnergyAtomic.host_arr[0] += cuda_ASH->w1 * restAreaPerHinge[hi] * cuda_ASH->weightPerHinge.host_arr[hi] *
-			EliasMath::Phi(d_center + d_radius, cuda_ASH->planarParameter, cuda_ASH->functionType, cuda_ASH->weightPerHinge.host_arr[hi]);
+			EliasMath::Phi(d_center + d_radius, cuda_ASH->get_SigmoidParameter(), cuda_ASH->functionType, cuda_ASH->weightPerHinge.host_arr[hi]);
 	}
 	
 
@@ -431,7 +411,7 @@ void AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 		double d_center = EliasMath::squared_norm(EliasMath::sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
 		double coeff = 2 * cuda_ASH->w1 * restAreaPerHinge[hi] * cuda_ASH->weightPerHinge.host_arr[hi] *
-			EliasMath::dPhi_dm(d_center + d_radius, cuda_ASH->planarParameter, cuda_ASH->functionType, cuda_ASH->weightPerHinge.host_arr[hi]);
+			EliasMath::dPhi_dm(d_center + d_radius, cuda_ASH->get_SigmoidParameter(), cuda_ASH->functionType, cuda_ASH->weightPerHinge.host_arr[hi]);
 
 		cuda_ASH->grad.host_arr[f0 + cuda_ASH->mesh_indices.startCx] += (C0.x - C1.x) * coeff; //C0.x
 		cuda_ASH->grad.host_arr[f0 + cuda_ASH->mesh_indices.startCy] += (C0.y - C1.y) * coeff;	//C0.y
