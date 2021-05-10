@@ -51,7 +51,8 @@ void AuxBendingNormal::internalInitCuda() {
 	}
 	for (int h = 0; h < num_hinges; h++) {
 		cuda_ABN->restAreaPerHinge.host_arr[h] = restAreaPerHinge[h];
-		cuda_ABN->weightPerHinge.host_arr[h] = 1;
+		cuda_ABN->weight_PerHinge.host_arr[h] = 1;
+		cuda_ABN->Sigmoid_PerHinge.host_arr[h] = cuda_ABN->get_SigmoidParameter();
 		cuda_ABN->hinges_faceIndex.host_arr[h] = Cuda::newHinge(hinges_faceIndex[h][0], hinges_faceIndex[h][1]);
 		cuda_ABN->x0_GlobInd.host_arr[h] = x0_GlobInd[h];
 		cuda_ABN->x1_GlobInd.host_arr[h] = x1_GlobInd[h];
@@ -68,7 +69,8 @@ void AuxBendingNormal::internalInitCuda() {
 	Cuda::MemCpyHostToDevice(cuda_ABN->restShapeF);
 	Cuda::MemCpyHostToDevice(cuda_ABN->restAreaPerFace);
 	Cuda::MemCpyHostToDevice(cuda_ABN->restAreaPerHinge);
-	Cuda::MemCpyHostToDevice(cuda_ABN->weightPerHinge);
+	Cuda::MemCpyHostToDevice(cuda_ABN->weight_PerHinge);
+	Cuda::MemCpyHostToDevice(cuda_ABN->Sigmoid_PerHinge);
 	Cuda::MemCpyHostToDevice(cuda_ABN->hinges_faceIndex);
 	Cuda::MemCpyHostToDevice(cuda_ABN->x0_GlobInd);
 	Cuda::MemCpyHostToDevice(cuda_ABN->x1_GlobInd);
@@ -213,28 +215,52 @@ void AuxBendingNormal::calculateHinges() {
 	}
 }
 
-void AuxBendingNormal::UpdateHingesWeights(
+void AuxBendingNormal::Update_HingesWeights(
 	const std::vector<int> faces_indices,
 	const double add)
 {
 	for (int fi : faces_indices) {
 		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
 		for (int hi : H) {
-			cuda_ABN->weightPerHinge.host_arr[hi] += add;
-			if (cuda_ABN->weightPerHinge.host_arr[hi] < 1e-10) {
-				cuda_ABN->weightPerHinge.host_arr[hi] = 1e-10;
+			cuda_ABN->weight_PerHinge.host_arr[hi] += add;
+			if (cuda_ABN->weight_PerHinge.host_arr[hi] < 1e-10) {
+				cuda_ABN->weight_PerHinge.host_arr[hi] = 1e-10;
 			}
 		}
 	}
-	Cuda::MemCpyHostToDevice(cuda_ABN->weightPerHinge);
+	Cuda::MemCpyHostToDevice(cuda_ABN->weight_PerHinge);
 }
 
-void AuxBendingNormal::ClearHingesWeights() {
-	for (int hi = 0; hi < num_hinges; hi++) {
-		cuda_ABN->weightPerHinge.host_arr[hi] = 1;
+void AuxBendingNormal::Update_HingesSigmoid(
+	const std::vector<int> faces_indices,
+	const double factor)
+{
+	for (int fi : faces_indices) {
+		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
+		for (int hi : H) {
+			cuda_ABN->Sigmoid_PerHinge.host_arr[hi] *= factor;
+			if (cuda_ABN->Sigmoid_PerHinge.host_arr[hi] < 1e-10) {
+				cuda_ABN->Sigmoid_PerHinge.host_arr[hi] = 1e-10;
+			}
+		}
 	}
-	Cuda::MemCpyHostToDevice(cuda_ABN->weightPerHinge);
+	Cuda::MemCpyHostToDevice(cuda_ABN->Sigmoid_PerHinge);
 }
+
+void AuxBendingNormal::Clear_HingesWeights() {
+	for (int hi = 0; hi < num_hinges; hi++) {
+		cuda_ABN->weight_PerHinge.host_arr[hi] = 1;
+	}
+	Cuda::MemCpyHostToDevice(cuda_ABN->weight_PerHinge);
+}
+
+void AuxBendingNormal::Clear_HingesSigmoid() {
+	for (int hi = 0; hi < num_hinges; hi++) {
+		cuda_ABN->Sigmoid_PerHinge.host_arr[hi] = cuda_ABN->get_SigmoidParameter();
+	}
+	Cuda::MemCpyHostToDevice(cuda_ABN->Sigmoid_PerHinge);
+}
+
 
 void AuxBendingNormal::value(Cuda::Array<double>& curr_x)
 {
@@ -242,13 +268,6 @@ void AuxBendingNormal::value(Cuda::Array<double>& curr_x)
 }
 
 void AuxBendingNormal::pre_minimizer() {
-	/*for (int hi = 0; hi < num_hinges; hi++) {
-		if (cuda_ABN->weightPerHinge.host_arr[hi] != 1)
-			cuda_ABN->weightPerHinge.host_arr[hi] *= 0.99;
-		if (cuda_ABN->weightPerHinge.host_arr[hi] < 1e-10)
-			cuda_ABN->weightPerHinge.host_arr[hi] = 1e-10;
-	}
-	Cuda::MemCpyHostToDevice(cuda_ABN->weightPerHinge);*/
 }
 
 void AuxBendingNormal::gradient(Cuda::Array<double>& X)

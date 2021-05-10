@@ -16,8 +16,12 @@ public:
 	Eigen::Vector3f colorP, colorM;
 	void pre_minimizer();
 	std::shared_ptr<Cuda_AuxSpherePerHinge> cuda_ASH;
-	void UpdateHingesWeights(const std::vector<int> faces, const double add);
-	void ClearHingesWeights();
+
+	void Update_HingesWeights(const std::vector<int> faces_indices, const double add);
+	void Update_HingesSigmoid(const std::vector<int> faces_indices, const double factor);
+	void Clear_HingesWeights();
+	void Clear_HingesSigmoid();
+
 	AuxSpherePerHinge(
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixX3i& F,

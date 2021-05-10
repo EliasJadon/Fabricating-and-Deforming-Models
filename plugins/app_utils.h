@@ -72,8 +72,10 @@ namespace app_utils
 		NONE,
 		FIX_VERTICES,
 		FIX_FACES,
-		GROUPING_BY_BRUSH,
-		GROUPING_BY_ADJ
+		BRUSH_WEIGHTS,
+		BRUSH_SIGMOID,
+		ADJ_WEIGHTS,
+		ADJ_SIGMOID
 	};
 	
 	static Eigen::Vector3f computeTranslation(

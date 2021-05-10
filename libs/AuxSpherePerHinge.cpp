@@ -122,7 +122,8 @@ void AuxSpherePerHinge::internalInitCuda() {
 		cuda_ASH->restAreaPerFace.host_arr[f] = restAreaPerFace[f];
 	}
 	for (int h = 0; h < num_hinges; h++) {
-		cuda_ASH->weightPerHinge.host_arr[h] = 1;
+		cuda_ASH->weight_PerHinge.host_arr[h] = 1;
+		cuda_ASH->Sigmoid_PerHinge.host_arr[h] = cuda_ASH->get_SigmoidParameter();
 		cuda_ASH->restAreaPerHinge.host_arr[h] = restAreaPerHinge[h];
 		cuda_ASH->hinges_faceIndex.host_arr[h] = Cuda::newHinge(hinges_faceIndex[h][0], hinges_faceIndex[h][1]);
 		cuda_ASH->x0_GlobInd.host_arr[h] = x0_GlobInd[h];
@@ -139,7 +140,8 @@ void AuxSpherePerHinge::internalInitCuda() {
 	Cuda::MemCpyHostToDevice(cuda_ASH->grad);
 	Cuda::MemCpyHostToDevice(cuda_ASH->restShapeF);
 	Cuda::MemCpyHostToDevice(cuda_ASH->restAreaPerFace);
-	Cuda::MemCpyHostToDevice(cuda_ASH->weightPerHinge);
+	Cuda::MemCpyHostToDevice(cuda_ASH->weight_PerHinge);
+	Cuda::MemCpyHostToDevice(cuda_ASH->Sigmoid_PerHinge);
 	Cuda::MemCpyHostToDevice(cuda_ASH->restAreaPerHinge);
 	Cuda::MemCpyHostToDevice(cuda_ASH->hinges_faceIndex);
 	Cuda::MemCpyHostToDevice(cuda_ASH->x0_GlobInd);
@@ -285,27 +287,50 @@ void AuxSpherePerHinge::calculateHinges() {
 	}
 }
 
-void AuxSpherePerHinge::UpdateHingesWeights(
+void AuxSpherePerHinge::Update_HingesWeights(
 	const std::vector<int> faces_indices, 
 	const double add) 
 {
 	for (int fi : faces_indices) {
 		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
 		for (int hi : H) {
-			cuda_ASH->weightPerHinge.host_arr[hi] += add;
-			if (cuda_ASH->weightPerHinge.host_arr[hi] < 1e-10) {
-				cuda_ASH->weightPerHinge.host_arr[hi] = 1e-10;
+			cuda_ASH->weight_PerHinge.host_arr[hi] += add;
+			if (cuda_ASH->weight_PerHinge.host_arr[hi] < 1e-10) {
+				cuda_ASH->weight_PerHinge.host_arr[hi] = 1e-10;
 			}
 		}
 	}
-	Cuda::MemCpyHostToDevice(cuda_ASH->weightPerHinge);
+	Cuda::MemCpyHostToDevice(cuda_ASH->weight_PerHinge);
 }
 
-void AuxSpherePerHinge::ClearHingesWeights() {
-	for (int hi = 0; hi < num_hinges; hi++) {
-		cuda_ASH->weightPerHinge.host_arr[hi] = 1;
+void AuxSpherePerHinge::Update_HingesSigmoid(
+	const std::vector<int> faces_indices, 
+	const double factor) 
+{
+	for (int fi : faces_indices) {
+		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
+		for (int hi : H) {
+			cuda_ASH->Sigmoid_PerHinge.host_arr[hi] *= factor;
+			if (cuda_ASH->Sigmoid_PerHinge.host_arr[hi] < 1e-10) {
+				cuda_ASH->Sigmoid_PerHinge.host_arr[hi] = 1e-10;
+			}
+		}
 	}
-	Cuda::MemCpyHostToDevice(cuda_ASH->weightPerHinge);
+	Cuda::MemCpyHostToDevice(cuda_ASH->Sigmoid_PerHinge);
+}
+
+void AuxSpherePerHinge::Clear_HingesWeights() {
+	for (int hi = 0; hi < num_hinges; hi++) {
+		cuda_ASH->weight_PerHinge.host_arr[hi] = 1;
+	}
+	Cuda::MemCpyHostToDevice(cuda_ASH->weight_PerHinge);
+}
+
+void AuxSpherePerHinge::Clear_HingesSigmoid() {
+	for (int hi = 0; hi < num_hinges; hi++) {
+		cuda_ASH->Sigmoid_PerHinge.host_arr[hi] = cuda_ASH->get_SigmoidParameter();
+	}
+	Cuda::MemCpyHostToDevice(cuda_ASH->Sigmoid_PerHinge);
 }
 
 void AuxSpherePerHinge::value(Cuda::Array<double>& curr_x)
@@ -334,8 +359,8 @@ void AuxSpherePerHinge::value(Cuda::Array<double>& curr_x)
 		);
 		double d_center = EliasMath::squared_norm(EliasMath::sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
-		cuda_ASH->EnergyAtomic.host_arr[0] += cuda_ASH->w1 * restAreaPerHinge[hi] * cuda_ASH->weightPerHinge.host_arr[hi] *
-			EliasMath::Phi(d_center + d_radius, cuda_ASH->get_SigmoidParameter(), cuda_ASH->functionType, cuda_ASH->weightPerHinge.host_arr[hi]);
+		cuda_ASH->EnergyAtomic.host_arr[0] += cuda_ASH->w1 * restAreaPerHinge[hi] * cuda_ASH->weight_PerHinge.host_arr[hi] *
+			EliasMath::Phi(d_center + d_radius, cuda_ASH->Sigmoid_PerHinge.host_arr[hi], cuda_ASH->functionType, cuda_ASH->weight_PerHinge.host_arr[hi]);
 	}
 	
 
@@ -374,13 +399,7 @@ void AuxSpherePerHinge::value(Cuda::Array<double>& curr_x)
 }
 
 void AuxSpherePerHinge::pre_minimizer() {
-	/*for (int hi = 0; hi < num_hinges; hi++) {
-		if (cuda_ASH->weightPerHinge.host_arr[hi] != 1)
-			cuda_ASH->weightPerHinge.host_arr[hi] *= 0.99;
-		if (cuda_ASH->weightPerHinge.host_arr[hi] < 1e-10)
-			cuda_ASH->weightPerHinge.host_arr[hi] = 1e-10;
-	}
-	Cuda::MemCpyHostToDevice(cuda_ASH->weightPerHinge);*/
+	
 }
 
 void AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
@@ -410,8 +429,8 @@ void AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 		);
 		double d_center = EliasMath::squared_norm(EliasMath::sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
-		double coeff = 2 * cuda_ASH->w1 * restAreaPerHinge[hi] * cuda_ASH->weightPerHinge.host_arr[hi] *
-			EliasMath::dPhi_dm(d_center + d_radius, cuda_ASH->get_SigmoidParameter(), cuda_ASH->functionType, cuda_ASH->weightPerHinge.host_arr[hi]);
+		double coeff = 2 * cuda_ASH->w1 * restAreaPerHinge[hi] * cuda_ASH->weight_PerHinge.host_arr[hi] *
+			EliasMath::dPhi_dm(d_center + d_radius, cuda_ASH->Sigmoid_PerHinge.host_arr[hi], cuda_ASH->functionType, cuda_ASH->weight_PerHinge.host_arr[hi]);
 
 		cuda_ASH->grad.host_arr[f0 + cuda_ASH->mesh_indices.startCx] += (C0.x - C1.x) * coeff; //C0.x
 		cuda_ASH->grad.host_arr[f0 + cuda_ASH->mesh_indices.startCy] += (C0.y - C1.y) * coeff;	//C0.y

@@ -13,6 +13,8 @@
 
 #define ADDING_WEIGHT_PER_HINGE_VALUE 10.0f
 #define MAX_WEIGHT_PER_HINGE_VALUE  500.0f //50.0f*ADDING_WEIGHT_PER_HINGE_VALUE
+#define ADDING_SIGMOID_PER_HINGE_VALUE 0.5f
+#define MAX_SIGMOID_PER_HINGE_VALUE  40.0f //50.0f*ADDING_WEIGHT_PER_HINGE_VALUE
 
 
 deformation_plugin::deformation_plugin() :
@@ -350,15 +352,18 @@ void deformation_plugin::CollapsingHeader_user_interface()
 	{
 		ImGui::Combo("Coloring Input", (int*)(&UserInterface_colorInputModelIndex), app_utils::build_inputColoring_list(Outputs.size()));
 		ImGui::Checkbox("Update All", &UserInterface_UpdateAllOutputs);
-		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
+		if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID)
 			ImGui::Combo("Neighbor type", (int *)(&neighborType), "Curr Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0Local Cylinders\0Global Cylinders\0\0");
-		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
+		if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID)
 			ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.0005f, 0.00001f, 10000.0f,"%.5f");
-		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH)
+		if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID)
 			ImGui::DragFloat("Brush Radius", &brush_radius);
-		if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH ||
-			UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
+		/*if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS ||
+			UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID ||
+			UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS ||
+			UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID)
 			ImGui::Combo("Group Color", (int *)(&UserInterface_groupNum), app_utils::build_groups_names_list(Outputs[0].UserInterface_facesGroups));
+		*/
 		if (ImGui::Button("Clear sellected faces & vertices"))
 			clear_sellected_faces_and_vertices();
 	}
@@ -1129,8 +1134,11 @@ void deformation_plugin::clear_sellected_faces_and_vertices()
 {
 	for (auto&o : Outputs)
 	{
-		o.Energy_auxSpherePerHinge->ClearHingesWeights();
-		o.Energy_auxBendingNormal->ClearHingesWeights();
+		o.Energy_auxSpherePerHinge->Clear_HingesWeights();
+		o.Energy_auxSpherePerHinge->Clear_HingesSigmoid();
+		o.Energy_auxBendingNormal->Clear_HingesWeights();
+		o.Energy_auxBendingNormal->Clear_HingesSigmoid();
+		
 		o.UserInterface_FixedFaces.clear();
 		for (auto& c : o.UserInterface_facesGroups)
 			c.faces.clear();
@@ -1300,19 +1308,37 @@ void deformation_plugin::brush_erase_or_insert()
 {
 	if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
 	{
-		double factor = ADDING_WEIGHT_PER_HINGE_VALUE;
-		if (EraseOrInsert != INSERT)
-			factor = -4;
-		const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
-		if (UserInterface_UpdateAllOutputs) {
-			for (auto& out : Outputs) {
-				out.Energy_auxBendingNormal->UpdateHingesWeights(brush_faces, factor);
-				out.Energy_auxSpherePerHinge->UpdateHingesWeights(brush_faces, factor);
+		if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS) {
+			double add = ADDING_WEIGHT_PER_HINGE_VALUE;
+			if (EraseOrInsert != INSERT)
+				add = -ADDING_WEIGHT_PER_HINGE_VALUE;
+			const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
+			if (UserInterface_UpdateAllOutputs) {
+				for (auto& out : Outputs) {
+					out.Energy_auxBendingNormal->Update_HingesWeights(brush_faces, add);
+					out.Energy_auxSpherePerHinge->Update_HingesWeights(brush_faces, add);
+				}
 			}
-		}		
-		else {
-			Outputs[Brush_output_index].Energy_auxBendingNormal->UpdateHingesWeights(brush_faces, factor);
-			Outputs[Brush_output_index].Energy_auxSpherePerHinge->UpdateHingesWeights(brush_faces, factor);
+			else {
+				Outputs[Brush_output_index].Energy_auxBendingNormal->Update_HingesWeights(brush_faces, add);
+				Outputs[Brush_output_index].Energy_auxSpherePerHinge->Update_HingesWeights(brush_faces, add);
+			}
+		}
+		else if(UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID) {
+			double factor = ADDING_SIGMOID_PER_HINGE_VALUE;
+			if (EraseOrInsert != INSERT)
+				factor = 1 / ADDING_SIGMOID_PER_HINGE_VALUE;
+			const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
+			if (UserInterface_UpdateAllOutputs) {
+				for (auto& out : Outputs) {
+					out.Energy_auxBendingNormal->Update_HingesSigmoid(brush_faces, factor);
+					out.Energy_auxSpherePerHinge->Update_HingesSigmoid(brush_faces, factor);
+				}
+			}
+			else {
+				Outputs[Brush_output_index].Energy_auxBendingNormal->Update_HingesSigmoid(brush_faces, factor);
+				Outputs[Brush_output_index].Energy_auxSpherePerHinge->Update_HingesSigmoid(brush_faces, factor);
+			}
 		}
 	}
 }
@@ -1321,7 +1347,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 {
 	if (!isModelLoaded || IsMouseDraggingAnyWindow)
 		return true;	
-	if (IsChoosingGroups && UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
+	if (IsChoosingGroups && (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS))
 	{
 		Eigen::Vector3f _;
 		pick_face(&curr_highlighted_output, &curr_highlighted_face, _);
@@ -1360,7 +1386,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			update_ext_fixed_vertices();
 			returnTrue = true;
 		}
-		if (out.UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH)
+		if (out.UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID))
 		{
 			brush_erase_or_insert();
 			returnTrue = true;
@@ -1377,14 +1403,14 @@ IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y)
 		return true;
 	for (auto&out : Outputs)
 	{
-		if (out.UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH)
+		if (out.UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID))
 		{
 			brush_radius += delta_y * 0.005;
 			brush_radius = std::max<float>(0.005, brush_radius);
 			return true;
 		}
 	}
-	if (IsChoosingGroups && UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ)
+	if (IsChoosingGroups && (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID))
 	{
 		neighbor_distance += delta_y * 0.05;
 		neighbor_distance = std::max<float>(0.005, neighbor_distance);
@@ -1408,19 +1434,35 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		if (pick_face(&output_index, &face_index, _))
 		{
 			std::vector<int> neigh_faces = Outputs[output_index].getNeigh(neighborType, InputModel().F, face_index, neighbor_distance);
-			
-			double factor = ADDING_WEIGHT_PER_HINGE_VALUE;
-			if (EraseOrInsert != INSERT)
-				factor = -4;
-			if (UserInterface_UpdateAllOutputs) {
-				for (auto& out : Outputs) {
-					out.Energy_auxBendingNormal->UpdateHingesWeights(neigh_faces, factor);
-					out.Energy_auxSpherePerHinge->UpdateHingesWeights(neigh_faces, factor);
+			if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS) {
+				double add = ADDING_WEIGHT_PER_HINGE_VALUE;
+				if (EraseOrInsert != INSERT)
+					add = -ADDING_WEIGHT_PER_HINGE_VALUE;
+				if (UserInterface_UpdateAllOutputs) {
+					for (auto& out : Outputs) {
+						out.Energy_auxBendingNormal->Update_HingesWeights(neigh_faces, add);
+						out.Energy_auxSpherePerHinge->Update_HingesWeights(neigh_faces, add);
+					}
+				}
+				else {
+					Outputs[output_index].Energy_auxBendingNormal->Update_HingesWeights(neigh_faces, add);
+					Outputs[output_index].Energy_auxSpherePerHinge->Update_HingesWeights(neigh_faces, add);
 				}
 			}
-			else {
-				Outputs[output_index].Energy_auxBendingNormal->UpdateHingesWeights(neigh_faces, factor);
-				Outputs[output_index].Energy_auxSpherePerHinge->UpdateHingesWeights(neigh_faces, factor);
+			else if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID) {
+				double factor = ADDING_SIGMOID_PER_HINGE_VALUE;
+				if (EraseOrInsert != INSERT)
+					factor = 1 / ADDING_SIGMOID_PER_HINGE_VALUE;
+				if (UserInterface_UpdateAllOutputs) {
+					for (auto& out : Outputs) {
+						out.Energy_auxBendingNormal->Update_HingesSigmoid(neigh_faces, factor);
+						out.Energy_auxSpherePerHinge->Update_HingesSigmoid(neigh_faces, factor);
+					}
+				}
+				else {
+					Outputs[output_index].Energy_auxBendingNormal->Update_HingesSigmoid(neigh_faces, factor);
+					Outputs[output_index].Energy_auxSpherePerHinge->Update_HingesSigmoid(neigh_faces, factor);
+				}
 			}
 			
 			/*if (EraseOrInsert == ERASE)
@@ -1536,7 +1578,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			update_ext_fixed_vertices();
 		}
 	}
-	else if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH && button == GLFW_MOUSE_BUTTON_LEFT)
+	else if ((UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS) && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
 		if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
 		{
@@ -1544,7 +1586,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			Outputs[Brush_output_index].UserInterface_IsTranslate = true;
 		}
 	}
-	else if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH && button == GLFW_MOUSE_BUTTON_MIDDLE)
+	else if ((UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS) && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
 		if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
 		{
@@ -1552,14 +1594,14 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			Outputs[Brush_output_index].UserInterface_IsTranslate = true;
 		}
 	}
-	else if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ && button == GLFW_MOUSE_BUTTON_LEFT)
+	else if ((UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS) && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
 		IsChoosingGroups = true;
 		EraseOrInsert = INSERT;
 		Eigen::Vector3f _;
 		pick_face(&curr_highlighted_output, &curr_highlighted_face, _);
 	}
-	else if (UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_ADJ && button == GLFW_MOUSE_BUTTON_MIDDLE)
+	else if ((UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS) && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
 		IsChoosingGroups = true;
 		EraseOrInsert = ERASE;
@@ -1726,10 +1768,14 @@ IGL_INLINE bool deformation_plugin::key_down(int key, int modifiers)
 	if (key == '1')
 		UserInterface_option = app_utils::UserInterfaceOptions::FIX_VERTICES;
 	else if (key == '2')
-		UserInterface_option = app_utils::UserInterfaceOptions::GROUPING_BY_ADJ;
+		UserInterface_option = app_utils::UserInterfaceOptions::BRUSH_SIGMOID;
 	else if (key == '3')
-		UserInterface_option = app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH;
+		UserInterface_option = app_utils::UserInterfaceOptions::ADJ_SIGMOID;
 	else if (key == '4')
+		UserInterface_option = app_utils::UserInterfaceOptions::BRUSH_WEIGHTS;
+	else if (key == '5')
+		UserInterface_option = app_utils::UserInterfaceOptions::ADJ_WEIGHTS;
+	else if (key == '6')
 		UserInterface_option = app_utils::UserInterfaceOptions::FIX_FACES;
 	
 	return ImGuiMenu::key_down(key, modifiers);
@@ -1749,9 +1795,9 @@ IGL_INLINE void deformation_plugin::shutdown()
 
 void deformation_plugin::draw_brush_sphere() 
 {
-	if (!(Brush_face_index != NOT_FOUND && 
-		Outputs[Brush_output_index].UserInterface_IsTranslate &&
-		UserInterface_option == app_utils::UserInterfaceOptions::GROUPING_BY_BRUSH))
+	if (!(Brush_face_index != NOT_FOUND && Outputs[Brush_output_index].UserInterface_IsTranslate &&
+		(UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS ||
+			UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID)))
 		return;
 	//prepare brush sphere
 	const int samples = 100;
@@ -1775,6 +1821,8 @@ void deformation_plugin::draw_brush_sphere()
 	}
 	else if (EraseOrInsert == ERASE) { 
 		c.row(0) = Outputs[0].Energy_auxBendingNormal->colorM.cast<double>();
+		if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID)
+			c.row(0) = model_color.cast<double>();
 	}
 	//update data for cores
 	OutputModel(Brush_output_index).point_size = 10;
@@ -1961,22 +2009,37 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		//Mark the selected faces by brush
 		{
 			Cuda::hinge* hinge_to_face_mapping = Outputs[i].Energy_auxBendingNormal->cuda_ABN->hinges_faceIndex.host_arr;
-			double* BN_hinges_weights = Outputs[i].Energy_auxBendingNormal->cuda_ABN->weightPerHinge.host_arr;
-			//double* AS_hinges_weights = Outputs[i].Energy_auxSpherePerHinge->cuda_ASH->weightPerHinge.host_arr;
 			int num_hinges = Outputs[i].Energy_auxSpherePerHinge->cuda_ASH->mesh_indices.num_hinges;
-			for (int hi = 0; hi < num_hinges; hi++) {
-				const int f0 = hinge_to_face_mapping[hi].f0;
-				const int f1 = hinge_to_face_mapping[hi].f1;
-				const double w = BN_hinges_weights[hi];
-				
-				if (w > 1) {
-					const double alpha = (w - 1.0f) / MAX_WEIGHT_PER_HINGE_VALUE;
-					Outputs[i].shiftFaceColors(f0, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
-					Outputs[i].shiftFaceColors(f1, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
-				}
-				if (w < 1) {
-					Outputs[i].shiftFaceColors(f0, 1.0f - w, model_color, Outputs[i].Energy_auxBendingNormal->colorM);
-					Outputs[i].shiftFaceColors(f1, 1.0f - w, model_color, Outputs[i].Energy_auxBendingNormal->colorM);
+			
+			if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS) {
+				 double* hinge_val = Outputs[i].Energy_auxBendingNormal->cuda_ABN->weight_PerHinge.host_arr;
+				 for (int hi = 0; hi < num_hinges; hi++) {
+					 const int f0 = hinge_to_face_mapping[hi].f0;
+					 const int f1 = hinge_to_face_mapping[hi].f1;
+					 const double w = hinge_val[hi];
+
+					 if (w > 1) {
+						 const double alpha = (w - 1.0f) / MAX_WEIGHT_PER_HINGE_VALUE;
+						 Outputs[i].shiftFaceColors(f0, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
+						 Outputs[i].shiftFaceColors(f1, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
+					 }
+					 if (w < 1) {
+						 Outputs[i].shiftFaceColors(f0, 1.0f - w, model_color, Outputs[i].Energy_auxBendingNormal->colorM);
+						 Outputs[i].shiftFaceColors(f1, 1.0f - w, model_color, Outputs[i].Energy_auxBendingNormal->colorM);
+					 }
+				 }
+			}
+			else if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID) {
+				double* hinge_val = Outputs[i].Energy_auxBendingNormal->cuda_ABN->Sigmoid_PerHinge.host_arr;
+				for (int hi = 0; hi < num_hinges; hi++) {
+					const int f0 = hinge_to_face_mapping[hi].f0;
+					const int f1 = hinge_to_face_mapping[hi].f1;
+					const double log_minus_w = -log2(hinge_val[hi]);
+					if (log_minus_w > 0) {
+						const double alpha = log_minus_w / MAX_SIGMOID_PER_HINGE_VALUE;
+						Outputs[i].shiftFaceColors(f0, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
+						Outputs[i].shiftFaceColors(f1, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
+					}
 				}
 			}
 		}

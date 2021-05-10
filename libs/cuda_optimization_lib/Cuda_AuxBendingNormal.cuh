@@ -12,9 +12,17 @@ public:
 	Cuda::Array<double> EnergyAtomic;
 	void Inc_SigmoidParameter() {
 		SigmoidParameter *= 2;
+		for (int hi = 0; hi < mesh_indices.num_hinges; hi++) {
+			Sigmoid_PerHinge.host_arr[hi] *= 2;
+		}
+		Cuda::MemCpyHostToDevice(Sigmoid_PerHinge);
 	}
 	void Dec_SigmoidParameter() {
 		SigmoidParameter /= 2;
+		for (int hi = 0; hi < mesh_indices.num_hinges; hi++) {
+			Sigmoid_PerHinge.host_arr[hi] /= 2;
+		}
+		Cuda::MemCpyHostToDevice(Sigmoid_PerHinge);
 	}
 	double get_SigmoidParameter() {
 		return SigmoidParameter;
@@ -23,7 +31,7 @@ public:
 	//Static variables
 	cudaStream_t stream_value, stream_gradient;
 	Cuda::Array<int3> restShapeF;
-	Cuda::Array<double> restAreaPerFace, restAreaPerHinge, weightPerHinge;
+	Cuda::Array<double> restAreaPerFace, restAreaPerHinge, weight_PerHinge, Sigmoid_PerHinge;
 	Cuda::indices mesh_indices;
 	Cuda::Array<Cuda::hinge> hinges_faceIndex; 
 	Cuda::Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd;
