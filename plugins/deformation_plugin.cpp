@@ -12,7 +12,7 @@
 #define ERASE true
 
 #define ADDING_WEIGHT_PER_HINGE_VALUE 10.0f
-#define MAX_WEIGHT_PER_HINGE_VALUE  300.0f //30.0f*ADDING_WEIGHT_PER_HINGE_VALUE
+#define MAX_WEIGHT_PER_HINGE_VALUE  500.0f //50.0f*ADDING_WEIGHT_PER_HINGE_VALUE
 
 
 deformation_plugin::deformation_plugin() :
