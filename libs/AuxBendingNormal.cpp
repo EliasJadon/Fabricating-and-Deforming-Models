@@ -223,8 +223,8 @@ void AuxBendingNormal::Update_HingesWeights(
 		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
 		for (int hi : H) {
 			cuda_ABN->weight_PerHinge.host_arr[hi] += add;
-			if (cuda_ABN->weight_PerHinge.host_arr[hi] < 1e-10) {
-				cuda_ABN->weight_PerHinge.host_arr[hi] = 1e-10;
+			if (cuda_ABN->weight_PerHinge.host_arr[hi] < 0) {
+				cuda_ABN->weight_PerHinge.host_arr[hi] = 0;
 			}
 		}
 	}
@@ -239,8 +239,8 @@ void AuxBendingNormal::Update_HingesSigmoid(
 		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
 		for (int hi : H) {
 			cuda_ABN->Sigmoid_PerHinge.host_arr[hi] *= factor;
-			if (cuda_ABN->Sigmoid_PerHinge.host_arr[hi] < 1e-10) {
-				cuda_ABN->Sigmoid_PerHinge.host_arr[hi] = 1e-10;
+			if (cuda_ABN->Sigmoid_PerHinge.host_arr[hi] > 1) {
+				cuda_ABN->Sigmoid_PerHinge.host_arr[hi] = 1;
 			}
 		}
 	}

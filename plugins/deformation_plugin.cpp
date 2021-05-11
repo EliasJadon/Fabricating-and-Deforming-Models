@@ -13,7 +13,7 @@
 
 #define ADDING_WEIGHT_PER_HINGE_VALUE 10.0f
 #define MAX_WEIGHT_PER_HINGE_VALUE  500.0f //50.0f*ADDING_WEIGHT_PER_HINGE_VALUE
-#define ADDING_SIGMOID_PER_HINGE_VALUE 0.5f
+#define ADDING_SIGMOID_PER_HINGE_VALUE 0.9f
 #define MAX_SIGMOID_PER_HINGE_VALUE  40.0f //50.0f*ADDING_WEIGHT_PER_HINGE_VALUE
 
 
@@ -1435,9 +1435,9 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		{
 			std::vector<int> neigh_faces = Outputs[output_index].getNeigh(neighborType, InputModel().F, face_index, neighbor_distance);
 			if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS) {
-				double add = ADDING_WEIGHT_PER_HINGE_VALUE;
+				double add = 5*ADDING_WEIGHT_PER_HINGE_VALUE;
 				if (EraseOrInsert != INSERT)
-					add = -ADDING_WEIGHT_PER_HINGE_VALUE;
+					add = -5*ADDING_WEIGHT_PER_HINGE_VALUE;
 				if (UserInterface_UpdateAllOutputs) {
 					for (auto& out : Outputs) {
 						out.Energy_auxBendingNormal->Update_HingesWeights(neigh_faces, add);
@@ -1450,9 +1450,9 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 				}
 			}
 			else if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID) {
-				double factor = ADDING_SIGMOID_PER_HINGE_VALUE;
+				double factor = pow(ADDING_SIGMOID_PER_HINGE_VALUE, 5);
 				if (EraseOrInsert != INSERT)
-					factor = 1 / ADDING_SIGMOID_PER_HINGE_VALUE;
+					factor = 1 / pow(ADDING_SIGMOID_PER_HINGE_VALUE, 5);
 				if (UserInterface_UpdateAllOutputs) {
 					for (auto& out : Outputs) {
 						out.Energy_auxBendingNormal->Update_HingesSigmoid(neigh_faces, factor);
