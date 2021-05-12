@@ -215,7 +215,7 @@ void AuxBendingNormal::calculateHinges() {
 	}
 }
 
-void AuxBendingNormal::Update_HingesWeights(
+void AuxBendingNormal::Incr_HingesWeights(
 	const std::vector<int> faces_indices,
 	const double add)
 {
@@ -223,10 +223,23 @@ void AuxBendingNormal::Update_HingesWeights(
 		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
 		for (int hi : H) {
 			cuda_ABN->weight_PerHinge.host_arr[hi] += add;
-			if (cuda_ABN->weight_PerHinge.host_arr[hi] < 0) {
-				cuda_ABN->weight_PerHinge.host_arr[hi] = 0;
+			if (cuda_ABN->weight_PerHinge.host_arr[hi] <= 1) {
+				cuda_ABN->weight_PerHinge.host_arr[hi] = 1;
 			}
 		}
+	}
+	Cuda::MemCpyHostToDevice(cuda_ABN->weight_PerHinge);
+}
+
+void AuxBendingNormal::Set_HingesWeights(
+	const std::vector<int> faces_indices,
+	const double value)
+{
+	assert(value == 0 || value == 1);
+	for (int fi : faces_indices) {
+		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
+		for (int hi : H)
+			cuda_ABN->weight_PerHinge.host_arr[hi] = value;
 	}
 	Cuda::MemCpyHostToDevice(cuda_ABN->weight_PerHinge);
 }

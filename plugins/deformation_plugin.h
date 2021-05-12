@@ -65,7 +65,8 @@ private:
 	app_utils::View view;
 	app_utils::UserInterfaceOptions UserInterface_option;
 	int UserInterface_groupNum;
-	bool EraseOrInsert, IsChoosingGroups;
+	bool IsChoosingGroups;
+	bool UI_status;
 	int Output_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
 	std::thread minimizer_thread;

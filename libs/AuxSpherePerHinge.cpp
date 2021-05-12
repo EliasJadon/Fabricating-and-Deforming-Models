@@ -284,7 +284,7 @@ void AuxSpherePerHinge::calculateHinges() {
 	}
 }
 
-void AuxSpherePerHinge::Update_HingesWeights(
+void AuxSpherePerHinge::Incr_HingesWeights(
 	const std::vector<int> faces_indices, 
 	const double add) 
 {
@@ -292,10 +292,23 @@ void AuxSpherePerHinge::Update_HingesWeights(
 		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
 		for (int hi : H) {
 			cuda_ASH->weight_PerHinge.host_arr[hi] += add;
-			if (cuda_ASH->weight_PerHinge.host_arr[hi] < 1e-20) {
-				cuda_ASH->weight_PerHinge.host_arr[hi] = 1e-20;
+			if (cuda_ASH->weight_PerHinge.host_arr[hi] <= 1) {
+				cuda_ASH->weight_PerHinge.host_arr[hi] = 1;
 			}
 		}
+	}
+	Cuda::MemCpyHostToDevice(cuda_ASH->weight_PerHinge);
+}
+
+void AuxSpherePerHinge::Set_HingesWeights(
+	const std::vector<int> faces_indices, 
+	const double value) 
+{
+	assert(value == 0 || value == 1);
+	for (int fi : faces_indices) {
+		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
+		for (int hi : H)
+			cuda_ASH->weight_PerHinge.host_arr[hi] = value;
 	}
 	Cuda::MemCpyHostToDevice(cuda_ASH->weight_PerHinge);
 }

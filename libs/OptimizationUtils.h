@@ -88,7 +88,7 @@ namespace OptimizationUtils
 			}
 				
 		} 
-		assert(hingesPerFace.size() <= 3 && hingesPerFace.size() > 0);
+		assert(hingesPerFace.size() <= 3 && hingesPerFace.size() >= 0);
 		return hingesPerFace;
 	}
 
