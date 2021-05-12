@@ -378,7 +378,18 @@ void deformation_plugin::CollapsingHeader_clustering()
 				ind = f;
 			}
 			copy_index.push_back(ind);
-			paste_index.push_back(Outputs[0].UserInterface_facesGroups[0].faces);
+			
+			Cuda::hinge* hinge_to_face_mapping = Outputs[0].Energy_auxBendingNormal->cuda_ABN->hinges_faceIndex.host_arr;
+			int num_hinges = Outputs[0].Energy_auxSpherePerHinge->cuda_ASH->mesh_indices.num_hinges;
+			double* hinge_val = Outputs[0].Energy_auxBendingNormal->cuda_ABN->weight_PerHinge.host_arr;
+			std::set<int> chosen_faces;
+			for (int hi = 0; hi < num_hinges; hi++) {
+				if (hinge_val[hi] > 1) {
+					chosen_faces.insert(hinge_to_face_mapping[hi].f0);
+					chosen_faces.insert(hinge_to_face_mapping[hi].f1);
+				}
+			}
+			paste_index.push_back(chosen_faces);
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("Reset")) {
