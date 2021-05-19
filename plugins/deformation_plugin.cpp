@@ -1325,11 +1325,15 @@ void deformation_plugin::brush_erase_or_insert()
 				for (auto& out : Outputs) {
 					out.Energy_auxBendingNormal->Incr_HingesWeights(brush_faces, add);
 					out.Energy_auxSpherePerHinge->Incr_HingesWeights(brush_faces, add);
+					out.Energy_auxBendingNormal->Reset_HingesSigmoid(brush_faces);
+					out.Energy_auxSpherePerHinge->Reset_HingesSigmoid(brush_faces);
 				}
 			}
 			else {
 				Outputs[Brush_output_index].Energy_auxBendingNormal->Incr_HingesWeights(brush_faces, add);
 				Outputs[Brush_output_index].Energy_auxSpherePerHinge->Incr_HingesWeights(brush_faces, add);
+				Outputs[Brush_output_index].Energy_auxBendingNormal->Reset_HingesSigmoid(brush_faces);
+				Outputs[Brush_output_index].Energy_auxSpherePerHinge->Reset_HingesSigmoid(brush_faces);
 			}
 		}
 		else if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) {
@@ -1466,11 +1470,16 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 					for (auto& out : Outputs) {
 						out.Energy_auxBendingNormal->Incr_HingesWeights(neigh_faces, add);
 						out.Energy_auxSpherePerHinge->Incr_HingesWeights(neigh_faces, add);
+						out.Energy_auxBendingNormal->Reset_HingesSigmoid(neigh_faces);
+						out.Energy_auxSpherePerHinge->Reset_HingesSigmoid(neigh_faces);
+						
 					}
 				}
 				else {
 					Outputs[output_index].Energy_auxBendingNormal->Incr_HingesWeights(neigh_faces, add);
 					Outputs[output_index].Energy_auxSpherePerHinge->Incr_HingesWeights(neigh_faces, add);
+					Outputs[output_index].Energy_auxBendingNormal->Reset_HingesSigmoid(neigh_faces);
+					Outputs[output_index].Energy_auxSpherePerHinge->Reset_HingesSigmoid(neigh_faces);
 				}
 			}
 			else if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID) {

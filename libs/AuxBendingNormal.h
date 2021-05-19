@@ -17,6 +17,7 @@ public:
 	void pre_minimizer();
 	std::shared_ptr<Cuda_AuxBendingNormal> cuda_ABN;
 
+	void Reset_HingesSigmoid(const std::vector<int> faces_indices);
 	void Incr_HingesWeights(const std::vector<int> faces_indices, const double add);
 	void Set_HingesWeights(const std::vector<int> faces_indices, const double value);
 	void Update_HingesSigmoid(const std::vector<int> faces_indices, const double factor);

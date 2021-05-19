@@ -260,6 +260,17 @@ void AuxBendingNormal::Update_HingesSigmoid(
 	Cuda::MemCpyHostToDevice(cuda_ABN->Sigmoid_PerHinge);
 }
 
+void AuxBendingNormal::Reset_HingesSigmoid(const std::vector<int> faces_indices)
+{
+	for (int fi : faces_indices) {
+		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
+		for (int hi : H) {
+			cuda_ABN->Sigmoid_PerHinge.host_arr[hi] = 1;
+		}
+	}
+	Cuda::MemCpyHostToDevice(cuda_ABN->Sigmoid_PerHinge);
+}
+
 void AuxBendingNormal::Clear_HingesWeights() {
 	for (int hi = 0; hi < num_hinges; hi++) {
 		cuda_ABN->weight_PerHinge.host_arr[hi] = 1;

@@ -80,16 +80,15 @@ int Minimizer::run()
 
 void Minimizer::update_lambda(int* lambda_counter) 
 {
-	if (isAutoLambdaRunning &&
-		numIteration >= autoLambda_from &&
-		(*lambda_counter) < autoLambda_count &&
-		numIteration % autoLambda_jump == 0)
+	std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
+	std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(totalObjective->objectiveList[1]);
+	std::shared_ptr<AuxCylinder> ACY = std::dynamic_pointer_cast<AuxCylinder>(totalObjective->objectiveList[2]);
+	
+	if (isAutoLambdaRunning && numIteration >= autoLambda_from && !(numIteration % autoLambda_jump))
 	{
-		std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
-		std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(totalObjective->objectiveList[1]);
-		std::shared_ptr<AuxCylinder> ACY = std::dynamic_pointer_cast<AuxCylinder>(totalObjective->objectiveList[2]);
-		ASH->cuda_ASH->Dec_SigmoidParameter();
-		ABN->cuda_ABN->Dec_SigmoidParameter();
+		const double target = pow(2, -autoLambda_count);
+		ASH->cuda_ASH->Dec_SigmoidParameter(target);
+		ABN->cuda_ABN->Dec_SigmoidParameter(target);
 		ACY->cuda_ACY->Dec_SigmoidParameter();
 		(*lambda_counter)++;
 	}

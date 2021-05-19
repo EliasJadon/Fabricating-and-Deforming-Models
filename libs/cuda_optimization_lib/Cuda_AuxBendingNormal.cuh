@@ -24,6 +24,15 @@ public:
 		}
 		Cuda::MemCpyHostToDevice(Sigmoid_PerHinge);
 	}
+	void Dec_SigmoidParameter(const double target) {
+		if (SigmoidParameter > target)
+			SigmoidParameter /= 2;
+		for (int hi = 0; hi < mesh_indices.num_hinges; hi++) {
+			if (Sigmoid_PerHinge.host_arr[hi] > target)
+				Sigmoid_PerHinge.host_arr[hi] /= 2;
+		}
+		Cuda::MemCpyHostToDevice(Sigmoid_PerHinge);
+	}
 	double get_SigmoidParameter() {
 		return SigmoidParameter;
 	}
