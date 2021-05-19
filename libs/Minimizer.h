@@ -12,12 +12,8 @@ class Minimizer
 {
 public:
 	Minimizer(const int solverID);
-	int run();
-	
-	void run_one_iteration(
-		const int steps,
-		int* lambda_counter , 
-		const bool showGraph);
+	void run();
+	void run_one_iteration();
 	void stop();
 	void get_data(
 		Eigen::MatrixXd& X, 
@@ -58,17 +54,17 @@ public:
 	inline int getNumiter() {
 		return this->numIteration;
 	}
-	void update_lambda(int*);
+	void update_lambda();
 	bool isAutoLambdaRunning = true;
 	int autoLambda_from = 100, autoLambda_count = 40, autoLambda_jump = 70;
-protected:
+private:
 	// Give the wrapper a chance to intersect gracefully
 	void give_parameter_update_slot();
 	// Updating the data after a step has been done
-	void update_external_data(int steps);
+	void update_external_data();
 	double currentEnergy;
 	int numIteration = 0;
-private:
+
 	int solverID;
 	void linesearch();
 	void value_linesearch();

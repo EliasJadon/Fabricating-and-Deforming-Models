@@ -419,10 +419,6 @@ void AuxSpherePerHinge::value(Cuda::Array<double>& curr_x)
 	Cuda::MemCpyHostToDevice(cuda_ASH->EnergyAtomic);
 }
 
-void AuxSpherePerHinge::pre_minimizer() {
-	
-}
-
 void AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 {
 	Cuda::MemCpyDeviceToHost(X);

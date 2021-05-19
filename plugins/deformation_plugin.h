@@ -136,15 +136,14 @@ public:
 	void set_vertices_for_mesh(Eigen::MatrixXd& V, const int index);
 
 	//Start/Stop the minimizer Thread
-	void initializeMinimizer(const int index);
+	void init_objective_functions(const int index);
 	void stop_minimizer_thread();
 	void start_minimizer_thread();
 	void run_one_minimizer_iter();
-	void init_minimizer_thread();
+	void init_aux_variables();
 
 	//FD check
 	void checkGradients();
-	void checkHessians();
 
 	//outputs
 	void add_output();

@@ -42,7 +42,8 @@ void Minimizer::init(
 	Cuda::initCuda();
 
 	unsigned int size = 3 * V.rows() + 10 * F.rows();
-	this->cuda_Minimizer = std::make_shared<Cuda_Minimizer>(size);
+	if (this->cuda_Minimizer == NULL)
+		this->cuda_Minimizer = std::make_shared<Cuda_Minimizer>(size);
 	totalObjective->cuda_Minimizer = this->cuda_Minimizer;
 	for (int i = 0; i < 3 * V.rows(); i++)
 		cuda_Minimizer->X.host_arr[0 * V.rows() + 0 * F.rows() + i] = X0[i];
@@ -58,27 +59,17 @@ void Minimizer::init(
 	Cuda::copyArrays(cuda_Minimizer->curr_x, cuda_Minimizer->X);
 }
 
-int Minimizer::run()
+void Minimizer::run()
 {
 	is_running = true;
 	halt = false;
-	numIteration = 0;
-	int lambda_counter = 0;
-	do 
-	{
-		std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
-		std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(totalObjective->objectiveList[1]);
-		ASH->pre_minimizer();
-		ABN->pre_minimizer();
-		run_one_iteration(numIteration, &lambda_counter, false);
-		numIteration++;
-	} while (!halt);
+	while (!halt)
+		run_one_iteration();
 	is_running = false;
 	std::cout << ">> solver " + std::to_string(solverID) + " stopped" << std::endl;
-	return 0;
 }
 
-void Minimizer::update_lambda(int* lambda_counter) 
+void Minimizer::update_lambda() 
 {
 	std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
 	std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(totalObjective->objectiveList[1]);
@@ -90,26 +81,21 @@ void Minimizer::update_lambda(int* lambda_counter)
 		ASH->cuda_ASH->Dec_SigmoidParameter(target);
 		ABN->cuda_ABN->Dec_SigmoidParameter(target);
 		ACY->cuda_ACY->Dec_SigmoidParameter();
-		(*lambda_counter)++;
 	}
 }
 
-void Minimizer::run_one_iteration(
-	const int steps,
-	int* lambda_counter, 
-	const bool showGraph) 
+void Minimizer::run_one_iteration() 
 {
 	OptimizationUtils::Timer t(&timer_sum, &timer_curr);
-	numIteration = steps;
-	timer_avg = timer_sum / numIteration;
-	update_lambda(lambda_counter);
+	timer_avg = timer_sum / ++numIteration;
+	update_lambda();
 
 	totalObjective->gradient(cuda_Minimizer->X, true);
 	if (step_type == MinimizerType::ADAM_MINIMIZER)
 		cuda_Minimizer->adam_Step();
 	currentEnergy = totalObjective->value(cuda_Minimizer->X, true);
 	linesearch();
-	update_external_data(steps);
+	update_external_data();
 }
 
 void Minimizer::linesearch()
@@ -195,23 +181,21 @@ void Minimizer::stop()
 	release_parameter_update_slot();
 }
 
-void Minimizer::update_external_data(int steps)
+void Minimizer::update_external_data()
 {
 	give_parameter_update_slot();
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
-	//if (steps % 30 == 0) {
-		Cuda::MemCpyDeviceToHost(cuda_Minimizer->X);
-		for (int i = 0; i < 3 * V.rows(); i++)
-			ext_x[i] = cuda_Minimizer->X.host_arr[i];
-		for (int i = 0; i < 3 * F.rows(); i++)
-			ext_norm[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + i];
-		for (int i = 0; i < 3 * F.rows(); i++)
-			ext_center[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 3 * F.rows() + i];
-		for (int i = 0; i < F.rows(); i++)
-			ext_radius[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 6 * F.rows() + i];
-		for (int i = 0; i < 3 * F.rows(); i++)
-			ext_Cylinder_dir[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 7 * F.rows() + i];
-	//}
+	Cuda::MemCpyDeviceToHost(cuda_Minimizer->X);
+	for (int i = 0; i < 3 * V.rows(); i++)
+		ext_x[i] = cuda_Minimizer->X.host_arr[i];
+	for (int i = 0; i < 3 * F.rows(); i++)
+		ext_norm[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + i];
+	for (int i = 0; i < 3 * F.rows(); i++)
+		ext_center[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 3 * F.rows() + i];
+	for (int i = 0; i < F.rows(); i++)
+		ext_radius[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 6 * F.rows() + i];
+	for (int i = 0; i < 3 * F.rows(); i++)
+		ext_Cylinder_dir[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 7 * F.rows() + i];
 	progressed = true;
 }
 

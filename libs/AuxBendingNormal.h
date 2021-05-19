@@ -14,7 +14,6 @@ private:
 	void internalInitCuda();
 public:
 	Eigen::Vector3f colorP, colorM;
-	void pre_minimizer();
 	std::shared_ptr<Cuda_AuxBendingNormal> cuda_ABN;
 
 	void Reset_HingesSigmoid(const std::vector<int> faces_indices);

@@ -106,7 +106,7 @@ void deformation_plugin::load_new_model(const std::string modelpath)
 	{
 		viewer->load_mesh_from_file(modelPath.c_str());
 		Outputs[i].ModelID = viewer->data_list[i + 1].id;
-		initializeMinimizer(i);
+		init_objective_functions(i);
 	}
 	if (isModelLoaded)
 		add_output();
@@ -660,21 +660,21 @@ void deformation_plugin::CollapsingHeader_minimizer()
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0"))
 			change_minimizer_type(minimizer_type);
 		if (ImGui::Combo("init sphere var", (int *)(&initAuxVariables), "Sphere Fit\0Mesh Center\0Minus Normal\0Cylinder Fit\0\0"))
-			init_minimizer_thread();
+			init_aux_variables();
 		if (initAuxVariables == OptimizationUtils::InitAuxVariables::SPHERE_FIT ||
 			initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT) 
 		{
 			if (ImGui::DragInt("Neigh From", &(InitMinimizer_NeighLevel_From), 1, 1, 200))
-				init_minimizer_thread();
+				init_aux_variables();
 			if (ImGui::DragInt("Neigh To", &(InitMinimizer_NeighLevel_To), 1, 1, 200))
-				init_minimizer_thread();
+				init_aux_variables();
 		}	
 		if (initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT &&
 			ImGui::DragInt("imax", &(CylinderInit_imax), 1, 1, 200))
-			init_minimizer_thread();
+			init_aux_variables();
 		if (initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT &&
 			ImGui::DragInt("jmax", &(CylinderInit_jmax), 1, 1, 200))
-			init_minimizer_thread();
+			init_aux_variables();
 
 		if (ImGui::Combo("line search", (int *)(&linesearch_type), "Gradient Norm\0Function Value\0Constant Step\0\0")) {
 			for (auto& o : Outputs)
@@ -1238,7 +1238,7 @@ void deformation_plugin::add_output()
 	Outputs.push_back(OptimizationOutput(viewer, minimizer_type,linesearch_type));
 	viewer->load_mesh_from_file(modelPath.c_str());
 	Outputs[Outputs.size() - 1].ModelID = viewer->data_list[Outputs.size()].id;
-	initializeMinimizer(Outputs.size() - 1);
+	init_objective_functions(Outputs.size() - 1);
 	//Update the scene
 	viewer->core(inputCoreID).align_camera_center(InputModel().V, InputModel().F);
 	viewer->core(inputCoreID).is_animating = true;
@@ -1713,7 +1713,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		neighborType = app_utils::NeighborType::LOCAL_SPHERE;
 		clusteringType = app_utils::ClusteringType::RGB_SPHERE;
 		initAuxVariables = OptimizationUtils::InitAuxVariables::SPHERE_FIT;
-		init_minimizer_thread();
+		init_aux_variables();
 		for (auto&out : Outputs) {
 			out.showSphereCenters = true;
 			out.showSphereEdges = out.showNormEdges =
@@ -1753,7 +1753,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		neighborType = app_utils::NeighborType::LOCAL_CYLINDERS;
 		clusteringType = app_utils::ClusteringType::RGB_CYLINDER;
 		initAuxVariables = OptimizationUtils::InitAuxVariables::CYLINDER_FIT;
-		init_minimizer_thread();
+		init_aux_variables();
 		for (auto&out : Outputs) {
 			out.showSphereCenters =
 				out.showSphereEdges = out.showNormEdges =
@@ -1951,7 +1951,7 @@ void deformation_plugin::change_minimizer_type(MinimizerType type)
 {
 	minimizer_type = type;
 	stop_minimizer_thread();
-	init_minimizer_thread();
+	init_aux_variables();
 	for (int i = 0; i < Outputs.size(); i++)
 		Outputs[i].updateActiveMinimizer(minimizer_type);
 }
@@ -2441,7 +2441,7 @@ void deformation_plugin::stop_minimizer_thread()
 	}
 }
 
-void deformation_plugin::init_minimizer_thread() 
+void deformation_plugin::init_aux_variables() 
 {
 	stop_minimizer_thread();
 	if (InitMinimizer_NeighLevel_From < 1)
@@ -2465,30 +2465,22 @@ void deformation_plugin::init_minimizer_thread()
 void deformation_plugin::run_one_minimizer_iter() 
 {
 	stop_minimizer_thread();
-	static int iteration_counter = 0;
-	static int lambda_counter = 0;
-	if(iteration_counter == 0)
-		init_minimizer_thread();
-	for (int i = 0; i < Outputs.size(); i++) 
-	{
-		minimizer_thread = std::thread(&Minimizer::run_one_iteration, Outputs[i].minimizer.get(), iteration_counter++, &lambda_counter, true);
-		minimizer_thread.join();
-	}
+	for (auto& o : Outputs)
+		o.minimizer->run_one_iteration();
 }
 
 void deformation_plugin::start_minimizer_thread() 
 {
 	stop_minimizer_thread();
-	init_minimizer_thread();
-	for (int i = 0; i < Outputs.size();i++) 
+	for (auto& o : Outputs)
 	{
-		minimizer_thread = std::thread(&Minimizer::run, Outputs[i].minimizer.get());
+		minimizer_thread = std::thread(&Minimizer::run, o.minimizer.get());
 		minimizer_thread.detach();
 	}
 	isMinimizerRunning = true;
 }
 
-void deformation_plugin::initializeMinimizer(const int index)
+void deformation_plugin::init_objective_functions(const int index)
 {
 	Eigen::MatrixXd V = OutputModel(index).V;
 	Eigen::MatrixX3i F = OutputModel(index).F;
@@ -2548,7 +2540,7 @@ void deformation_plugin::initializeMinimizer(const int index)
 	add_obj(groupNormals);
 	add_obj(groupCylinders);
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
-	init_minimizer_thread();
+	init_aux_variables();
 }
 
 void deformation_plugin::UpdateEnergyColors(const int index) 

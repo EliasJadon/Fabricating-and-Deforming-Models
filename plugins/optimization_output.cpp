@@ -751,15 +751,13 @@ void OptimizationOutput::initMinimizers(
 	const std::vector < std::set<int>> paste_index,
 	const std::vector < std::set<int>> group_index)
 {
-	Eigen::VectorXd initVertices = Eigen::Map<const Eigen::VectorXd>(V.data(), V.size());
 	Eigen::MatrixX3d normals;
 	igl::per_face_normals((Eigen::MatrixX3d)V, (Eigen::MatrixX3i)F, normals);
-	Eigen::VectorXd initNormals = Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size());
-	
 	
 	Eigen::MatrixXd center0, Cylinder_dir0(F.rows(),3);
 	Cylinder_dir0.setConstant(1);
 	Eigen::VectorXd Radius0;
+
 	if (typeAuxVar == OptimizationUtils::InitAuxVariables::SPHERE_FIT)
 		OptimizationUtils::Least_Squares_Sphere_Fit(distance_from, distance_to, V, F, center0, Radius0, group_index);
 	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::MODEL_CENTER_POINT)
@@ -818,16 +816,15 @@ void OptimizationOutput::initMinimizers(
 		}
 	}
 	
-
 	setAuxVariables(V, F, center0, Radius0, Cylinder_dir0, normals);
 
 	minimizer->init(
 		totalObjective,
-		initVertices,
-		initNormals,
-		Eigen::Map<Eigen::VectorXd>(center0.data(), F.size()),
+		Eigen::Map<const Eigen::VectorXd>(V.data(), V.size()),
+		Eigen::Map<const Eigen::VectorXd>(normals.data(), F.size()),
+		Eigen::Map<const Eigen::VectorXd>(center0.data(), F.size()),
 		Radius0,
-		Eigen::Map<Eigen::VectorXd>(Cylinder_dir0.data(), F.size()),
+		Eigen::Map<const Eigen::VectorXd>(Cylinder_dir0.data(), F.size()),
 		F,
 		V
 	);

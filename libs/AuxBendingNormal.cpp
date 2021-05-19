@@ -291,9 +291,6 @@ void AuxBendingNormal::value(Cuda::Array<double>& curr_x)
 	cuda_ABN->value(curr_x);
 }
 
-void AuxBendingNormal::pre_minimizer() {
-}
-
 void AuxBendingNormal::gradient(Cuda::Array<double>& X)
 {
 	cuda_ABN->gradient(X);
