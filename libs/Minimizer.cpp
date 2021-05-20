@@ -78,9 +78,12 @@ void Minimizer::update_lambda()
 	if (isAutoLambdaRunning && numIteration >= autoLambda_from && !(numIteration % autoLambda_jump))
 	{
 		const double target = pow(2, -autoLambda_count);
-		ASH->cuda_ASH->Dec_SigmoidParameter(target);
-		ABN->cuda_ABN->Dec_SigmoidParameter(target);
-		ACY->cuda_ACY->Dec_SigmoidParameter();
+		if (ASH->w)
+			ASH->cuda_ASH->Dec_SigmoidParameter(target);
+		if (ABN->w)
+			ABN->cuda_ABN->Dec_SigmoidParameter(target);
+		if (ACY->w)
+			ACY->cuda_ACY->Dec_SigmoidParameter();
 	}
 }
 

@@ -63,7 +63,7 @@ private:
 	// Updating the data after a step has been done
 	void update_external_data();
 	double currentEnergy;
-	int numIteration = 0;
+	unsigned int numIteration = 0;
 
 	int solverID;
 	void linesearch();
