@@ -57,6 +57,8 @@ public:
 	void update_lambda();
 	bool isAutoLambdaRunning = true;
 	int autoLambda_from = 100, autoLambda_count = 40, autoLambda_jump = 70;
+	double init_step_size = 1;
+	unsigned int linesearch_numiterations = 0;
 private:
 	// Give the wrapper a chance to intersect gracefully
 	void give_parameter_update_slot();
@@ -64,13 +66,12 @@ private:
 	void update_external_data();
 	double currentEnergy;
 	unsigned int numIteration = 0;
-
 	int solverID;
 	void linesearch();
 	void value_linesearch();
 	void gradNorm_linesearch();
 	void constant_linesearch();
-	double step_size, init_step_size = 1;
+	double step_size;
 	int cur_iter;
 
 	// Mutex stuff

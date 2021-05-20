@@ -829,16 +829,18 @@ void deformation_plugin::Draw_energies_window()
 	ImGui::PopStyleColor();
 	
 	//add automatic lambda change
-	if (ImGui::BeginTable("Lambda table", 8, ImGuiTableFlags_Resizable))
+	if (ImGui::BeginTable("Lambda table", 10, ImGuiTableFlags_Resizable))
 	{
 		ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableSetupColumn("On/Off", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
-		ImGui::TableSetupColumn("Start from iter", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("Start from", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableSetupColumn("Stop at", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
-		ImGui::TableSetupColumn("number of iter per lambda reduction", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
-		ImGui::TableSetupColumn("Curr iter", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
-		ImGui::TableSetupColumn("Time per iter [ms]", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
-		ImGui::TableSetupColumn("Avg time [ms]", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("#iter//lambda", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("#iter", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("Time [ms]", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("Avg Time [ms]", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("lineSearch step size", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("lineSearch #iter", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableAutoHeaders();
 		ImGui::Separator();
 		ImGui::TableNextRow();
@@ -862,6 +864,10 @@ void deformation_plugin::Draw_energies_window()
 			ImGui::Text(std::to_string(out.minimizer->timer_curr).c_str());
 			ImGui::TableNextCell();
 			ImGui::Text(std::to_string(out.minimizer->timer_avg).c_str());
+			ImGui::TableNextCell();
+			ImGui::Text(("2^" + std::to_string(int(log2(out.minimizer->init_step_size)))).c_str());
+			ImGui::TableNextCell();
+			ImGui::Text(std::to_string(out.minimizer->linesearch_numiterations).c_str());
 			ImGui::PopID();
 			ImGui::TableNextRow();
 		}
