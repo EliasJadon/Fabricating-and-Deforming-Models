@@ -31,7 +31,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	UserInterface_UpdateAllOutputs = false;
 	CollapsingHeader_change = false;
 	neighbor_distance = brush_radius = 0.3;
-	initAuxVariables = OptimizationUtils::InitAuxVariables::SPHERE_FIT;
+	initAuxVariables = OptimizationUtils::InitAuxVariables::MODEL_CENTER_POINT;
 	isLoadResultsNeeded = isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
@@ -162,9 +162,8 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		isLoadResultsNeeded = true;
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("save Result", ImVec2((w - p) / 2.f, 0)) && print_faces_index.size()) {
+	if (ImGui::Button("save Sphere", ImVec2((w - p) / 2.f, 0)) && Outputs[0].clustering_faces_indices.size()) {
 		// Get the Auxiliary variables
-		Eigen::MatrixXd Normals = Outputs[0].getFacesNormals();
 		Eigen::VectorXd Radiuses = Outputs[0].getRadiusOfSphere();
 		Eigen::MatrixXd Centers = Outputs[0].getCenterOfSphere();
 		// Multiply all the mesh by "factor". Relevant only for spheres. 
@@ -191,9 +190,9 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		}
 
 		// Save each cluster in the new directory
-		for (int clus_index = 0; clus_index < print_faces_index.size(); clus_index++)
+		for (int clus_index = 0; clus_index < Outputs[0].clustering_faces_indices.size(); clus_index++)
 		{
-			std::vector<int> clus_faces_index = print_faces_index[clus_index];
+			std::vector<int> clus_faces_index = Outputs[0].clustering_faces_indices[clus_index];
 			Eigen::MatrixX3i clus_faces(clus_faces_index.size(), 3);
 
 			double sumRadius = 0;
@@ -223,16 +222,50 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		}
 		// Save the final mesh in "off" file format
 		igl::writeOFF(Output_path + modelName + "_Output.off", OutputModel(0).V, OutputModel(0).F);
-
+		igl::writeOFF(Output_path + modelName + "_Input.off", InputModel().V, InputModel().F);
+		
 		// Save the auxliary variables in "off" file format
 		Eigen::MatrixX3d aux_Radiuses(OutputModel(0).F.rows(), 3);
 		aux_Radiuses.setZero();
 		aux_Radiuses.col(0) = Radiuses;
-		Eigen::MatrixX3i empty(1, 3);
-		empty << 1, 2, 3;
-		igl::writeOFF(Output_path + modelName + "_Output_Normals.off", Normals, empty);
+		Eigen::MatrixX3i empty(1, 3); empty << 1, 2, 3;
 		igl::writeOFF(Output_path + modelName + "_Output_Radiuses.off", aux_Radiuses, empty);
 		igl::writeOFF(Output_path + modelName + "_Output_Centers.off", Centers, empty);
+	}
+	if (ImGui::Button("Save Planar", ImVec2((w - p) / 2.f, 0)) && Outputs[0].clustering_faces_indices.size()) {
+		// Get the Auxiliary variables
+		Eigen::MatrixXd Normals = Outputs[0].getFacesNormals();
+		// Create new Directory for saving the data
+		char date_buffer[80] = { 0 };
+		{
+			time_t rawtime_;
+			struct tm* timeinfo_;
+			time(&rawtime_);
+			timeinfo_ = localtime(&rawtime_);
+			strftime(date_buffer, 80, "_%H_%M_%S__%d_%m_%Y", timeinfo_);
+		}
+		std::string Output_path = OptimizationUtils::ProjectPath() +
+			"models\\OutputModels\\" + modelName + std::string(date_buffer) + "\\";
+		if (mkdir(Output_path.c_str()) == -1) {
+			std::cerr << "Error :  " << strerror(errno) << std::endl;
+			exit(1);
+		}
+
+		// Save each cluster in the new directory
+		for (int clus_index = 0; clus_index < Outputs[0].clustering_faces_indices.size(); clus_index++)
+		{
+			std::vector<int> clus_faces_index = Outputs[0].clustering_faces_indices[clus_index];
+			Eigen::MatrixX3i clus_faces(clus_faces_index.size(), 3);
+			// Save the current cluster in "off" file format
+			std::string clus_file_name = modelName + "_cluster_" + std::to_string(clus_index) + ".off";
+			igl::writeOFF(Output_path + clus_file_name, OutputModel(0).V, clus_faces);
+		}
+		// Save the final mesh in "off" file format
+		igl::writeOFF(Output_path + modelName + "_Input.off", InputModel().V, InputModel().F);
+		igl::writeOFF(Output_path + modelName + "_Output.off", OutputModel(0).V, OutputModel(0).F);
+		// Save the auxliary variables in "off" file format
+		Eigen::MatrixX3i empty(1, 3); empty << 1, 2, 3;
+		igl::writeOFF(Output_path + modelName + "_Output_Normals.off", Normals, empty);
 	}
 	
 	if (isLoadNeeded)
@@ -660,6 +693,9 @@ void deformation_plugin::CollapsingHeader_minimizer()
 		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0"))
 			change_minimizer_type(minimizer_type);
 		if (ImGui::Combo("init sphere var", (int *)(&initAuxVariables), "Sphere Fit\0Mesh Center\0Minus Normal\0Cylinder Fit\0\0"))
+			init_aux_variables();
+		if (initAuxVariables == OptimizationUtils::InitAuxVariables::MINUS_NORMALS &&
+			ImGui::DragFloat("radius length", &radius_length_minus_normal, 0.01f, 0.0f, 1000.0f, "%.7f"))
 			init_aux_variables();
 		if (initAuxVariables == OptimizationUtils::InitAuxVariables::SPHERE_FIT ||
 			initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT) 
@@ -1123,12 +1159,14 @@ void deformation_plugin::Draw_results_window()
 		
 		
 		ImGui::TextColored(c, (
-			std::string("Num Faces: ") + 
-			std::to_string(InputModel().F.rows()) + 
-			std::string("\tNum Vertices: ") + 
-			std::to_string(InputModel().V.rows()) + 
-			std::string("\tGrad Size: ") + 
-			std::to_string(out.totalObjective->objectiveList[0]->getGradient()->size)			
+			std::string("Num Faces: ") +
+			std::to_string(InputModel().F.rows()) +
+			std::string("\tNum Vertices: ") +
+			std::to_string(InputModel().V.rows()) +
+			std::string("\nGrad Size: ") +
+			std::to_string(out.totalObjective->objectiveList[0]->getGradient()->size) +
+			std::string("\tNum Clusters: ") +
+			std::to_string(out.clustering_faces_indices.size())
 			).c_str());
 		ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" energy ") + std::to_string(out.totalObjective->energy_value)).c_str());
 		ImGui::TextColored(c, (std::string(out.totalObjective->name) + std::string(" gradient ") + std::to_string(out.totalObjective->gradient_norm)).c_str());
@@ -1718,7 +1756,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	{
 		neighborType = app_utils::NeighborType::LOCAL_SPHERE;
 		clusteringType = app_utils::ClusteringType::RGB_SPHERE;
-		initAuxVariables = OptimizationUtils::InitAuxVariables::SPHERE_FIT;
+		initAuxVariables = OptimizationUtils::InitAuxVariables::MINUS_NORMALS;
 		init_aux_variables();
 		for (auto&out : Outputs) {
 			out.showSphereCenters = true;
@@ -2223,7 +2261,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 					clustering_w * color(2) + (1 - clustering_w)
 				));
 			}
-			print_faces_index = DataColors.face_index;
+			Outputs[i].clustering_faces_indices = DataColors.face_index;
 		}
 	}
 }
@@ -2465,7 +2503,8 @@ void deformation_plugin::init_aux_variables()
 			CylinderInit_jmax,
 			copy_index,
 			paste_index,
-			group_index);
+			group_index,
+			radius_length_minus_normal);
 }
 
 void deformation_plugin::run_one_minimizer_iter() 

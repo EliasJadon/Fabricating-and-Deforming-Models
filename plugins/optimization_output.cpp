@@ -749,7 +749,8 @@ void OptimizationOutput::initMinimizers(
 	const int jmax,
 	const std::vector<int> copy_index,
 	const std::vector < std::set<int>> paste_index,
-	const std::vector < std::set<int>> group_index)
+	const std::vector < std::set<int>> group_index,
+	const double minus_normals_radius_length)
 {
 	Eigen::MatrixX3d normals;
 	igl::per_face_normals((Eigen::MatrixX3d)V, (Eigen::MatrixX3i)F, normals);
@@ -766,15 +767,25 @@ void OptimizationOutput::initMinimizers(
 		this->center_of_faces = OptimizationUtils::center_per_triangle(V, F);
 		Radius0.resize(F.rows());
 		center0.resize(F.rows(), 3);
-		Radius0.setConstant(0.1);
+		Radius0.setConstant(minus_normals_radius_length);
 
 		for (int i = 0; i < center0.rows(); i++) {
 			center0.row(i) = this->center_of_faces.row(i) - Radius0(i) * normals.row(i);
 		}
 	}
 	else if (typeAuxVar == OptimizationUtils::InitAuxVariables::CYLINDER_FIT) {
-		OptimizationUtils::Least_Squares_Cylinder_Fit(imax, jmax, distance_from, distance_to, V, F, center0, Cylinder_dir0, Radius0, group_index);
+		/*this->center_of_faces = OptimizationUtils::center_per_triangle(V, F);
+		Radius0.resize(F.rows());
+		center0.resize(F.rows(), 3);
+		Radius0.setConstant(minus_normals_radius_length);
 
+		for (int fi = 0; fi < F.rows(); fi++) {
+			center0.row(fi) = this->center_of_faces.row(fi) - Radius0(fi) * normals.row(fi);
+			const int v0 = F(fi, 0);
+			const int v1 = F(fi, 1);
+			Cylinder_dir0.row(fi) = V.row(v1) - V.row(v0);
+		}*/
+		OptimizationUtils::Least_Squares_Cylinder_Fit(imax, jmax, distance_from, distance_to, V, F, center0, Cylinder_dir0, Radius0, group_index);
 		std::vector<std::set<int>> TT = OptimizationUtils::Triangle_triangle_adjacency(F);
 		for (int i = 0; i < 5; i++) {
 			std::cout << "---------------Round" << i << "!!!" << std::endl;

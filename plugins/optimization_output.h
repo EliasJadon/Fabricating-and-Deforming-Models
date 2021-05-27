@@ -9,6 +9,7 @@ private:
 	Eigen::MatrixXd faces_normals;
 	Eigen::VectorXd radius_of_sphere;
 public:
+	std::vector<std::vector<int>> clustering_faces_indices;
 	std::shared_ptr <AuxSpherePerHinge> Energy_auxSpherePerHinge;
 	std::shared_ptr <AuxBendingNormal> Energy_auxBendingNormal;
 	std::shared_ptr <FixChosenConstraints> Energy_FixChosenVertices;
@@ -128,6 +129,7 @@ public:
 		const int jmax,
 		const std::vector<int> copy_index,
 		const std::vector < std::set<int>> paste_index,
-		const std::vector < std::set<int>> group_index);
+		const std::vector < std::set<int>> group_index,
+		const double minus_normals_radius_length);
 	void updateActiveMinimizer(const MinimizerType minimizer_type);
 };

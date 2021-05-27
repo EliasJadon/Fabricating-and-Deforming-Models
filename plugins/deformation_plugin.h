@@ -10,7 +10,6 @@ class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 private:
 	std::vector<int> copy_index;
 	std::vector < std::set<int>> paste_index, group_index;
-	std::vector<std::vector<int>> print_faces_index;
 	int CylinderInit_imax = 9, CylinderInit_jmax = 9;
 	int InitMinimizer_NeighLevel_From = 1;
 	int InitMinimizer_NeighLevel_To = 10;
@@ -73,6 +72,7 @@ private:
 	ImVec2 tips_window_position, tips_window_size, energies_window_position, global_screen_size;
 	int UserInterface_colorInputModelIndex;
 	bool UserInterface_UpdateAllOutputs;
+	float radius_length_minus_normal = 0.1;
 public:
 	deformation_plugin();
 	~deformation_plugin(){}
