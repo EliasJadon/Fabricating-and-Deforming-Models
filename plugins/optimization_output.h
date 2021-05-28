@@ -10,6 +10,7 @@ private:
 	Eigen::VectorXd radius_of_sphere;
 public:
 	std::vector<std::vector<int>> clustering_faces_indices;
+	Eigen::MatrixXd clustering_faces_colors;
 	std::shared_ptr <AuxSpherePerHinge> Energy_auxSpherePerHinge;
 	std::shared_ptr <AuxBendingNormal> Energy_auxBendingNormal;
 	std::shared_ptr <FixChosenConstraints> Energy_FixChosenVertices;

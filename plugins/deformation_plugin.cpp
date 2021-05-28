@@ -156,19 +156,25 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	ImGui::SameLine();
 	if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0)))
 		viewer->open_dialog_save_mesh();
+
+	if (ImGui::DragInt("save output index", &save_output_index)) {
+		if (save_output_index >= Outputs.size() || save_output_index < 0)
+			save_output_index = 0;
+	}
+	ImGui::Checkbox("save with colors", &isSaveWithColors);
 	if (ImGui::Button("load Result", ImVec2((w - p) / 2.f, 0))) {
 		modelPath = igl::file_dialog_open();
 		isLoadNeeded = true;
 		isLoadResultsNeeded = true;
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("save Sphere", ImVec2((w - p) / 2.f, 0)) && Outputs[0].clustering_faces_indices.size()) {
+	if (ImGui::Button("save Sphere", ImVec2((w - p) / 2.f, 0)) && Outputs[save_output_index].clustering_faces_indices.size()) {
 		// Get the Auxiliary variables
-		Eigen::VectorXd Radiuses = Outputs[0].getRadiusOfSphere();
-		Eigen::MatrixXd Centers = Outputs[0].getCenterOfSphere();
+		Eigen::VectorXd Radiuses = Outputs[save_output_index].getRadiusOfSphere();
+		Eigen::MatrixXd Centers = Outputs[save_output_index].getCenterOfSphere();
 		// Multiply all the mesh by "factor". Relevant only for spheres. 
 		int factor;
-		for (auto& obj : Outputs[0].totalObjective->objectiveList) {
+		for (auto& obj : Outputs[save_output_index].totalObjective->objectiveList) {
 			auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
 			if (fR != NULL)
 				factor = fR->factor;
@@ -190,10 +196,11 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		}
 
 		// Save each cluster in the new directory
-		for (int clus_index = 0; clus_index < Outputs[0].clustering_faces_indices.size(); clus_index++)
+		for (int clus_index = 0; clus_index < Outputs[save_output_index].clustering_faces_indices.size(); clus_index++)
 		{
-			std::vector<int> clus_faces_index = Outputs[0].clustering_faces_indices[clus_index];
-			Eigen::MatrixX3i clus_faces(clus_faces_index.size(), 3);
+			std::vector<int> clus_faces_index = Outputs[save_output_index].clustering_faces_indices[clus_index];
+			Eigen::MatrixX3i clus_faces_val(clus_faces_index.size(), 3);
+			Eigen::MatrixX3d clus_faces_color(clus_faces_index.size(), 3);
 
 			double sumRadius = 0;
 			Eigen::RowVector3d sumCenters(0, 0, 0);
@@ -201,40 +208,52 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 			{
 				sumRadius += factor * Radiuses(clus_faces_index[fi]);
 				sumCenters += Centers.row(clus_faces_index[fi]);
-				clus_faces(fi, 0) = OutputModel(0).F(clus_faces_index[fi], 0);
-				clus_faces(fi, 1) = OutputModel(0).F(clus_faces_index[fi], 1);
-				clus_faces(fi, 2) = OutputModel(0).F(clus_faces_index[fi], 2);
+				clus_faces_val(fi, 0) = OutputModel(save_output_index).F(clus_faces_index[fi], 0);
+				clus_faces_val(fi, 1) = OutputModel(save_output_index).F(clus_faces_index[fi], 1);
+				clus_faces_val(fi, 2) = OutputModel(save_output_index).F(clus_faces_index[fi], 2);
+				clus_faces_color(fi, 0) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 0);
+				clus_faces_color(fi, 1) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 1);
+				clus_faces_color(fi, 2) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 2);
 			}
 			Eigen::RowVector3d avgCenter = sumCenters / clus_faces_index.size();
 			double avgRadius = sumRadius / clus_faces_index.size();
 
-			Eigen::MatrixX3d clus_vertices(OutputModel(0).V.rows() + 2, 3);
+			Eigen::MatrixX3d clus_vertices(OutputModel(save_output_index).V.rows() + 2, 3);
 			clus_vertices.setZero();
-			for (int vi = 0; vi < OutputModel(0).V.rows(); vi++)
-				clus_vertices.row(vi) = OutputModel(0).V.row(vi);
-			clus_vertices.row(OutputModel(0).V.rows()) = avgCenter;
-			clus_vertices(OutputModel(0).V.rows() + 1, 0) = avgRadius;
+			for (int vi = 0; vi < OutputModel(save_output_index).V.rows(); vi++)
+				clus_vertices.row(vi) = OutputModel(save_output_index).V.row(vi);
+			clus_vertices.row(OutputModel(save_output_index).V.rows()) = avgCenter;
+			clus_vertices(OutputModel(save_output_index).V.rows() + 1, 0) = avgRadius;
 			// Save the current cluster in "off" file format
 			std::string clus_file_name =
-				modelName + "_cluster_" + std::to_string(clus_index) +
+				modelName + std::to_string(save_output_index) + "_cluster_" + std::to_string(clus_index) +
 				"_radius_" + std::to_string(avgRadius) + ".off";
-			igl::writeOFF(Output_path + clus_file_name, clus_vertices, clus_faces);
+			if (isSaveWithColors)
+				app_utils::writeOFFwithColors(Output_path + clus_file_name, clus_vertices, clus_faces_val, clus_faces_color);
+			else
+				igl::writeOFF(Output_path + clus_file_name, clus_vertices, clus_faces_val);
 		}
 		// Save the final mesh in "off" file format
-		igl::writeOFF(Output_path + modelName + "_Output.off", OutputModel(0).V, OutputModel(0).F);
-		igl::writeOFF(Output_path + modelName + "_Input.off", InputModel().V, InputModel().F);
+		if (isSaveWithColors) {
+			app_utils::writeOFFwithColors(Output_path + modelName + std::to_string(save_output_index) + "_Output.off", OutputModel(save_output_index).V, OutputModel(save_output_index).F, Outputs[save_output_index].clustering_faces_colors);
+			app_utils::writeOFFwithColors(Output_path + modelName + std::to_string(save_output_index) + "_Input.off", InputModel().V, InputModel().F, Outputs[save_output_index].clustering_faces_colors);
+		}
+		else {
+			igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Output.off", OutputModel(save_output_index).V, OutputModel(save_output_index).F);
+			igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Input.off", InputModel().V, InputModel().F);
+		}
 		
 		// Save the auxliary variables in "off" file format
-		Eigen::MatrixX3d aux_Radiuses(OutputModel(0).F.rows(), 3);
+		Eigen::MatrixX3d aux_Radiuses(OutputModel(save_output_index).F.rows(), 3);
 		aux_Radiuses.setZero();
 		aux_Radiuses.col(0) = Radiuses;
 		Eigen::MatrixX3i empty(1, 3); empty << 1, 2, 3;
-		igl::writeOFF(Output_path + modelName + "_Output_Radiuses.off", aux_Radiuses, empty);
-		igl::writeOFF(Output_path + modelName + "_Output_Centers.off", Centers, empty);
+		igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Output_Radiuses.off", aux_Radiuses, empty);
+		igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Output_Centers.off", Centers, empty);
 	}
-	if (ImGui::Button("Save Planar", ImVec2((w - p) / 2.f, 0)) && Outputs[0].clustering_faces_indices.size()) {
+	if (ImGui::Button("Save Planar", ImVec2((w - p) / 2.f, 0)) && Outputs[save_output_index].clustering_faces_indices.size()) {
 		// Get the Auxiliary variables
-		Eigen::MatrixXd Normals = Outputs[0].getFacesNormals();
+		Eigen::MatrixXd Normals = Outputs[save_output_index].getFacesNormals();
 		// Create new Directory for saving the data
 		char date_buffer[80] = { 0 };
 		{
@@ -252,20 +271,41 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		}
 
 		// Save each cluster in the new directory
-		for (int clus_index = 0; clus_index < Outputs[0].clustering_faces_indices.size(); clus_index++)
+		for (int clus_index = 0; clus_index < Outputs[save_output_index].clustering_faces_indices.size(); clus_index++)
 		{
-			std::vector<int> clus_faces_index = Outputs[0].clustering_faces_indices[clus_index];
-			Eigen::MatrixX3i clus_faces(clus_faces_index.size(), 3);
+			std::vector<int> clus_faces_index = Outputs[save_output_index].clustering_faces_indices[clus_index];
+			Eigen::MatrixX3i clus_faces_val(clus_faces_index.size(), 3);
+			Eigen::MatrixX3d clus_faces_color(clus_faces_index.size(), 3);
+
+			for (int fi = 0; fi < clus_faces_index.size(); fi++)
+			{
+				clus_faces_val(fi, 0) = OutputModel(save_output_index).F(clus_faces_index[fi], 0);
+				clus_faces_val(fi, 1) = OutputModel(save_output_index).F(clus_faces_index[fi], 1);
+				clus_faces_val(fi, 2) = OutputModel(save_output_index).F(clus_faces_index[fi], 2);
+				clus_faces_color(fi, 0) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 0);
+				clus_faces_color(fi, 1) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 1);
+				clus_faces_color(fi, 2) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 2);
+			}
 			// Save the current cluster in "off" file format
-			std::string clus_file_name = modelName + "_cluster_" + std::to_string(clus_index) + ".off";
-			igl::writeOFF(Output_path + clus_file_name, OutputModel(0).V, clus_faces);
+			std::string clus_file_name = modelName + std::to_string(save_output_index) + "_cluster_" + std::to_string(clus_index) + ".off";
+			if (isSaveWithColors)
+				app_utils::writeOFFwithColors(Output_path + clus_file_name, OutputModel(save_output_index).V, clus_faces_val,clus_faces_color);
+			else
+				igl::writeOFF(Output_path + clus_file_name, OutputModel(save_output_index).V, clus_faces_val);
 		}
-		// Save the final mesh in "off" file format
-		igl::writeOFF(Output_path + modelName + "_Input.off", InputModel().V, InputModel().F);
-		igl::writeOFF(Output_path + modelName + "_Output.off", OutputModel(0).V, OutputModel(0).F);
+		if (isSaveWithColors) {
+			// Save the final mesh in "off" file format
+			app_utils::writeOFFwithColors(Output_path + modelName + std::to_string(save_output_index) + "_Input.off", InputModel().V, InputModel().F, Outputs[save_output_index].clustering_faces_colors);
+			app_utils::writeOFFwithColors(Output_path + modelName + std::to_string(save_output_index) + "_Output.off", OutputModel(save_output_index).V, OutputModel(save_output_index).F, Outputs[save_output_index].clustering_faces_colors);
+		}
+		else {
+			// Save the final mesh in "off" file format
+			igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Input.off", InputModel().V, InputModel().F);
+			igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Output.off", OutputModel(save_output_index).V, OutputModel(save_output_index).F);
+		}
 		// Save the auxliary variables in "off" file format
 		Eigen::MatrixX3i empty(1, 3); empty << 1, 2, 3;
-		igl::writeOFF(Output_path + modelName + "_Output_Normals.off", Normals, empty);
+		igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Output_Normals.off", Normals, empty);
 	}
 	
 	if (isLoadNeeded)
@@ -2244,21 +2284,20 @@ void deformation_plugin::follow_and_mark_selected_faces()
 					maxP(xyz) = P(fi, xyz) > maxP(xyz) ? P(fi, xyz) : maxP(xyz);
 				}
 			}
-
+			Outputs[i].clustering_faces_colors.resize(P.rows(), 3);
 			ColorsHashMap DataColors(Clustering_MinDistance, &ColorsHashMap_colors);
 			for (int fi = 0; fi < P.rows(); fi++) {
 				for (int xyz = 0; xyz < 3; xyz++) {
 					P(fi, xyz) = P(fi, xyz) - minP(xyz);
 					P(fi, xyz) = P(fi, xyz) / (maxP(xyz) - minP(xyz));
 				}
-
-				Eigen::Vector3d color = P.row(fi).transpose();
+				Outputs[i].clustering_faces_colors.row(fi) = P.row(fi);
 				if (clustering_hashMap)
-					color = DataColors.getColor(P.row(fi).transpose(), fi);
+					Outputs[i].clustering_faces_colors.row(fi) = DataColors.getColor(P.row(fi).transpose(), fi).transpose();
 				Outputs[i].setFaceColors(fi, Eigen::Vector3f(
-					clustering_w * color(0) + (1 - clustering_w),
-					clustering_w * color(1) + (1 - clustering_w),
-					clustering_w * color(2) + (1 - clustering_w)
+					clustering_w* Outputs[i].clustering_faces_colors(fi, 0) + (1 - clustering_w),
+					clustering_w* Outputs[i].clustering_faces_colors(fi, 1) + (1 - clustering_w),
+					clustering_w* Outputs[i].clustering_faces_colors(fi, 2) + (1 - clustering_w)
 				));
 			}
 			Outputs[i].clustering_faces_indices = DataColors.face_index;

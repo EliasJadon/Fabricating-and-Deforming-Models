@@ -79,6 +79,32 @@ namespace app_utils
 		ADJ_SIGMOID
 	};
 	
+	static bool writeOFFwithColors(
+		const std::string& path,
+		const Eigen::MatrixXd& V,
+		const Eigen::MatrixX3i& F,
+		const Eigen::MatrixXd& C)
+	{
+		if (V.cols() != 3 || F.cols() != 3 || C.cols() != 3)
+			return false;
+		if (V.rows() <= 0 || F.rows() <= 0 || F.rows() != C.rows())
+			return false;
+
+		std::ofstream myfile;
+		myfile.open(path);
+		myfile << "OFF\n";
+		myfile << V.rows() << " " << F.rows() << " 0\n";
+		for (int vi = 0; vi < V.rows(); vi++) {
+			myfile << V(vi, 0) << " " << V(vi, 1) << " " << V(vi, 2) << "\n";
+		}
+		for (int fi = 0; fi < F.rows(); fi++) {
+			myfile << "3 " << F(fi, 0) << " " << F(fi, 1) << " " << F(fi, 2) << " ";
+			myfile << int(255 * C(fi, 0)) << " " << int(255 * C(fi, 1)) << " " << int(255 * C(fi, 2)) << "\n";
+		}
+		myfile.close();
+		return true;
+	}
+
 	static Eigen::Vector3f computeTranslation(
 		const int mouse_x, 
 		const int from_x, 
