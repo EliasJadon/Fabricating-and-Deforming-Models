@@ -105,6 +105,87 @@ namespace app_utils
 		return true;
 	}
 
+	static bool writeTXTFile(
+		const std::string& path,
+		const std::string& modelName,
+		const bool isSphere,
+		const std::vector<std::vector<int>>& clustering_faces_indices,
+		const Eigen::MatrixXd& V,
+		const Eigen::MatrixX3i& F,
+		const Eigen::MatrixXd& C,
+		const Eigen::VectorXd& Radiuses,
+		const Eigen::MatrixX3d& Centers)
+	{
+		if (V.cols() != 3 || F.cols() != 3 || C.cols() != 3)
+			return false;
+		if (V.rows() <= 0 || F.rows() <= 0 || F.rows() != C.rows())
+			return false;
+
+
+		std::ofstream myfile;
+		myfile.open(path);
+		myfile << "\n\n===============================================\n";
+		myfile << "Model name: \t"						<< modelName << "\n";
+		myfile << "Num Faces: \t"						<< F.rows() << "\n";
+		myfile << "Num Vertices: \t"					<< V.rows() << "\n";
+		if (isSphere) {
+			myfile << "Num spheres: \t" << clustering_faces_indices.size() << "\n";
+		}
+		else {
+			myfile << "Num polygons: \t" << clustering_faces_indices.size() << "\n";
+			myfile << "-----------------------List of polygons:" << "\n";
+		}
+		myfile << "===============================================\n\n\n";
+		
+
+			
+		
+		
+		for (int ci = 0; ci < clustering_faces_indices.size(); ci++) {
+			myfile << "\n";
+			//calculating the avg center&radius for each group/cluster
+			double avgRadius = 0;
+			Eigen::RowVector3d avgCenter(0, 0, 0), avgColor(0, 0, 0);
+			for (int fi = 0; fi < clustering_faces_indices[ci].size(); fi++) {
+				const int face_index = clustering_faces_indices[ci][fi];
+				if (isSphere) {
+					avgRadius += Radiuses[face_index];
+					avgCenter = avgCenter + Centers.row(face_index);
+				}
+				avgColor = avgColor + C.row(face_index);
+			}
+			if (isSphere) {
+				avgRadius /= clustering_faces_indices[ci].size();
+				avgCenter /= clustering_faces_indices[ci].size();
+			}
+			avgColor /= clustering_faces_indices[ci].size();
+			
+
+			//output data
+			if (isSphere) {
+				myfile << "Sphere ID:\t" << ci << "\n";
+				myfile << "Radius length: " << avgRadius << "\n";
+				myfile << "Center point: " << "(" << avgCenter(0) << ", " << avgCenter(1) << ", " << avgCenter(2) << ")" << "\n";
+			}
+			else {
+				myfile << "Normal ID:\t" << ci << "\n";
+			}
+			
+			myfile << "color: " << "(" << avgColor(0) << ", " << avgColor(1) << ", " << avgColor(2) << ")" << "\n";
+			myfile << "Num faces: " << clustering_faces_indices[ci].size() << "\n";
+			myfile << "faces list: ";
+			for (int fi = 0; fi < clustering_faces_indices[ci].size(); fi++) {
+				const int face_index = clustering_faces_indices[ci][fi];
+				myfile << face_index << ", ";
+			}
+			myfile << "\n";
+			myfile << "----------------------------\n";
+		}
+		
+		myfile.close();
+		return true;
+	}
+
 	static Eigen::Vector3f computeTranslation(
 		const int mouse_x, 
 		const int from_x, 

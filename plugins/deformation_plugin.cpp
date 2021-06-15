@@ -161,7 +161,6 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		if (save_output_index >= Outputs.size() || save_output_index < 0)
 			save_output_index = 0;
 	}
-	ImGui::Checkbox("save with colors", &isSaveWithColors);
 	if (ImGui::Button("load Result", ImVec2((w - p) / 2.f, 0))) {
 		modelPath = igl::file_dialog_open();
 		isLoadNeeded = true;
@@ -169,16 +168,22 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	}
 	ImGui::SameLine();
 	if (ImGui::Button("save Sphere", ImVec2((w - p) / 2.f, 0)) && Outputs[save_output_index].clustering_faces_indices.size()) {
-		// Get the Auxiliary variables
-		Eigen::VectorXd Radiuses = Outputs[save_output_index].getRadiusOfSphere();
-		Eigen::MatrixXd Centers = Outputs[save_output_index].getCenterOfSphere();
 		// Multiply all the mesh by "factor". Relevant only for spheres. 
-		int factor;
+		double factor = 1;
 		for (auto& obj : Outputs[save_output_index].totalObjective->objectiveList) {
 			auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
-			if (fR != NULL)
+			if (fR != NULL && fR->w != 0)
 				factor = fR->factor;
 		}
+		// Get mesh data
+		OptimizationOutput O = Outputs[save_output_index];
+		Eigen::MatrixXd colors = O.clustering_faces_colors;
+		Eigen::MatrixXd V_OUT = factor * OutputModel(save_output_index).V;
+		Eigen::MatrixXd V_IN = factor * InputModel().V;
+		Eigen::MatrixXi F = OutputModel(save_output_index).F;
+		Eigen::VectorXd Radiuses = factor * Outputs[save_output_index].getRadiusOfSphere();
+		Eigen::MatrixXd Centers = factor * Outputs[save_output_index].getCenterOfSphere();
+		
 		// Create new Directory for saving the data
 		char date_buffer[80] = { 0 };
 		{
@@ -188,17 +193,17 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 			timeinfo_ = localtime(&rawtime_);
 			strftime(date_buffer, 80, "_%H_%M_%S__%d_%m_%Y", timeinfo_);
 		}
-		std::string Output_path = OptimizationUtils::ProjectPath() +
-			"models\\OutputModels\\" + modelName + std::string(date_buffer) + "\\";
-		if (mkdir(Output_path.c_str()) == -1) {
+		std::string file_path = OptimizationUtils::ProjectPath() + "models\\OutputModels\\" + modelName + std::string(date_buffer) + "\\";
+		std::string file_name = file_path + modelName + std::to_string(save_output_index);
+		if (mkdir(file_path.c_str()) == -1) {
 			std::cerr << "Error :  " << strerror(errno) << std::endl;
 			exit(1);
 		}
 
 		// Save each cluster in the new directory
-		for (int clus_index = 0; clus_index < Outputs[save_output_index].clustering_faces_indices.size(); clus_index++)
+		for (int clus_index = 0; clus_index < O.clustering_faces_indices.size(); clus_index++)
 		{
-			std::vector<int> clus_faces_index = Outputs[save_output_index].clustering_faces_indices[clus_index];
+			std::vector<int> clus_faces_index = O.clustering_faces_indices[clus_index];
 			Eigen::MatrixX3i clus_faces_val(clus_faces_index.size(), 3);
 			Eigen::MatrixX3d clus_faces_color(clus_faces_index.size(), 3);
 
@@ -206,54 +211,41 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 			Eigen::RowVector3d sumCenters(0, 0, 0);
 			for (int fi = 0; fi < clus_faces_index.size(); fi++)
 			{
-				sumRadius += factor * Radiuses(clus_faces_index[fi]);
+				sumRadius += Radiuses(clus_faces_index[fi]);
 				sumCenters += Centers.row(clus_faces_index[fi]);
-				clus_faces_val(fi, 0) = OutputModel(save_output_index).F(clus_faces_index[fi], 0);
-				clus_faces_val(fi, 1) = OutputModel(save_output_index).F(clus_faces_index[fi], 1);
-				clus_faces_val(fi, 2) = OutputModel(save_output_index).F(clus_faces_index[fi], 2);
-				clus_faces_color(fi, 0) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 0);
-				clus_faces_color(fi, 1) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 1);
-				clus_faces_color(fi, 2) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 2);
+				clus_faces_val.row(fi) = F.row(clus_faces_index[fi]);
+				clus_faces_color.row(fi) = colors.row(clus_faces_index[fi]);
 			}
 			Eigen::RowVector3d avgCenter = sumCenters / clus_faces_index.size();
 			double avgRadius = sumRadius / clus_faces_index.size();
 
-			Eigen::MatrixX3d clus_vertices(OutputModel(save_output_index).V.rows() + 2, 3);
-			clus_vertices.setZero();
-			for (int vi = 0; vi < OutputModel(save_output_index).V.rows(); vi++)
-				clus_vertices.row(vi) = OutputModel(save_output_index).V.row(vi);
-			clus_vertices.row(OutputModel(save_output_index).V.rows()) = avgCenter;
-			clus_vertices(OutputModel(save_output_index).V.rows() + 1, 0) = avgRadius;
+			Eigen::MatrixX3d clus_vertices(V_OUT.rows(), 3);
+			for (int vi = 0; vi < V_OUT.rows(); vi++)
+				clus_vertices.row(vi) = V_OUT.row(vi);
 			// Save the current cluster in "off" file format
-			std::string clus_file_name =
-				modelName + std::to_string(save_output_index) + "_cluster_" + std::to_string(clus_index) +
-				"_radius_" + std::to_string(avgRadius) + ".off";
-			if (isSaveWithColors)
-				app_utils::writeOFFwithColors(Output_path + clus_file_name, clus_vertices, clus_faces_val, clus_faces_color);
-			else
-				igl::writeOFF(Output_path + clus_file_name, clus_vertices, clus_faces_val);
+			std::string clus_file_name = file_name + "_sphere_" + std::to_string(clus_index) + ".off";
+			std::string clus_file_name_colors = file_name + "_sphere_" + std::to_string(clus_index) + "_withColors.off";
+			app_utils::writeOFFwithColors(clus_file_name_colors, clus_vertices, clus_faces_val, clus_faces_color);
+			igl::writeOFF(clus_file_name, clus_vertices, clus_faces_val);
 		}
 		// Save the final mesh in "off" file format
-		if (isSaveWithColors) {
-			app_utils::writeOFFwithColors(Output_path + modelName + std::to_string(save_output_index) + "_Output.off", OutputModel(save_output_index).V, OutputModel(save_output_index).F, Outputs[save_output_index].clustering_faces_colors);
-			app_utils::writeOFFwithColors(Output_path + modelName + std::to_string(save_output_index) + "_Input.off", InputModel().V, InputModel().F, Outputs[save_output_index].clustering_faces_colors);
-		}
-		else {
-			igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Output.off", OutputModel(save_output_index).V, OutputModel(save_output_index).F);
-			igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Input.off", InputModel().V, InputModel().F);
-		}
-		
-		// Save the auxliary variables in "off" file format
-		Eigen::MatrixX3d aux_Radiuses(OutputModel(save_output_index).F.rows(), 3);
-		aux_Radiuses.setZero();
-		aux_Radiuses.col(0) = Radiuses;
-		Eigen::MatrixX3i empty(1, 3); empty << 1, 2, 3;
-		igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Output_Radiuses.off", aux_Radiuses, empty);
-		igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Output_Centers.off", Centers, empty);
+		igl::writeOFF(file_name + "_Output.off", V_OUT, F);
+		igl::writeOFF(file_name + "_Input.off", V_IN, F);
+		app_utils::writeOFFwithColors(file_name + "_Output_withColors.off", V_OUT, F, colors);
+		app_utils::writeOFFwithColors(file_name + "_Input_withColors.off", V_IN, F, colors);
+		app_utils::writeTXTFile(file_name + "ReadMe.txt", modelName, true,
+			O.clustering_faces_indices, V_OUT, F, colors, Radiuses, Centers);
 	}
 	if (ImGui::Button("Save Planar", ImVec2((w - p) / 2.f, 0)) && Outputs[save_output_index].clustering_faces_indices.size()) {
-		// Get the Auxiliary variables
-		Eigen::MatrixXd Normals = Outputs[save_output_index].getFacesNormals();
+		// Get mesh data
+		OptimizationOutput O = Outputs[save_output_index];
+		Eigen::MatrixXd colors = O.clustering_faces_colors;
+		Eigen::MatrixXd V_OUT = OutputModel(save_output_index).V;
+		Eigen::MatrixXd V_IN = InputModel().V;
+		Eigen::MatrixXi F = OutputModel(save_output_index).F;
+		Eigen::VectorXd Radiuses = Outputs[save_output_index].getRadiusOfSphere();
+		Eigen::MatrixXd Centers = Outputs[save_output_index].getCenterOfSphere();
+
 		// Create new Directory for saving the data
 		char date_buffer[80] = { 0 };
 		{
@@ -263,49 +255,39 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 			timeinfo_ = localtime(&rawtime_);
 			strftime(date_buffer, 80, "_%H_%M_%S__%d_%m_%Y", timeinfo_);
 		}
-		std::string Output_path = OptimizationUtils::ProjectPath() +
-			"models\\OutputModels\\" + modelName + std::string(date_buffer) + "\\";
-		if (mkdir(Output_path.c_str()) == -1) {
+		std::string file_path = OptimizationUtils::ProjectPath() + "models\\OutputModels\\" + modelName + std::string(date_buffer) + "\\";
+		std::string file_name = file_path + modelName + std::to_string(save_output_index);
+		if (mkdir(file_path.c_str()) == -1) {
 			std::cerr << "Error :  " << strerror(errno) << std::endl;
 			exit(1);
 		}
-
+		
 		// Save each cluster in the new directory
-		for (int clus_index = 0; clus_index < Outputs[save_output_index].clustering_faces_indices.size(); clus_index++)
+		for (int polygon_index = 0; polygon_index < O.clustering_faces_indices.size(); polygon_index++)
 		{
-			std::vector<int> clus_faces_index = Outputs[save_output_index].clustering_faces_indices[clus_index];
-			Eigen::MatrixX3i clus_faces_val(clus_faces_index.size(), 3);
-			Eigen::MatrixX3d clus_faces_color(clus_faces_index.size(), 3);
+			std::vector<int> clus_F_indices = O.clustering_faces_indices[polygon_index];
+			const int clus_Num_Faces = clus_F_indices.size();
+			Eigen::MatrixX3i clus_F(clus_Num_Faces, 3);
+			Eigen::MatrixX3d clus_color(clus_Num_Faces, 3);
 
-			for (int fi = 0; fi < clus_faces_index.size(); fi++)
+			for (int fi = 0; fi < clus_Num_Faces; fi++)
 			{
-				clus_faces_val(fi, 0) = OutputModel(save_output_index).F(clus_faces_index[fi], 0);
-				clus_faces_val(fi, 1) = OutputModel(save_output_index).F(clus_faces_index[fi], 1);
-				clus_faces_val(fi, 2) = OutputModel(save_output_index).F(clus_faces_index[fi], 2);
-				clus_faces_color(fi, 0) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 0);
-				clus_faces_color(fi, 1) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 1);
-				clus_faces_color(fi, 2) = Outputs[save_output_index].clustering_faces_colors(clus_faces_index[fi], 2);
+				clus_F.row(fi) = F.row(clus_F_indices[fi]);
+				clus_color.row(fi) = colors.row(clus_F_indices[fi]);
 			}
 			// Save the current cluster in "off" file format
-			std::string clus_file_name = modelName + std::to_string(save_output_index) + "_cluster_" + std::to_string(clus_index) + ".off";
-			if (isSaveWithColors)
-				app_utils::writeOFFwithColors(Output_path + clus_file_name, OutputModel(save_output_index).V, clus_faces_val,clus_faces_color);
-			else
-				igl::writeOFF(Output_path + clus_file_name, OutputModel(save_output_index).V, clus_faces_val);
+			std::string clus_file_name = file_name + "_polygon_" + std::to_string(polygon_index) + ".off";
+			std::string clus_file_name_colors = file_name + "_polygon_" + std::to_string(polygon_index) + "_withColors.off";
+			igl::writeOFF(clus_file_name, V_OUT, clus_F);
+			app_utils::writeOFFwithColors(clus_file_name_colors, V_OUT, clus_F, clus_color);
 		}
-		if (isSaveWithColors) {
-			// Save the final mesh in "off" file format
-			app_utils::writeOFFwithColors(Output_path + modelName + std::to_string(save_output_index) + "_Input.off", InputModel().V, InputModel().F, Outputs[save_output_index].clustering_faces_colors);
-			app_utils::writeOFFwithColors(Output_path + modelName + std::to_string(save_output_index) + "_Output.off", OutputModel(save_output_index).V, OutputModel(save_output_index).F, Outputs[save_output_index].clustering_faces_colors);
-		}
-		else {
-			// Save the final mesh in "off" file format
-			igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Input.off", InputModel().V, InputModel().F);
-			igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Output.off", OutputModel(save_output_index).V, OutputModel(save_output_index).F);
-		}
-		// Save the auxliary variables in "off" file format
-		Eigen::MatrixX3i empty(1, 3); empty << 1, 2, 3;
-		igl::writeOFF(Output_path + modelName + std::to_string(save_output_index) + "_Output_Normals.off", Normals, empty);
+		// Save the final mesh in "off" file format
+		igl::writeOFF(file_name + "_Input.off", V_IN, F);
+		igl::writeOFF(file_name + "_Output.off", V_OUT, F);
+		app_utils::writeOFFwithColors(file_name + "_Input_withColors.off", V_IN, F, colors);
+		app_utils::writeOFFwithColors(file_name + "_Output_withColors.off", V_OUT, F, colors);
+		app_utils::writeTXTFile(file_name + "ReadMe.txt", modelName, false,
+			O.clustering_faces_indices, V_OUT, F, colors, Radiuses, Centers);
 	}
 	
 	if (isLoadNeeded)
@@ -978,8 +960,15 @@ void deformation_plugin::Draw_energies_window()
 					if (obj->w) {
 						if (SD != NULL)
 							ImGui::Checkbox("Use Cuda", &(SD->using_cuda));
-						if(fR != NULL)
-							ImGui::DragInt("##factor", &(fR->factor),1,1,1000,"round(R*%d)");
+						if (fR != NULL) {
+							ImGui::DragInt("##factor", &(fR->factor), 1, 1, 1000, "round(R*%d)");
+							static bool once = true;
+							if (once) {
+								Eigen::VectorXd Radiuses = Outputs[save_output_index].getRadiusOfSphere();
+								fR->factor = ceil(1 / Radiuses.minCoeff());
+								once = false;
+							}
+						}
 
 						if (ABN != NULL)
 							ImGui::Combo("Function", (int*)(&(ABN->cuda_ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");

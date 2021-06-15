@@ -9,7 +9,6 @@ class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
 	int save_output_index = 0;
-	bool isSaveWithColors = false;
 	std::vector<int> copy_index;
 	std::vector < std::set<int>> paste_index, group_index;
 	int CylinderInit_imax = 9, CylinderInit_jmax = 9;
