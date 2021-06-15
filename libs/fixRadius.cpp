@@ -41,7 +41,7 @@ void fixRadius::gradient(Cuda::Array<double>& X)
 		const int startR = mesh_indices.startR;
 		double R = X.host_arr[fi + startR];
 		double rounded_R = round(factor * R) / (double)factor;
-		grad.host_arr[fi + startR] += 2 * (R - rounded_R);;
+		grad.host_arr[fi + startR] += 2 * (R - rounded_R);
 	}
 	Cuda::MemCpyHostToDevice(grad);
 }
