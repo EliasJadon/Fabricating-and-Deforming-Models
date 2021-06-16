@@ -3,7 +3,9 @@
 
 class fixRadius : public ObjectiveFunction {
 public:
-	int factor = 23;
+	int min = 1, max = 30;
+	float alpha = 23;
+
 	fixRadius(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
 	~fixRadius();
 	Cuda::Array<double> grad, EnergyAtomic;

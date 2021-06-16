@@ -25,8 +25,19 @@ void fixRadius::value(Cuda::Array<double>& curr_x) {
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
 		const int startR = mesh_indices.startR;
 		double R = curr_x.host_arr[fi + startR];
-		double rounded_R = round(factor * R) / (double)factor;
-		EnergyAtomic.host_arr[0] += pow(R - rounded_R, 2);
+		double val;
+		if (R < (min / alpha))
+			val = pow(alpha * R - min, 2);
+		if (R > (max / alpha))
+			val = pow(alpha * R - max, 2);
+		else {
+			//val = pow(sin(alpha * M_PI * R), 2);
+			double rounded_R = round(alpha * R) / (double)alpha;
+			val = pow(R - rounded_R, 2);
+		}
+			
+		
+		EnergyAtomic.host_arr[0] += val;
 	}
 	Cuda::MemCpyHostToDevice(EnergyAtomic);
 }
@@ -40,8 +51,20 @@ void fixRadius::gradient(Cuda::Array<double>& X)
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
 		const int startR = mesh_indices.startR;
 		double R = X.host_arr[fi + startR];
-		double rounded_R = round(factor * R) / (double)factor;
-		grad.host_arr[fi + startR] += 2 * (R - rounded_R);
+
+		double val = 0;
+		if (R < (min / alpha))
+			val = 2 * alpha * (alpha * R - min);
+		if (R > (max / alpha))
+			val = 2 * alpha * (alpha * R - max);
+		else {
+			//val = alpha * M_PI * sin(2 * alpha * M_PI * R);
+
+			double rounded_R = round(alpha * R) / (double)alpha;
+			val = 2 * (R - rounded_R);
+		}
+		
+		grad.host_arr[fi + startR] += val;
 	}
 	Cuda::MemCpyHostToDevice(grad);
 }

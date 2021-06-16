@@ -173,7 +173,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		for (auto& obj : Outputs[save_output_index].totalObjective->objectiveList) {
 			auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
 			if (fR != NULL && fR->w != 0)
-				factor = fR->factor;
+				factor = fR->alpha;
 		}
 		// Get mesh data
 		OptimizationOutput O = Outputs[save_output_index];
@@ -532,7 +532,7 @@ void deformation_plugin::CollapsingHeader_clustering()
 			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
 				auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
 				if (fR != NULL)
-					factor = fR->factor;
+					factor = fR->alpha;
 			}
 
 			auto& iter = Outputs[0].printNormals_saveVertices.begin();
@@ -579,7 +579,7 @@ void deformation_plugin::CollapsingHeader_clustering()
 			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
 				auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
 				if (fR != NULL)
-					factor = fR->factor;
+					factor = fR->alpha;
 			}
 			auto& V = OutputModel(0).V;
 			int last_vertex_index = V.rows() - 1;
@@ -644,7 +644,7 @@ void deformation_plugin::CollapsingHeader_clustering()
 			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
 				auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
 				if (fR != NULL)
-					factor = fR->factor;
+					factor = fR->alpha;
 			}
 			for (int f : Outputs[0].UserInterface_FixedFaces) {
 				ImGui::Text(("face = " + std::to_string(f)).c_str());
@@ -961,13 +961,18 @@ void deformation_plugin::Draw_energies_window()
 						if (SD != NULL)
 							ImGui::Checkbox("Use Cuda", &(SD->using_cuda));
 						if (fR != NULL) {
-							ImGui::DragInt("##factor", &(fR->factor), 1, 1, 1000, "round(R*%d)");
-							static bool once = true;
-							if (once) {
-								Eigen::VectorXd Radiuses = Outputs[save_output_index].getRadiusOfSphere();
-								fR->factor = ceil(1 / Radiuses.minCoeff());
-								once = false;
-							}
+
+							ImGui::DragInt("min", &(fR->min));
+							fR->min = fR->min < 1 ? 1 : fR->min;
+							ImGui::DragInt("max", &(fR->max));
+							fR->max = fR->max > fR->min ? fR->max : fR->min + 1;
+							
+							ImGui::DragFloat("alpha", &(fR->alpha), 0.001);
+
+							Eigen::VectorXd Radiuses = Outputs[save_output_index].getRadiusOfSphere();
+							ImGui::Text(("R max: " + std::to_string(Radiuses.maxCoeff() * fR->alpha)).c_str());
+							ImGui::Text(("R min: " + std::to_string(Radiuses.minCoeff() * fR->alpha)).c_str());
+							
 						}
 
 						if (ABN != NULL)
