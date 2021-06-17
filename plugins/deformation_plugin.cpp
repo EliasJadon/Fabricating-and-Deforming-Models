@@ -186,11 +186,13 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		
 		// Create new Directory for saving the data
 		std::string main_file_path = OptimizationUtils::ProjectPath() + "models\\OutputModels\\" + modelName + app_utils::CurrentTime() + "\\";
+		std::string aux_file_path = main_file_path + "Auxiliary_Variables\\";
 		std::string parts_file_path = main_file_path + "Sphere_Parts\\";
 		std::string parts_color_file_path = main_file_path + "Sphere_Parts_With_Colors\\";
 		std::string file_name = modelName + std::to_string(save_output_index);
 		if (mkdir(main_file_path.c_str()) == -1 ||
 			mkdir(parts_file_path.c_str()) == -1 ||
+			mkdir(aux_file_path.c_str()) == -1 ||
 			mkdir(parts_color_file_path.c_str()) == -1)
 		{
 			std::cerr << "Error :  " << strerror(errno) << std::endl;
@@ -232,6 +234,14 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		app_utils::writeOFFwithColors(main_file_path + file_name + "_Input_withColors.off", V_IN, F, colors);
 		app_utils::writeTXTFile(main_file_path + file_name + "ReadMe.txt", modelName, true,
 			O.clustering_faces_indices, V_OUT, F, colors, Radiuses, Centers);
+		//save auxiliary variables
+		Eigen::MatrixXi temp(1, 3);
+		temp << 1, 3, 2;
+		igl::writeOFF(aux_file_path + file_name + "_Aux_Centers.off", Centers, temp);
+		Eigen::MatrixXd mat_radiuses(Radiuses.size(), 3);
+		mat_radiuses.setZero();
+		mat_radiuses.col(0) = Radiuses;
+		igl::writeOFF(aux_file_path + file_name + "_Aux_Radiuses.off", mat_radiuses, temp);
 	}
 	if (ImGui::Button("Save Planar", ImVec2((w - p) / 2.f, 0)) && Outputs[save_output_index].clustering_faces_indices.size()) {
 		// Get mesh data
@@ -242,14 +252,17 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		Eigen::MatrixXi F = OutputModel(save_output_index).F;
 		Eigen::VectorXd Radiuses = Outputs[save_output_index].getRadiusOfSphere();
 		Eigen::MatrixXd Centers = Outputs[save_output_index].getCenterOfSphere();
+		Eigen::MatrixXd Normals = Outputs[save_output_index].getFacesNormals();
 
 		// Create new Directory for saving the data
 		std::string main_file_path = OptimizationUtils::ProjectPath() + "models\\OutputModels\\" + modelName + app_utils::CurrentTime() + "\\";
+		std::string aux_file_path = main_file_path + "Auxiliary_Variables\\";
 		std::string parts_file_path = main_file_path + "Polygon_Parts\\";
 		std::string parts_color_file_path = main_file_path + "Polygon_Parts_With_Colors\\";
 		std::string file_name = modelName + std::to_string(save_output_index);
 		if (mkdir(main_file_path.c_str()) == -1 ||
 			mkdir(parts_file_path.c_str()) == -1 ||
+			mkdir(aux_file_path.c_str()) == -1 ||
 			mkdir(parts_color_file_path.c_str()) == -1)
 		{
 			std::cerr << "Error :  " << strerror(errno) << std::endl;
@@ -282,6 +295,10 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		app_utils::writeOFFwithColors(main_file_path + file_name + "_Output_withColors.off", V_OUT, F, colors);
 		app_utils::writeTXTFile(main_file_path + file_name + "ReadMe.txt", modelName, false,
 			O.clustering_faces_indices, V_OUT, F, colors, Radiuses, Centers);
+		//save auxiliary variables
+		Eigen::MatrixXi temp(1, 3);
+		temp << 1, 3, 2;
+		igl::writeOFF(aux_file_path + file_name + "_Aux_Normals.off", Normals, temp);
 	}
 	
 	if (isLoadNeeded)
