@@ -185,17 +185,14 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		Eigen::MatrixXd Centers = factor * Outputs[save_output_index].getCenterOfSphere();
 		
 		// Create new Directory for saving the data
-		char date_buffer[80] = { 0 };
+		std::string main_file_path = OptimizationUtils::ProjectPath() + "models\\OutputModels\\" + modelName + app_utils::CurrentTime() + "\\";
+		std::string parts_file_path = main_file_path + "Sphere_Parts\\";
+		std::string parts_color_file_path = main_file_path + "Sphere_Parts_With_Colors\\";
+		std::string file_name = modelName + std::to_string(save_output_index);
+		if (mkdir(main_file_path.c_str()) == -1 ||
+			mkdir(parts_file_path.c_str()) == -1 ||
+			mkdir(parts_color_file_path.c_str()) == -1)
 		{
-			time_t rawtime_;
-			struct tm* timeinfo_;
-			time(&rawtime_);
-			timeinfo_ = localtime(&rawtime_);
-			strftime(date_buffer, 80, "_%H_%M_%S__%d_%m_%Y", timeinfo_);
-		}
-		std::string file_path = OptimizationUtils::ProjectPath() + "models\\OutputModels\\" + modelName + std::string(date_buffer) + "\\";
-		std::string file_name = file_path + modelName + std::to_string(save_output_index);
-		if (mkdir(file_path.c_str()) == -1) {
 			std::cerr << "Error :  " << strerror(errno) << std::endl;
 			exit(1);
 		}
@@ -223,17 +220,17 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 			for (int vi = 0; vi < V_OUT.rows(); vi++)
 				clus_vertices.row(vi) = V_OUT.row(vi);
 			// Save the current cluster in "off" file format
-			std::string clus_file_name = file_name + "_sphere_" + std::to_string(clus_index) + ".off";
-			std::string clus_file_name_colors = file_name + "_sphere_" + std::to_string(clus_index) + "_withColors.off";
+			std::string clus_file_name = parts_file_path + file_name + "_sphere_" + std::to_string(clus_index) + ".off";
+			std::string clus_file_name_colors = parts_color_file_path + file_name + "_sphere_" + std::to_string(clus_index) + "_withColors.off";
 			app_utils::writeOFFwithColors(clus_file_name_colors, clus_vertices, clus_faces_val, clus_faces_color);
 			igl::writeOFF(clus_file_name, clus_vertices, clus_faces_val);
 		}
 		// Save the final mesh in "off" file format
-		igl::writeOFF(file_name + "_Output.off", V_OUT, F);
-		igl::writeOFF(file_name + "_Input.off", V_IN, F);
-		app_utils::writeOFFwithColors(file_name + "_Output_withColors.off", V_OUT, F, colors);
-		app_utils::writeOFFwithColors(file_name + "_Input_withColors.off", V_IN, F, colors);
-		app_utils::writeTXTFile(file_name + "ReadMe.txt", modelName, true,
+		igl::writeOFF(main_file_path + file_name + "_Output.off", V_OUT, F);
+		igl::writeOFF(main_file_path + file_name + "_Input.off", V_IN, F);
+		app_utils::writeOFFwithColors(main_file_path + file_name + "_Output_withColors.off", V_OUT, F, colors);
+		app_utils::writeOFFwithColors(main_file_path + file_name + "_Input_withColors.off", V_IN, F, colors);
+		app_utils::writeTXTFile(main_file_path + file_name + "ReadMe.txt", modelName, true,
 			O.clustering_faces_indices, V_OUT, F, colors, Radiuses, Centers);
 	}
 	if (ImGui::Button("Save Planar", ImVec2((w - p) / 2.f, 0)) && Outputs[save_output_index].clustering_faces_indices.size()) {
@@ -247,17 +244,14 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		Eigen::MatrixXd Centers = Outputs[save_output_index].getCenterOfSphere();
 
 		// Create new Directory for saving the data
-		char date_buffer[80] = { 0 };
+		std::string main_file_path = OptimizationUtils::ProjectPath() + "models\\OutputModels\\" + modelName + app_utils::CurrentTime() + "\\";
+		std::string parts_file_path = main_file_path + "Polygon_Parts\\";
+		std::string parts_color_file_path = main_file_path + "Polygon_Parts_With_Colors\\";
+		std::string file_name = modelName + std::to_string(save_output_index);
+		if (mkdir(main_file_path.c_str()) == -1 ||
+			mkdir(parts_file_path.c_str()) == -1 ||
+			mkdir(parts_color_file_path.c_str()) == -1)
 		{
-			time_t rawtime_;
-			struct tm* timeinfo_;
-			time(&rawtime_);
-			timeinfo_ = localtime(&rawtime_);
-			strftime(date_buffer, 80, "_%H_%M_%S__%d_%m_%Y", timeinfo_);
-		}
-		std::string file_path = OptimizationUtils::ProjectPath() + "models\\OutputModels\\" + modelName + std::string(date_buffer) + "\\";
-		std::string file_name = file_path + modelName + std::to_string(save_output_index);
-		if (mkdir(file_path.c_str()) == -1) {
 			std::cerr << "Error :  " << strerror(errno) << std::endl;
 			exit(1);
 		}
@@ -276,17 +270,17 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 				clus_color.row(fi) = colors.row(clus_F_indices[fi]);
 			}
 			// Save the current cluster in "off" file format
-			std::string clus_file_name = file_name + "_polygon_" + std::to_string(polygon_index) + ".off";
-			std::string clus_file_name_colors = file_name + "_polygon_" + std::to_string(polygon_index) + "_withColors.off";
+			std::string clus_file_name = parts_file_path + file_name + "_polygon_" + std::to_string(polygon_index) + ".off";
+			std::string clus_file_name_colors = parts_color_file_path + file_name + "_polygon_" + std::to_string(polygon_index) + "_withColors.off";
 			igl::writeOFF(clus_file_name, V_OUT, clus_F);
 			app_utils::writeOFFwithColors(clus_file_name_colors, V_OUT, clus_F, clus_color);
 		}
 		// Save the final mesh in "off" file format
-		igl::writeOFF(file_name + "_Input.off", V_IN, F);
-		igl::writeOFF(file_name + "_Output.off", V_OUT, F);
-		app_utils::writeOFFwithColors(file_name + "_Input_withColors.off", V_IN, F, colors);
-		app_utils::writeOFFwithColors(file_name + "_Output_withColors.off", V_OUT, F, colors);
-		app_utils::writeTXTFile(file_name + "ReadMe.txt", modelName, false,
+		igl::writeOFF(main_file_path + file_name + "_Input.off", V_IN, F);
+		igl::writeOFF(main_file_path + file_name + "_Output.off", V_OUT, F);
+		app_utils::writeOFFwithColors(main_file_path + file_name + "_Input_withColors.off", V_IN, F, colors);
+		app_utils::writeOFFwithColors(main_file_path + file_name + "_Output_withColors.off", V_OUT, F, colors);
+		app_utils::writeTXTFile(main_file_path + file_name + "ReadMe.txt", modelName, false,
 			O.clustering_faces_indices, V_OUT, F, colors, Radiuses, Centers);
 	}
 	

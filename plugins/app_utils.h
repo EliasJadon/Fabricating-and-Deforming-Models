@@ -105,6 +105,18 @@ namespace app_utils
 		return true;
 	}
 
+	static std::string CurrentTime() {
+		char date_buffer[80] = { 0 };
+		{
+			time_t rawtime_;
+			struct tm* timeinfo_;
+			time(&rawtime_);
+			timeinfo_ = localtime(&rawtime_);
+			strftime(date_buffer, 80, "_%H_%M_%S__%d_%m_%Y", timeinfo_);
+		}
+		return std::string(date_buffer);
+	}
+
 	static bool writeTXTFile(
 		const std::string& path,
 		const std::string& modelName,
@@ -168,7 +180,7 @@ namespace app_utils
 				myfile << "Center point: " << "(" << avgCenter(0) << ", " << avgCenter(1) << ", " << avgCenter(2) << ")" << "\n";
 			}
 			else {
-				myfile << "Normal ID:\t" << ci << "\n";
+				myfile << "Polygon ID:\t" << ci << "\n";
 			}
 			
 			myfile << "color: " << "(" << avgColor(0) << ", " << avgColor(1) << ", " << avgColor(2) << ")" << "\n";
