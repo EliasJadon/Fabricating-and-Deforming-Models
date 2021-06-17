@@ -3,7 +3,7 @@
 
 class fixRadius : public ObjectiveFunction {
 public:
-	int min = 1, max = 30;
+	int min = 2, max = 10;
 	float alpha = 23;
 
 	fixRadius(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);

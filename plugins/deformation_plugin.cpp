@@ -969,7 +969,12 @@ void deformation_plugin::Draw_energies_window()
 							
 							ImGui::DragFloat("alpha", &(fR->alpha), 0.001);
 
+							
+
 							Eigen::VectorXd Radiuses = Outputs[save_output_index].getRadiusOfSphere();
+							if (ImGui::Button("update Alpha")) {
+								fR->alpha = fR->max / Radiuses.maxCoeff();
+							}
 							ImGui::Text(("R max: " + std::to_string(Radiuses.maxCoeff() * fR->alpha)).c_str());
 							ImGui::Text(("R min: " + std::to_string(Radiuses.minCoeff() * fR->alpha)).c_str());
 							
