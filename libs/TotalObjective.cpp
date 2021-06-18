@@ -106,8 +106,8 @@ double TotalObjective::value(Cuda::Array<double>& curr_x, const bool update)
 	if (update) {
 		energy_value = f;
 		//update face coloring for STVK & Symmetric-Dirichlet
-		std::shared_ptr<STVK> stvk = std::dynamic_pointer_cast<STVK>(objectiveList[3]);
-		std::shared_ptr<SDenergy> SD = std::dynamic_pointer_cast<SDenergy>(objectiveList[4]);
+		std::shared_ptr<STVK> stvk = std::dynamic_pointer_cast<STVK>(objectiveList[2]);
+		std::shared_ptr<SDenergy> SD = std::dynamic_pointer_cast<SDenergy>(objectiveList[3]);
 		Cuda::MemCpyDeviceToHost(stvk->cuda_STVK->Energy);
 		Cuda::MemCpyDeviceToHost(SD->cuda_SD->Energy);
 		for (int i = 0; i < stvk->cuda_STVK->Energy.size; i++)
@@ -132,13 +132,7 @@ void TotalObjective::gradient(Cuda::Array<double>& X, const bool update)
 		objectiveList[4]->getGradient()->cuda_arr, objectiveList[4]->w,
 		objectiveList[5]->getGradient()->cuda_arr, objectiveList[5]->w,
 		objectiveList[6]->getGradient()->cuda_arr, objectiveList[6]->w,
-		objectiveList[7]->getGradient()->cuda_arr, objectiveList[7]->w,
-		objectiveList[8]->getGradient()->cuda_arr, objectiveList[8]->w,
-		objectiveList[9]->getGradient()->cuda_arr, objectiveList[9]->w,
-		objectiveList[10]->getGradient()->cuda_arr, objectiveList[10]->w,
-		objectiveList[11]->getGradient()->cuda_arr, objectiveList[11]->w,
-		objectiveList[12]->getGradient()->cuda_arr, objectiveList[12]->w,
-		objectiveList[13]->getGradient()->cuda_arr, objectiveList[13]->w
+		objectiveList[7]->getGradient()->cuda_arr, objectiveList[7]->w
 	);
 		
 	//TODO: update the gradient norm for all the energies
