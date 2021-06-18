@@ -32,7 +32,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	CollapsingHeader_change = false;
 	neighbor_distance = brush_radius = 0.3;
 	initSphereAuxVariables = OptimizationUtils::InitSphereAuxVariables::MODEL_CENTER_POINT;
-	isLoadResultsNeeded = isLoadNeeded = false;
+	isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
 	energies_window = results_window = outputs_window = true;
@@ -112,21 +112,8 @@ void deformation_plugin::load_new_model(const std::string modelpath)
 	viewer->core(inputCoreID).trackball_angle = Eigen::Quaternionf::Identity();
 	viewer->core(inputCoreID).orthographic = false;
 	viewer->core(inputCoreID).set_rotation_type(igl::opengl::ViewerCore::RotationType(1));
-	if (isLoadResultsNeeded) {
-		Eigen::MatrixX3i F;
-		Eigen::MatrixX3d C, R, N;
-		{
-			std::string tmp_modelPath = modelPath;
-			tmp_modelPath.erase(tmp_modelPath.end() - 4, tmp_modelPath.end());
-			igl::readOFF(tmp_modelPath + "_Centers.off", C, F);
-			igl::readOFF(tmp_modelPath + "_Radiuses.off", R, F);
-			igl::readOFF(tmp_modelPath + "_Normals.off", N, F);
-		}
-		Outputs[0].setAuxVariables(InputModel().V, InputModel().F, C, R.col(0), N);
-	}
 	isModelLoaded = true;
 	isLoadNeeded = false;
-	isLoadResultsNeeded = false;
 }
 
 IGL_INLINE void deformation_plugin::draw_viewer_menu()
@@ -155,12 +142,8 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		if (save_output_index >= Outputs.size() || save_output_index < 0)
 			save_output_index = 0;
 	}
-	if (ImGui::Button("load Result", ImVec2((w - p) / 2.f, 0))) {
-		modelPath = igl::file_dialog_open();
-		isLoadNeeded = true;
-		isLoadResultsNeeded = true;
-	}
-	ImGui::SameLine();
+	
+	
 	if (ImGui::Button("save Sphere", ImVec2((w - p) / 2.f, 0)) && Outputs[save_output_index].clustering_faces_indices.size()) {
 		// Multiply all the mesh by "factor". Relevant only for spheres. 
 		double factor = 1;
@@ -237,6 +220,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		mat_radiuses.col(0) = Radiuses;
 		igl::writeOFF(aux_file_path + file_name + "_Aux_Radiuses.off", mat_radiuses, temp);
 	}
+	ImGui::SameLine();
 	if (ImGui::Button("Save Planar", ImVec2((w - p) / 2.f, 0)) && Outputs[save_output_index].clustering_faces_indices.size()) {
 		// Get mesh data
 		OptimizationOutput O = Outputs[save_output_index];
@@ -430,6 +414,7 @@ void deformation_plugin::CollapsingHeader_clustering()
 		ImGui::SetNextTreeNodeOpen(CollapsingHeader_curr[3]);
 	if (ImGui::CollapsingHeader("Clustering"))
 	{
+		CollapsingHeader_curr[3] = true;
 		if (ImGui::Button("Copy")) {
 			int ind;
 			for (int f : Outputs[0].UserInterface_FixedFaces) {
