@@ -31,7 +31,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	UserInterface_UpdateAllOutputs = false;
 	CollapsingHeader_change = false;
 	neighbor_distance = brush_radius = 0.3;
-	initSphereAuxVariables = OptimizationUtils::InitSphereAuxVariables::MODEL_CENTER_POINT;
+	initSphereAuxVariables = OptimizationUtils::InitSphereAuxVariables::MINUS_NORMALS;
 	isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
@@ -459,7 +459,7 @@ void deformation_plugin::CollapsingHeader_minimizer()
 			run_one_minimizer_iter();
 		if (ImGui::Checkbox("Run Minimizer", &isMinimizerRunning))
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
-		if (ImGui::Combo("Optimizer", (int *)(&optimizer_type), "Newton\0Gradient Descent\0Adam\0\0"))
+		if (ImGui::Combo("Optimizer", (int *)(&optimizer_type), "Gradient Descent\0Adam\0\0"))
 			change_minimizer_type(optimizer_type);
 		if (ImGui::Combo("init sphere var", (int *)(&initSphereAuxVariables), "Sphere Fit\0Mesh Center\0Minus Normal\0\0"))
 			init_aux_variables();
