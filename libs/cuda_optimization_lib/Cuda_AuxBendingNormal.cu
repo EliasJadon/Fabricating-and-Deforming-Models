@@ -495,7 +495,7 @@ Cuda_AuxBendingNormal::Cuda_AuxBendingNormal(const PenaltyFunction type, const i
 	Cuda::AllocateMemory(restAreaPerHinge, numH);
 	Cuda::AllocateMemory(weight_PerHinge, numH);
 	Cuda::AllocateMemory(Sigmoid_PerHinge, numH);
-	Cuda::AllocateMemory(grad, (3 * numV) + (10 * numF));
+	Cuda::AllocateMemory(grad, (3 * numV) + (7 * numF));
 	Cuda::AllocateMemory(EnergyAtomic, 1);
 	Cuda::AllocateMemory(hinges_faceIndex, numH);
 	Cuda::AllocateMemory(x0_GlobInd, numH);

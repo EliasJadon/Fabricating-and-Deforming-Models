@@ -21,9 +21,6 @@ namespace Cuda {
 		I.startCy	= 3 * V + 4 * F;
 		I.startCz	= 3 * V + 5 * F;
 		I.startR	= 3 * V + 6 * F;
-		I.startAx	= 3 * V + 7 * F;
-		I.startAy	= 3 * V + 8 * F;
-		I.startAz	= 3 * V + 9 * F;
 	}
 
 

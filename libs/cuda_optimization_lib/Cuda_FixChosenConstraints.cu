@@ -131,7 +131,7 @@ Cuda_FixChosenConstraints::Cuda_FixChosenConstraints(const unsigned int numF, co
 	cudaStreamCreate(&stream_value);
 	cudaStreamCreate(&stream_gradient);
 	Cuda::initIndices(mesh_indices, numF, numV, 0);
-	Cuda::AllocateMemory(grad, (3 * numV) + (10 * numF));
+	Cuda::AllocateMemory(grad, (3 * numV) + (7 * numF));
 	Cuda::AllocateMemory(EnergyAtomic, 1);
 	Cuda::AllocateMemory(Const_Ind, 0);
 	Cuda::AllocateMemory(Const_Pos, 0);

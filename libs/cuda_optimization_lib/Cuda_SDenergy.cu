@@ -447,7 +447,7 @@ Cuda_SDenergy::Cuda_SDenergy(const int F, const int V) {
 	Cuda::AllocateMemory(restShapeF		, F);
 	Cuda::AllocateMemory(restShapeArea	, F);
 	Cuda::initIndices(mesh_indices		, F, V, 0);
-	Cuda::AllocateMemory(grad			, 3 * V + 10 * F);
+	Cuda::AllocateMemory(grad			, 3 * V + 7 * F);
 	Cuda::AllocateMemory(EnergyAtomic	, 1);
 }
 

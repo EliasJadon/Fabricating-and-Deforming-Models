@@ -1820,8 +1820,6 @@ void deformation_plugin::follow_and_mark_selected_faces()
 			}
 			Outputs[i].clustering_faces_indices = DataColors.face_index;
 		}
-		
-		
 	}
 }
 	

@@ -449,7 +449,7 @@ Cuda_AuxSpherePerHinge::Cuda_AuxSpherePerHinge(const PenaltyFunction type, const
 	Cuda::AllocateMemory(weight_PerHinge, numH);
 	Cuda::AllocateMemory(Sigmoid_PerHinge, numH);
 	Cuda::AllocateMemory(restAreaPerHinge, numH);
-	Cuda::AllocateMemory(grad, (3 * numV) + (10 * numF));
+	Cuda::AllocateMemory(grad, (3 * numV) + (7 * numF));
 	Cuda::AllocateMemory(EnergyAtomic, 1);
 	Cuda::AllocateMemory(hinges_faceIndex, numH);
 	Cuda::AllocateMemory(x0_GlobInd, numH);

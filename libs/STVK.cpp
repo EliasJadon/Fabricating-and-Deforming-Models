@@ -16,7 +16,7 @@ STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F)
 	Cuda::AllocateMemory(cuda_STVK->restShapeF, F.rows());
 	Cuda::AllocateMemory(cuda_STVK->restShapeArea, F.rows());
 	Cuda::initIndices(cuda_STVK->mesh_indices, F.rows(), V.rows(), 0);
-	Cuda::AllocateMemory(cuda_STVK->grad, 3 * V.rows() + 10 * F.rows());
+	Cuda::AllocateMemory(cuda_STVK->grad, 3 * V.rows() + 7 * F.rows());
 	Cuda::AllocateMemory(cuda_STVK->EnergyAtomic, 1);
 
 	setRestShapeFromCurrentConfiguration();

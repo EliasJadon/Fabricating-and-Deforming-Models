@@ -17,7 +17,6 @@ namespace Cuda
 			startNx, startNy, startNz,
 			startCx, startCy, startCz,
 			startR,
-			startAx, startAy, startAz,
 			num_vertices, num_faces, num_hinges;
 	};
 
