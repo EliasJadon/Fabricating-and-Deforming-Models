@@ -16,55 +16,8 @@
 
 namespace OptimizationUtils
 {
-	enum InitAuxVariables {
-		SPHERE_FIT = 0,
-		MODEL_CENTER_POINT,
-		MINUS_NORMALS,
-		CYLINDER_FIT
-	};
-
-	enum LineSearch {
-		GRADIENT_NORM,
-		FUNCTION_VALUE,
-		CONSTANT_STEP
-	};
-
-	static Eigen::SparseMatrix<double> BuildMatrix(const std::vector<int>& I, const std::vector<int>& J, const std::vector<double>& S) {
-		assert(I.size() == J.size() && I.size() == S.size() && "II,JJ,SS must have the same size!");
-		std::vector<Eigen::Triplet<double>> tripletList;
-		tripletList.reserve(I.size());
-		int rows = *std::max_element(I.begin(), I.end()) + 1;
-		int cols = *std::max_element(J.begin(), J.end()) + 1;
-
-		for (int i = 0; i < I.size(); i++)
-			tripletList.push_back(Eigen::Triplet<double>(I[i], J[i], S[i]));
-
-		Eigen::SparseMatrix<double> A;
-		A.resize(rows, cols);
-		A.setFromTriplets(tripletList.begin(), tripletList.end());
-		A.makeCompressed();
-		return A;
-	}
-
-	/*static std::vector<std::vector<int>> FaceToHinge_indices(
-		const std::vector<Eigen::Vector2d>& HingeToFace_indices, 
-		const int numFaces)
-	{
-		const int numHinges = HingeToFace_indices.size();
-		std::vector<std::vector<int>> FH = {};
-		for (int fi = 0; fi < numFaces; fi++) {
-			std::vector<int> hingesPerFace = {};
-			for (int hi = 0; hi < numHinges; hi++) {
-				const int f1 = HingeToFace_indices[hi](0);
-				const int f2 = HingeToFace_indices[hi](1);
-				if (fi == f1 || fi == f2)
-					hingesPerFace.push_back(hi);
-			}
-			assert(hingesPerFace.size() <= 3 && hingesPerFace.size() > 0);
-			FH.push_back(hingesPerFace);
-		}
-		return FH;
-	}*/
+	enum InitSphereAuxVariables { SPHERE_FIT, MODEL_CENTER_POINT, MINUS_NORMALS };
+	enum LineSearch { GRADIENT_NORM, FUNCTION_VALUE, CONSTANT_STEP };
 
 	static std::vector<int> FaceToHinge_indices(
 		const std::vector<Eigen::Vector2d>& HingeToFace_indices, 
@@ -97,7 +50,6 @@ namespace OptimizationUtils
 		igl::local_basis(V, F, B1, B2, B3);
 	}
 
-	
 	static void computeSurfaceGradientPerFace(const Eigen::MatrixX3d &V, const Eigen::MatrixX3i &F, Eigen::MatrixX3d &D1, Eigen::MatrixX3d &D2)
 	{
 		Eigen::MatrixX3d F1, F2, F3;
@@ -324,8 +276,7 @@ namespace OptimizationUtils
 		const int distance,
 		const Eigen::MatrixXd& V,
 		const std::vector<std::set<int>>& TT,
-		const std::vector<std::vector<int>>& TV,
-		const std::vector < std::set<int>>& group_index)
+		const std::vector<std::vector<int>>& TV)
 	{
 		std::set<int> faces;
 		if (distance < 1) {
@@ -342,18 +293,9 @@ namespace OptimizationUtils
 		}
 
 		std::set<int> neigh; neigh.clear();
-		for (auto& currGroup : group_index) {
-			for (int currF : currGroup) {
-				if (currF == fi) {
-					neigh = currGroup;
-				}
-			}
-		}
-		if (neigh.size() == 0) {
-			for (int currF : faces)
-				for (int n : TV[currF])
-					neigh.insert(n);
-		}
+		for (int currF : faces)
+			for (int n : TV[currF])
+				neigh.insert(n);
 		
 		Eigen::MatrixX3d neigh_vertices(neigh.size(), 3);
 		int i = 0;
@@ -402,8 +344,7 @@ namespace OptimizationUtils
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixXi& F,
 		Eigen::MatrixXd& center0,
-		Eigen::VectorXd& radius0,
-		const std::vector < std::set<int>>& group_index)
+		Eigen::VectorXd& radius0)
 	{
 		//for more info:
 		//https://jekel.me/2015/Least-Squares-Sphere-Fit/
@@ -417,7 +358,7 @@ namespace OptimizationUtils
 			int argmin = -1;
 			for (int d = Distance_from; d <= Distance_to; d++) {
 				double currMSE = Least_Squares_Sphere_Fit_perFace(fi, V, F,
-					Vertices_Neighbors(fi, d,V, TT, TV, group_index),
+					Vertices_Neighbors(fi, d,V, TT, TV),
 					center0, radius0);
 				if (currMSE < minMSE) {
 					minMSE = currMSE;
@@ -426,211 +367,10 @@ namespace OptimizationUtils
 			}
 			std::cout << "fi =\t" << fi << "\t, argmin = " << argmin<< "\t, minMSE = " << minMSE << std::endl;
 			Least_Squares_Sphere_Fit_perFace(fi, V, F,
-				Vertices_Neighbors(fi, argmin,V, TT, TV,group_index),
+				Vertices_Neighbors(fi, argmin, V, TT, TV),
 				center0, radius0);
 		}
 	}
-
-	static void Preprocess(
-		const int n, 
-		const Eigen::MatrixX3d& points,
-		Eigen::MatrixX3d& X,
-		Eigen::Vector3d& average, 
-		Eigen::VectorXd& mu,
-		Eigen::Matrix<double, 3, 3>& F0,
-		Eigen::Matrix<double, 3, 6>& F1,
-		Eigen::Matrix<double, 6, 6>& F2)
-	{
-		average << 0, 0, 0;
-		for(int i = 0; i < n; ++i)
-		{
-			average += points.row(i).transpose();
-		}
-		average /= n;
-		for(int i = 0; i < n; ++i)
-		{
-			X.row(i) = points.row(i) - average.transpose();
-		}
-		Eigen::MatrixXd products(n, 6);
-		products.setZero();
-		mu.resize(6);
-		mu.setZero();
-		for(int i = 0; i < n; ++i)
-		{
-			products(i, 0) = X(i, 0) * X(i, 0);
-			products(i, 1) = X(i, 0) * X(i, 1);
-			products(i, 2) = X(i, 0) * X(i, 2);
-			products(i, 3) = X(i, 1) * X(i, 1);
-			products(i, 4) = X(i, 1) * X(i, 2);
-			products(i, 5) = X(i, 2) * X(i, 2);
-			mu[0] += products(i, 0);
-			mu[1] += 2 * products(i, 1);
-			mu[2] += 2 * products(i, 2);
-			mu[3] += products(i, 3);
-			mu[4] += 2 * products(i, 4);
-			mu[5] += products(i, 5);
-		}
-		mu /= n;
-		F0.setZero();
-		F1.setZero();
-		F2.setZero();
-		for(int i = 0; i < n; ++i)
-		{
-			Eigen::RowVectorXd delta(6);
-			delta[0] = products(i, 0)		- mu[0];
-			delta[1] = 2 * products(i, 1)	- mu[1];
-			delta[2] = 2 * products(i, 2)	- mu[2];
-			delta[3] = products(i, 3)		- mu[3];
-			delta[4] = 2 * products(i, 4)	- mu[4];
-			delta[5] = products(i, 5)		- mu[5];
-			F0(0, 0) += products(i, 0);
-			F0(0, 1) += products(i, 1);
-			F0(0, 2) += products(i, 2);
-			F0(1, 1) += products(i, 3);
-			F0(1, 2) += products(i, 4);
-			F0(2, 2) += products(i, 5);
-			F1 += X.row(i).transpose() * delta;
-			F2 += delta.transpose() * delta;
-		}
-		F0 /= n;
-		F0(1, 0) = F0(0, 1);
-		F0(2, 0) = F0(0, 2);
-		F0(2, 1) = F0(1, 2);
-		F1 /= n;
-		F2 /= n;
-	}
-
-
-	static double G(
-		const int n,
-		const Eigen::MatrixX3d& X,
-		const Eigen::VectorXd& mu,
-		const Eigen::Matrix<double, 3, 3>& F0,
-		const Eigen::Matrix<double, 3, 6>& F1,
-		const Eigen::Matrix<double, 6, 6>& F2,
-		const Eigen::Vector3d& W,
-		Eigen::Vector3d& PC,
-		double& rSqr)
-	{
-		Eigen::Matrix<double, 3, 3> P, S, A, hatA, hatAA, Q;
-		// P = I - W * WˆT
-		P = Eigen::Matrix<double, 3, 3>::Identity() - W * W.transpose();
-		S <<
-			0		, -W[2]	, W[1]	,
-			W[2]	, 0		, -W[0]	,
-			-W[1]	, W[0]	, 0;
-		A = P * F0 * P;
-		hatA = - (S * A * S);
-		hatAA = hatA * A;
-		Q = hatA / hatAA.trace();
-		Eigen::VectorXd p(6);
-		p << P(0, 0), P(0, 1), P(0, 2), P(1, 1), P(1, 2), P(2, 2);
-		Eigen::Vector3d alpha = F1 * p;
-		Eigen::Vector3d beta = Q * alpha;
-		double error = (p.dot(F2 * p) - 4 * alpha.dot(beta) + 4 * beta.dot(F0 * beta)) / n;
-		PC = beta;
-		rSqr = p.dot(mu) + beta.dot(beta);
-		return error;
-	}
-
-	// The X[] are the points to be fit. The outputs rSqr , C, and W are the
-	// cylinder parameters. The function return value is the error function
-	// evaluated at the cylinder parameters.
-	static double FitCylinder(
-		const int n, 
-		const Eigen::MatrixX3d& points, 
-		double& rSqr, 
-		Eigen::Vector3d& C,
-		Eigen::Vector3d& W,
-		const int imax,
-		const int jmax)
-	{
-		//For more info:
-		// https://www.geometrictools.com/Documentation/LeastSquaresFitting.pdf
-		Eigen::MatrixX3d X(n,3);
-		Eigen::VectorXd mu(6);
-		Eigen::Vector3d average;
-		Eigen::Matrix<double, 3, 3> F0;
-		Eigen::Matrix<double, 3, 6> F1;
-		Eigen::Matrix<double, 6, 6> F2;
-
-		Preprocess(n, points, X, average, mu, F0, F1, F2);
-		// Choose imax and jmax as desired for the level of granularity you
-		// want for sampling W vectors on the hemisphere.
-		double minError = std::numeric_limits<double>::infinity();
-		W = Eigen::Vector3d::Zero();
-		C = Eigen::Vector3d::Zero();
-		rSqr = 0;
-		for(int j = 0; j <= jmax; ++j)
-		{
-			double PI = 3.14159265358979323846;
-			double phi = (0.5 * PI * j) / jmax; // in [0, pi/2]
-			double csphi = cos(phi), snphi = sin(phi);
-			for(int i = 0; i < imax; ++i)
-			{
-				double theta = (2.0f * PI * i) / imax; // in [0, 2*pi)
-				double cstheta = cos(theta);
-				double sntheta = sin(theta);
-				Eigen::Vector3d currentW(cstheta * snphi, sntheta * snphi, csphi);
-				Eigen::Vector3d currentC;
-				double currentRSqr;
-				double error = G(n, X, mu, F0, F1, F2, currentW, currentC, currentRSqr);
-				if(error < minError)
-				{
-					minError = error;
-					W = currentW;
-					C = currentC;
-					rSqr = currentRSqr;
-				}
-			}
-		}
-		// Translate the center to the original coordinate system.
-		C += average;
-		return minError;
-	}
-	static void Least_Squares_Cylinder_Fit(
-		const int imax,
-		const int jmax,
-		const int Distance_from,
-		const int Distance_to,
-		const Eigen::MatrixXd& V,
-		const Eigen::MatrixXi& F,
-		Eigen::MatrixXd& center0,
-		Eigen::MatrixXd& dir0,
-		Eigen::VectorXd& radius0,
-		const std::vector < std::set<int>>& group_index)
-	{
-		center0.resize(F.rows(), 3);
-		dir0.resize(F.rows(), 3);
-		radius0.resize(F.rows(), 1);
-		std::vector<std::vector<int>> TV = get_adjacency_vertices_per_face(V, F);
-		std::vector<std::set<int>> TT = Triangle_triangle_adjacency(F);
-		
-		for (int fi = 0; fi < F.rows(); fi++) {
-			double minMSE = std::numeric_limits<double>::infinity();
-			int argmin = -1;
-			for (int d = Distance_from; d <= Distance_to; d++) {
-
-				const Eigen::MatrixX3d& points = Vertices_Neighbors(fi, d, V, TT, TV, group_index);
-				double rSqr;
-				Eigen::Vector3d C;
-				Eigen::Vector3d W;
-				double currMSE = FitCylinder(points.rows(), points, rSqr, C, W, imax, jmax);
-				if (currMSE < minMSE) {
-					minMSE = currMSE;
-					argmin = d;
-					dir0.row(fi) = (W.normalized()).transpose();
-					center0.row(fi) = C.transpose();
-					radius0(fi) = sqrt(rSqr);
-				}
-			}
-			std::cout << "fi =\t" << fi << "\t, argmin = " << argmin << "\t, minMSE = " << minMSE << std::endl;
-			//std::cout << "center0 = " << center0.row(fi) << std::endl;
-			//std::cout << "radius0 = " << radius0(fi) << std::endl;
-			//std::cout << "dir0 = " << dir0.row(fi) << std::endl;
-		}
-	}
-
 
 	static std::vector<std::vector<int>> Get_adjacency_vertices_per_face(
 		const Eigen::MatrixXd& V,

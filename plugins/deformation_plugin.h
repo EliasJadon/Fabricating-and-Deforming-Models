@@ -10,13 +10,12 @@ class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 private:
 	int save_output_index = 0;
 	std::vector<int> copy_index;
-	std::vector < std::set<int>> paste_index, group_index;
-	int CylinderInit_imax = 9, CylinderInit_jmax = 9;
+	std::vector < std::set<int>> paste_index;
 	int InitMinimizer_NeighLevel_From = 1;
 	int InitMinimizer_NeighLevel_To = 10;
 	bool CollapsingHeader_curr[7], CollapsingHeader_prev[7], CollapsingHeader_change;
 	bool tips_window, outputs_window, results_window, energies_window;
-	OptimizationUtils::InitAuxVariables initAuxVariables;
+	OptimizationUtils::InitSphereAuxVariables initSphereAuxVariables;
 	bool isLoadNeeded, isLoadResultsNeeded, isModelLoaded;
 	float Max_Distortion;
 	float neighbor_distance, brush_radius;
@@ -37,8 +36,6 @@ private:
 		center_vertex_color,
 		face_norm_color,
 		Color_sphere_edges,
-		Color_cylinder_dir,
-		Color_cylinder_edge,
 		Color_normal_edge,
 		Neighbors_Highlighted_face_color,
 		Fixed_face_color,
@@ -48,14 +45,11 @@ private:
 		Dragged_vertex_color,
 		Vertex_Energy_color,
 		text_color;
-	float core_size, clusteringMSE, 
-		clustering_center_ratio,
-		clustering_radius_ratio,
-		clustering_dir_ratio;
-	app_utils::ClusteringType clusteringType;
+	float core_size;
+	app_utils::Clustering_Type clustering_Type;
 	float clustering_w;
 	Eigen::Vector3f intersec_point;
-	app_utils::NeighborType neighborType;
+	app_utils::Neighbor_Type neighbor_Type;
 	std::vector<OptimizationOutput> Outputs;
 	float prev_camera_zoom;
 	Eigen::Vector3f prev_camera_translation;

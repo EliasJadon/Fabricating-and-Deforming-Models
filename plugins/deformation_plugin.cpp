@@ -31,23 +31,19 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	UserInterface_UpdateAllOutputs = false;
 	CollapsingHeader_change = false;
 	neighbor_distance = brush_radius = 0.3;
-	initAuxVariables = OptimizationUtils::InitAuxVariables::MODEL_CENTER_POINT;
+	initSphereAuxVariables = OptimizationUtils::InitSphereAuxVariables::MODEL_CENTER_POINT;
 	isLoadResultsNeeded = isLoadNeeded = false;
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
 	energies_window = results_window = outputs_window = true;
 	tips_window = false;
-	neighborType = app_utils::NeighborType::LOCAL_NORMALS;
+	neighbor_Type = app_utils::Neighbor_Type::CURR_FACE;
 	IsChoosingGroups = false;
 	isModelLoaded = false;
 	isUpdateAll = true;
 	UserInterface_colorInputModelIndex = 1;
-	clusteringType = app_utils::ClusteringType::NO_CLUSTERING;
+	clustering_Type = app_utils::Clustering_Type::NO_CLUSTERING;
 	clustering_w = 0.65;
-	clusteringMSE = 0.1;
-	clustering_center_ratio = 0.5;
-	clustering_radius_ratio = 0.1;
-	clustering_dir_ratio = 1;
 	faceColoring_type = 1;
 	curr_highlighted_output = curr_highlighted_face = NOT_FOUND;
 	optimizer_type = OptimizerType::Adam;
@@ -62,9 +58,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	Neighbors_Highlighted_face_color = Eigen::Vector3f(1, 102 / 255.0f, 1);
 	center_sphere_color = Eigen::Vector3f(0, 1, 1);
 	center_vertex_color = Eigen::Vector3f(128 / 255.0f, 128 / 255.0f, 128 / 255.0f);
-	Color_cylinder_dir = Eigen::Vector3f(0, 0.6, 0.9);
-	Color_cylinder_edge = Color_sphere_edges =
-		Color_normal_edge = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);
+	Color_sphere_edges = Color_normal_edge = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);
 	face_norm_color = Eigen::Vector3f(0, 1, 1);
 	Fixed_vertex_color = Fixed_face_color = BLUE_COLOR;
 	Dragged_vertex_color = Dragged_face_color = GREEN_COLOR;
@@ -128,7 +122,7 @@ void deformation_plugin::load_new_model(const std::string modelpath)
 			igl::readOFF(tmp_modelPath + "_Radiuses.off", R, F);
 			igl::readOFF(tmp_modelPath + "_Normals.off", N, F);
 		}
-		Outputs[0].setAuxVariables(InputModel().V, InputModel().F, C, R.col(0), C, N);
+		Outputs[0].setAuxVariables(InputModel().V, InputModel().F, C, R.col(0), N);
 	}
 	isModelLoaded = true;
 	isLoadNeeded = false;
@@ -357,8 +351,6 @@ void deformation_plugin::CollapsingHeader_colors()
 		ImGui::ColorEdit3("Center sphere", center_sphere_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Center vertex", center_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Sphere edge", Color_sphere_edges.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Cylinder dir", Color_cylinder_dir.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Cylinder edge", Color_cylinder_edge.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		
 		ImGui::ColorEdit3("Normal edge", Color_normal_edge.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Face norm", face_norm_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
@@ -420,7 +412,7 @@ void deformation_plugin::CollapsingHeader_user_interface()
 		ImGui::Combo("Coloring Input", (int*)(&UserInterface_colorInputModelIndex), app_utils::build_inputColoring_list(Outputs.size()));
 		ImGui::Checkbox("Update All", &UserInterface_UpdateAllOutputs);
 		if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID)
-			ImGui::Combo("Neighbor type", (int *)(&neighborType), "Curr Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0Local Cylinders\0Global Cylinders\0\0");
+			ImGui::Combo("Neighbor type", (int *)(&neighbor_Type), "Curr Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
 		if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID)
 			ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.0005f, 0.00001f, 10000.0f,"%.5f");
 		if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || 
@@ -462,252 +454,15 @@ void deformation_plugin::CollapsingHeader_clustering()
 			copy_index.clear();
 			paste_index.clear();
 		}
-
-		/*if (ImGui::Button("add Group")) {
-			for (FacesGroup& fg : Outputs[0].UserInterface_facesGroups) {
-				if (fg.faces.size() > 0) {
-					group_index.push_back(fg.faces);
-				}
-			}
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Reset G")) {
-			group_index.clear();
-		}*/
-
-		//if (ImGui::Button("ROY 2D soup")) {
-		//	MeshWrapper var(InputModel().V, InputModel().F);
-		//	Eigen::MatrixXd V_uv_3D(var.v_im_.rows(), 3);
-		//	V_uv_3D.leftCols(2) = var.v_im_.leftCols(2);
-		//	V_uv_3D.rightCols(1).setZero();
-		//	//OutputModel(0).clear();
-		//	//OutputModel(0).set_mesh(V_uv_3D, var.f_im_);
-		//	//OutputModel(0).compute_normals();
-		//	igl::writeOFF("soup" + modelName + ".off", V_uv_3D, var.f_im_);
-		//}
-
 		
-		if (ImGui::Button("Print")) {
-			if (neighborType == app_utils::NeighborType::GLOBAL_NORMALS ||
-				neighborType == app_utils::NeighborType::LOCAL_NORMALS)
-			{
-				Eigen::RowVector3d V0 = OutputModel(0).V.row(Outputs[0].printNormals_saveVertices[0]);
-				Eigen::RowVector3d V1 = OutputModel(0).V.row(Outputs[0].printNormals_saveVertices[1]);
-				Eigen::RowVector3d V2 = OutputModel(0).V.row(Outputs[0].printNormals_saveVertices[2]);
-				Eigen::RowVector3d e10 = V1 - V0;
-				Eigen::RowVector3d e20 = V2 - V0;
-				Eigen::RowVector3d B1 = e10.normalized();
-				Eigen::RowVector3d B2 = ((B1.cross(e20)).cross(B1)).normalized();
-
-				static char shiftAxis = 0;
-				std::cout << "polygon(";
-				for (int i = 0; i < Outputs[0].printNormals_saveVertices.size(); i++) {
-					Eigen::RowVector3d Vi = OutputModel(0).V.row(Outputs[0].printNormals_saveVertices[i]);
-					double x = (Vi - V0) * B1.transpose();
-					double y = (Vi - V0) * B2.transpose();
-
-					std::cout << "(" << x + shiftAxis << " , " << y + shiftAxis << ")";
-					if (i != (Outputs[0].printNormals_saveVertices.size() - 1))
-						std::cout << ",";
-					else
-						std::cout << ")\n";
-				}
-				shiftAxis += 50;
-			}
+		ImGui::Combo("Clus. Type", (int*)(&clustering_Type), "No Clustering\0Normals\0Spheres\0\0");
+		ImGui::DragFloat("Bright. Weight", &clustering_w, 0.001f, 0, 1);
 			
-		}
-		/*if (Outputs[0].printNormals_saveVertices.size() == 3) {
-				auto& iter = Outputs[0].printNormals_saveVertices.begin();
-				const int v0_index = *(iter++);
-				const int v1_index = *(iter++);
-				const int v2_index = *(iter++);
-				Eigen::RowVector3d V0 = OutputModel(0).V.row(v0_index);
-				Eigen::RowVector3d V1 = OutputModel(0).V.row(v1_index);
-				Eigen::RowVector3d V2 = OutputModel(0).V.row(v2_index);
-				double edge10_length = (V1 - V0).norm();
-				double edge21_length = (V2 - V1).norm();
-				Eigen::RowVector3d e10 = (V1 - V0).normalized();
-				Eigen::RowVector3d e21 = (V2 - V1).normalized();
-				double cos_theta = (e10 * e21.transpose());
-				double sin_theta = (e10.cross(e21)).norm();
-				double angle1 = std::acos(cos_theta);
-				double angle2 = std::asin(sin_theta);
-
-				ImGui::Text(("edge10_length = " + std::to_string(5 * edge10_length)).c_str());
-				ImGui::Text(("edge21_length = " + std::to_string(5 * edge21_length)).c_str());
-				ImGui::Text(("angle1 = " + std::to_string(angle1 * 180 / 3.1415)).c_str());
-				ImGui::Text(("angle2 = " + std::to_string(angle2 * 180 / 3.1415)).c_str());
-		}*/
-		if (Outputs[0].printNormals_saveVertices.size() == 3) {
-			int factor;
-			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
-				auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
-				if (fR != NULL)
-					factor = fR->alpha;
-			}
-
-			auto& iter = Outputs[0].printNormals_saveVertices.begin();
-			const int v0_index = *(iter++);
-			const int v1_index = *(iter++);
-			const int v2_index = *(iter++);
-			Eigen::RowVector3d V0 = OutputModel(0).V.row(v0_index);
-			Eigen::RowVector3d V1 = OutputModel(0).V.row(v1_index);
-			Eigen::RowVector3d V2 = OutputModel(0).V.row(v2_index);
-			double edge10_length = factor * (V1 - V0).norm();
-			double edge21_length = factor * (V2 - V1).norm();
-			double edge20_length = factor * (V2 - V0).norm();
-
-
-			const double  f64_zero = 0, f64_max = 100000.0;
-			static double r = 1;
-			ImGui::DragScalar("r", ImGuiDataType_Double, &r, 0.05f, &f64_zero, &f64_max);
-
-			double kaws10 = r * std::acos(1 - (pow(edge10_length, 2) / (2 * pow(r, 2))));
-			double kaws21 = r * std::acos(1 - (pow(edge21_length, 2) / (2 * pow(r, 2))));
-			double kaws20 = r * std::acos(1 - (pow(edge20_length, 2) / (2 * pow(r, 2))));
-				
-			ImGui::Text(("kaws10 = " + std::to_string(kaws10)).c_str());
-			ImGui::Text(("kaws21 = " + std::to_string(kaws21)).c_str());
-			ImGui::Text(("kaws20 = " + std::to_string(kaws20)).c_str());
-			ImGui::Text(("factor *edge10_length = " + std::to_string(edge10_length)).c_str());
-			ImGui::Text(("factor *edge21_length = " + std::to_string(edge21_length)).c_str());
-			ImGui::Text(("factor *edge20_length = " + std::to_string(edge20_length)).c_str());
-		}
-
-
-		if (ImGui::Button("Boundary loop")) {
-			Eigen::VectorXi bnd;
-			igl::boundary_loop(InputModel().F, bnd);
-			for (int i = 0; i < bnd.size(); i++) {
-				const int vertex_index = bnd(i);
-				Outputs[0].UserInterface_FixedVertices.insert(vertex_index);
-				Outputs[0].printNormals_saveVertices.push_back(vertex_index);
-			}
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Print Spheres")) {
-			int factor = 0;
-			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
-				auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
-				if (fR != NULL)
-					factor = fR->alpha;
-			}
-			auto& V = OutputModel(0).V;
-			int last_vertex_index = V.rows() - 1;
-			double radius_len = V(last_vertex_index, 0);
-			auto& bound_inds = Outputs[0].printNormals_saveVertices;
-
-			Eigen::RowVector3d chosen_pnt = V.row(*(bound_inds.begin()));
-			Eigen::RowVector3d axis1, axis2;
-			{
-				Eigen::RowVector3d center_pnt = V.row(last_vertex_index - 1);
-				Eigen::RowVector3d random_pnt = V.row(*(bound_inds.begin() + 1));
-				Eigen::RowVector3d random_dir = (random_pnt - chosen_pnt).normalized();
-				Eigen::RowVector3d radius_dir = (center_pnt - chosen_pnt).normalized();
-				axis1 = (random_dir.cross(radius_dir)).normalized();
-				axis2 = (axis1.cross(radius_dir)).normalized();
-				Eigen::RowVector3d axis3 = radius_dir;
-				// Start Debugging...
-				std::cout << "----------------------------------------" << std::endl;
-				std::cout << "1 == " << axis1.norm() << std::endl;
-				std::cout << "1 == " << axis2.norm() << std::endl;
-				std::cout << "1 == " << axis3.norm() << std::endl;
-				std::cout << "0 == " << axis1.dot(axis2) << std::endl;
-				std::cout << "0 == " << axis1.dot(axis3) << std::endl;
-				std::cout << "0 == " << axis2.dot(axis3) << std::endl;
-				std::cout << "factor = " << factor << std::endl;
-				std::cout << "radius_len = " << radius_len << std::endl;
-				std::cout << "center_pnt = " << center_pnt << std::endl;
-				std::cout << "axis1 = " << axis1 << std::endl;
-				std::cout << "axis2 = " << axis2 << std::endl;
-				std::cout << "chosen_pnt = " << chosen_pnt << std::endl;
-				std::cout << "chosen_index = " << *(bound_inds.begin()) << std::endl;
-				for (auto& bound_ind = bound_inds.begin(); bound_ind != bound_inds.end(); bound_ind++) {
-					Eigen::RowVector3d bound_pnt = V.row(*bound_ind);
-					double expected_radius_len = factor * (bound_pnt - center_pnt).norm();
-					std::cout << "Err:\t" << expected_radius_len - radius_len << std::endl;
-				}
-				// End Debugging
-			}
-			int count = 0;
-			for (auto& bound_ind = bound_inds.begin()+1; bound_ind != bound_inds.end(); bound_ind++) {
-				Eigen::RowVector3d bound_pnt = V.row(*bound_ind);
-				Eigen::RowVector3d bound_dir = bound_pnt - chosen_pnt;
-				Eigen::RowVector2d boundary_dir_on_new_axes(
-					bound_dir.dot(axis1),
-					bound_dir.dot(axis2)
-				);
-				boundary_dir_on_new_axes.normalize();
-				double edge_len = 0.5 * factor * bound_dir.norm();
-				double alpha_radians = std::acos(1 - (pow(edge_len, 2) / (2 * pow(radius_len, 2))));
-				double Keshet_len = radius_len * alpha_radians;
-				Eigen::RowVector2d final_point = boundary_dir_on_new_axes * Keshet_len;
-
-				if (count++ % 10 == 0)
-					std::cout << "\n\n\n";
-				std::cout << "Segment((" << final_point(0) << " ," << final_point(1) << "),(0,0))," << std::endl;
-			}
-		}
-
-		if (Outputs[0].UserInterface_FixedFaces.size() > 0) {
-			Eigen::VectorXd Radiuses = Outputs[0].getRadiusOfSphere();
-			int factor;
-			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
-				auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
-				if (fR != NULL)
-					factor = fR->alpha;
-			}
-			for (int f : Outputs[0].UserInterface_FixedFaces) {
-				ImGui::Text(("face = " + std::to_string(f)).c_str());
-				ImGui::Text(("radius = " + std::to_string(Radiuses[f])).c_str());
-				ImGui::Text(("factor*radius = " + std::to_string(factor*Radiuses[f])).c_str());
-			}
-		}
-
-		CollapsingHeader_curr[3] = true;
-		bool AnyChange = false;
-		if (ImGui::Combo("Type", (int *)(&clusteringType), "NO_CLUSTERING\0CLUSTERING_NORMAL\0CLUSTERING_SPHERE\0CLUSTERING_CYLINDER\0RGB_NORMAL\0RGB_SPHERE\0RGB_CYLINDER\0\0"))
-			AnyChange = true;
-		if (ImGui::DragFloat("Bright. Weight", &clustering_w, 0.001f, 0, 1))
-			AnyChange = true;
-		if ((clusteringType == app_utils::ClusteringType::RGB_NORMAL ||
-			clusteringType == app_utils::ClusteringType::RGB_CYLINDER ||
-			clusteringType == app_utils::ClusteringType::RGB_SPHERE))
+		if (clustering_Type != app_utils::Clustering_Type::NO_CLUSTERING)
 		{
 			ImGui::Checkbox("Use HashMap", &clustering_hashMap);
 			if (clustering_hashMap)
 				ImGui::DragFloat("Min Distance", &Clustering_MinDistance, 0.000001f, 0, 1,"%.8f");	
-		}
-		
-		if ((clusteringType == app_utils::ClusteringType::CLUSTERING_SPHERE ||
-			clusteringType == app_utils::ClusteringType::CLUSTERING_NORMAL ||
-			clusteringType == app_utils::ClusteringType::CLUSTERING_CYLINDER) &&
-			ImGui::DragFloat("Tolerance", &clusteringMSE, 0.001f, 0.001f, 100.0f))
-			AnyChange = true;
-		if (clusteringType == app_utils::ClusteringType::CLUSTERING_SPHERE) {
-			if (ImGui::DragFloat("Center Weight", &clustering_center_ratio, 0.001f, 0, 20))
-				AnyChange = true;
-			if (ImGui::DragFloat("Radius Weight", &clustering_radius_ratio, 0.001f, 0, 20))
-				AnyChange = true;
-		}
-		if (clusteringType == app_utils::ClusteringType::CLUSTERING_CYLINDER) {
-			if (ImGui::DragFloat("Dir Weight", &clustering_dir_ratio, 0.001f, 0, 20))
-				AnyChange = true;
-			if (ImGui::DragFloat("Center Weight", &clustering_center_ratio, 0.001f, 0, 20))
-				AnyChange = true;
-			if (ImGui::DragFloat("Radius Weight", &clustering_radius_ratio, 0.001f, 0, 20))
-				AnyChange = true;
-		}
-			
-		if(AnyChange)
-		{
-			for (auto& out : Outputs)
-				out.clustering(
-					clustering_center_ratio,
-					clustering_radius_ratio,
-					clustering_dir_ratio,
-					clusteringMSE,
-					clusteringType);
 		}
 	}
 }
@@ -725,25 +480,18 @@ void deformation_plugin::CollapsingHeader_minimizer()
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
 		if (ImGui::Combo("Minimizer type", (int *)(&optimizer_type), "Newton\0Gradient Descent\0Adam\0\0"))
 			change_minimizer_type(optimizer_type);
-		if (ImGui::Combo("init sphere var", (int *)(&initAuxVariables), "Sphere Fit\0Mesh Center\0Minus Normal\0Cylinder Fit\0\0"))
+		if (ImGui::Combo("init sphere var", (int *)(&initSphereAuxVariables), "Sphere Fit\0Mesh Center\0Minus Normal\0\0"))
 			init_aux_variables();
-		if (initAuxVariables == OptimizationUtils::InitAuxVariables::MINUS_NORMALS &&
+		if (initSphereAuxVariables == OptimizationUtils::InitSphereAuxVariables::MINUS_NORMALS &&
 			ImGui::DragFloat("radius length", &radius_length_minus_normal, 0.01f, 0.0f, 1000.0f, "%.7f"))
 			init_aux_variables();
-		if (initAuxVariables == OptimizationUtils::InitAuxVariables::SPHERE_FIT ||
-			initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT) 
+		if (initSphereAuxVariables == OptimizationUtils::InitSphereAuxVariables::SPHERE_FIT) 
 		{
 			if (ImGui::DragInt("Neigh From", &(InitMinimizer_NeighLevel_From), 1, 1, 200))
 				init_aux_variables();
 			if (ImGui::DragInt("Neigh To", &(InitMinimizer_NeighLevel_To), 1, 1, 200))
 				init_aux_variables();
-		}	
-		if (initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT &&
-			ImGui::DragInt("imax", &(CylinderInit_imax), 1, 1, 200))
-			init_aux_variables();
-		if (initAuxVariables == OptimizationUtils::InitAuxVariables::CYLINDER_FIT &&
-			ImGui::DragInt("jmax", &(CylinderInit_jmax), 1, 1, 200))
-			init_aux_variables();
+		}
 
 		if (ImGui::Combo("line search", (int *)(&linesearch_type), "Gradient Norm\0Function Value\0Constant Step\0\0")) {
 			for (auto& o : Outputs)
@@ -1148,13 +896,6 @@ void deformation_plugin::Draw_output_window()
 		if (ImGui::Checkbox("Sphere Edges", &(out.showSphereEdges)) && isUpdateAll)
 			for (auto&oi : Outputs)
 				oi.showSphereEdges = out.showSphereEdges;
-		if (ImGui::Checkbox("Cylinder", &(out.showCylinderDir)) && isUpdateAll)
-			for (auto&oi : Outputs)
-				oi.showCylinderDir = out.showCylinderDir;
-		ImGui::SameLine();
-		if (ImGui::Checkbox("Cylinder Edges", &(out.showCylinderEdges)) && isUpdateAll)
-			for (auto&oi : Outputs)
-				oi.showCylinderEdges = out.showCylinderEdges;
 		if (ImGui::Checkbox("Face Centers", &(out.showTriangleCenters)) && isUpdateAll)
 			for (auto&oi : Outputs)
 				oi.showTriangleCenters = out.showTriangleCenters;
@@ -1532,7 +1273,7 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		int face_index, output_index;
 		if (pick_face(&output_index, &face_index, _))
 		{
-			std::vector<int> neigh_faces = Outputs[output_index].getNeigh(neighborType, InputModel().F, face_index, neighbor_distance);
+			std::vector<int> neigh_faces = Outputs[output_index].getNeigh(neighbor_Type, InputModel().F, face_index, neighbor_distance);
 			if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS) {
 				double add = 5*ADDING_WEIGHT_PER_HINGE_VALUE;
 				if (UI_status != INSERT)
@@ -1693,13 +1434,12 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if ((key == 'c' || key == 'C') && modifiers == 1)
 		clear_sellected_faces_and_vertices();
 	if ((key == 'x' || key == 'X') && modifiers == 1) {
-		if (clusteringType == app_utils::ClusteringType::RGB_SPHERE ||
-			clusteringType == app_utils::ClusteringType::RGB_NORMAL)
-			clusteringType = app_utils::ClusteringType::NO_CLUSTERING;
+		if (clustering_Type != app_utils::Clustering_Type::NO_CLUSTERING)
+			clustering_Type = app_utils::Clustering_Type::NO_CLUSTERING;
 		else {
-			clusteringType = app_utils::ClusteringType::RGB_SPHERE;
-			if (neighborType == app_utils::NeighborType::LOCAL_NORMALS)
-				clusteringType = app_utils::ClusteringType::RGB_NORMAL;
+			clustering_Type = app_utils::Clustering_Type::SPHERES;
+			if (neighbor_Type == app_utils::Neighbor_Type::LOCAL_NORMALS)
+				clustering_Type = app_utils::Clustering_Type::NORMALS;
 		}
 	}
 	if ((key == 'a' || key == 'A') && modifiers == 1) 
@@ -1715,13 +1455,12 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	}
 	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) 
 	{
-		neighborType = app_utils::NeighborType::LOCAL_NORMALS;
-		clusteringType = app_utils::ClusteringType::RGB_NORMAL;
+		neighbor_Type = app_utils::Neighbor_Type::LOCAL_NORMALS;
+		clustering_Type = app_utils::Clustering_Type::NORMALS;
 		for (auto&out : Outputs) {
 			out.showFacesNorm = true;
 			out.showSphereEdges = out.showNormEdges = 
-				out.showTriangleCenters = out.showSphereCenters =
-				out.showCylinderDir = out.showCylinderEdges = false;
+				out.showTriangleCenters = out.showSphereCenters = false;
 		}
 		for (OptimizationOutput& out : Outputs) 
 		{
@@ -1738,15 +1477,14 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	}
 	if (isModelLoaded && (key == 'w' || key == 'W') && modifiers == 1) 
 	{
-		neighborType = app_utils::NeighborType::LOCAL_SPHERE;
-		clusteringType = app_utils::ClusteringType::RGB_SPHERE;
-		initAuxVariables = OptimizationUtils::InitAuxVariables::MINUS_NORMALS;
+		neighbor_Type = app_utils::Neighbor_Type::LOCAL_SPHERE;
+		clustering_Type = app_utils::Clustering_Type::SPHERES;
+		initSphereAuxVariables = OptimizationUtils::InitSphereAuxVariables::MINUS_NORMALS;
 		init_aux_variables();
 		for (auto&out : Outputs) {
 			out.showSphereCenters = true;
 			out.showSphereEdges = out.showNormEdges =
-				out.showTriangleCenters = out.showFacesNorm =
-				out.showCylinderDir = out.showCylinderEdges = false;
+				out.showTriangleCenters = out.showFacesNorm = false;
 		}
 		for (OptimizationOutput& out : Outputs) 
 		{
@@ -1887,11 +1625,7 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 				m.add_edges(o.getCenterOfFaces(), o.getSphereEdges(), o.color_per_sphere_edge);
 			if (o.showNormEdges)
 				m.add_edges(o.getCenterOfFaces(), o.getFacesNorm(), o.color_per_norm_edge);
-			if (o.showCylinderDir)
-				m.add_points(o.getCylinderDir(), o.color_per_cylinder_dir);
-			if (o.showCylinderEdges)
-				m.add_edges(o.getCenterOfSphere(), o.getCylinderDir(), o.color_per_cylinder_edge);
-
+			
 			// Update Vertices colors for UI sigmoid weights
 			int num_hinges = ABN->mesh_indices.num_hinges;
 			int* x0_index = ABN->x0_GlobInd.host_arr;
@@ -1979,8 +1713,6 @@ void deformation_plugin::follow_and_mark_selected_faces()
 			center_vertex_color, 
 			Color_sphere_edges, 
 			Color_normal_edge, 
-			Color_cylinder_dir,
-			Color_cylinder_edge,
 			face_norm_color);
 
 		UpdateEnergyColors(i);
@@ -2025,7 +1757,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		//Mark the highlighted face & neighbors
 		if (curr_highlighted_face != NOT_FOUND && curr_highlighted_output == i)
 		{
-			std::vector<int> neigh = Outputs[i].getNeigh(neighborType, InputModel().F, curr_highlighted_face, neighbor_distance);
+			std::vector<int> neigh = Outputs[i].getNeigh(neighbor_Type, InputModel().F, curr_highlighted_face, neighbor_distance);
 			for (int fi : neigh)
 				Outputs[i].setFaceColors(fi, Neighbors_Highlighted_face_color);
 			Outputs[i].setFaceColors(curr_highlighted_face, Highlighted_face_color);
@@ -2053,33 +1785,13 @@ void deformation_plugin::follow_and_mark_selected_faces()
 			Outputs[i].color_per_vertex.row(idx++) = Fixed_vertex_color.cast<double>();
 		}
 
-		if (clusteringType != app_utils::ClusteringType::NO_CLUSTERING &&
-			Outputs[i].clusters_indices.size())
-		{
-			UniqueColors uniqueColors;
-			for (std::vector<int> clus : Outputs[i].clusters_indices)
-			{
-				Eigen::Vector3f clusColor = uniqueColors.getNext();
-				for (int fi : clus)
-				{
-					Outputs[i].setFaceColors(
-						fi, 
-						Eigen::Vector3f(
-							clustering_w * clusColor(0) + (1 - clustering_w),
-							clustering_w * clusColor(1) + (1 - clustering_w),
-							clustering_w * clusColor(2) + (1 - clustering_w)
-						)
-					);
-				}
-			}
-		}
-		else if (clusteringType != app_utils::ClusteringType::NO_CLUSTERING && Outputs[i].getFacesNormals().rows())
-		{
+		//Mark the clusters if needed
+		if (clustering_Type != app_utils::Clustering_Type::NO_CLUSTERING) {
 			Eigen::MatrixXd P;
-			if (clusteringType == app_utils::ClusteringType::RGB_NORMAL) {
+			if (clustering_Type == app_utils::Clustering_Type::NORMALS) {
 				P = Outputs[i].getFacesNormals();
 			}
-			if (clusteringType == app_utils::ClusteringType::RGB_SPHERE) {
+			if (clustering_Type == app_utils::Clustering_Type::SPHERES) {
 				Eigen::MatrixXd C = Outputs[i].getCenterOfSphere();
 				Eigen::VectorXd R = Outputs[i].getRadiusOfSphere();
 				P.resize(C.rows(), 3);
@@ -2089,63 +1801,27 @@ void deformation_plugin::follow_and_mark_selected_faces()
 					P(fi, 2) = C(fi, 2);
 				}
 			}
-			if (clusteringType == app_utils::ClusteringType::RGB_CYLINDER) {
-				Eigen::MatrixXd A = Outputs[i].getCylinderDirOnly();
-				Eigen::MatrixXd C = Outputs[i].getCenterOfSphere();
-				Eigen::VectorXd R = Outputs[i].getRadiusOfSphere();
-				P.resize(C.rows(), 3);
-				for (int fi = 0; fi < C.rows(); fi++) {
-					double Cx, Cy;
-					if ((abs(A(fi, 0)) > abs(A(fi, 1))) && (abs(A(fi, 0)) > abs(A(fi, 2)))) {
-						//A.x-coordinate
-						const double t = -C(fi, 0) / A(fi, 0);
-						Cx = A(fi, 1)* t + C(fi, 1);
-						Cy = A(fi, 2)* t + C(fi, 2);
-					}
-					else if ((abs(A(fi, 1)) > abs(A(fi, 0))) && (abs(A(fi, 1)) > abs(A(fi, 2)))) {
-						//A.y-coordinate
-						const double t = -C(fi, 1) / A(fi, 1);
-						Cx = A(fi, 0) * t + C(fi, 0);
-						Cy = A(fi, 2) * t + C(fi, 2);
-					}
-					else{
-						//A.z-coordinate
-						const double t = -C(fi, 2) / A(fi, 2);
-						Cx = A(fi, 1) * t + C(fi, 1);
-						Cy = A(fi, 0) * t + C(fi, 0);
-					}
-					P(fi, 0) = A(fi, 0) * R(fi);
-					P(fi, 1) = A(fi, 1) * Cx;
-					P(fi, 2) = A(fi, 2) * Cy;
-				}
-			}
 
-			Eigen::RowVector3d minP = P.row(0);
-			Eigen::RowVector3d maxP = P.row(0);
-			for (int fi = 0; fi < P.rows(); fi++) {
-				for (int xyz = 0; xyz < 3; xyz++) {
-					minP(xyz) = P(fi, xyz) < minP(xyz) ? P(fi, xyz) : minP(xyz);
-					maxP(xyz) = P(fi, xyz) > maxP(xyz) ? P(fi, xyz) : maxP(xyz);
-				}
-			}
 			Outputs[i].clustering_faces_colors.resize(P.rows(), 3);
 			ColorsHashMap DataColors(Clustering_MinDistance, &ColorsHashMap_colors);
 			for (int fi = 0; fi < P.rows(); fi++) {
 				for (int xyz = 0; xyz < 3; xyz++) {
-					P(fi, xyz) = P(fi, xyz) - minP(xyz);
-					P(fi, xyz) = P(fi, xyz) / (maxP(xyz) - minP(xyz));
+					P(fi, xyz) = P(fi, xyz) - P.col(xyz).minCoeff();
+					P(fi, xyz) = P(fi, xyz) / (P.col(xyz).maxCoeff() - P.col(xyz).minCoeff());
 				}
 				Outputs[i].clustering_faces_colors.row(fi) = P.row(fi);
 				if (clustering_hashMap)
 					Outputs[i].clustering_faces_colors.row(fi) = DataColors.getColor(P.row(fi).transpose(), fi).transpose();
 				Outputs[i].setFaceColors(fi, Eigen::Vector3f(
-					clustering_w* Outputs[i].clustering_faces_colors(fi, 0) + (1 - clustering_w),
-					clustering_w* Outputs[i].clustering_faces_colors(fi, 1) + (1 - clustering_w),
-					clustering_w* Outputs[i].clustering_faces_colors(fi, 2) + (1 - clustering_w)
+					clustering_w * Outputs[i].clustering_faces_colors(fi, 0) + (1 - clustering_w),
+					clustering_w * Outputs[i].clustering_faces_colors(fi, 1) + (1 - clustering_w),
+					clustering_w * Outputs[i].clustering_faces_colors(fi, 2) + (1 - clustering_w)
 				));
 			}
 			Outputs[i].clustering_faces_indices = DataColors.face_index;
 		}
+		
+		
 	}
 }
 	
@@ -2331,26 +2007,19 @@ void deformation_plugin::checkGradients()
 void deformation_plugin::update_data_from_minimizer()
 {
 	const unsigned int out_size = Outputs.size();
-	std::vector<Eigen::MatrixXd> V(out_size), cylinder_dir(out_size), center(out_size), norm(out_size);
+	std::vector<Eigen::MatrixXd> V(out_size), center(out_size), norm(out_size);
 	std::vector<Eigen::VectorXd> radius(out_size);
 	for (int i = 0; i < out_size; i++)
 	{
 		auto& out = Outputs[i];
-		out.minimizer->get_data(V[i], center[i], radius[i], cylinder_dir[i], norm[i]);
+		out.minimizer->get_data(V[i], center[i], radius[i], norm[i]);
 		
 		if (out.UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES)
 			V[i].row(out.UserInterface_TranslateIndex) = OutputModel(i).V.row(out.UserInterface_TranslateIndex);
 		else if (out.UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && out.getCenterOfSphere().size())
 			center[i].row(out.UserInterface_TranslateIndex) = out.getCenterOfSphere().row(out.UserInterface_TranslateIndex);
 		
-		out.setAuxVariables(
-			V[i], 
-			InputModel().F, 
-			center[i], 
-			radius[i], 
-			cylinder_dir[i], 
-			norm[i]);
-
+		out.setAuxVariables(V[i], InputModel().F, center[i], radius[i], norm[i]);
 		set_vertices_for_mesh(V[i],i);
 	}
 }
@@ -2379,14 +2048,11 @@ void deformation_plugin::init_aux_variables()
 		Outputs[i].initMinimizers(
 			OutputModel(i).V,
 			OutputModel(i).F,
-			initAuxVariables,
+			initSphereAuxVariables,
 			InitMinimizer_NeighLevel_From,
 			InitMinimizer_NeighLevel_To,
-			CylinderInit_imax,
-			CylinderInit_jmax,
 			copy_index,
 			paste_index,
-			group_index,
 			radius_length_minus_normal);
 }
 

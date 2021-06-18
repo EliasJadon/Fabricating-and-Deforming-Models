@@ -41,29 +41,19 @@
 
 namespace app_utils
 {
-	enum ClusteringType {
-		NO_CLUSTERING = 0,
-		CLUSTERING_NORMAL,
-		CLUSTERING_SPHERE,
-		CLUSTERING_CYLINDER,
-		RGB_NORMAL,
-		RGB_SPHERE,
-		RGB_CYLINDER
-	};
+	enum Clustering_Type { NO_CLUSTERING, NORMALS, SPHERES };
 	enum View {
 		HORIZONTAL = 0,
 		VERTICAL,
 		SHOW_INPUT_SCREEN_ONLY,
 		SHOW_OUTPUT_SCREEN_ONLY_0
 	};
-	enum NeighborType {
+	enum Neighbor_Type {
 		CURR_FACE,
 		LOCAL_SPHERE,
 		GLOBAL_SPHERE,
 		LOCAL_NORMALS,
-		GLOBAL_NORMALS,
-		LOCAL_CYLINDERS,
-		GLOBAL_CYLINDERS
+		GLOBAL_NORMALS
 	};
 	enum UserInterfaceOptions { 
 		NONE,
