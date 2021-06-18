@@ -2,7 +2,7 @@
 
 OptimizationOutput::OptimizationOutput(
 	igl::opengl::glfw::Viewer* viewer,
-	const OptimizerType optimizerType,
+	const Cuda::OptimizerType optimizerType,
 	const OptimizationUtils::LineSearch linesearchType)
 {
 	//update viewer
@@ -275,7 +275,7 @@ void OptimizationOutput::initMinimizers(
 	);
 }
 
-void OptimizationOutput::updateActiveMinimizer(const OptimizerType optimizerType)
+void OptimizationOutput::updateActiveMinimizer(const Cuda::OptimizerType optimizerType)
 {
 	minimizer->Optimizer_type = optimizerType;
 }

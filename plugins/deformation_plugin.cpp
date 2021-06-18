@@ -36,7 +36,6 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	IsMouseDraggingAnyWindow = false;
 	isMinimizerRunning = false;
 	energies_window = results_window = outputs_window = true;
-	tips_window = false;
 	neighbor_Type = app_utils::Neighbor_Type::CURR_FACE;
 	IsChoosingGroups = false;
 	isModelLoaded = false;
@@ -46,7 +45,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	clustering_w = 0.65;
 	faceColoring_type = 1;
 	curr_highlighted_output = curr_highlighted_face = NOT_FOUND;
-	optimizer_type = OptimizerType::Adam;
+	optimizer_type = Cuda::OptimizerType::Adam;
 	linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 	UserInterface_groupNum = 0;
 	UserInterface_option = app_utils::UserInterfaceOptions::NONE;
@@ -118,7 +117,6 @@ void deformation_plugin::load_new_model(const std::string modelpath)
 
 IGL_INLINE void deformation_plugin::draw_viewer_menu()
 {
-	Draw_tips_window();
 	if (isModelLoaded && UserInterface_option != app_utils::UserInterfaceOptions::NONE)
 	{
 		CollapsingHeader_user_interface();
@@ -134,6 +132,13 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		modelPath = igl::file_dialog_open();
 		isLoadNeeded = true;
 	}
+	if (isLoadNeeded)
+	{
+		load_new_model(modelPath);
+		isLoadNeeded = false;
+	}
+	if (!isModelLoaded)
+		return;
 	ImGui::SameLine();
 	if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0)))
 		viewer->open_dialog_save_mesh();
@@ -278,15 +283,6 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		temp << 1, 3, 2;
 		igl::writeOFF(aux_file_path + file_name + "_Aux_Normals.off", Normals, temp);
 	}
-	
-	if (isLoadNeeded)
-	{
-		load_new_model(modelPath);
-		isLoadNeeded = false;
-	}
-	if (!isModelLoaded)
-		return;
-
 
 	ImGui::Checkbox("Outputs window", &outputs_window);
 	ImGui::Checkbox("Results window", &results_window);
@@ -463,7 +459,7 @@ void deformation_plugin::CollapsingHeader_minimizer()
 			run_one_minimizer_iter();
 		if (ImGui::Checkbox("Run Minimizer", &isMinimizerRunning))
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
-		if (ImGui::Combo("Minimizer type", (int *)(&optimizer_type), "Newton\0Gradient Descent\0Adam\0\0"))
+		if (ImGui::Combo("Optimizer", (int *)(&optimizer_type), "Newton\0Gradient Descent\0Adam\0\0"))
 			change_minimizer_type(optimizer_type);
 		if (ImGui::Combo("init sphere var", (int *)(&initSphereAuxVariables), "Sphere Fit\0Mesh Center\0Minus Normal\0\0"))
 			init_aux_variables();
@@ -728,7 +724,7 @@ void deformation_plugin::Draw_energies_window()
 						if (AS != NULL)
 							ImGui::Combo("Function", (int*)(&(AS->cuda_ASH->penaltyFunction)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						
-						if (ABN != NULL && ABN->cuda_ABN->penaltyFunction == PenaltyFunction::SIGMOID) {
+						if (ABN != NULL && ABN->cuda_ABN->penaltyFunction == Cuda::PenaltyFunction::SIGMOID) {
 							ImGui::Text(("2^" + std::to_string(int(log2(ABN->cuda_ABN->get_SigmoidParameter())))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -745,7 +741,7 @@ void deformation_plugin::Draw_energies_window()
 							ImGui::DragScalar("w2", ImGuiDataType_Double, &(ABN->cuda_ABN->w2), 0.05f, &f64_zero, &f64_max);
 							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ABN->cuda_ABN->w3), 0.05f, &f64_zero, &f64_max);
 						}
-						if (AS != NULL && AS->cuda_ASH->penaltyFunction == PenaltyFunction::SIGMOID) {
+						if (AS != NULL && AS->cuda_ASH->penaltyFunction == Cuda::PenaltyFunction::SIGMOID) {
 							ImGui::Text(("2^" + std::to_string(int(log2(AS->cuda_ASH->get_SigmoidParameter())))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -780,71 +776,6 @@ void deformation_plugin::Draw_energies_window()
 	ImVec2 w_size = ImGui::GetWindowSize();
 	energies_window_position = ImVec2(0.5 * global_screen_size[0] - 0.5 * w_size[0], global_screen_size[1] - w_size[1]);
 	//close the window
-	ImGui::End();
-}
-
-void deformation_plugin::Draw_tips_window()
-{
-	if (!tips_window)
-		return;
-	ImGui::SetNextWindowSize(tips_window_size);
-	ImGui::SetNextWindowPos(tips_window_position);
-	ImGui::Begin("Tips & shortcuts",
-		NULL,
-		ImGuiWindowFlags_NoTitleBar |
-		ImGuiWindowFlags_NoResize |
-		ImGuiWindowFlags_NoMove
-	);
-
-	ImGui::SetWindowFontScale(2);
-	ImGui::Text("Hello :)");
-	ImGui::Text("You have some useful Tips for using this interface in the folowing paraghraphs.");
-	ImGui::Text("\nHow to start:");
-	ImGui::Text("\t1. Choose .OFF or .OBJ 3D model by \"Load\" button (see shortcuts also)");
-	ImGui::Text("\t2. Choose Physical={Planar, Spherical} mode (see shortcuts also):");
-	ImGui::Text("\t\t2.1. Choose \"Neighbor type\" under \"user interface\" header");
-	ImGui::Text("\t\t     (you need to ***hold*** '2' first on the keyboard)");
-	ImGui::Text("\t\t\t\"Local Normals\"\t- for planar mode");
-	ImGui::Text("\t\t\t\"Global Normals\"\t- for planar mode");
-	ImGui::Text("\t\t\t\"Local Spheres\"\t-  for spherical mode");
-	ImGui::Text("\t\t\t\"Global Spheres\"\t-  for spherical mode");
-	ImGui::Text("\t\t\t\"Curr Face\"\t- for both");
-	ImGui::Text("\t\t2.2. Show normals or spheres centers (optional)");
-	ImGui::Text("\t\t2.2. update the weight for the suitable energy");
-	ImGui::Text("\t\t     (you need to choose only one energy from  the first for in the table)");
-	ImGui::Text("\t3. Optional - Update minimizer settings");
-	ImGui::Text("\t   e.g. line-search, Newton\\adam\\Gradient descent, etc");
-	ImGui::Text("\t4. Run the solver (see also shortcuts)");
-	ImGui::Text("\t5. Optional - You can change lambda manually from the energies window ");
-	ImGui::Text("\t   by \"*\" button or \"\\\" button");
-	ImGui::Text("\t   Or change it automatically by the first table in \"Energies Window\"");
-	ImGui::Text("\t6. Optional - You can add external energies (see user energy paraghraph).");
-	ImGui::Text("\t7. Optional - Finally, You can cluster the final results");
-
-	ImGui::Text("\n\nUser external energies:");
-	ImGui::Text("Pay attention, Left-click for adding");
-	ImGui::Text("               Right-click for removing");
-	ImGui::Text("\t- Fix vertices - ***Hold*** '1' and then choose vertices by the mouse");
-	ImGui::Text("\t- Choose Groups by Brush - ***Hold*** '2' and then choose vertices by the mouse");
-	ImGui::Text("\t                           you can scroll to change the size of the brush!");
-	ImGui::Text("\t- Choose Groups by Neighbors - ***Hold*** '3' and then choose vertices by the mouse");
-	ImGui::Text("\t                               you can scroll to change the neighbor distance!");
-	
-	ImGui::Text("\t- Fix Faces - ***Hold*** '4' and then choose vertices by the mouse");
-
-
-	ImGui::Text("\n\nShortcuts:");
-	ImGui::Text("\t- Shift + space - Run the solver (which replace step 4 in the above list)");
-	ImGui::Text("\t- Shift + C - clear all chosen vertices and faces");
-	ImGui::Text("\t- Shift + A - load island.off model (which replace step 1 in the above list)");
-	ImGui::Text("\t- Shift + S - load spot.off model (which replace step 1 in the above list)");
-	ImGui::Text("\t- Shift + Q - set planar mode (which replace step 2 in the above list)");
-	ImGui::Text("\t- Shift + W - set spherical mode (which replace step 2 in the above list)");
-
-	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.6f, 0.0f, 0.0f, 1.0f));
-	if (ImGui::Button("Close"))
-		tips_window = false;
-	ImGui::PopStyleColor();
 	ImGui::End();
 }
 
@@ -1106,8 +1037,6 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 		viewer->core(o.CoreID).viewport = Eigen::Vector4f(o.screen_position[0], o.screen_position[1], o.screen_size[0] + 1, o.screen_size[1] + 1);
 	energies_window_position = ImVec2(0.1 * w, 0.8 * h);
 	global_screen_size = ImVec2(w, h);
-	tips_window_position = ImVec2(0.1 * w, 0.1 * h);
-	tips_window_size = ImVec2(0.8 * w, 0.8 * h);
 }
 
 void deformation_plugin::brush_erase_or_insert() 
@@ -1638,7 +1567,7 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 	return ImGuiMenu::pre_draw();
 }
 
-void deformation_plugin::change_minimizer_type(OptimizerType type)
+void deformation_plugin::change_minimizer_type(Cuda::OptimizerType type)
 {
 	optimizer_type = type;
 	stop_minimizer_thread();
@@ -2066,9 +1995,9 @@ void deformation_plugin::init_objective_functions(const int index)
 		return;
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
-	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(V, F, PenaltyFunction::SIGMOID);
+	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(V, F, Cuda::PenaltyFunction::SIGMOID);
 	Outputs[index].Energy_auxBendingNormal = auxBendingNormal;
-	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(V, F, PenaltyFunction::SIGMOID);
+	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(V, F, Cuda::PenaltyFunction::SIGMOID);
 	Outputs[index].Energy_auxSpherePerHinge = auxSpherePerHinge;
 	std::shared_ptr <STVK> stvk = std::make_unique<STVK>(V, F);
 	std::shared_ptr <SDenergy> sdenergy = std::make_unique<SDenergy>(V, F);

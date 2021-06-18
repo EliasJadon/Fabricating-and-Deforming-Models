@@ -5,7 +5,7 @@
 AuxBendingNormal::AuxBendingNormal(
 	const Eigen::MatrixXd& V, 
 	const Eigen::MatrixX3i& F,
-	const PenaltyFunction penaltyFunction)
+	const Cuda::PenaltyFunction penaltyFunction)
 {
 	init_mesh(V, F);
 	name = "Aux Bending Normal";

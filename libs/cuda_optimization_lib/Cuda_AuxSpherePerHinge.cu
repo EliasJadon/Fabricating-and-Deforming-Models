@@ -10,15 +10,15 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 	__device__ double Phi(
 		const double x,
 		const double SigmoidParameter,
-		const PenaltyFunction penaltyFunction)
+		const Cuda::PenaltyFunction penaltyFunction)
 	{
-		if (penaltyFunction == PenaltyFunction::SIGMOID) {
+		if (penaltyFunction == Cuda::PenaltyFunction::SIGMOID) {
 			double x2 = pow(x, 2);
 			return x2 / (x2 + SigmoidParameter);
 		}
-		if (penaltyFunction == PenaltyFunction::QUADRATIC)
+		if (penaltyFunction == Cuda::PenaltyFunction::QUADRATIC)
 			return pow(x, 2);
-		if (penaltyFunction == PenaltyFunction::EXPONENTIAL)
+		if (penaltyFunction == Cuda::PenaltyFunction::EXPONENTIAL)
 			return exp(x * x);
 	}
 	__device__ double3 sub(const double3 a, const double3 b)
@@ -77,13 +77,13 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 	__device__ double dPhi_dm(
 		const double x,
 		const double SigmoidParameter,
-		const PenaltyFunction penaltyFunction)
+		const Cuda::PenaltyFunction penaltyFunction)
 	{
-		if (penaltyFunction == PenaltyFunction::SIGMOID)
+		if (penaltyFunction == Cuda::PenaltyFunction::SIGMOID)
 			return (2 * x * SigmoidParameter) / pow(x * x + SigmoidParameter, 2);
-		if (penaltyFunction == PenaltyFunction::QUADRATIC)
+		if (penaltyFunction == Cuda::PenaltyFunction::QUADRATIC)
 			return 2 * x;
-		if (penaltyFunction == PenaltyFunction::EXPONENTIAL)
+		if (penaltyFunction == Cuda::PenaltyFunction::EXPONENTIAL)
 			return 2 * x * exp(x * x);
 	}
 	template <unsigned int blockSize, typename T>
@@ -120,7 +120,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const double* restAreaPerHinge,
 		const double* weightPerHinge,
 		const double* SigmoidParameter,
-		const PenaltyFunction penaltyFunction,
+		const Cuda::PenaltyFunction penaltyFunction,
 		const int hi,
 		const Cuda::indices I)
 	{
@@ -192,7 +192,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const double* weightPerHinge,
 		const Cuda::hinge* hinges_faceIndex,
 		const double* SigmoidParameter,
-		const PenaltyFunction penaltyFunction,
+		const Cuda::PenaltyFunction penaltyFunction,
 		const Cuda::indices mesh_indices)
 	{
 		extern __shared__ double energy_value[blockSize];
@@ -241,7 +241,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const double* restAreaPerHinge,
 		const double* weightPerHinge,
 		const double* SigmoidParameter,
-		const PenaltyFunction penaltyFunction,
+		const Cuda::PenaltyFunction penaltyFunction,
 		const double w1,
 		const int hi,
 		const int thread,
@@ -372,7 +372,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const double* restAreaPerHinge,
 		const double* weightPerHinge,
 		const double* SigmoidParameter,
-		const PenaltyFunction penaltyFunction,
+		const Cuda::PenaltyFunction penaltyFunction,
 		const double w1,
 		const double w2,
 		const Cuda::indices mesh_indices)
@@ -436,7 +436,7 @@ void Cuda_AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 		w1, w2, mesh_indices);
 }
 
-Cuda_AuxSpherePerHinge::Cuda_AuxSpherePerHinge(const PenaltyFunction type, const int numF, const int numV, const int numH) {
+Cuda_AuxSpherePerHinge::Cuda_AuxSpherePerHinge(const Cuda::PenaltyFunction type, const int numF, const int numV, const int numH) {
 	penaltyFunction = type;
 	SigmoidParameter = 1; 
 	

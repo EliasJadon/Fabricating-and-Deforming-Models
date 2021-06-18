@@ -26,7 +26,7 @@ public:
 	AuxSpherePerHinge(
 		const Eigen::MatrixXd& V,
 		const Eigen::MatrixX3i& F,
-		const PenaltyFunction type);
+		const Cuda::PenaltyFunction type);
 	~AuxSpherePerHinge();
 	virtual Cuda::Array<double>* getValue() override {
 		return &(cuda_ASH->EnergyAtomic);

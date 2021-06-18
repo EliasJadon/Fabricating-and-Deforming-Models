@@ -83,7 +83,7 @@ void Minimizer::run_one_iteration()
 	update_lambda();
 
 	totalObjective->gradient(cuda_Minimizer->X, true);
-	if (Optimizer_type == OptimizerType::Adam)
+	if (Optimizer_type == Cuda::OptimizerType::Adam)
 		cuda_Minimizer->adam_Step();
 	currentEnergy = totalObjective->value(cuda_Minimizer->X, true);
 	linesearch();

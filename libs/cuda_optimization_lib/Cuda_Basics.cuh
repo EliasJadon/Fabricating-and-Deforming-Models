@@ -6,11 +6,13 @@
 
 #define USING_CUDA
 
-enum PenaltyFunction { QUADRATIC, EXPONENTIAL, SIGMOID };
-enum OptimizerType { Gradient_Descent, Adam };
+
 
 namespace Cuda 
 {
+	enum PenaltyFunction { QUADRATIC, EXPONENTIAL, SIGMOID };
+	enum OptimizerType { Gradient_Descent, Adam };
+
 	struct indices {
 		unsigned int
 			startVx, startVy, startVz,

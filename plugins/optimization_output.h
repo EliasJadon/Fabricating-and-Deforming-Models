@@ -39,7 +39,7 @@ public:
 
 	OptimizationOutput(
 		igl::opengl::glfw::Viewer* viewer,
-		const OptimizerType Optimizer_type,
+		const Cuda::OptimizerType Optimizer_type,
 		const OptimizationUtils::LineSearch linesearchType);
 	~OptimizationOutput() = default;
 	void setAuxVariables(
@@ -81,5 +81,5 @@ public:
 		const std::vector<int> copy_index,
 		const std::vector < std::set<int>> paste_index,
 		const double minus_normals_radius_length);
-	void updateActiveMinimizer(const OptimizerType optimizer_type);
+	void updateActiveMinimizer(const Cuda::OptimizerType optimizer_type);
 };

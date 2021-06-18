@@ -7,15 +7,15 @@ namespace EliasMath {
 	double Phi(
 		const double x,
 		const double SigmoidParameter,
-		const PenaltyFunction penaltyFunction)
+		const Cuda::PenaltyFunction penaltyFunction)
 	{
-		if (penaltyFunction == PenaltyFunction::SIGMOID) {
+		if (penaltyFunction == Cuda::PenaltyFunction::SIGMOID) {
 			double x2 = pow(x, 2);
 			return x2 / (x2 + SigmoidParameter);
 		}
-		if (penaltyFunction == PenaltyFunction::QUADRATIC)
+		if (penaltyFunction == Cuda::PenaltyFunction::QUADRATIC)
 			return pow(x, 2);
-		if (penaltyFunction == PenaltyFunction::EXPONENTIAL)
+		if (penaltyFunction == Cuda::PenaltyFunction::EXPONENTIAL)
 			return exp(x * x);
 	}
 	double3 sub(const double3 a, const double3 b)
@@ -57,13 +57,13 @@ namespace EliasMath {
 	double dPhi_dm(
 		const double x,
 		const double SigmoidParameter,
-		const PenaltyFunction PenaltyFunction)
+		const Cuda::PenaltyFunction penaltyFunction)
 	{
-		if (PenaltyFunction == PenaltyFunction::SIGMOID)
+		if (penaltyFunction == Cuda::PenaltyFunction::SIGMOID)
 			return (2 * x * SigmoidParameter) / pow(x * x + SigmoidParameter, 2);
-		if (PenaltyFunction == PenaltyFunction::QUADRATIC)
+		if (penaltyFunction == Cuda::PenaltyFunction::QUADRATIC)
 			return 2 * x;
-		if (PenaltyFunction == PenaltyFunction::EXPONENTIAL)
+		if (penaltyFunction == Cuda::PenaltyFunction::EXPONENTIAL)
 			return 2 * x * exp(x * x);
 	}
 }
@@ -76,7 +76,7 @@ namespace EliasMath {
 AuxSpherePerHinge::AuxSpherePerHinge(
 	const Eigen::MatrixXd& V, 
 	const Eigen::MatrixX3i& F,
-	const PenaltyFunction type)
+	const Cuda::PenaltyFunction type)
 {
 	init_mesh(V, F);
 	name = "Aux Sphere Per Hinge";

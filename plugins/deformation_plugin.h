@@ -14,7 +14,7 @@ private:
 	int InitMinimizer_NeighLevel_From = 1;
 	int InitMinimizer_NeighLevel_To = 10;
 	bool CollapsingHeader_curr[7], CollapsingHeader_prev[7], CollapsingHeader_change;
-	bool tips_window, outputs_window, results_window, energies_window;
+	bool outputs_window, results_window, energies_window;
 	OptimizationUtils::InitSphereAuxVariables initSphereAuxVariables;
 	bool isLoadNeeded, isModelLoaded;
 	float Max_Distortion;
@@ -26,7 +26,7 @@ private:
 	float Clustering_MinDistance = 0.001;
 	std::vector<Eigen::Vector3d> ColorsHashMap_colors;
 	bool clustering_hashMap = false;
-	OptimizerType optimizer_type;
+	Cuda::OptimizerType optimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
 	float constantStep_LineSearch;
 	int curr_highlighted_face, curr_highlighted_output;
@@ -64,7 +64,7 @@ private:
 	int Output_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
 	std::thread minimizer_thread;
-	ImVec2 tips_window_position, tips_window_size, energies_window_position, global_screen_size;
+	ImVec2 energies_window_position, global_screen_size;
 	int UserInterface_colorInputModelIndex;
 	bool UserInterface_UpdateAllOutputs;
 	float radius_length_minus_normal = 0.1;
@@ -101,8 +101,7 @@ public:
 	void Draw_results_window();
 	void Draw_energies_window();
 	void Draw_output_window();
-	void Draw_tips_window();
-
+	
 	//Pick faces & vertices and highlight them
 	bool pick_face(int* output_index, int* face_index, Eigen::Vector3f& intersec_point,const bool update=false);
 	int pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR, Eigen::Vector3f& intersec_point);
@@ -120,7 +119,7 @@ public:
 	igl::opengl::ViewerCore& InputCore();
 	igl::opengl::ViewerCore& OutputCore(const int index);
 
-	void change_minimizer_type(OptimizerType type);
+	void change_minimizer_type(Cuda::OptimizerType type);
 	void draw_brush_sphere();
 	void brush_erase_or_insert();
 	void load_new_model(const std::string modelpath);
