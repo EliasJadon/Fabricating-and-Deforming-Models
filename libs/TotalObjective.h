@@ -2,7 +2,6 @@
 #include "ObjectiveFunction.h"
 #include "FixChosenConstraints.h"
 #include "FixAllVertices.h"
-#include "Grouping.h"
 #include "AuxSpherePerHinge.h"
 #include "AuxBendingNormal.h"
 #include "STVK.h"

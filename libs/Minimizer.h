@@ -46,7 +46,7 @@ public:
 	Eigen::VectorXd ext_x, ext_center, ext_radius, ext_norm, ext_Cylinder_dir;
 	Eigen::MatrixX3i F;
 	Eigen::MatrixXd V;
-	MinimizerType step_type;
+	OptimizerType Optimizer_type;
 	double timer_curr=0, timer_sum = 0, timer_avg = 0;
 
 	OptimizationUtils::LineSearch lineSearch_type;

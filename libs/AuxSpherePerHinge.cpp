@@ -7,15 +7,15 @@ namespace EliasMath {
 	double Phi(
 		const double x,
 		const double SigmoidParameter,
-		const FunctionType functionType)
+		const PenaltyFunction penaltyFunction)
 	{
-		if (functionType == FunctionType::SIGMOID) {
+		if (penaltyFunction == PenaltyFunction::SIGMOID) {
 			double x2 = pow(x, 2);
 			return x2 / (x2 + SigmoidParameter);
 		}
-		if (functionType == FunctionType::QUADRATIC)
+		if (penaltyFunction == PenaltyFunction::QUADRATIC)
 			return pow(x, 2);
-		if (functionType == FunctionType::EXPONENTIAL)
+		if (penaltyFunction == PenaltyFunction::EXPONENTIAL)
 			return exp(x * x);
 	}
 	double3 sub(const double3 a, const double3 b)
@@ -57,13 +57,13 @@ namespace EliasMath {
 	double dPhi_dm(
 		const double x,
 		const double SigmoidParameter,
-		const FunctionType functionType)
+		const PenaltyFunction PenaltyFunction)
 	{
-		if (functionType == FunctionType::SIGMOID)
+		if (PenaltyFunction == PenaltyFunction::SIGMOID)
 			return (2 * x * SigmoidParameter) / pow(x * x + SigmoidParameter, 2);
-		if (functionType == FunctionType::QUADRATIC)
+		if (PenaltyFunction == PenaltyFunction::QUADRATIC)
 			return 2 * x;
-		if (functionType == FunctionType::EXPONENTIAL)
+		if (PenaltyFunction == PenaltyFunction::EXPONENTIAL)
 			return 2 * x * exp(x * x);
 	}
 }
@@ -76,7 +76,7 @@ namespace EliasMath {
 AuxSpherePerHinge::AuxSpherePerHinge(
 	const Eigen::MatrixXd& V, 
 	const Eigen::MatrixX3i& F,
-	const FunctionType type) 
+	const PenaltyFunction type)
 {
 	init_mesh(V, F);
 	name = "Aux Sphere Per Hinge";
@@ -381,7 +381,7 @@ void AuxSpherePerHinge::value(Cuda::Array<double>& curr_x)
 		double d_center = EliasMath::squared_norm(EliasMath::sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
 		cuda_ASH->EnergyAtomic.host_arr[0] += cuda_ASH->w1 * restAreaPerHinge[hi] * cuda_ASH->weight_PerHinge.host_arr[hi] *
-			EliasMath::Phi(d_center + d_radius, cuda_ASH->Sigmoid_PerHinge.host_arr[hi], cuda_ASH->functionType);
+			EliasMath::Phi(d_center + d_radius, cuda_ASH->Sigmoid_PerHinge.host_arr[hi], cuda_ASH->penaltyFunction);
 	}
 	
 
@@ -447,7 +447,7 @@ void AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 		double d_center = EliasMath::squared_norm(EliasMath::sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
 		double coeff = 2 * cuda_ASH->w1 * restAreaPerHinge[hi] * cuda_ASH->weight_PerHinge.host_arr[hi] *
-			EliasMath::dPhi_dm(d_center + d_radius, cuda_ASH->Sigmoid_PerHinge.host_arr[hi], cuda_ASH->functionType);
+			EliasMath::dPhi_dm(d_center + d_radius, cuda_ASH->Sigmoid_PerHinge.host_arr[hi], cuda_ASH->penaltyFunction);
 
 		cuda_ASH->grad.host_arr[f0 + cuda_ASH->mesh_indices.startCx] += (C0.x - C1.x) * coeff; //C0.x
 		cuda_ASH->grad.host_arr[f0 + cuda_ASH->mesh_indices.startCy] += (C0.y - C1.y) * coeff;	//C0.y

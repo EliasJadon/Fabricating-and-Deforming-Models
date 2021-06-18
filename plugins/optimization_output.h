@@ -14,11 +14,6 @@ public:
 	std::shared_ptr <AuxSpherePerHinge> Energy_auxSpherePerHinge;
 	std::shared_ptr <AuxBendingNormal> Energy_auxBendingNormal;
 	std::shared_ptr <FixChosenConstraints> Energy_FixChosenVertices;
-	std::shared_ptr <FixChosenConstraints> Energy_FixChosenNormals;
-	std::shared_ptr< FixChosenConstraints> Energy_FixChosenSpheres;
-	std::shared_ptr< Grouping> Energy_GroupSpheres;
-	std::shared_ptr< Grouping> Energy_GroupNormals;
-	std::shared_ptr< Grouping> Energy_GroupCylinders;
 
 	std::set<int> UserInterface_FixedFaces, UserInterface_FixedVertices;
 	std::vector<int> printNormals_saveVertices;
@@ -51,7 +46,7 @@ public:
 
 	OptimizationOutput(
 		igl::opengl::glfw::Viewer* viewer,
-		const MinimizerType minimizer_type,
+		const OptimizerType Optimizer_type,
 		const OptimizationUtils::LineSearch linesearchType);
 	~OptimizationOutput() = default;
 	void setAuxVariables(
@@ -132,5 +127,5 @@ public:
 		const std::vector < std::set<int>> paste_index,
 		const std::vector < std::set<int>> group_index,
 		const double minus_normals_radius_length);
-	void updateActiveMinimizer(const MinimizerType minimizer_type);
+	void updateActiveMinimizer(const OptimizerType optimizer_type);
 };

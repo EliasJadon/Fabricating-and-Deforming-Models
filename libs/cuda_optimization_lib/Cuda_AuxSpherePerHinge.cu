@@ -10,15 +10,15 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 	__device__ double Phi(
 		const double x,
 		const double SigmoidParameter,
-		const FunctionType functionType)
+		const PenaltyFunction penaltyFunction)
 	{
-		if (functionType == FunctionType::SIGMOID) {
+		if (penaltyFunction == PenaltyFunction::SIGMOID) {
 			double x2 = pow(x, 2);
 			return x2 / (x2 + SigmoidParameter);
 		}
-		if (functionType == FunctionType::QUADRATIC)
+		if (penaltyFunction == PenaltyFunction::QUADRATIC)
 			return pow(x, 2);
-		if (functionType == FunctionType::EXPONENTIAL)
+		if (penaltyFunction == PenaltyFunction::EXPONENTIAL)
 			return exp(x * x);
 	}
 	__device__ double3 sub(const double3 a, const double3 b)
@@ -77,13 +77,13 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 	__device__ double dPhi_dm(
 		const double x,
 		const double SigmoidParameter,
-		const FunctionType functionType)
+		const PenaltyFunction penaltyFunction)
 	{
-		if (functionType == FunctionType::SIGMOID)
+		if (penaltyFunction == PenaltyFunction::SIGMOID)
 			return (2 * x * SigmoidParameter) / pow(x * x + SigmoidParameter, 2);
-		if (functionType == FunctionType::QUADRATIC)
+		if (penaltyFunction == PenaltyFunction::QUADRATIC)
 			return 2 * x;
-		if (functionType == FunctionType::EXPONENTIAL)
+		if (penaltyFunction == PenaltyFunction::EXPONENTIAL)
 			return 2 * x * exp(x * x);
 	}
 	template <unsigned int blockSize, typename T>
@@ -120,7 +120,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const double* restAreaPerHinge,
 		const double* weightPerHinge,
 		const double* SigmoidParameter,
-		const FunctionType functionType,
+		const PenaltyFunction penaltyFunction,
 		const int hi,
 		const Cuda::indices I)
 	{
@@ -141,7 +141,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		double d_center = squared_norm(sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
 		return w1 * restAreaPerHinge[hi] * weightPerHinge[hi] *
-			Phi(d_center + d_radius, SigmoidParameter[hi], functionType);
+			Phi(d_center + d_radius, SigmoidParameter[hi], penaltyFunction);
 	}
 	__device__ double Energy2Kernel(
 		const double w2,
@@ -192,7 +192,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const double* weightPerHinge,
 		const Cuda::hinge* hinges_faceIndex,
 		const double* SigmoidParameter,
-		const FunctionType functionType,
+		const PenaltyFunction penaltyFunction,
 		const Cuda::indices mesh_indices)
 	{
 		extern __shared__ double energy_value[blockSize];
@@ -219,7 +219,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 				restAreaPerHinge,
 				weightPerHinge,
 				SigmoidParameter,
-				functionType,
+				penaltyFunction,
 				Global_idx - mesh_indices.num_faces, //hi
 				mesh_indices);
 		}
@@ -241,7 +241,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const double* restAreaPerHinge,
 		const double* weightPerHinge,
 		const double* SigmoidParameter,
-		const FunctionType functionType,
+		const PenaltyFunction penaltyFunction,
 		const double w1,
 		const int hi,
 		const int thread,
@@ -266,7 +266,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		double d_center = squared_norm(sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
 		double coeff = 2 * w1 * restAreaPerHinge[hi] * weightPerHinge[hi] *
-			dPhi_dm(d_center + d_radius, SigmoidParameter[hi], functionType);
+			dPhi_dm(d_center + d_radius, SigmoidParameter[hi], penaltyFunction);
 
 		if (thread == 0)
 			atomicAdd(&grad[f0 + I.startCx], (C0.x - C1.x) * coeff, 0); //C0.x
@@ -372,7 +372,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 		const double* restAreaPerHinge,
 		const double* weightPerHinge,
 		const double* SigmoidParameter,
-		const FunctionType functionType,
+		const PenaltyFunction penaltyFunction,
 		const double w1,
 		const double w2,
 		const Cuda::indices mesh_indices)
@@ -397,7 +397,7 @@ namespace Utils_Cuda_AuxSpherePerHinge {
 				restAreaPerHinge,
 				weightPerHinge,
 				SigmoidParameter,
-				functionType,
+				penaltyFunction,
 				w1,
 				blockIdx.x - mesh_indices.num_faces, //hi
 				threadIdx.x,
@@ -418,7 +418,7 @@ void Cuda_AuxSpherePerHinge::value(Cuda::Array<double>& curr_x) {
 		weight_PerHinge.cuda_arr,
 		hinges_faceIndex.cuda_arr,
 		Sigmoid_PerHinge.cuda_arr,
-		functionType,
+		penaltyFunction,
 		mesh_indices);
 }
 		
@@ -432,12 +432,12 @@ void Cuda_AuxSpherePerHinge::gradient(Cuda::Array<double>& X)
 		restShapeF.cuda_arr,
 		restAreaPerHinge.cuda_arr,
 		weight_PerHinge.cuda_arr,
-		Sigmoid_PerHinge.cuda_arr, functionType,
+		Sigmoid_PerHinge.cuda_arr, penaltyFunction,
 		w1, w2, mesh_indices);
 }
 
-Cuda_AuxSpherePerHinge::Cuda_AuxSpherePerHinge(const FunctionType type, const int numF, const int numV, const int numH) {
-	functionType = type;
+Cuda_AuxSpherePerHinge::Cuda_AuxSpherePerHinge(const PenaltyFunction type, const int numF, const int numV, const int numH) {
+	penaltyFunction = type;
 	SigmoidParameter = 1; 
 	
 	cudaStreamCreate(&stream_value);

@@ -1,7 +1,6 @@
 #include "Minimizer.h"
 #include "AuxBendingNormal.h"
 #include "AuxSpherePerHinge.h"
-#include "AuxCylinder.h"
 
 Minimizer::Minimizer(const int solverID)
 	:
@@ -73,7 +72,6 @@ void Minimizer::update_lambda()
 {
 	std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
 	std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(totalObjective->objectiveList[1]);
-	std::shared_ptr<AuxCylinder> ACY = std::dynamic_pointer_cast<AuxCylinder>(totalObjective->objectiveList[2]);
 	
 	if (isAutoLambdaRunning && numIteration >= autoLambda_from && !(numIteration % autoLambda_jump))
 	{
@@ -82,8 +80,6 @@ void Minimizer::update_lambda()
 			ASH->cuda_ASH->Dec_SigmoidParameter(target);
 		if (ABN->w)
 			ABN->cuda_ABN->Dec_SigmoidParameter(target);
-		if (ACY->w)
-			ACY->cuda_ACY->Dec_SigmoidParameter();
 	}
 }
 
@@ -94,7 +90,7 @@ void Minimizer::run_one_iteration()
 	update_lambda();
 
 	totalObjective->gradient(cuda_Minimizer->X, true);
-	if (step_type == MinimizerType::ADAM_MINIMIZER)
+	if (Optimizer_type == OptimizerType::Adam)
 		cuda_Minimizer->adam_Step();
 	currentEnergy = totalObjective->value(cuda_Minimizer->X, true);
 	linesearch();

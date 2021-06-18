@@ -5,7 +5,7 @@
 AuxBendingNormal::AuxBendingNormal(
 	const Eigen::MatrixXd& V, 
 	const Eigen::MatrixX3i& F,
-	const FunctionType functiontype) 
+	const PenaltyFunction penaltyFunction)
 {
 	init_mesh(V, F);
 	name = "Aux Bending Normal";
@@ -29,7 +29,7 @@ AuxBendingNormal::AuxBendingNormal(
 	const unsigned int numF = restShapeF.rows();
 	const unsigned int numV = restShapeV.rows();
 	const unsigned int numH = num_hinges;
-	cuda_ABN = std::make_shared<Cuda_AuxBendingNormal>(functiontype, numF, numV, numH);
+	cuda_ABN = std::make_shared<Cuda_AuxBendingNormal>(penaltyFunction, numF, numV, numH);
 	internalInitCuda();
 
 

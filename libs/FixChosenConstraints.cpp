@@ -1,17 +1,9 @@
 #include "FixChosenConstraints.h"
 
-FixChosenConstraints::FixChosenConstraints(
-	const unsigned int numF,
-	const unsigned int numV,
-	const ConstraintsType type)
+FixChosenConstraints::FixChosenConstraints(const unsigned int numF,const unsigned int numV)
 {
-	Cuda_FixChosConst = std::make_shared<Cuda_FixChosenConstraints>(numF, numV, type);
-    if(type == ConstraintsType::VERTICES)
-		name = "Fix Chosen Vertices";
-	if(type == ConstraintsType::NORMALS)
-		name = "Fix Chosen Normals";
-	if(type == ConstraintsType::SPHERES)
-		name = "Fix Chosen Centers";
+	Cuda_FixChosConst = std::make_shared<Cuda_FixChosenConstraints>(numF, numV);
+    name = "Fix Chosen Vertices";
 	w = 100000;
 	std::cout << "\t" << name << " constructor" << std::endl;
 }

@@ -11,15 +11,15 @@ namespace Utils_Cuda_AuxBendingNormal {
 	__device__ double Phi(
 		const double x,
 		const double SigmoidParameter,
-		const FunctionType functionType)
+		const PenaltyFunction penaltyFunction)
 	{
-		if (functionType == FunctionType::SIGMOID) {
+		if (penaltyFunction == PenaltyFunction::SIGMOID) {
 			double x2 = pow(x, 2);
 			return x2 / (x2 + SigmoidParameter);
 		}
-		if (functionType == FunctionType::QUADRATIC)
+		if (penaltyFunction == PenaltyFunction::QUADRATIC)
 			return pow(x, 2);
-		if (functionType == FunctionType::EXPONENTIAL)
+		if (penaltyFunction == PenaltyFunction::EXPONENTIAL)
 			return exp(x * x);
 	}
 	__device__ double3 sub(const double3 a, const double3 b)
@@ -78,13 +78,13 @@ namespace Utils_Cuda_AuxBendingNormal {
 	__device__ double dPhi_dm(
 		const double x,
 		const double SigmoidParameter,
-		const FunctionType functionType)
+		const PenaltyFunction penaltyFunction)
 	{
-		if (functionType == FunctionType::SIGMOID)
+		if (penaltyFunction == PenaltyFunction::SIGMOID)
 			return (2 * x * SigmoidParameter) / pow(x * x + SigmoidParameter, 2);
-		if (functionType == FunctionType::QUADRATIC)
+		if (penaltyFunction == PenaltyFunction::QUADRATIC)
 			return 2 * x;
-		if (functionType == FunctionType::EXPONENTIAL)
+		if (penaltyFunction == PenaltyFunction::EXPONENTIAL)
 			return 2 * x * exp(x * x);
 	}
 	template <unsigned int blockSize, typename T>
@@ -121,7 +121,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const double* restAreaPerHinge,
 		const double* weightPerHinge,
 		const double* SigmoidParameter,
-		const FunctionType functionType,
+		const PenaltyFunction penaltyFunction,
 		const int hi,
 		const Cuda::indices I)
 	{
@@ -142,7 +142,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		double3 diff = sub(N1, N0);
 		double d_normals = squared_norm(diff);
 		return w1 * restAreaPerHinge[hi] * weightPerHinge[hi] *
-			Phi(d_normals, SigmoidParameter[hi], functionType);
+			Phi(d_normals, SigmoidParameter[hi], penaltyFunction);
 	}
 	__device__ double Energy2Kernel(
 		const double w2,
@@ -210,7 +210,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const double* weightPerHinge,
 		const Cuda::hinge* hinges_faceIndex,
 		const double* SigmoidParameter,
-		const FunctionType functionType,
+		const PenaltyFunction penaltyFunction,
 		const Cuda::indices mesh_indices)
 	{
 		extern __shared__ double energy_value[blockSize];
@@ -244,7 +244,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 				restAreaPerHinge,
 				weightPerHinge,
 				SigmoidParameter,
-				functionType,
+				penaltyFunction,
 				Global_idx - (2 * mesh_indices.num_faces),
 				mesh_indices);
 		}
@@ -267,7 +267,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const double* restAreaPerHinge,
 		const double* weightPerHinge,
 		const double* SigmoidParameter,
-		const FunctionType functionType,
+		const PenaltyFunction penaltyFunction,
 		const double w1,
 		const int hi,
 		const int thread,
@@ -291,7 +291,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		double d_normals = squared_norm(diff);
 
 		double coeff = w1 * restAreaPerHinge[hi] * weightPerHinge[hi] *
-			dPhi_dm(d_normals, SigmoidParameter[hi], functionType);
+			dPhi_dm(d_normals, SigmoidParameter[hi], penaltyFunction);
 
 		if (thread == 0) //n0.x;
 			atomicAdd(&grad[f0 + I.startNx], coeff * 2 * (N0.x - N1.x), 0);
@@ -405,7 +405,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 		const double* restAreaPerHinge,
 		const double* weightPerHinge,
 		const double* SigmoidParameter,
-		const FunctionType functionType,
+		const PenaltyFunction penaltyFunction,
 		const double w1,
 		const double w2,
 		const double w3,
@@ -443,7 +443,7 @@ namespace Utils_Cuda_AuxBendingNormal {
 				restAreaPerHinge,
 				weightPerHinge,
 				SigmoidParameter,
-				functionType,
+				penaltyFunction,
 				w1,
 				Bl_index - (2 * mesh_indices.num_faces),
 				Th_Index,
@@ -464,7 +464,7 @@ void Cuda_AuxBendingNormal::value(Cuda::Array<double>& curr_x) {
 		weight_PerHinge.cuda_arr,
 		hinges_faceIndex.cuda_arr,
 		Sigmoid_PerHinge.cuda_arr,
-		functionType,
+		penaltyFunction,
 		mesh_indices);
 }
 
@@ -478,12 +478,12 @@ void Cuda_AuxBendingNormal::gradient(Cuda::Array<double>& X)
 		restShapeF.cuda_arr,
 		restAreaPerHinge.cuda_arr,
 		weight_PerHinge.cuda_arr,
-		Sigmoid_PerHinge.cuda_arr, functionType,
+		Sigmoid_PerHinge.cuda_arr, penaltyFunction,
 		w1, w2, w3, mesh_indices);
 }
 
-Cuda_AuxBendingNormal::Cuda_AuxBendingNormal(const FunctionType type, const int numF, const int numV, const int numH) {
-	functionType = type;
+Cuda_AuxBendingNormal::Cuda_AuxBendingNormal(const PenaltyFunction type, const int numF, const int numV, const int numH) {
+	penaltyFunction = type;
 	SigmoidParameter = 1; 
 	
 	cudaStreamCreate(&stream_value);

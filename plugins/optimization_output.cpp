@@ -2,7 +2,7 @@
 
 OptimizationOutput::OptimizationOutput(
 	igl::opengl::glfw::Viewer* viewer,
-	const MinimizerType minimizer_type,
+	const OptimizerType optimizerType,
 	const OptimizationUtils::LineSearch linesearchType)
 {
 	//update viewer
@@ -13,7 +13,7 @@ OptimizationOutput::OptimizationOutput(
 	// Initialize minimizer thread
 	minimizer = std::make_shared<Minimizer>(CoreID);
 	minimizer->lineSearch_type = linesearchType;
-	updateActiveMinimizer(minimizer_type);
+	updateActiveMinimizer(optimizerType);
 	totalObjective = std::make_shared<TotalObjective>();
 	showFacesNorm = showSphereEdges = showNormEdges =
 		showTriangleCenters = showSphereCenters =
@@ -842,8 +842,8 @@ void OptimizationOutput::initMinimizers(
 }
 
 void OptimizationOutput::updateActiveMinimizer(
-	const MinimizerType minimizer_type) 
+	const OptimizerType optimizerType)
 {
-	minimizer->step_type = minimizer_type;
+	minimizer->Optimizer_type = optimizerType;
 }
 

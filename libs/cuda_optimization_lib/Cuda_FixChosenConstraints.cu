@@ -126,10 +126,7 @@ void Cuda_FixChosenConstraints::gradient(Cuda::Array<double>& X)
 		Const_Ind.size);
 }
 
-Cuda_FixChosenConstraints::Cuda_FixChosenConstraints(
-	const unsigned int numF,
-	const unsigned int numV,
-	const ConstraintsType const_Type)
+Cuda_FixChosenConstraints::Cuda_FixChosenConstraints(const unsigned int numF, const unsigned int numV)
 {
 	cudaStreamCreate(&stream_value);
 	cudaStreamCreate(&stream_gradient);
@@ -139,22 +136,9 @@ Cuda_FixChosenConstraints::Cuda_FixChosenConstraints(
 	Cuda::AllocateMemory(Const_Ind, 0);
 	Cuda::AllocateMemory(Const_Pos, 0);
 	//Choose the kind of constraints
-	type = const_Type;
-	if (const_Type == ConstraintsType::VERTICES) { 
-		startX = mesh_indices.startVx;
-		startY = mesh_indices.startVy;
-		startZ = mesh_indices.startVz;
-	}
-	if (const_Type == ConstraintsType::NORMALS) { 
-		startX = mesh_indices.startNx;
-		startY = mesh_indices.startNy;
-		startZ = mesh_indices.startNz;
-	}
-	if (const_Type == ConstraintsType::SPHERES) { 
-		startX = mesh_indices.startCx;
-		startY = mesh_indices.startCy;
-		startZ = mesh_indices.startCz;
-	}
+	startX = mesh_indices.startVx;
+	startY = mesh_indices.startVy;
+	startZ = mesh_indices.startVz;
 	
 	//init host buffers...
 	for (int i = 0; i < grad.size; i++) {

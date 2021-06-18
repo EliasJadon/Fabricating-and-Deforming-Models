@@ -50,7 +50,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	clustering_dir_ratio = 1;
 	faceColoring_type = 1;
 	curr_highlighted_output = curr_highlighted_face = NOT_FOUND;
-	minimizer_type = MinimizerType::ADAM_MINIMIZER;
+	optimizer_type = OptimizerType::Adam;
 	linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 	UserInterface_groupNum = 0;
 	UserInterface_option = app_utils::UserInterfaceOptions::NONE;
@@ -76,7 +76,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	viewer->core(inputCoreID).is_animating = true;
 	viewer->core(inputCoreID).lighting_factor = 0.5;
 	//Load multiple views
-	Outputs.push_back(OptimizationOutput(viewer, minimizer_type,linesearch_type));
+	Outputs.push_back(OptimizationOutput(viewer, optimizer_type, linesearch_type));
 	core_size = 1.0 / (Outputs.size() + 1.0);
 	//maximize window
 	glfwMaximizeWindow(viewer->window);
@@ -723,8 +723,8 @@ void deformation_plugin::CollapsingHeader_minimizer()
 			run_one_minimizer_iter();
 		if (ImGui::Checkbox("Run Minimizer", &isMinimizerRunning))
 			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
-		if (ImGui::Combo("Minimizer type", (int *)(&minimizer_type), "Newton\0Gradient Descent\0Adam\0\0"))
-			change_minimizer_type(minimizer_type);
+		if (ImGui::Combo("Minimizer type", (int *)(&optimizer_type), "Newton\0Gradient Descent\0Adam\0\0"))
+			change_minimizer_type(optimizer_type);
 		if (ImGui::Combo("init sphere var", (int *)(&initAuxVariables), "Sphere Fit\0Mesh Center\0Minus Normal\0Cylinder Fit\0\0"))
 			init_aux_variables();
 		if (initAuxVariables == OptimizationUtils::InitAuxVariables::MINUS_NORMALS &&
@@ -966,7 +966,6 @@ void deformation_plugin::Draw_energies_window()
 					auto SD = std::dynamic_pointer_cast<SDenergy>(obj);
 					auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
 					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-					auto ACY = std::dynamic_pointer_cast<AuxCylinder>(obj);
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 					if (obj->w) {
 						if (SD != NULL)
@@ -992,13 +991,11 @@ void deformation_plugin::Draw_energies_window()
 						}
 
 						if (ABN != NULL)
-							ImGui::Combo("Function", (int*)(&(ABN->cuda_ABN->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
+							ImGui::Combo("Function", (int*)(&(ABN->cuda_ABN->penaltyFunction)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (AS != NULL)
-							ImGui::Combo("Function", (int*)(&(AS->cuda_ASH->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
-						if (ACY != NULL)
-							ImGui::Combo("Function", (int*)(&(ACY->cuda_ACY->functionType)), "Quadratic\0Exponential\0Sigmoid\0\0");
-
-						if (ABN != NULL && ABN->cuda_ABN->functionType == FunctionType::SIGMOID) {
+							ImGui::Combo("Function", (int*)(&(AS->cuda_ASH->penaltyFunction)), "Quadratic\0Exponential\0Sigmoid\0\0");
+						
+						if (ABN != NULL && ABN->cuda_ABN->penaltyFunction == PenaltyFunction::SIGMOID) {
 							ImGui::Text(("2^" + std::to_string(int(log2(ABN->cuda_ABN->get_SigmoidParameter())))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -1015,7 +1012,7 @@ void deformation_plugin::Draw_energies_window()
 							ImGui::DragScalar("w2", ImGuiDataType_Double, &(ABN->cuda_ABN->w2), 0.05f, &f64_zero, &f64_max);
 							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ABN->cuda_ABN->w3), 0.05f, &f64_zero, &f64_max);
 						}
-						if (AS != NULL && AS->cuda_ASH->functionType == FunctionType::SIGMOID) {
+						if (AS != NULL && AS->cuda_ASH->penaltyFunction == PenaltyFunction::SIGMOID) {
 							ImGui::Text(("2^" + std::to_string(int(log2(AS->cuda_ASH->get_SigmoidParameter())))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
@@ -1030,23 +1027,6 @@ void deformation_plugin::Draw_energies_window()
 							const double  f64_zero = 0, f64_max = 100000.0;
 							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->cuda_ASH->w1), 0.05f, &f64_zero, &f64_max);
 							ImGui::DragScalar("w2", ImGuiDataType_Double, &(AS->cuda_ASH->w2), 0.05f, &f64_zero, &f64_max);
-						}
-						if (ACY != NULL && ACY->cuda_ACY->functionType == FunctionType::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(ACY->cuda_ACY->get_SigmoidParameter())))).c_str());
-							ImGui::SameLine();
-							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								ACY->cuda_ACY->Inc_SigmoidParameter();
-							}
-							ImGui::SameLine();
-							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
-							{
-								ACY->cuda_ACY->Dec_SigmoidParameter();
-							}
-							const double  f64_zero = 0, f64_max = 100000.0;
-							ImGui::DragScalar("w1", ImGuiDataType_Double, &(ACY->cuda_ACY->w1), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w2", ImGuiDataType_Double, &(ACY->cuda_ACY->w2), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ACY->cuda_ACY->w3), 0.05f, &f64_zero, &f64_max);
 						}
 					}
 					ImGui::TableNextCell();
@@ -1248,8 +1228,6 @@ void deformation_plugin::clear_sellected_faces_and_vertices()
 		o.printNormals_saveVertices.clear();
 	}
 	update_ext_fixed_vertices();
-	update_ext_fixed_faces();
-	update_ext_fixed_group_faces();
 }
 
 void deformation_plugin::update_parameters_for_all_cores() 
@@ -1329,7 +1307,7 @@ void deformation_plugin::remove_output(const int output_index)
 void deformation_plugin::add_output() 
 {
 	stop_minimizer_thread();
-	Outputs.push_back(OptimizationOutput(viewer, minimizer_type,linesearch_type));
+	Outputs.push_back(OptimizationOutput(viewer, optimizer_type,linesearch_type));
 	viewer->load_mesh_from_file(modelPath.c_str());
 	Outputs[Outputs.size() - 1].ModelID = viewer->data_list[Outputs.size()].id;
 	init_objective_functions(Outputs.size() - 1);
@@ -1491,7 +1469,6 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 				out.translateFaces(out.UserInterface_TranslateIndex, translation.cast<double>());
 			down_mouse_x = mouse_x;
 			down_mouse_y = mouse_y;
-			update_ext_fixed_faces();
 			returnTrue = true;
 		}
 		if (out.UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES)
@@ -1591,31 +1568,6 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 					Outputs[output_index].Energy_auxSpherePerHinge->Update_HingesSigmoid(neigh_faces, factor);
 				}
 			}
-			
-			/*if (EraseOrInsert == ERASE)
-			{
-				if (UserInterface_UpdateAllOutputs)
-					for (auto& out : Outputs)
-						for (FacesGroup& clusterI : out.UserInterface_facesGroups)
-							for (int currF : neigh)
-								clusterI.faces.erase(currF);
-				else
-					for (FacesGroup& clusterI : Outputs[output_index].UserInterface_facesGroups)
-						for (int currF : neigh)
-							clusterI.faces.erase(currF);
-			}
-			else if (EraseOrInsert == INSERT)
-			{
-				if (UserInterface_UpdateAllOutputs)
-					for (auto& out : Outputs)
-						for (int currF : neigh)
-							out.UserInterface_facesGroups[UserInterface_groupNum].faces.insert(currF);
-				else
-					for (int currF : neigh)
-						Outputs[output_index].UserInterface_facesGroups[UserInterface_groupNum].faces.insert(currF);
-
-			}
-			update_ext_fixed_group_faces();*/
 		}
 	}
 	return false;
@@ -1649,8 +1601,6 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 				Outputs[output_index].UserInterface_IsTranslate = true;
 				Outputs[output_index].UserInterface_TranslateIndex = face_index;
 			}
-			
-			update_ext_fixed_faces();
 		}
 	}
 	else if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && button == GLFW_MOUSE_BUTTON_MIDDLE)
@@ -1664,7 +1614,6 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 					out.UserInterface_FixedFaces.erase(face_index);
 			else
 				Outputs[output_index].UserInterface_FixedFaces.erase(face_index);
-			update_ext_fixed_faces();
 		}
 	}
 	else if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES && button == GLFW_MOUSE_BUTTON_LEFT)
@@ -1780,25 +1729,10 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				std::shared_ptr<AuxCylinder> ACY = std::dynamic_pointer_cast<AuxCylinder>(obj);
-				std::shared_ptr<FixChosenConstraints> FCC = std::dynamic_pointer_cast<FixChosenConstraints>(obj);
-				std::shared_ptr<Grouping> grouping = std::dynamic_pointer_cast<Grouping>(obj);
 				if(ABN != NULL)
 					ABN->w = 1.6;
 				if (AS != NULL)
 					AS->w = 0;
-				if (ACY != NULL)
-					ACY->w = 0;
-				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::NORMALS)
-					FCC->w = 0; // 100000;
-				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::SPHERES)
-					FCC->w = 0;
-				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::NORMALS)
-					grouping->w = 0.5;
-				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::SPHERES)
-					grouping->w = 0;
-				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::CYLINDERS)
-					grouping->w = 0;
 			}
 		}
 	}
@@ -1818,68 +1752,12 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		{
 			for (auto& obj : out.totalObjective->objectiveList) 
 			{
-				std::shared_ptr<FixChosenConstraints> FCC = std::dynamic_pointer_cast<FixChosenConstraints>(obj);
-				std::shared_ptr<Grouping> grouping = std::dynamic_pointer_cast<Grouping>(obj);
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				std::shared_ptr<AuxCylinder> ACY = std::dynamic_pointer_cast<AuxCylinder>(obj);
 				if (ABN != NULL)
 					ABN->w = 0;
 				if (AS != NULL)
 					AS->w = 1.6;
-				if (ACY != NULL)
-					ACY->w = 0;
-				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::NORMALS)
-					FCC->w = 0;
-				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::SPHERES)
-					FCC->w = 0; // 100000;
-				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::NORMALS)
-					grouping->w = 0;
-				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::SPHERES)
-					grouping->w = 0.5;
-				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::CYLINDERS)
-					grouping->w = 0;
-			}
-		}
-	}
-	if (isModelLoaded && (key == 'e' || key == 'E') && modifiers == 1) 
-	{
-		neighborType = app_utils::NeighborType::LOCAL_CYLINDERS;
-		clusteringType = app_utils::ClusteringType::RGB_CYLINDER;
-		initAuxVariables = OptimizationUtils::InitAuxVariables::CYLINDER_FIT;
-		init_aux_variables();
-		for (auto&out : Outputs) {
-			out.showSphereCenters =
-				out.showSphereEdges = out.showNormEdges =
-				out.showTriangleCenters = out.showFacesNorm =
-				out.showCylinderDir = false;
-			out.showCylinderEdges = true;
-		}
-		for (OptimizationOutput& out : Outputs) 
-		{
-			for (auto& obj : out.totalObjective->objectiveList) 
-			{
-				std::shared_ptr<FixChosenConstraints> FCC = std::dynamic_pointer_cast<FixChosenConstraints>(obj);
-				std::shared_ptr<Grouping> grouping = std::dynamic_pointer_cast<Grouping>(obj);
-				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				std::shared_ptr<AuxCylinder> ACY = std::dynamic_pointer_cast<AuxCylinder>(obj);
-				if (ABN != NULL)
-					ABN->w = 0;
-				if (AS != NULL)
-					AS->w = 0;
-				if (ACY != NULL)
-					ACY->w = 1.6;
-				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::NORMALS)
-					FCC->w = 0;
-				if (FCC != NULL && FCC->Cuda_FixChosConst->type == ConstraintsType::SPHERES)
-					FCC->w = 0; 
-				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::NORMALS)
-					grouping->w = 0;
-				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::SPHERES)
-					grouping->w = 0;
-				if (grouping != NULL && grouping->cudaGrouping->type == ConstraintsType::CYLINDERS)
-					grouping->w = 0.5;
 			}
 		}
 	}
@@ -2041,57 +1919,13 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 	return ImGuiMenu::pre_draw();
 }
 
-void deformation_plugin::change_minimizer_type(MinimizerType type) 
+void deformation_plugin::change_minimizer_type(OptimizerType type)
 {
-	minimizer_type = type;
+	optimizer_type = type;
 	stop_minimizer_thread();
 	init_aux_variables();
 	for (int i = 0; i < Outputs.size(); i++)
-		Outputs[i].updateActiveMinimizer(minimizer_type);
-}
-
-void deformation_plugin::update_ext_fixed_faces() 
-{
-	for (auto&out : Outputs) {
-		std::vector<int> CurrFacesInd; CurrFacesInd.clear();
-		Eigen::MatrixX3d CurrCentersPos, CurrFacesNormals;
-		for (auto fi : out.UserInterface_FixedFaces)
-			CurrFacesInd.push_back(fi);
-		CurrCentersPos = Eigen::MatrixX3d::Zero(CurrFacesInd.size(), 3);
-		CurrFacesNormals = Eigen::MatrixX3d::Zero(CurrFacesInd.size(), 3);
-		int idx = 0;
-		for (auto ci : CurrFacesInd)
-		{
-			if (out.getCenterOfSphere().size() != 0)
-				CurrCentersPos.row(idx) = out.getCenterOfSphere().row(ci);
-			if (out.getFacesNormals().size() != 0)
-				CurrFacesNormals.row(idx) = out.getFacesNormals().row(ci);
-			idx++;
-		}
-			
-		//Finally, we update the handles in the constraints positional object
-		if (isModelLoaded) {
-			out.Energy_FixChosenNormals->updateExtConstraints(CurrFacesInd, CurrFacesNormals);
-			out.Energy_FixChosenSpheres->updateExtConstraints(CurrFacesInd, CurrCentersPos);
-		}
-	}
-}
-
-void deformation_plugin::update_ext_fixed_group_faces() 
-{
-	for (auto&out : Outputs)
-	{
-		std::vector < std::vector<int>> ind(out.UserInterface_facesGroups.size());
-		for (int ci = 0; ci < out.UserInterface_facesGroups.size(); ci++)
-			for (int fi : out.UserInterface_facesGroups[ci].faces)
-				ind[ci].push_back(fi);
-		if (isModelLoaded)
-		{
-			out.Energy_GroupNormals->updateExtConstraints(ind);
-			out.Energy_GroupSpheres->updateExtConstraints(ind);
-			out.Energy_GroupCylinders->updateExtConstraints(ind);
-		}
-	}
+		Outputs[i].updateActiveMinimizer(optimizer_type);
 }
 
 void deformation_plugin::update_ext_fixed_vertices() 
@@ -2583,10 +2417,9 @@ void deformation_plugin::init_objective_functions(const int index)
 		return;
 	// initialize the energy
 	std::cout << console_color::yellow << "-------Energies, begin-------" << std::endl;
-	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(V, F, FunctionType::SIGMOID);
+	std::shared_ptr <AuxBendingNormal> auxBendingNormal = std::make_unique<AuxBendingNormal>(V, F, PenaltyFunction::SIGMOID);
 	Outputs[index].Energy_auxBendingNormal = auxBendingNormal;
-	std::shared_ptr <AuxCylinder> auxCylinder = std::make_unique<AuxCylinder>(V, F, FunctionType::SIGMOID);
-	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(V, F, FunctionType::SIGMOID);
+	std::shared_ptr <AuxSpherePerHinge> auxSpherePerHinge = std::make_unique<AuxSpherePerHinge>(V, F, PenaltyFunction::SIGMOID);
 	Outputs[index].Energy_auxSpherePerHinge = auxSpherePerHinge;
 	std::shared_ptr <STVK> stvk = std::make_unique<STVK>(V, F);
 	std::shared_ptr <SDenergy> sdenergy = std::make_unique<SDenergy>(V, F);
@@ -2595,23 +2428,8 @@ void deformation_plugin::init_objective_functions(const int index)
 	std::shared_ptr <UniformSmoothness> uniformSmoothness = std::make_unique<UniformSmoothness>(V, F);
 	
 	//Add User Interface Energies
-	auto fixChosenNormals = std::make_shared<FixChosenConstraints>(F.rows(), V.rows(), ConstraintsType::NORMALS);
-	Outputs[index].Energy_FixChosenNormals = fixChosenNormals;
-	
-	auto fixChosenVertices = std::make_shared<FixChosenConstraints>(F.rows(), V.rows(), ConstraintsType::VERTICES);
+	auto fixChosenVertices = std::make_shared<FixChosenConstraints>(F.rows(), V.rows());
 	Outputs[index].Energy_FixChosenVertices = fixChosenVertices;
-
-	auto fixChosenSpheres = std::make_shared<FixChosenConstraints>(F.rows(), V.rows(), ConstraintsType::SPHERES);
-	Outputs[index].Energy_FixChosenSpheres = fixChosenSpheres;
-	
-	std::shared_ptr< Grouping> groupSpheres = std::make_shared<Grouping>(V, F, ConstraintsType::SPHERES);
-	Outputs[index].Energy_GroupSpheres = groupSpheres;
-
-	std::shared_ptr< Grouping> groupNormals = std::make_shared<Grouping>(V, F, ConstraintsType::NORMALS);
-	Outputs[index].Energy_GroupNormals = groupNormals;
-	
-	std::shared_ptr< Grouping> groupCylinders = std::make_shared<Grouping>(V, F, ConstraintsType::CYLINDERS);
-	Outputs[index].Energy_GroupCylinders = groupCylinders;
 
 	//init total objective
 	Outputs[index].totalObjective->objectiveList.clear();
@@ -2621,18 +2439,12 @@ void deformation_plugin::init_objective_functions(const int index)
 	};
 	add_obj(auxSpherePerHinge);
 	add_obj(auxBendingNormal);
-	add_obj(auxCylinder);
 	add_obj(stvk);
 	add_obj(sdenergy);
 	add_obj(fixAllVertices);
 	add_obj(fixChosenVertices);
-	add_obj(fixChosenNormals);
-	add_obj(fixChosenSpheres);
 	add_obj(FixRadius);
 	add_obj(uniformSmoothness);
-	add_obj(groupSpheres);
-	add_obj(groupNormals);
-	add_obj(groupCylinders);
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
 	init_aux_variables();
 }

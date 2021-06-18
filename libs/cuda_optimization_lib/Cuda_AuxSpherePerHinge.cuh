@@ -7,7 +7,7 @@ private:
 public:
 	//Dynamic variables
 	double w1 = 1, w2 = 100;
-	FunctionType functionType; 
+	PenaltyFunction penaltyFunction;
 	Cuda::Array<double> grad;
 	Cuda::Array<double> EnergyAtomic;
 	void Inc_SigmoidParameter() {
@@ -47,7 +47,7 @@ public:
 	Cuda::Array<Cuda::hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd; 
 	cudaStream_t stream_value, stream_gradient;
 
-	Cuda_AuxSpherePerHinge(const FunctionType type, const int numF, const int numV, const int numH);
+	Cuda_AuxSpherePerHinge(const PenaltyFunction type, const int numF, const int numV, const int numH);
 	~Cuda_AuxSpherePerHinge();
 	void value(Cuda::Array<double>& curr_x);
 	void gradient(Cuda::Array<double>& X);

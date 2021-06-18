@@ -7,7 +7,7 @@ private:
 public:
 	//Dynamic variables
 	double w1 = 1, w2 = 100, w3 = 100;
-	FunctionType functionType; 
+	PenaltyFunction penaltyFunction;
 	Cuda::Array<double> grad;
 	Cuda::Array<double> EnergyAtomic;
 	void Inc_SigmoidParameter() {
@@ -46,7 +46,7 @@ public:
 	Cuda::Array<int> x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd;
 	Cuda::Array<Cuda::hinge> x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd;
 
-	Cuda_AuxBendingNormal(const FunctionType type, const int numF, const int numV, const int numH);
+	Cuda_AuxBendingNormal(const PenaltyFunction type, const int numF, const int numV, const int numH);
 	~Cuda_AuxBendingNormal();
 	void value(Cuda::Array<double>& curr_x);
 	void gradient(Cuda::Array<double>& X);

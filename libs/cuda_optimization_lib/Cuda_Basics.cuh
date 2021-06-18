@@ -6,26 +6,8 @@
 
 #define USING_CUDA
 
-enum ConstraintsType {
-	VERTICES,
-	SPHERES,
-	NORMALS,
-	CYLINDERS
-};
-
-enum FunctionType 
-{
-	QUADRATIC = 0,
-	EXPONENTIAL = 1,
-	SIGMOID = 2
-};
-
-enum MinimizerType {
-	NEWTON = 0,
-	GRADIENT_DESCENT = 1,
-	ADAM_MINIMIZER = 2
-};
-
+enum PenaltyFunction { QUADRATIC, EXPONENTIAL, SIGMOID };
+enum OptimizerType { Gradient_Descent, Adam };
 
 namespace Cuda 
 {

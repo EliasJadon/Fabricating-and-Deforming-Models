@@ -27,7 +27,7 @@ private:
 	float Clustering_MinDistance = 0.001;
 	std::vector<Eigen::Vector3d> ColorsHashMap_colors;
 	bool clustering_hashMap = false;
-	MinimizerType minimizer_type;
+	OptimizerType optimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
 	float constantStep_LineSearch;
 	int curr_highlighted_face, curr_highlighted_output;
@@ -116,8 +116,6 @@ public:
 	int pick_vertex_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
 	void follow_and_mark_selected_faces();
 	void update_ext_fixed_vertices();
-	void update_ext_fixed_faces();
-	void update_ext_fixed_group_faces();
 	void UpdateEnergyColors(const int index);
 	void update_parameters_for_all_cores();
 	void clear_sellected_faces_and_vertices();
@@ -128,7 +126,7 @@ public:
 	igl::opengl::ViewerCore& InputCore();
 	igl::opengl::ViewerCore& OutputCore(const int index);
 
-	void change_minimizer_type(MinimizerType type);
+	void change_minimizer_type(OptimizerType type);
 	void draw_brush_sphere();
 	void brush_erase_or_insert();
 	void load_new_model(const std::string modelpath);

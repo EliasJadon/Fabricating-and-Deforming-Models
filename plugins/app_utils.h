@@ -21,13 +21,10 @@
 #include "unique_colors.h"
 
 #include "../../libs/Minimizer.h"
-#include "../../libs/ROY_soup2D.h"
-#include "../../libs/Grouping.h"
 #include "../../libs/STVK.h"
 #include "../../libs/SDenergy.h"
 #include "../../libs/FixAllVertices.h"
 #include "../../libs/AuxBendingNormal.h"
-#include "../../libs/AuxCylinder.h"
 #include "../../libs/AuxSpherePerHinge.h"
 #include "../../libs/FixChosenConstraints.h"
 #include "../../libs/fixRadius.h"

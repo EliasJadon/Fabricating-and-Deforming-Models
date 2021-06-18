@@ -26,7 +26,7 @@ public:
 	AuxBendingNormal(
 		const Eigen::MatrixXd& V, 
 		const Eigen::MatrixX3i& F,
-		const FunctionType type);
+		const PenaltyFunction type);
 	~AuxBendingNormal();
 	virtual Cuda::Array<double>* getValue() override {
 		return &(cuda_ABN->EnergyAtomic);
