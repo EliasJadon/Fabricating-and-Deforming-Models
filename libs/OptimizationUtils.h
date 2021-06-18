@@ -121,14 +121,10 @@ namespace OptimizationUtils
 	}
 
 	static std::vector<std::vector<int>> get_one_ring_vertices(const Eigen::MatrixXd& V, const Eigen::MatrixXi& F) {
-		// adjacency matrix (vertex to face)
 		std::vector<std::vector<int> > VF, VFi;
 		std::vector<std::vector<int>> OneRingVertices;
 		OneRingVertices.resize(V.rows());
-
 		igl::vertex_triangle_adjacency(V, F, VF, VFi);
-
-
 		for (int vi = 0; vi < V.rows(); vi++) {
 			std::vector<int> OneRingFaces = VF[vi];
 			OneRingVertices[vi] = temp_get_one_ring_vertices_per_vertex(F, OneRingFaces);
@@ -300,14 +296,6 @@ namespace OptimizationUtils
 				center0, radius0);
 		}
 	}
-
-	static std::vector<std::vector<int>> Get_adjacency_vertices_per_face(
-		const Eigen::MatrixXd& V,
-		const Eigen::MatrixXi& F)
-	{
-		return get_adjacency_vertices_per_face(V, F);
-	}
-
 	
 	static Eigen::MatrixXd center_per_triangle(const Eigen::MatrixXd& V,const Eigen::MatrixXi& F)
 	{
