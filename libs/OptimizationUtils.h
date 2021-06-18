@@ -45,11 +45,6 @@ namespace OptimizationUtils
 		return hingesPerFace;
 	}
 
-	static void LocalBasis(const Eigen::MatrixX3d &V, const Eigen::MatrixX3i &F, Eigen::MatrixX3d &B1, Eigen::MatrixX3d &B2) {
-		Eigen::MatrixX3d B3;
-		igl::local_basis(V, F, B1, B2, B3);
-	}
-
 	static void computeSurfaceGradientPerFace(const Eigen::MatrixX3d &V, const Eigen::MatrixX3i &F, Eigen::MatrixX3d &D1, Eigen::MatrixX3d &D2)
 	{
 		Eigen::MatrixX3d F1, F2, F3;
@@ -95,61 +90,6 @@ namespace OptimizationUtils
 		D2 = F2.col(0).asDiagonal()*Dx + F2.col(1).asDiagonal()*Dy + F2.col(2).asDiagonal()*Dz;
 	}
 	
-	static inline void SSVD2x2(const Eigen::Matrix2d& A, Eigen::Matrix2d& U, Eigen::Matrix2d& S, Eigen::Matrix2d& V)
-	{
-		double e = (A(0) + A(3))*0.5;
-		double f = (A(0) - A(3))*0.5;
-		double g = (A(1) + A(2))*0.5;
-		double h = (A(1) - A(2))*0.5;
-		double q = sqrt((e*e) + (h*h));
-		double r = sqrt((f*f) + (g*g));
-		double a1 = atan2(g, f);
-		double a2 = atan2(h, e);
-		double rho = (a2 - a1)*0.5;
-		double phi = (a2 + a1)*0.5;
-
-		S(0) = q + r;
-		S(1) = 0;
-		S(2) = 0;
-		S(3) = q - r;
-
-		double c = cos(phi);
-		double s = sin(phi);
-		U(0) = c;
-		U(1) = s;
-		U(2) = -s;
-		U(3) = c;
-
-		c = cos(rho);
-		s = sin(rho);
-		V(0) = c;
-		V(1) = -s;
-		V(2) = s;
-		V(3) = c;
-	}
-
-	// The directory path returned by native GetCurrentDirectory() no end backslash
-	static std::string getCurrentDirectoryOnWindows()
-	{
-		const unsigned long maxDir = 260;
-		char currentDir[maxDir];
-		GetCurrentDirectory(maxDir, currentDir);
-		return std::string(currentDir);
-	}
-
-	static std::string workingdir() {
-		char buf[256];
-		GetCurrentDirectoryA(256, buf);
-		return std::string(buf) + '\\';
-	}
-
-	static std::string ExePath() {
-		char buffer[MAX_PATH];
-		GetModuleFileName(NULL, buffer, MAX_PATH);
-		std::string::size_type pos = std::string(buffer).find_last_of("\\/");
-		return std::string(buffer).substr(0, pos);
-	}
-
 	static std::string ProjectPath() {
 		char buffer[MAX_PATH];
 		GetModuleFileName(NULL, buffer, MAX_PATH);
@@ -210,17 +150,6 @@ namespace OptimizationUtils
 						adjacency[fi].push_back(v_index);
 			}
 		}
-
-		////for debugging
-		//for (int fi = 0; fi < adjacency.size(); fi++) {
-		//	std::cout << console_color::blue << "----------face " << fi << ":\n";
-		//	for (int v : adjacency[fi]) {
-		//		std::cout << v << " ";
-		//	}
-		//	std::cout << std::endl;
-		//}
-		//std::cout << console_color::white;
-
 		return adjacency;
 	}
 
