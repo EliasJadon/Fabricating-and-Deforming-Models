@@ -4,9 +4,8 @@ STVK::STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F)
 {
 	init_mesh(V, F);
 	name = "STVK";
-	w = 0.6;
+	w = 0;
 	
-
 	shearModulus = 0.3;
 	bulkModulus = 1.5;
 	Cuda::AllocateMemory(dXInv, F.rows());
