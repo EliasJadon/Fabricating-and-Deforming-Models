@@ -41,13 +41,13 @@ void Minimizer::init(
 
 	Cuda::AllocateMemory(X, size);
 	Cuda::AllocateMemory(p, size);
-	Cuda::AllocateMemory(g, size);
 	Cuda::AllocateMemory(curr_x, size);
 	Cuda::AllocateMemory(v_adam, size);
 	Cuda::AllocateMemory(s_adam, size);
 	for (int i = 0; i < size; i++) {
 		v_adam.host_arr[i] = 0;
 		s_adam.host_arr[i] = 0;
+		p.host_arr[i] = 0;
 	}
 	
 	for (int i = 0; i < 3 * V.rows(); i++)
@@ -58,7 +58,7 @@ void Minimizer::init(
 		X.host_arr[3 * V.rows() + 3 * F.rows() + i] = center0[i];
 	for (int i = 0; i < F.rows(); i++)
 		X.host_arr[3 * V.rows() + 6 * F.rows() + i] = Radius0[i];
-	for (int i = 0; i < g.size; i++) {
+	for (int i = 0; i < totalObjective->grad.size; i++) {
 		curr_x.host_arr[i] = X.host_arr[i];
 	}
 }
@@ -96,15 +96,15 @@ void Minimizer::run_one_iteration()
 
 	totalObjective->gradient(X, true);
 	if (Optimizer_type == Cuda::OptimizerType::Adam) {
-		for (int i = 0; i < g.size; i++) {
-			v_adam.host_arr[i] = BETA1_ADAM * v_adam.host_arr[i] + (1 - BETA1_ADAM) * g.host_arr[i];
-			s_adam.host_arr[i] = BETA2_ADAM * s_adam.host_arr[i] + (1 - BETA2_ADAM) * pow(g.host_arr[i], 2);
+		for (int i = 0; i < totalObjective->grad.size; i++) {
+			v_adam.host_arr[i] = BETA1_ADAM * v_adam.host_arr[i] + (1 - BETA1_ADAM) * totalObjective->grad.host_arr[i];
+			s_adam.host_arr[i] = BETA2_ADAM * s_adam.host_arr[i] + (1 - BETA2_ADAM) * pow(totalObjective->grad.host_arr[i], 2);
 			p.host_arr[i] = -v_adam.host_arr[i] / (sqrt(s_adam.host_arr[i]) + EPSILON_ADAM);
 		}
 	}
 	else if (Optimizer_type == Cuda::OptimizerType::Gradient_Descent) {
-		for (int i = 0; i < g.size; i++) {
-			p.host_arr[i] = -g.host_arr[i];
+		for (int i = 0; i < totalObjective->grad.size; i++) {
+			p.host_arr[i] = -totalObjective->grad.host_arr[i];
 		}
 	}
 	currentEnergy = totalObjective->value(X, true);
@@ -129,7 +129,7 @@ void Minimizer::value_linesearch()
 	int MAX_STEP_SIZE_ITER = 50;
 	while (cur_iter++ < MAX_STEP_SIZE_ITER) 
 	{
-		for (int i = 0; i < g.size; i++) {
+		for (int i = 0; i < totalObjective->grad.size; i++) {
 			curr_x.host_arr[i] = X.host_arr[i] + step_size * p.host_arr[i];
 		}
 
@@ -138,7 +138,7 @@ void Minimizer::value_linesearch()
 			step_size /= 2;
 		else 
 		{
-			for (int i = 0; i < g.size; i++) {
+			for (int i = 0; i < totalObjective->grad.size; i++) {
 				X.host_arr[i] = curr_x.host_arr[i];
 			}
 			break;
@@ -153,7 +153,7 @@ void Minimizer::value_linesearch()
 
 void Minimizer::constant_linesearch()
 {
-	for (int i = 0; i < g.size; i++) {
+	for (int i = 0; i < totalObjective->grad.size; i++) {
 		curr_x.host_arr[i] = X.host_arr[i] + constantStep_LineSearch * p.host_arr[i];
 		X.host_arr[i] = curr_x.host_arr[i];
 	}

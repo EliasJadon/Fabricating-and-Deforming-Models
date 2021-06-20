@@ -11,7 +11,7 @@
 class Minimizer
 {
 public:
-	Cuda::Array<double> X, p, g, curr_x, v_adam, s_adam;
+	Cuda::Array<double> X, p, curr_x, v_adam, s_adam;
 
 	Minimizer(const int solverID);
 	void run();
