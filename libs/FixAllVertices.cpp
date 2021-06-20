@@ -32,12 +32,14 @@ double FixAllVertices::value(Cuda::Array<double>& curr_x, const bool update)
 
 void FixAllVertices::gradient(Cuda::Array<double>& X, const bool update)
 {
-	//No need to set zero the gradient at the beginning
+	for (int i = 0; i < grad.size; i++)
+		grad.host_arr[i] = 0;
+
 	for (int vi = 0; vi < restShapeV.rows(); vi++) {
 		double3 V = getV(X, vi);
-		grad.host_arr[vi + mesh_indices.startVx] = 2 * (V.x - restShapeV(vi, 0));
-		grad.host_arr[vi + mesh_indices.startVx] = 2 * (V.y - restShapeV(vi, 1));
-		grad.host_arr[vi + mesh_indices.startVx] = 2 * (V.z - restShapeV(vi, 2));
+		grad.host_arr[vi + mesh_indices.startVx] += 2 * (V.x - restShapeV(vi, 0));
+		grad.host_arr[vi + mesh_indices.startVy] += 2 * (V.y - restShapeV(vi, 1));
+		grad.host_arr[vi + mesh_indices.startVz] += 2 * (V.z - restShapeV(vi, 2));
 	}
 
 	if (update) {

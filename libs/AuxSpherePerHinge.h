@@ -31,20 +31,19 @@ public:
 	}
 
 
-	double w1 = 1, w2 = 100;
-	Cuda::PenaltyFunction penaltyFunction;
-	Cuda::Array<double> weight_PerHinge, Sigmoid_PerHinge;
+	
 	
 	
 public:
 	double SigmoidParameter;
 	Eigen::VectorXd restAreaPerFace, restAreaPerHinge;
 	int num_hinges = -1;
-	
+	double w1 = 1, w2 = 100;
+	Cuda::PenaltyFunction penaltyFunction;
+	Cuda::Array<double> weight_PerHinge, Sigmoid_PerHinge;
 	Eigen::VectorXi x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd;
 	Eigen::MatrixXi x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd;
 	void calculateHinges();	
-	void internalInitCuda();
 public:
 	std::vector<Eigen::Vector2d> hinges_faceIndex;
 	Eigen::Vector3f colorP, colorM;

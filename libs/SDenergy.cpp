@@ -29,11 +29,38 @@ SDenergy::~SDenergy() {
 double SDenergy::value(Cuda::Array<double>& curr_x, const bool update) {
 	double value = 0;
 
-	if (update) {
-		energy_value = value;
-		//for (int i = 0; i < Efi.size(); i++)
-		//	Efi[i] = ;
+	for (int fi = 0; fi < restShapeF.rows(); fi++) {
+		int v0_index = restShapeF(fi, 0);
+		int v1_index = restShapeF(fi, 1);
+		int v2_index = restShapeF(fi, 2);
+		double3 V0 = getV(curr_x, v0_index);
+		double3 V1 = getV(curr_x, v1_index);
+		double3 V2 = getV(curr_x, v2_index);
+		double3 e10 = sub(V1, V0);
+		double3 e20 = sub(V2, V0);
+		double3 B1 = normalize(e10);
+		double3 B2 = normalize(cross(cross(B1, e20), B1));
+		double3 Xi = make_double3(dot(V0, B1), dot(V1, B1), dot(V2, B1));
+		double3 Yi = make_double3(dot(V0, B2), dot(V1, B2), dot(V2, B2));
+		//prepare jacobian		
+		const double a = dot(D1d.host_arr[fi], Xi);
+		const double b = dot(D1d.host_arr[fi], Yi);
+		const double c = dot(D2d.host_arr[fi], Xi);
+		const double d = dot(D2d.host_arr[fi], Yi);
+		const double detJ = a * d - b * c;
+		const double detJ2 = detJ * detJ;
+		const double a2 = a * a;
+		const double b2 = b * b;
+		const double c2 = c * c;
+		const double d2 = d * d;
+		double energy = 0.5 * (1 + 1 / detJ2) * (a2 + b2 + c2 + d2);
+		value += restShapeArea[fi] * energy;
+		if (update)
+			Efi[fi] = energy;
 	}
+		
+	if (update)
+		energy_value = value;
 	return value;
 }
 
