@@ -4,8 +4,8 @@
 #include <igl/diag.h>
 
 UniformSmoothness::UniformSmoothness(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F)
+	: ObjectiveFunction{ V,F }
 {
-	init_mesh(V, F);
 	name = "Uniform Smoothness";
 	w = 0.023;
 	

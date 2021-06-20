@@ -1,8 +1,8 @@
 ﻿#include "SDenergy.h"
 
 
-SDenergy::SDenergy(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) {
-	init_mesh(V, F);
+SDenergy::SDenergy(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) : ObjectiveFunction{ V,F } 
+{
 	name = "Symmetric Dirichlet";
 	w = 0.1;
 	Eigen::MatrixX3d D1cols, D2cols;

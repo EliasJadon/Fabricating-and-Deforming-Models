@@ -3,16 +3,16 @@
 #include <igl/triangle_triangle_adjacency.h>
 
 AuxVariables::AuxVariables(
-	const Eigen::MatrixXd& V, 
+	const Eigen::MatrixXd& V,
 	const Eigen::MatrixX3i& F,
-	const Cuda::PenaltyFunction penaltyFunction)
+	const Cuda::PenaltyFunction penaltyFunction) : ObjectiveFunction{ V,F }
 {
-	init_mesh(V, F);
 	w = 1;
+	name = "Aux Variables";
 	colorP = Eigen::Vector3f(51 / 255.0f, 1, 1);
 	colorM = Eigen::Vector3f(1, 51 / 255.0f, 1);
 
-	
+
 	//Initialize rest variables (X0) m
 	calculateHinges();
 	restAreaPerHinge.resize(num_hinges);
@@ -23,7 +23,7 @@ AuxVariables::AuxVariables(
 		int f1 = hinges_faceIndex[hi](1);
 		restAreaPerHinge(hi) = (restAreaPerFace(f0) + restAreaPerFace(f1)) / 2;
 	}
-	
+
 	//Init Cuda variables
 	const unsigned int numF = restShapeF.rows();
 	const unsigned int numV = restShapeV.rows();

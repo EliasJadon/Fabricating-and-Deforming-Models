@@ -14,7 +14,6 @@ OptimizationOutput::OptimizationOutput(
 	minimizer = std::make_shared<Minimizer>(CoreID);
 	minimizer->lineSearch_type = linesearchType;
 	updateActiveMinimizer(optimizerType);
-	totalObjective = std::make_shared<TotalObjective>();
 	showFacesNorm = showSphereEdges = showNormEdges = showTriangleCenters = showSphereCenters = false;
 	for (int i = 0; i < 9; i++)
 		UserInterface_facesGroups.push_back(FacesGroup(UserInterface_facesGroups.size()));

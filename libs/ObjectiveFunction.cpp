@@ -1,6 +1,6 @@
 #include "ObjectiveFunction.h"
 
-void ObjectiveFunction::init_mesh(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) {
+ObjectiveFunction::ObjectiveFunction(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) {
 	Eigen::MatrixX3d V3d(V.rows(), 3);
 	if (V.cols() == 2) {
 		V3d.leftCols(2) = V;
@@ -15,14 +15,52 @@ void ObjectiveFunction::init_mesh(const Eigen::MatrixXd& V, const Eigen::MatrixX
 	int numV = restShapeV.rows();
 	int numF = restShapeF.rows();
 	int numH = OptimizationUtils::getNumberOfHinges(F);
-	Cuda::initIndices(mesh_indices, numF, numV, numH);
 
+	Cuda::initIndices(mesh_indices, numF, numV, numH);
 	Cuda::AllocateMemory(grad, (3 * numV) + (7 * numF));
 	for (int i = 0; i < grad.size; i++) {
 		grad.host_arr[i] = 0;
 	}
 	Efi.resize(F.rows());
 	Efi.setZero();
+	w = 0;
+	energy_value = 0;
+	gradient_norm = 0;
+	name = "Objective function";
+	std::cout << "\tObjective function constructor" << std::endl;
+}
+
+ObjectiveFunction::~ObjectiveFunction() {
+	Cuda::FreeMemory(grad);
+	std::cout << "\tObjective function destructor" << std::endl;
+}
+
+double_3 ObjectiveFunction::getN(const Cuda::Array<double>& X, const int fi) {
+	return double_3(
+		X.host_arr[fi + mesh_indices.startNx],
+		X.host_arr[fi + mesh_indices.startNy],
+		X.host_arr[fi + mesh_indices.startNz]
+	);
+}
+
+double_3 ObjectiveFunction::getC(const Cuda::Array<double>& X, const int fi) {
+	return double_3(
+		X.host_arr[fi + mesh_indices.startCx],
+		X.host_arr[fi + mesh_indices.startCy],
+		X.host_arr[fi + mesh_indices.startCz]
+	);
+}
+
+double ObjectiveFunction::getR(const Cuda::Array<double>& X, const int fi) {
+	return X.host_arr[fi + mesh_indices.startR];
+}
+
+double_3 ObjectiveFunction::getV(const Cuda::Array<double>& X, const int vi) {
+	return double_3(
+		X.host_arr[vi + mesh_indices.startVx],
+		X.host_arr[vi + mesh_indices.startVy],
+		X.host_arr[vi + mesh_indices.startVz]
+	);
 }
 
 void ObjectiveFunction::FDGradient(const Cuda::Array<double>& X, Cuda::Array<double>& grad)

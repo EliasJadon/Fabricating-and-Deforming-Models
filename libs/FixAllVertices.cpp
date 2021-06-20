@@ -2,9 +2,8 @@
 
 FixAllVertices::FixAllVertices(
 	const Eigen::MatrixXd& V,
-	const Eigen::MatrixX3i& F)
+	const Eigen::MatrixX3i& F) : ObjectiveFunction{ V,F }
 {
-	init_mesh(V, F);
 	name = "Fix All Vertices";
 	w = 0.3;
 	std::cout << "\t" << name << " constructor" << std::endl;

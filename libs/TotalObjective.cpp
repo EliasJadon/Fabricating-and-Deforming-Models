@@ -1,6 +1,6 @@
 #include "TotalObjective.h"
 
-TotalObjective::TotalObjective()
+TotalObjective::TotalObjective(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F) : ObjectiveFunction{ V,F }
 {
 	name = "Total objective";
 	std::cout << "\t" << name << " constructor" << std::endl;

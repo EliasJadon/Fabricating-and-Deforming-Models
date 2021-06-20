@@ -1,8 +1,8 @@
 #include "FixChosenConstraints.h"
 
 FixChosenConstraints::FixChosenConstraints(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F)
+	: ObjectiveFunction{ V,F }
 {
-	init_mesh(V, F);
     name = "Fix Chosen Vertices";
 	w = 100000;
 	std::cout << "\t" << name << " constructor" << std::endl;
