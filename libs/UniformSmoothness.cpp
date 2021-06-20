@@ -22,6 +22,8 @@ UniformSmoothness::UniformSmoothness(const Eigen::MatrixXd& V, const Eigen::Matr
     // Build uniform laplacian
     L = A-Adiag;
 
+	L2 = 2 * L * L;
+
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
@@ -59,9 +61,9 @@ void UniformSmoothness::gradient(Cuda::Array<double>& input_X, const bool update
 		Y(vi) = input_X.host_arr[vi + mesh_indices.startVy];
 		Z(vi) = input_X.host_arr[vi + mesh_indices.startVz];
 	}
-	Eigen::VectorXd grad_X = 2 * L * (L * X);
-	Eigen::VectorXd grad_Y = 2 * L * (L * Y);
-	Eigen::VectorXd grad_Z = 2 * L * (L * Z);
+	Eigen::VectorXd grad_X = L2 * X;
+	Eigen::VectorXd grad_Y = L2 * Y;
+	Eigen::VectorXd grad_Z = L2 * Z;
 
 
 	for (int vi = 0; vi < restShapeV.rows(); vi++) {
