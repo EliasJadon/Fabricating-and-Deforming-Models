@@ -418,14 +418,14 @@ void deformation_plugin::CollapsingHeader_clustering()
 			}
 			copy_index.push_back(ind);
 			
-			Cuda::hinge* hinge_to_face_mapping = Outputs[0].Energy_auxBendingNormal->cuda_ABN->hinges_faceIndex.host_arr;
-			int num_hinges = Outputs[0].Energy_auxSpherePerHinge->cuda_ASH->mesh_indices.num_hinges;
-			double* hinge_val = Outputs[0].Energy_auxBendingNormal->cuda_ABN->weight_PerHinge.host_arr;
+			std::vector<Eigen::Vector2d>& hinge_to_face_mapping = Outputs[0].Energy_auxSpherePerHinge->hinges_faceIndex;
+			int num_hinges = Outputs[0].Energy_auxSpherePerHinge->mesh_indices.num_hinges;
+			double* hinge_val = Outputs[0].Energy_auxSpherePerHinge->weight_PerHinge.host_arr;
 			std::set<int> chosen_faces;
 			for (int hi = 0; hi < num_hinges; hi++) {
 				if (hinge_val[hi] > 1) {
-					chosen_faces.insert(hinge_to_face_mapping[hi].f0);
-					chosen_faces.insert(hinge_to_face_mapping[hi].f1);
+					chosen_faces.insert(hinge_to_face_mapping[hi][0]);
+					chosen_faces.insert(hinge_to_face_mapping[hi][1]);
 				}
 			}
 			paste_index.push_back(chosen_faces);
@@ -697,8 +697,6 @@ void deformation_plugin::Draw_energies_window()
 					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 					if (obj->w) {
-						if (SD != NULL)
-							ImGui::Checkbox("Use Cuda", &(SD->using_cuda));
 						if (fR != NULL) {
 
 							ImGui::DragInt("min", &(fR->min));
@@ -720,42 +718,42 @@ void deformation_plugin::Draw_energies_window()
 						}
 
 						if (ABN != NULL)
-							ImGui::Combo("Function", (int*)(&(ABN->cuda_ABN->penaltyFunction)), "Quadratic\0Exponential\0Sigmoid\0\0");
+							ImGui::Combo("Function", (int*)(&(ABN->penaltyFunction)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (AS != NULL)
-							ImGui::Combo("Function", (int*)(&(AS->cuda_ASH->penaltyFunction)), "Quadratic\0Exponential\0Sigmoid\0\0");
+							ImGui::Combo("Function", (int*)(&(AS->penaltyFunction)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						
-						if (ABN != NULL && ABN->cuda_ABN->penaltyFunction == Cuda::PenaltyFunction::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(ABN->cuda_ABN->get_SigmoidParameter())))).c_str());
+						if (ABN != NULL && ABN->penaltyFunction == Cuda::PenaltyFunction::SIGMOID) {
+							ImGui::Text(("2^" + std::to_string(int(log2(ABN->get_SigmoidParameter())))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								ABN->cuda_ABN->Inc_SigmoidParameter();
+								ABN->Inc_SigmoidParameter();
 							}
 							ImGui::SameLine();
 							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								ABN->cuda_ABN->Dec_SigmoidParameter();
+								ABN->Dec_SigmoidParameter();
 							}
 							const double  f64_zero = 0, f64_max = 100000.0;
-							ImGui::DragScalar("w1", ImGuiDataType_Double, &(ABN->cuda_ABN->w1), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w2", ImGuiDataType_Double, &(ABN->cuda_ABN->w2), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ABN->cuda_ABN->w3), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(ABN->w1), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w2", ImGuiDataType_Double, &(ABN->w2), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w3", ImGuiDataType_Double, &(ABN->w3), 0.05f, &f64_zero, &f64_max);
 						}
-						if (AS != NULL && AS->cuda_ASH->penaltyFunction == Cuda::PenaltyFunction::SIGMOID) {
-							ImGui::Text(("2^" + std::to_string(int(log2(AS->cuda_ASH->get_SigmoidParameter())))).c_str());
+						if (AS != NULL && AS->penaltyFunction == Cuda::PenaltyFunction::SIGMOID) {
+							ImGui::Text(("2^" + std::to_string(int(log2(AS->get_SigmoidParameter())))).c_str());
 							ImGui::SameLine();
 							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								AS->cuda_ASH->Inc_SigmoidParameter();
+								AS->Inc_SigmoidParameter();
 							}
 							ImGui::SameLine();
 							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
 							{
-								AS->cuda_ASH->Dec_SigmoidParameter();
+								AS->Dec_SigmoidParameter();
 							}
 							const double  f64_zero = 0, f64_max = 100000.0;
-							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->cuda_ASH->w1), 0.05f, &f64_zero, &f64_max);
-							ImGui::DragScalar("w2", ImGuiDataType_Double, &(AS->cuda_ASH->w2), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->w1), 0.05f, &f64_zero, &f64_max);
+							ImGui::DragScalar("w2", ImGuiDataType_Double, &(AS->w2), 0.05f, &f64_zero, &f64_max);
 						}
 					}
 					ImGui::TableNextCell();
@@ -851,7 +849,7 @@ void deformation_plugin::Draw_results_window()
 			std::string("\tNum Vertices: ") +
 			std::to_string(InputModel().V.rows()) +
 			std::string("\nGrad Size: ") +
-			std::to_string(out.totalObjective->objectiveList[0]->getGradient()->size) +
+			std::to_string(out.totalObjective->objectiveList[0]->grad.size) +
 			std::string("\tNum Clusters: ") +
 			std::to_string(out.clustering_faces_indices.size())
 			).c_str());
@@ -1524,7 +1522,7 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 		for (int oi = 0; oi < Outputs.size(); oi++) {
 			auto& m = OutputModel(oi);
 			auto& o = Outputs[oi];
-			auto& ABN = Outputs[oi].Energy_auxBendingNormal->cuda_ABN;
+			auto& AS = Outputs[oi].Energy_auxSpherePerHinge;
 			m.point_size = 10;
 			m.set_points(o.fixed_vertices_positions, o.color_per_vertex);
 			m.clear_edges();
@@ -1541,10 +1539,10 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 				m.add_edges(o.getCenterOfFaces(), o.getFacesNorm(), o.color_per_norm_edge);
 			
 			// Update Vertices colors for UI sigmoid weights
-			int num_hinges = ABN->mesh_indices.num_hinges;
-			int* x0_index = ABN->x0_GlobInd.host_arr;
-			int* x1_index = ABN->x1_GlobInd.host_arr;
-			double* hinge_val = ABN->weight_PerHinge.host_arr;
+			int num_hinges = AS->mesh_indices.num_hinges;
+			const Eigen::VectorXi& x0_index = AS->x0_GlobInd;
+			const Eigen::VectorXi& x1_index = AS->x1_GlobInd;
+			double* hinge_val = AS->weight_PerHinge.host_arr;
 			std::set<int> points_indices;
 			for (int hi = 0; hi < num_hinges; hi++) {
 				if (hinge_val[hi] < 1) {
@@ -1639,14 +1637,14 @@ void deformation_plugin::follow_and_mark_selected_faces()
 			Outputs[i].setFaceColors(fi, Fixed_face_color);
 		//Mark the selected faces by brush
 		{
-			Cuda::hinge* hinge_to_face_mapping = Outputs[i].Energy_auxBendingNormal->cuda_ABN->hinges_faceIndex.host_arr;
-			int num_hinges = Outputs[i].Energy_auxSpherePerHinge->cuda_ASH->mesh_indices.num_hinges;
+			std::vector<Eigen::Vector2d>& hinge_to_face_mapping = Outputs[i].Energy_auxSpherePerHinge->hinges_faceIndex;
+			int num_hinges = Outputs[i].Energy_auxSpherePerHinge->mesh_indices.num_hinges;
 			
 			if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID) {
-				double* hinge_val = Outputs[i].Energy_auxBendingNormal->cuda_ABN->Sigmoid_PerHinge.host_arr;
+				double* hinge_val = Outputs[i].Energy_auxBendingNormal->Sigmoid_PerHinge.host_arr;
 				for (int hi = 0; hi < num_hinges; hi++) {
-					const int f0 = hinge_to_face_mapping[hi].f0;
-					const int f1 = hinge_to_face_mapping[hi].f1;
+					const int f0 = hinge_to_face_mapping[hi][0];
+					const int f1 = hinge_to_face_mapping[hi][1];
 					const double log_minus_w = -log2(hinge_val[hi]);
 					if (log_minus_w > 0) {
 						const double alpha = log_minus_w / MAX_SIGMOID_PER_HINGE_VALUE;
@@ -1656,10 +1654,10 @@ void deformation_plugin::follow_and_mark_selected_faces()
 				}
 			}
 			else {
-				double* hinge_val = Outputs[i].Energy_auxBendingNormal->cuda_ABN->weight_PerHinge.host_arr;
+				double* hinge_val = Outputs[i].Energy_auxBendingNormal->weight_PerHinge.host_arr;
 				for (int hi = 0; hi < num_hinges; hi++) {
-					const int f0 = hinge_to_face_mapping[hi].f0;
-					const int f1 = hinge_to_face_mapping[hi].f1;
+					const int f0 = hinge_to_face_mapping[hi][0];
+					const int f1 = hinge_to_face_mapping[hi][1];
 					if (hinge_val[hi] > 1) {
 						const double alpha = (hinge_val[hi] - 1.0f) / MAX_WEIGHT_PER_HINGE_VALUE;
 						Outputs[i].shiftFaceColors(f0, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
@@ -1920,7 +1918,7 @@ void deformation_plugin::checkGradients()
 			isMinimizerRunning = false;
 			return;
 		}
-		Eigen::VectorXd testX = Eigen::VectorXd::Random(o.totalObjective->objectiveList[0]->getGradient()->size);
+		Eigen::VectorXd testX = Eigen::VectorXd::Random(o.totalObjective->objectiveList[0]->grad.size);
 		o.totalObjective->checkGradient(testX);
 		for (auto const &objective : o.totalObjective->objectiveList)
 			objective->checkGradient(testX);
@@ -2017,7 +2015,7 @@ void deformation_plugin::init_objective_functions(const int index)
 	std::shared_ptr <UniformSmoothness> uniformSmoothness = std::make_unique<UniformSmoothness>(V, F);
 	
 	//Add User Interface Energies
-	auto fixChosenVertices = std::make_shared<FixChosenConstraints>(F.rows(), V.rows());
+	auto fixChosenVertices = std::make_shared<FixChosenConstraints>(V, F);
 	Outputs[index].Energy_FixChosenVertices = fixChosenVertices;
 
 	//init total objective

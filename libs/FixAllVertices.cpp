@@ -5,10 +5,8 @@ FixAllVertices::FixAllVertices(
 	const Eigen::MatrixX3i& F)
 {
 	init_mesh(V, F);
-	cuda_FixAllV = std::make_shared<Cuda_FixAllVertices>();
-    name = "Fix All Vertices";
+	name = "Fix All Vertices";
 	w = 0.3;
-	internalInitCuda();
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
@@ -17,34 +15,34 @@ FixAllVertices::~FixAllVertices()
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void FixAllVertices::internalInitCuda() {
-	unsigned int numF = restShapeF.rows();
-	unsigned int numV = restShapeV.rows();
-	cuda_FixAllV->num_faces = numF;
-	cuda_FixAllV->num_vertices = numV;
-	
-	//alocate memory on host & device
-	Cuda::AllocateMemory(cuda_FixAllV->restShapeV, numV);
-	Cuda::AllocateMemory(cuda_FixAllV->grad, (3 * numV) + (10 * numF));
-	Cuda::AllocateMemory(cuda_FixAllV->EnergyAtomic, 1);
-	//init host buffers...
-	for (int i = 0; i < cuda_FixAllV->grad.size; i++) {
-		cuda_FixAllV->grad.host_arr[i] = 0;
+double FixAllVertices::value(Cuda::Array<double>& curr_x, const bool update)
+{
+	double value = 0;
+	for (int vi = 0; vi < restShapeV.rows(); vi++) {
+		double3 V = getV(curr_x, vi);
+		value +=
+			pow(V.x - restShapeV(vi, 0), 2) +
+			pow(V.y - restShapeV(vi, 1), 2) +
+			pow(V.z - restShapeV(vi, 2), 2);
 	}
-	for (int v = 0; v < numV; v++) {
-		cuda_FixAllV->restShapeV.host_arr[v] = make_double3(restShapeV(v, 0), restShapeV(v, 1), restShapeV(v, 2));
-	}
-	// Copy input vectors from host memory to GPU buffers.
-	Cuda::MemCpyHostToDevice(cuda_FixAllV->grad);
-	Cuda::MemCpyHostToDevice(cuda_FixAllV->restShapeV);
+	if (update)
+		energy_value = value;
+	return value;
 }
 
-void FixAllVertices::value(Cuda::Array<double>& curr_x)
+void FixAllVertices::gradient(Cuda::Array<double>& X, const bool update)
 {
-	cuda_FixAllV->value(curr_x);
-}
+	//No need to set zero the gradient at the beginning
+	for (int vi = 0; vi < restShapeV.rows(); vi++) {
+		double3 V = getV(X, vi);
+		grad.host_arr[vi + mesh_indices.startVx] = 2 * (V.x - restShapeV(vi, 0));
+		grad.host_arr[vi + mesh_indices.startVx] = 2 * (V.y - restShapeV(vi, 1));
+		grad.host_arr[vi + mesh_indices.startVx] = 2 * (V.z - restShapeV(vi, 2));
+	}
 
-void FixAllVertices::gradient(Cuda::Array<double>& X)
-{
-	cuda_FixAllV->gradient(X);
+	if (update) {
+		gradient_norm = 0;
+		for (int i = 0; i < grad.size; i++)
+			gradient_norm += pow(grad.host_arr[i], 2);
+	}
 }

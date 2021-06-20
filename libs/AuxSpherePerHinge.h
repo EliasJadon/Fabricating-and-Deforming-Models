@@ -3,18 +3,51 @@
 #include "cuda_optimization_lib/Cuda_AuxSpherePerHinge.cuh"
 
 class AuxSpherePerHinge : public ObjectiveFunction
-{	
-private:
+{		
+public:
+	
+	void Inc_SigmoidParameter() {
+		SigmoidParameter *= 2;
+		for (int hi = 0; hi < mesh_indices.num_hinges; hi++) {
+			Sigmoid_PerHinge.host_arr[hi] *= 2;
+		}
+	}
+	void Dec_SigmoidParameter() {
+		SigmoidParameter /= 2;
+		for (int hi = 0; hi < mesh_indices.num_hinges; hi++) {
+			Sigmoid_PerHinge.host_arr[hi] /= 2;
+		}
+	}
+	void Dec_SigmoidParameter(const double target) {
+		if (SigmoidParameter > target)
+			SigmoidParameter /= 2;
+		for (int hi = 0; hi < mesh_indices.num_hinges; hi++) {
+			if (Sigmoid_PerHinge.host_arr[hi] > target)
+				Sigmoid_PerHinge.host_arr[hi] /= 2;
+		}
+	}
+	double get_SigmoidParameter() {
+		return SigmoidParameter;
+	}
+
+
+	double w1 = 1, w2 = 100;
+	Cuda::PenaltyFunction penaltyFunction;
+	Cuda::Array<double> weight_PerHinge, Sigmoid_PerHinge;
+	
+	
+public:
+	double SigmoidParameter;
 	Eigen::VectorXd restAreaPerFace, restAreaPerHinge;
 	int num_hinges = -1;
-	std::vector<Eigen::Vector2d> hinges_faceIndex;
+	
 	Eigen::VectorXi x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd;
 	Eigen::MatrixXi x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd;
 	void calculateHinges();	
 	void internalInitCuda();
 public:
+	std::vector<Eigen::Vector2d> hinges_faceIndex;
 	Eigen::Vector3f colorP, colorM;
-	std::shared_ptr<Cuda_AuxSpherePerHinge> cuda_ASH;
 
 	void Reset_HingesSigmoid(const std::vector<int> faces_indices);
 	void Incr_HingesWeights(const std::vector<int> faces_indices, const double add);
@@ -28,13 +61,8 @@ public:
 		const Eigen::MatrixX3i& F,
 		const Cuda::PenaltyFunction type);
 	~AuxSpherePerHinge();
-	virtual Cuda::Array<double>* getValue() override {
-		return &(cuda_ASH->EnergyAtomic);
-	}
-	virtual Cuda::Array<double>* getGradient() override {
-		return &(cuda_ASH->grad);
-	}
-	virtual void value(Cuda::Array<double>& curr_x) override;
-	virtual void gradient(Cuda::Array<double>& X) override;
+	
+	virtual double value(Cuda::Array<double>& curr_x, const bool update) override;
+	virtual void gradient(Cuda::Array<double>& X, const bool update) override;
 };
 

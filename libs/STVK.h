@@ -6,15 +6,13 @@ class STVK : public ObjectiveFunction {
 private:	
 	void setRestShapeFromCurrentConfiguration();
 public:
-	std::shared_ptr<Cuda_STVK> cuda_STVK;
+	Eigen::VectorXd restShapeArea;
+	Cuda::Array<double4> dXInv;
+	double shearModulus, bulkModulus;
+
 	STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
 	~STVK();
-	virtual Cuda::Array<double>* getValue() override {
-		return &(cuda_STVK->EnergyAtomic);
-	}
-	virtual Cuda::Array<double>* getGradient() override {
-		return &(cuda_STVK->grad);
-	}
-	virtual void value(Cuda::Array<double>& curr_x);
-	virtual void gradient(Cuda::Array<double>& X) override;
+	
+	virtual double value(Cuda::Array<double>& curr_x, const bool update);
+	virtual void gradient(Cuda::Array<double>& X, const bool update) override;
 };

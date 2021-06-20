@@ -2,6 +2,10 @@
 #include "AuxBendingNormal.h"
 #include "AuxSpherePerHinge.h"
 
+#define BETA1_ADAM 0.90f
+#define BETA2_ADAM 0.9990f
+#define EPSILON_ADAM 1e-8
+
 Minimizer::Minimizer(const int solverID)
 	:
 	solverID(solverID),
@@ -33,22 +37,30 @@ void Minimizer::init(
 	this->constantStep_LineSearch = 0.01;
 	this->totalObjective = Tobjective;
 	
-	Cuda::initCuda();
-
 	unsigned int size = 3 * V.rows() + 7 * F.rows();
-	if (this->cuda_Minimizer == NULL)
-		this->cuda_Minimizer = std::make_shared<Cuda_Minimizer>(size);
-	totalObjective->cuda_Minimizer = this->cuda_Minimizer;
+
+	Cuda::AllocateMemory(X, size);
+	Cuda::AllocateMemory(p, size);
+	Cuda::AllocateMemory(g, size);
+	Cuda::AllocateMemory(curr_x, size);
+	Cuda::AllocateMemory(v_adam, size);
+	Cuda::AllocateMemory(s_adam, size);
+	for (int i = 0; i < size; i++) {
+		v_adam.host_arr[i] = 0;
+		s_adam.host_arr[i] = 0;
+	}
+	
 	for (int i = 0; i < 3 * V.rows(); i++)
-		cuda_Minimizer->X.host_arr[0 * V.rows() + 0 * F.rows() + i] = X0[i];
+		X.host_arr[0 * V.rows() + 0 * F.rows() + i] = X0[i];
 	for (int i = 0; i < 3 * F.rows(); i++)
-		cuda_Minimizer->X.host_arr[3 * V.rows() + 0 * F.rows() + i] = norm0[i];
+		X.host_arr[3 * V.rows() + 0 * F.rows() + i] = norm0[i];
 	for (int i = 0; i < 3 * F.rows(); i++)
-		cuda_Minimizer->X.host_arr[3 * V.rows() + 3 * F.rows() + i] = center0[i];
+		X.host_arr[3 * V.rows() + 3 * F.rows() + i] = center0[i];
 	for (int i = 0; i < F.rows(); i++)
-		cuda_Minimizer->X.host_arr[3 * V.rows() + 6 * F.rows() + i] = Radius0[i];
-	Cuda::MemCpyHostToDevice(cuda_Minimizer->X);
-	Cuda::copyArrays(cuda_Minimizer->curr_x, cuda_Minimizer->X);
+		X.host_arr[3 * V.rows() + 6 * F.rows() + i] = Radius0[i];
+	for (int i = 0; i < g.size; i++) {
+		curr_x.host_arr[i] = X.host_arr[i];
+	}
 }
 
 void Minimizer::run()
@@ -70,9 +82,9 @@ void Minimizer::update_lambda()
 	{
 		const double target = pow(2, -autoLambda_count);
 		if (ASH->w)
-			ASH->cuda_ASH->Dec_SigmoidParameter(target);
+			ASH->Dec_SigmoidParameter(target);
 		if (ABN->w)
-			ABN->cuda_ABN->Dec_SigmoidParameter(target);
+			ABN->Dec_SigmoidParameter(target);
 	}
 }
 
@@ -82,10 +94,20 @@ void Minimizer::run_one_iteration()
 	timer_avg = timer_sum / ++numIteration;
 	update_lambda();
 
-	totalObjective->gradient(cuda_Minimizer->X, true);
-	if (Optimizer_type == Cuda::OptimizerType::Adam)
-		cuda_Minimizer->adam_Step();
-	currentEnergy = totalObjective->value(cuda_Minimizer->X, true);
+	totalObjective->gradient(X, true);
+	if (Optimizer_type == Cuda::OptimizerType::Adam) {
+		for (int i = 0; i < g.size; i++) {
+			v_adam.host_arr[i] = BETA1_ADAM * v_adam.host_arr[i] + (1 - BETA1_ADAM) * g.host_arr[i];
+			s_adam.host_arr[i] = BETA2_ADAM * s_adam.host_arr[i] + (1 - BETA2_ADAM) * pow(g.host_arr[i], 2);
+			p.host_arr[i] = -v_adam.host_arr[i] / (sqrt(s_adam.host_arr[i]) + EPSILON_ADAM);
+		}
+	}
+	else if (Optimizer_type == Cuda::OptimizerType::Gradient_Descent) {
+		for (int i = 0; i < g.size; i++) {
+			p.host_arr[i] = -g.host_arr[i];
+		}
+	}
+	currentEnergy = totalObjective->value(X, true);
 	linesearch();
 	update_external_data();
 }
@@ -107,16 +129,18 @@ void Minimizer::value_linesearch()
 	int MAX_STEP_SIZE_ITER = 50;
 	while (cur_iter++ < MAX_STEP_SIZE_ITER) 
 	{
-		//Eigen::VectorXd curr_x = X + step_size * p;
-		cuda_Minimizer->linesearch_currX(step_size);
+		for (int i = 0; i < g.size; i++) {
+			curr_x.host_arr[i] = X.host_arr[i] + step_size * p.host_arr[i];
+		}
 
-		double new_energy = totalObjective->value(cuda_Minimizer->curr_x,false);
+		double new_energy = totalObjective->value(curr_x,false);
 		if (new_energy >= currentEnergy)
 			step_size /= 2;
 		else 
 		{
-			//X = curr_x;
-			Cuda::copyArrays(cuda_Minimizer->X, cuda_Minimizer->curr_x);
+			for (int i = 0; i < g.size; i++) {
+				X.host_arr[i] = curr_x.host_arr[i];
+			}
 			break;
 		}
 	}
@@ -129,41 +153,14 @@ void Minimizer::value_linesearch()
 
 void Minimizer::constant_linesearch()
 {
-	
-	//Eigen::VectorXd curr_x = X + step_size * p;
-	cuda_Minimizer->linesearch_currX(constantStep_LineSearch);
-	//X = curr_x;
-	Cuda::copyArrays(cuda_Minimizer->X, cuda_Minimizer->curr_x);
-			
-	//std::cout << "cur_iter = " << cur_iter << std::endl;
-	/*step_size = constantStep_LineSearch;
-	cur_iter = 0;
-	X = X + step_size * p;*/
+	for (int i = 0; i < g.size; i++) {
+		curr_x.host_arr[i] = X.host_arr[i] + constantStep_LineSearch * p.host_arr[i];
+		X.host_arr[i] = curr_x.host_arr[i];
+	}
 }
 
 void Minimizer::gradNorm_linesearch()
 {
-	/*step_size = 1;
-	Eigen::VectorXd grad;
-	objective->updateX(X);
-	objective->gradient(grad,false);
-	double current_GradNrom = grad.norm();
-	double new_GradNrom = current_GradNrom;
-	cur_iter = 0; int MAX_STEP_SIZE_ITER = 50;
-	while (cur_iter++ < MAX_STEP_SIZE_ITER) 
-	{
-		Eigen::VectorXd curr_x = X + step_size * p;
-		objective->updateX(curr_x);
-		objective->gradient(grad,false);
-		new_GradNrom = grad.norm();
-		if (new_GradNrom >= current_GradNrom)
-			step_size /= 2;
-		else 
-		{
-			X = curr_x;
-			break;
-		}
-	}*/
 }
 
 void Minimizer::stop()
@@ -177,15 +174,14 @@ void Minimizer::update_external_data()
 {
 	give_parameter_update_slot();
 	std::unique_lock<std::shared_timed_mutex> lock(*data_mutex);
-	Cuda::MemCpyDeviceToHost(cuda_Minimizer->X);
 	for (int i = 0; i < 3 * V.rows(); i++)
-		ext_x[i] = cuda_Minimizer->X.host_arr[i];
+		ext_x[i] = X.host_arr[i];
 	for (int i = 0; i < 3 * F.rows(); i++)
-		ext_norm[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + i];
+		ext_norm[i] = X.host_arr[3 * V.rows() + i];
 	for (int i = 0; i < 3 * F.rows(); i++)
-		ext_center[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 3 * F.rows() + i];
+		ext_center[i] = X.host_arr[3 * V.rows() + 3 * F.rows() + i];
 	for (int i = 0; i < F.rows(); i++)
-		ext_radius[i] = cuda_Minimizer->X.host_arr[3 * V.rows() + 6 * F.rows() + i];
+		ext_radius[i] = X.host_arr[3 * V.rows() + 6 * F.rows() + i];
 	progressed = true;
 }
 

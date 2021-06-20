@@ -11,6 +11,8 @@
 class Minimizer
 {
 public:
+	Cuda::Array<double> X, p, g, curr_x, v_adam, s_adam;
+
 	Minimizer(const int solverID);
 	void run();
 	void run_one_iteration();
@@ -31,7 +33,6 @@ public:
 	
 	// Pointer to the energy class
 	std::shared_ptr<TotalObjective> totalObjective;
-	std::shared_ptr<Cuda_Minimizer> cuda_Minimizer;
 	// Activity flags
 	std::atomic_bool is_running = {false};
 	std::atomic_bool progressed = {false};

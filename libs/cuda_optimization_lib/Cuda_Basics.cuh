@@ -31,7 +31,6 @@ namespace Cuda
 	{
 		unsigned int size;
 		T* host_arr;
-		T* cuda_arr;
 	};
 
 	extern void initIndices(
@@ -40,16 +39,10 @@ namespace Cuda
 		const unsigned int V,
 		const unsigned int H);
 	extern hinge newHinge(int f0, int f1);
-	extern void view_device_properties();
-	extern void initCuda();
-	extern void StopCudaDevice();
-	extern void CheckErr(const cudaError_t cudaStatus, const int ID = 0);
-	extern void copyArrays(Array<double>& a, const Array<double>& b);
 	
 	template<typename T> void FreeMemory(Cuda::Array<T>& a) 
 	{
 		delete[] a.host_arr;
-		cudaFree(a.cuda_arr);
 	}
 
 	template<typename T> void AllocateMemory(Cuda::Array<T>& a, const unsigned int size) 
@@ -64,22 +57,6 @@ namespace Cuda
 			std::cout << "Host: Allocation Failed!!!\n";
 			exit(1);
 		}
-		CheckErr(cudaMalloc((void**)& a.cuda_arr, a.size * sizeof(T)));
 	}
 
-	template <typename T> void MemCpyHostToDevice(Array<T>& a) 
-	{
-		CheckErr(cudaMemcpy(a.cuda_arr, a.host_arr, a.size * sizeof(T), cudaMemcpyHostToDevice));
-	}
-
-	template <typename T> void MemCpyDeviceToHost(Array<T>& a) 
-	{
-		// Copy output vector from GPU buffer to host memory.
-		CheckErr(cudaMemcpy(a.host_arr, a.cuda_arr, a.size * sizeof(T), cudaMemcpyDeviceToHost));
-	}
-	template <typename T> void MemCpyDeviceToHost(Array<T>& a, const unsigned int size) 
-	{
-		// Copy output vector from GPU buffer to host memory.
-		CheckErr(cudaMemcpy(a.host_arr, a.cuda_arr, size * sizeof(T), cudaMemcpyDeviceToHost));
-	}
 }

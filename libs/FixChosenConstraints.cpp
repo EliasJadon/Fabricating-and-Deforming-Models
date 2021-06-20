@@ -1,8 +1,8 @@
 #include "FixChosenConstraints.h"
 
-FixChosenConstraints::FixChosenConstraints(const unsigned int numF,const unsigned int numV)
+FixChosenConstraints::FixChosenConstraints(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F)
 {
-	Cuda_FixChosConst = std::make_shared<Cuda_FixChosenConstraints>(numF, numV);
+	init_mesh(V, F);
     name = "Fix Chosen Vertices";
 	w = 100000;
 	std::cout << "\t" << name << " constructor" << std::endl;
@@ -20,37 +20,43 @@ void FixChosenConstraints::updateExtConstraints(
 	m_value.lock();
 	m_gradient.lock();
 
-	Cuda::FreeMemory(Cuda_FixChosConst->Const_Ind);
-	Cuda::FreeMemory(Cuda_FixChosConst->Const_Pos);
-	Cuda::AllocateMemory(Cuda_FixChosConst->Const_Ind, CVInd.size());
-	Cuda::AllocateMemory(Cuda_FixChosConst->Const_Pos, CVInd.size());
-	//init host buffers...
-	for (int i = 0; i < CVInd.size(); i++) {
-		Cuda_FixChosConst->Const_Ind.host_arr[i] = CVInd[i];
-		Cuda_FixChosConst->Const_Pos.host_arr[i] = make_double3(
-			CVPos(i, 0),
-			CVPos(i, 1),
-			CVPos(i, 2)
-		);
-	}
-	// Copy input vectors from host memory to GPU buffers.
-	Cuda::MemCpyHostToDevice(Cuda_FixChosConst->Const_Ind);
-	Cuda::MemCpyHostToDevice(Cuda_FixChosConst->Const_Pos);
-	
+	Constraints_indices = CVInd;
+	Constraints_Position = CVPos;
+
 	m_gradient.unlock();
 	m_value.unlock();
 }
 
-void FixChosenConstraints::value(Cuda::Array<double>& curr_x)
+double FixChosenConstraints::value(Cuda::Array<double>& curr_x, const bool update)
 {
 	m_value.lock();
-	Cuda_FixChosConst->value(curr_x);
+	double value = 0;
+	for (int i = 0; i < Constraints_indices.size(); i++) {
+		const unsigned int v_index = Constraints_indices[i];
+		double3 Vi = getV(curr_x, v_index);
+		value += squared_norm(sub(Vi, Constraints_Position.row(i)));
+	}
 	m_value.unlock();
+
+	if (update)
+		energy_value = value;
+	return value;
 }
 
-void FixChosenConstraints::gradient(Cuda::Array<double>& X)
+void FixChosenConstraints::gradient(Cuda::Array<double>& X, const bool update)
 {
 	m_gradient.lock();
-	Cuda_FixChosConst->gradient(X);
+	for (int i = 0; i < Constraints_indices.size(); i++) {
+		const unsigned int v_index = Constraints_indices[i];
+		grad.host_arr[v_index + mesh_indices.startVx] = 2 * (X.host_arr[v_index + mesh_indices.startVx] - Constraints_Position(i,0));
+		grad.host_arr[v_index + mesh_indices.startVy] = 2 * (X.host_arr[v_index + mesh_indices.startVy] - Constraints_Position(i,1));
+		grad.host_arr[v_index + mesh_indices.startVz] = 2 * (X.host_arr[v_index + mesh_indices.startVz] - Constraints_Position(i,2));
+	}
 	m_gradient.unlock();
+
+	if (update) {
+		gradient_norm = 0;
+		for (int i = 0; i < grad.size; i++)
+			gradient_norm += pow(grad.host_arr[i], 2);
+	}
 }

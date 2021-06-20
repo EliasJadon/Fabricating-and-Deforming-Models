@@ -45,6 +45,48 @@ namespace OptimizationUtils
 		return hingesPerFace;
 	}
 
+	static int getNumberOfHinges(const Eigen::MatrixX3i restShapeF) {
+		std::vector<std::vector<std::vector<int>>> TT;
+		igl::triangle_triangle_adjacency(restShapeF, TT);
+		assert(TT.size() == restShapeF.rows());
+
+		int num_hinges = 0;
+		///////////////////////////////////////////////////////////
+		//Part 1 - Find unique hinges
+		for (int fi = 0; fi < TT.size(); fi++) {
+			std::vector< std::vector<int>> CurrFace = TT[fi];
+			assert(CurrFace.size() == 3 && "Each face should be a triangle (not square for example)!");
+			for (std::vector<int> hinge : CurrFace) {
+				if (hinge.size() == 1) {
+					//add this "hinge"
+					int FaceIndex1 = fi;
+					int FaceIndex2 = hinge[0];
+
+					if (FaceIndex2 < FaceIndex1) {
+						//Skip
+						//This hinge already exists!
+						//Empty on purpose
+					}
+					else {
+						num_hinges++;
+					}
+				}
+				else if (hinge.size() == 0) {
+					//Skip
+					//This triangle has no another adjacent triangle on that edge
+					//Empty on purpose
+				}
+				else {
+					//We shouldn't get here!
+					//The mesh is invalid
+					assert("Each triangle should have only one adjacent triangle on each edge!");
+				}
+
+			}
+		}
+		return num_hinges;
+	}
+
 	static void computeSurfaceGradientPerFace(const Eigen::MatrixX3d &V, const Eigen::MatrixX3i &F, Eigen::MatrixX3d &D1, Eigen::MatrixX3d &D2)
 	{
 		Eigen::MatrixX3d F1, F2, F3;
