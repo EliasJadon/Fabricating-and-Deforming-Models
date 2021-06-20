@@ -144,10 +144,12 @@ void Minimizer::value_linesearch()
 			break;
 		}
 	}
-	if (cur_iter == 1)
-		init_step_size *= 2;
-	if (cur_iter > 2)
-		init_step_size /= 2;
+	if (cur_iter < MAX_STEP_SIZE_ITER) {
+		if (cur_iter == 1)
+			init_step_size *= 2;
+		if (cur_iter > 2)
+			init_step_size /= 2;
+	}
 	linesearch_numiterations = cur_iter;
 }
 
