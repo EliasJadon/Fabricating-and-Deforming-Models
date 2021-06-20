@@ -22,12 +22,5 @@ namespace Cuda {
 		I.startCz	= 3 * V + 5 * F;
 		I.startR	= 3 * V + 6 * F;
 	}
-
-	hinge newHinge(int f0, int f1) {
-		hinge a;
-		a.f0 = f0;
-		a.f1 = f1;
-		return a;
-	}
 }
 

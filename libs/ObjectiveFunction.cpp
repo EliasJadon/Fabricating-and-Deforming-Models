@@ -62,7 +62,7 @@ void ObjectiveFunction::checkGradient(const Eigen::VectorXd& X)
 	Cuda::Array<double>& Analytic_gradient = this->grad;
 	Cuda::Array<double> FD_gradient;
 	FDGradient(XX, FD_gradient);
-	assert(FD_gradient.size == Analytic_gradient->size && "The size of analytic gradient & FD gradient must be equal!");
+	assert(FD_gradient.size == Analytic_gradient.size && "The size of analytic gradient & FD gradient must be equal!");
 	double tol = 1e-4;
 	double eps = 1e-10;
 	

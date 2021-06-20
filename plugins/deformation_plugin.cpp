@@ -2019,6 +2019,7 @@ void deformation_plugin::init_objective_functions(const int index)
 	Outputs[index].Energy_FixChosenVertices = fixChosenVertices;
 
 	//init total objective
+	Outputs[index].totalObjective->init_mesh(V, F);
 	Outputs[index].totalObjective->objectiveList.clear();
 	auto add_obj = [&](std::shared_ptr< ObjectiveFunction> obj) 
 	{
