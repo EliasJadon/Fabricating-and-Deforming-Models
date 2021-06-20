@@ -22,8 +22,8 @@ double AuxSpherePerHinge::value(Cuda::Array<double>& curr_x, const bool update)
 		int f1 = hinges_faceIndex[hi][1];
 		double R0 = getR(curr_x, f0); 
 		double R1 = getR(curr_x, f1); 
-		double3 C0 = getC(curr_x, f0);
-		double3 C1 = getC(curr_x, f1);
+		double_3 C0 = getC(curr_x, f0);
+		double_3 C1 = getC(curr_x, f1);
 			
 		double d_center = squared_norm(sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
@@ -35,10 +35,10 @@ double AuxSpherePerHinge::value(Cuda::Array<double>& curr_x, const bool update)
 		const unsigned int x0 = restShapeF(fi,0);
 		const unsigned int x1 = restShapeF(fi,1);
 		const unsigned int x2 = restShapeF(fi,2);
-		double3 V0 = getV(curr_x, x0);
-		double3 V1 = getV(curr_x, x1);
-		double3 V2 = getV(curr_x, x2);
-		double3 C = getC(curr_x, fi);
+		double_3 V0 = getV(curr_x, x0);
+		double_3 V1 = getV(curr_x, x1);
+		double_3 V2 = getV(curr_x, x2);
+		double_3 C = getC(curr_x, fi);
 		double R = getR(curr_x, fi);
 		
 		double res =
@@ -64,8 +64,8 @@ void AuxSpherePerHinge::gradient(Cuda::Array<double>& X, const bool update)
 		
 		double R0 = getR(X, f0);
 		double R1 = getR(X, f1);
-		double3 C0 = getC(X, f0); 
-		double3 C1 = getC(X, f1); 
+		double_3 C0 = getC(X, f0); 
+		double_3 C1 = getC(X, f1); 
 		
 		double d_center = squared_norm(sub(C1, C0));
 		double d_radius = pow(R1 - R0, 2);
@@ -88,10 +88,10 @@ void AuxSpherePerHinge::gradient(Cuda::Array<double>& X, const bool update)
 		const unsigned int x1 = restShapeF(fi, 1);
 		const unsigned int x2 = restShapeF(fi, 2);
 		
-		double3 V0 = getV(X, x0); 
-		double3 V1 = getV(X, x1); 
-		double3 V2 = getV(X, x2); 
-		double3 C = getC(X, fi); 
+		double_3 V0 = getV(X, x0); 
+		double_3 V1 = getV(X, x1); 
+		double_3 V2 = getV(X, x2); 
+		double_3 C = getC(X, fi); 
 		double R = getR(X, fi); 
 		
 		double coeff = w2 * 4;

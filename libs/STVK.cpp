@@ -45,7 +45,7 @@ void STVK::setRestShapeFromCurrentConfiguration() {
 			V1_2D[0], V2_2D[0],
 			V1_2D[1], V2_2D[1];
 		Eigen::Matrix2d inv = dX.inverse();//TODO .inverse() is baaad
-		dXInv.host_arr[fi] = make_double4(inv(0, 0), inv(0, 1), inv(1, 0), inv(1, 1));
+		dXInv.host_arr[fi] = double_4(inv(0, 0), inv(0, 1), inv(1, 0), inv(1, 1));
 	}
 }
 
@@ -53,17 +53,17 @@ double STVK::value(Cuda::Array<double>& curr_x, const bool update) {
 	double value = 0;
 
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
-		const double4 dxinv = dXInv.host_arr[fi];
+		const double_4 dxinv = dXInv.host_arr[fi];
 		const double Area = restShapeArea[fi];
 		const unsigned int v0i = restShapeF(fi,0);
 		const unsigned int v1i = restShapeF(fi,1);
 		const unsigned int v2i = restShapeF(fi,2);
-		double3 V0 = getV(curr_x, v0i);
-		double3 V1 = getV(curr_x, v1i);
-		double3 V2 = getV(curr_x, v2i);
+		double_3 V0 = getV(curr_x, v0i);
+		double_3 V1 = getV(curr_x, v1i);
+		double_3 V2 = getV(curr_x, v2i);
 
-		double3 e10 = sub(V1, V0);
-		double3 e20 = sub(V2, V0);
+		double_3 e10 = sub(V1, V0);
+		double_3 e20 = sub(V2, V0);
 		double dx[3][2];
 		dx[0][0] = e10.x; dx[0][1] = e20.x;
 		dx[1][0] = e10.y; dx[1][1] = e20.y;
@@ -106,16 +106,16 @@ void STVK::gradient(Cuda::Array<double>& X, const bool update)
 		grad.host_arr[i] = 0;
 	
 	for (int fi = 0; fi < restShapeF.rows(); fi++) {
-		const double4 dxinv = dXInv.host_arr[fi];
+		const double_4 dxinv = dXInv.host_arr[fi];
 		const double Area = restShapeArea[fi];
 		const unsigned int v0i = restShapeF(fi,0);
 		const unsigned int v1i = restShapeF(fi,1);
 		const unsigned int v2i = restShapeF(fi,2);
-		double3 V0 = getV(X,v0i); 
-		double3 V1 = getV(X,v1i); 
-		double3 V2 = getV(X,v2i); 
-		double3 e10 = sub(V1, V0);
-		double3 e20 = sub(V2, V0);
+		double_3 V0 = getV(X,v0i); 
+		double_3 V1 = getV(X,v1i); 
+		double_3 V2 = getV(X,v2i); 
+		double_3 e10 = sub(V1, V0);
+		double_3 e20 = sub(V2, V0);
 		double dx[3][2];
 		dx[0][0] = e10.x; dx[0][1] = e20.x;
 		dx[1][0] = e10.y; dx[1][1] = e20.y;

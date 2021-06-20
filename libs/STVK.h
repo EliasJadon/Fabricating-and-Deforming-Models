@@ -7,7 +7,7 @@ private:
 	void setRestShapeFromCurrentConfiguration();
 public:
 	Eigen::VectorXd restShapeArea;
-	Cuda::Array<double4> dXInv;
+	Cuda::Array<double_4> dXInv;
 	double shearModulus, bulkModulus;
 
 	STVK(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);

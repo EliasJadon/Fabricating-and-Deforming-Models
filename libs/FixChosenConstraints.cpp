@@ -33,7 +33,7 @@ double FixChosenConstraints::value(Cuda::Array<double>& curr_x, const bool updat
 	double value = 0;
 	for (int i = 0; i < Constraints_indices.size(); i++) {
 		const unsigned int v_index = Constraints_indices[i];
-		double3 Vi = getV(curr_x, v_index);
+		double_3 Vi = getV(curr_x, v_index);
 		value += squared_norm(sub(Vi, Constraints_Position.row(i)));
 	}
 	m_value.unlock();

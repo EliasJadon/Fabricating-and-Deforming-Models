@@ -26,6 +26,14 @@ public:
 	void Update_HingesSigmoid(const std::vector<int> faces_indices, const double factor);
 	void Clear_HingesWeights();
 	void Clear_HingesSigmoid();
+	double Phi(
+		const double x,
+		const double SigmoidParameter,
+		const Cuda::PenaltyFunction penaltyFunction);
+	double dPhi_dm(
+		const double x,
+		const double SigmoidParameter,
+		const Cuda::PenaltyFunction penaltyFunction);
 	AuxVariables(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F, const Cuda::PenaltyFunction type);
 	~AuxVariables();
 };

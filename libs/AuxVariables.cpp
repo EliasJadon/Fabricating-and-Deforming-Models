@@ -261,3 +261,31 @@ void AuxVariables::Dec_SigmoidParameter(const double target) {
 double AuxVariables::get_SigmoidParameter() {
 	return SigmoidParameter;
 }
+
+double AuxVariables::Phi(
+	const double x,
+	const double SigmoidParameter,
+	const Cuda::PenaltyFunction penaltyFunction)
+{
+	if (penaltyFunction == Cuda::PenaltyFunction::SIGMOID) {
+		double x2 = pow(x, 2);
+		return x2 / (x2 + SigmoidParameter);
+	}
+	if (penaltyFunction == Cuda::PenaltyFunction::QUADRATIC)
+		return pow(x, 2);
+	if (penaltyFunction == Cuda::PenaltyFunction::EXPONENTIAL)
+		return exp(x * x);
+}
+
+double AuxVariables::dPhi_dm(
+	const double x,
+	const double SigmoidParameter,
+	const Cuda::PenaltyFunction penaltyFunction)
+{
+	if (penaltyFunction == Cuda::PenaltyFunction::SIGMOID)
+		return (2 * x * SigmoidParameter) / pow(x * x + SigmoidParameter, 2);
+	if (penaltyFunction == Cuda::PenaltyFunction::QUADRATIC)
+		return 2 * x;
+	if (penaltyFunction == Cuda::PenaltyFunction::EXPONENTIAL)
+		return 2 * x * exp(x * x);
+}

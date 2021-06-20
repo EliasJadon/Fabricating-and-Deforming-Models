@@ -4,7 +4,7 @@
 
 class SDenergy : public ObjectiveFunction {
 public:
-	Cuda::Array<double3> D1d, D2d;
+	Cuda::Array<double_3> D1d, D2d;
 	Eigen::VectorXd restShapeArea;
 
 	SDenergy(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);

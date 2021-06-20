@@ -14,6 +14,181 @@
 #include <set>
 #include <igl/PI.h>
 
+
+class double_3 {
+public:
+	double x, y, z;
+	double_3(double x, double y, double z) :x{ x }, y{ y }, z{ z }{};
+	double_3() :x{ 0 }, y{ 0 }, z{ 0 }{};
+};
+
+class double_4 {
+public:
+	double x, y, z, w;
+	double_4(double x, double y, double z, double w) :x{ x }, y{ y }, z{ z }, w{ w }{};
+	double_4() :x{ 0 }, y{ 0 }, z{ 0 }, w{ 0 }{};
+};
+
+
+static double dot4(const double_4 a, const double_4 b)
+{
+	return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+}
+
+template<int N> void multiply(
+	double_3 mat1,
+	double mat2[3][N],
+	double res[N])
+{
+	for (int i = 0; i < N; i++) {
+		res[i] = mat1.x * mat2[0][i] + mat1.y * mat2[1][i] + mat1.z * mat2[2][i];
+	}
+}
+
+template<int R1, int C1_R2, int C2> void multiply(
+	double mat1[R1][C1_R2],
+	double mat2[C1_R2][C2],
+	double res[R1][C2])
+{
+	int i, j, k;
+	for (i = 0; i < R1; i++) {
+		for (j = 0; j < C2; j++) {
+			res[i][j] = 0;
+			for (k = 0; k < C1_R2; k++)
+				res[i][j] += mat1[i][k] * mat2[k][j];
+		}
+	}
+}
+template<int R1, int C1_R2, int C2> void multiplyTranspose(
+	double mat1[C1_R2][R1],
+	double mat2[C1_R2][C2],
+	double res[R1][C2])
+{
+	int i, j, k;
+	for (i = 0; i < R1; i++) {
+		for (j = 0; j < C2; j++) {
+			res[i][j] = 0;
+			for (k = 0; k < C1_R2; k++)
+				res[i][j] += mat1[k][i] * mat2[k][j];
+		}
+	}
+}
+
+template<int N> void multiply(
+	double_4 mat1,
+	double mat2[4][N],
+	double res[N])
+{
+	for (int i = 0; i < N; i++) {
+		res[i] =
+			mat1.x * mat2[0][i] +
+			mat1.y * mat2[1][i] +
+			mat1.z * mat2[2][i] +
+			mat1.w * mat2[3][i];
+	}
+}
+
+
+static double_3 sub(const double_3 a, const double_3 b)
+{
+	return double_3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+static double_3 sub(const double_3 a, const Eigen::RowVector3d b)
+{
+	return double_3(a.x - b(0), a.y - b(1), a.z - b(2));
+}
+static double_3 add(double_3 a, double_3 b)
+{
+	return double_3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+static double dot(const double_3 a, const double_3 b)
+{
+	return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+static double_3 mul(const double a, const double_3 b)
+{
+	return double_3(a * b.x, a * b.y, a * b.z);
+}
+static double squared_norm(const double_3 a)
+{
+	return dot(a, a);
+}
+static double norm(const double_3 a)
+{
+	return sqrt(squared_norm(a));
+}
+static double_3 normalize(const double_3 a)
+{
+	return mul(1.0f / norm(a), a);
+}
+static double_3 cross(const double_3 a, const double_3 b)
+{
+	return double_3(
+		a.y * b.z - a.z * b.y,
+		a.z * b.x - a.x * b.z,
+		a.x * b.y - a.y * b.x
+	);
+}
+
+
+namespace Cuda
+{
+	enum PenaltyFunction { QUADRATIC, EXPONENTIAL, SIGMOID };
+	enum OptimizerType { Gradient_Descent, Adam };
+
+	template <typename T> struct Array
+	{
+		unsigned int size;
+		T* host_arr;
+	};
+
+	template<typename T> void FreeMemory(Cuda::Array<T>& a)
+	{
+		delete[] a.host_arr;
+	}
+
+	template<typename T> void AllocateMemory(Cuda::Array<T>& a, const unsigned int size)
+	{
+		if (size < 0) {
+			std::cout << "The size isn't positive!\n";
+			exit(1);
+		}
+		a.size = size;
+		a.host_arr = new T[size];
+		if (a.host_arr == NULL) {
+			std::cout << "Allocation Failed!!!\n";
+			exit(1);
+		}
+	}
+
+	struct indices {
+		unsigned int
+			startVx, startVy, startVz,
+			startNx, startNy, startNz,
+			startCx, startCy, startCz,
+			startR,
+			num_vertices, num_faces, num_hinges;
+	};
+
+	static void initIndices(indices& I,const unsigned int F,const unsigned int V,const unsigned int H) 
+	{
+		I.num_vertices = V;
+		I.num_faces = F;
+		I.num_hinges = H;
+		I.startVx = 0 * V + 0 * F;
+		I.startVy = 1 * V + 0 * F;
+		I.startVz = 2 * V + 0 * F;
+		I.startNx = 3 * V + 0 * F;
+		I.startNy = 3 * V + 1 * F;
+		I.startNz = 3 * V + 2 * F;
+		I.startCx = 3 * V + 3 * F;
+		I.startCy = 3 * V + 4 * F;
+		I.startCz = 3 * V + 5 * F;
+		I.startR = 3 * V + 6 * F;
+	}
+
+}
+
 namespace OptimizationUtils
 {
 	enum InitSphereAuxVariables { SPHERE_FIT, MODEL_CENTER_POINT, MINUS_NORMALS };

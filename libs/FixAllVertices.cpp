@@ -19,7 +19,7 @@ double FixAllVertices::value(Cuda::Array<double>& curr_x, const bool update)
 {
 	double value = 0;
 	for (int vi = 0; vi < restShapeV.rows(); vi++) {
-		double3 V = getV(curr_x, vi);
+		double_3 V = getV(curr_x, vi);
 		value +=
 			pow(V.x - restShapeV(vi, 0), 2) +
 			pow(V.y - restShapeV(vi, 1), 2) +
@@ -36,7 +36,7 @@ void FixAllVertices::gradient(Cuda::Array<double>& X, const bool update)
 		grad.host_arr[i] = 0;
 
 	for (int vi = 0; vi < restShapeV.rows(); vi++) {
-		double3 V = getV(X, vi);
+		double_3 V = getV(X, vi);
 		grad.host_arr[vi + mesh_indices.startVx] += 2 * (V.x - restShapeV(vi, 0));
 		grad.host_arr[vi + mesh_indices.startVy] += 2 * (V.y - restShapeV(vi, 1));
 		grad.host_arr[vi + mesh_indices.startVz] += 2 * (V.z - restShapeV(vi, 2));

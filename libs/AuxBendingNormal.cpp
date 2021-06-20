@@ -21,9 +21,9 @@ double AuxBendingNormal::value(Cuda::Array<double>& curr_x, const bool update)
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi][0];
 		int f1 = hinges_faceIndex[hi][1];
-		double3 N0 = getN(curr_x, f0);
-		double3 N1 = getN(curr_x, f1);
-		double3 diff = sub(N1, N0);
+		double_3 N0 = getN(curr_x, f0);
+		double_3 N1 = getN(curr_x, f1);
+		double_3 diff = sub(N1, N0);
 		double d_normals = squared_norm(diff);
 		value += w1 * restAreaPerHinge[hi] * weight_PerHinge.host_arr[hi] *
 			Phi(d_normals, Sigmoid_PerHinge.host_arr[hi], penaltyFunction);
@@ -34,14 +34,14 @@ double AuxBendingNormal::value(Cuda::Array<double>& curr_x, const bool update)
 		const int x0 = restShapeF(fi, 0);
 		const int x1 = restShapeF(fi, 1);
 		const int x2 = restShapeF(fi, 2);
-		double3 V0 = getV(curr_x, x0);
-		double3 V1 = getV(curr_x, x1);
-		double3 V2 = getV(curr_x, x2);
-		double3 N = getN(curr_x, fi);
+		double_3 V0 = getV(curr_x, x0);
+		double_3 V1 = getV(curr_x, x1);
+		double_3 V2 = getV(curr_x, x2);
+		double_3 N = getN(curr_x, fi);
 		
-		double3 e21 = sub(V2, V1);
-		double3 e10 = sub(V1, V0);
-		double3 e02 = sub(V0, V2);
+		double_3 e21 = sub(V2, V1);
+		double_3 e10 = sub(V1, V0);
+		double_3 e02 = sub(V0, V2);
 		value += w3 * (pow(dot(N, e21), 2) + pow(dot(N, e10), 2) + pow(dot(N, e02), 2));
 		value += pow(squared_norm(N) - 1, 2) * w2;
 	}
@@ -60,9 +60,9 @@ void AuxBendingNormal::gradient(Cuda::Array<double>& X, const bool update)
 	for (int hi = 0; hi < num_hinges; hi++) {
 		int f0 = hinges_faceIndex[hi][0];
 		int f1 = hinges_faceIndex[hi][1];
-		double3 N0 = getN(X, f0); 
-		double3 N1 = getN(X, f1); 
-		double3 diff = sub(N1, N0);
+		double_3 N0 = getN(X, f0); 
+		double_3 N1 = getN(X, f1); 
+		double_3 diff = sub(N1, N0);
 		double d_normals = squared_norm(diff);
 
 		double coeff = 2 * w1 * restAreaPerHinge[hi] * weight_PerHinge.host_arr[hi] *
@@ -81,14 +81,14 @@ void AuxBendingNormal::gradient(Cuda::Array<double>& X, const bool update)
 		const unsigned int x0 = restShapeF(fi, 0);
 		const unsigned int x1 = restShapeF(fi, 1);
 		const unsigned int x2 = restShapeF(fi, 2);
-		double3 V0 = getV(X, x0); 
-		double3 V1 = getV(X, x1); 
-		double3 V2 = getV(X, x2); 
-		double3 N = getN(X, fi); 
+		double_3 V0 = getV(X, x0); 
+		double_3 V1 = getV(X, x1); 
+		double_3 V2 = getV(X, x2); 
+		double_3 N = getN(X, fi); 
 
-		double3 e21 = sub(V2, V1);
-		double3 e10 = sub(V1, V0);
-		double3 e02 = sub(V0, V2);
+		double_3 e21 = sub(V2, V1);
+		double_3 e10 = sub(V1, V0);
+		double_3 e02 = sub(V0, V2);
 		double N02 = dot(N, e02);
 		double N10 = dot(N, e10);
 		double N21 = dot(N, e21);
