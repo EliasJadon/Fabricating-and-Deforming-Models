@@ -1,6 +1,5 @@
 #pragma once
 #include "ObjectiveFunction.h"
-#include "cuda_optimization_lib/cuda_SDenergy.cuh"
 
 class SDenergy : public ObjectiveFunction {
 public:

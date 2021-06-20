@@ -5,8 +5,6 @@
 #include <igl/flip_avoiding_line_search.h>
 #include <Eigen/SparseCholesky>
 #include <fstream>
-#include "cuda_optimization_lib/Cuda_FixAllVertices.cuh"
-#include "cuda_optimization_lib/Cuda_Minimizer.cuh"
 
 class Minimizer
 {

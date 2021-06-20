@@ -7,13 +7,9 @@ file(GLOB "${PROJECT_NAME}_files"
 	*.h
 	)
 
-add_subdirectory("cuda_optimization_lib")
-
 add_library(${PROJECT_NAME} ${${PROJECT_NAME}_files})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE 
-	igl::core 
-	cuda_optimization_lib)
+target_link_libraries(${PROJECT_NAME} PRIVATE igl::core)
 
 if(LIBIGL_WITH_MATLAB)
 	message(matlab library)

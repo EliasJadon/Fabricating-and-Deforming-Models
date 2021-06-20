@@ -1,6 +1,5 @@
 #pragma once
 #include "ObjectiveFunction.h"
-#include "cuda_optimization_lib/Cuda_FixChosenConstraints.cuh"
 #include <mutex>
 
 class FixChosenConstraints : public ObjectiveFunction

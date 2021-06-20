@@ -1,6 +1,5 @@
 #pragma once
 #include "ObjectiveFunction.h"
-#include "cuda_optimization_lib/cuda_STVK.cuh"
 
 class STVK : public ObjectiveFunction {
 private:	
