@@ -16,7 +16,7 @@ double TotalObjective::value(Cuda::Array<double>& curr_x, const bool update)
 	double value = 0;
 	for (auto& obj : objectiveList)
 		if (obj->w != 0)
-			value += obj->value(curr_x, update);
+			value += obj->w * obj->value(curr_x, update);
 	
 	if (update)
 		energy_value = value;
@@ -32,7 +32,7 @@ void TotalObjective::gradient(Cuda::Array<double>& X, const bool update)
 		if (obj->w != 0) {
 			obj->gradient(X, update);
 			for (int i = 0; i < grad.size; i++)
-				grad.host_arr[i] += obj->grad.host_arr[i];
+				grad.host_arr[i] += obj->w * obj->grad.host_arr[i];
 		}
 	}
 		

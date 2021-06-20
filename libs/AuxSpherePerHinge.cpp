@@ -10,6 +10,8 @@ AuxSpherePerHinge::AuxSpherePerHinge(
 	init_mesh(V, F);
 	name = "Aux Sphere Per Hinge";
 	w = 0;
+	this->penaltyFunction = penaltyFunction;
+	SigmoidParameter = 1;
 	colorP = Eigen::Vector3f(51 / 255.0f, 1, 1);
 	colorM = Eigen::Vector3f(1, 51 / 255.0f, 1);
 

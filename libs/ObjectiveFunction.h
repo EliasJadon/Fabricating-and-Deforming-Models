@@ -21,6 +21,36 @@ public:
 			res[i] = mat1.x * mat2[0][i] + mat1.y * mat2[1][i] + mat1.z * mat2[2][i];
 		}
 	}
+
+	template<int R1, int C1_R2, int C2> void multiply(
+		double mat1[R1][C1_R2],
+		double mat2[C1_R2][C2],
+		double res[R1][C2])
+	{
+		int i, j, k;
+		for (i = 0; i < R1; i++) {
+			for (j = 0; j < C2; j++) {
+				res[i][j] = 0;
+				for (k = 0; k < C1_R2; k++)
+					res[i][j] += mat1[i][k] * mat2[k][j];
+			}
+		}
+	}
+	template<int R1, int C1_R2, int C2> void multiplyTranspose(
+		double mat1[C1_R2][R1],
+		double mat2[C1_R2][C2],
+		double res[R1][C2])
+	{
+		int i, j, k;
+		for (i = 0; i < R1; i++) {
+			for (j = 0; j < C2; j++) {
+				res[i][j] = 0;
+				for (k = 0; k < C1_R2; k++)
+					res[i][j] += mat1[k][i] * mat2[k][j];
+			}
+		}
+	}
+	
 	template<int N> void multiply(
 		double4 mat1,
 		double mat2[4][N],
