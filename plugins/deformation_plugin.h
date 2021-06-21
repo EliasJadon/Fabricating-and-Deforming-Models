@@ -63,7 +63,6 @@ private:
 	bool UI_status;
 	int Output_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
-	std::thread minimizer_thread;
 	ImVec2 energies_window_position, global_screen_size;
 	int UserInterface_colorInputModelIndex;
 	bool UserInterface_UpdateAllOutputs;

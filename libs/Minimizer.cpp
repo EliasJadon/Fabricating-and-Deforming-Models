@@ -94,7 +94,7 @@ void Minimizer::run_one_iteration()
 	timer_avg = timer_sum / ++numIteration;
 	update_lambda();
 
-	totalObjective->gradient(X, true);
+	totalObjective->gradient(X, false);
 	if (Optimizer_type == Cuda::OptimizerType::Adam) {
 		for (int i = 0; i < totalObjective->grad.size; i++) {
 			v_adam.host_arr[i] = BETA1_ADAM * v_adam.host_arr[i] + (1 - BETA1_ADAM) * totalObjective->grad.host_arr[i];

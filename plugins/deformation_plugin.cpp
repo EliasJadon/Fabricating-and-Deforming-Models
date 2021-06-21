@@ -1989,7 +1989,7 @@ void deformation_plugin::start_minimizer_thread()
 	stop_minimizer_thread();
 	for (auto& o : Outputs)
 	{
-		minimizer_thread = std::thread(&Minimizer::run, o.minimizer.get());
+		std::thread minimizer_thread = std::thread(&Minimizer::run, o.minimizer.get());
 		minimizer_thread.detach();
 	}
 	isMinimizerRunning = true;
