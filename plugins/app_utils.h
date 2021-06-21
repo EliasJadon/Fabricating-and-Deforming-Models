@@ -327,6 +327,20 @@ namespace app_utils
 		return comboList;
 	}
 
+	static char* build_outputs_list(const int numOutputs) {
+		std::string cStr("");
+		for (int i = 0; i < numOutputs; i++) {
+			cStr += std::to_string(i);
+			cStr += '\0';
+		}
+		cStr += '\0';
+		int listLength = cStr.length();
+		char* comboList = new char[listLength];
+		for (unsigned int i = 0; i < listLength; i++)
+			comboList[i] = cStr.at(i);
+		return comboList;
+	}
+
 	static Eigen::RowVector3d get_face_avg(
 		const igl::opengl::ViewerData& model,
 		const int Translate_Index)

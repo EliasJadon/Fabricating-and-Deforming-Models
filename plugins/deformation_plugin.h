@@ -8,7 +8,7 @@
 class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
-	int save_output_index = 0;
+	int ActiveOutput = 0;
 	std::vector<int> copy_index;
 	std::vector < std::set<int>> paste_index;
 	int InitMinimizer_NeighLevel_From = 1;
@@ -64,7 +64,6 @@ private:
 	int Output_Translate_ID, down_mouse_x, down_mouse_y;
 	ImGuiMenu menu;
 	ImVec2 energies_window_position, global_screen_size;
-	int UserInterface_colorInputModelIndex;
 	bool UserInterface_UpdateAllOutputs;
 	float radius_length_minus_normal = 0.1;
 public:

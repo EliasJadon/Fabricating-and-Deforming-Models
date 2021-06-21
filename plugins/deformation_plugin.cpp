@@ -40,7 +40,6 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	IsChoosingGroups = false;
 	isModelLoaded = false;
 	isUpdateAll = true;
-	UserInterface_colorInputModelIndex = 1;
 	clustering_Type = app_utils::Clustering_Type::NO_CLUSTERING;
 	clustering_w = 0.65;
 	faceColoring_type = 1;
@@ -143,35 +142,31 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 	if (ImGui::Button("Save##Mesh", ImVec2((w - p) / 2.f, 0)))
 		viewer->open_dialog_save_mesh();
 
-	if (ImGui::DragInt("save output index", &save_output_index)) {
-		if (save_output_index >= Outputs.size() || save_output_index < 0)
-			save_output_index = 0;
-	}
-	
-	
-	if (ImGui::Button("save Sphere", ImVec2((w - p) / 2.f, 0)) && Outputs[save_output_index].clustering_faces_indices.size()) {
+	ImGui::Combo("Active output", (int*)(&ActiveOutput), app_utils::build_outputs_list(Outputs.size()));
+		
+	if (ImGui::Button("save Sphere", ImVec2((w - p) / 2.f, 0)) && Outputs[ActiveOutput].clustering_faces_indices.size()) {
 		// Multiply all the mesh by "factor". Relevant only for spheres. 
 		double factor = 1;
-		for (auto& obj : Outputs[save_output_index].totalObjective->objectiveList) {
+		for (auto& obj : Outputs[ActiveOutput].totalObjective->objectiveList) {
 			auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
 			if (fR != NULL && fR->w != 0)
 				factor = fR->alpha;
 		}
 		// Get mesh data
-		OptimizationOutput O = Outputs[save_output_index];
+		OptimizationOutput O = Outputs[ActiveOutput];
 		Eigen::MatrixXd colors = O.clustering_faces_colors;
-		Eigen::MatrixXd V_OUT = factor * OutputModel(save_output_index).V;
+		Eigen::MatrixXd V_OUT = factor * OutputModel(ActiveOutput).V;
 		Eigen::MatrixXd V_IN = factor * InputModel().V;
-		Eigen::MatrixXi F = OutputModel(save_output_index).F;
-		Eigen::VectorXd Radiuses = factor * Outputs[save_output_index].getRadiusOfSphere();
-		Eigen::MatrixXd Centers = factor * Outputs[save_output_index].getCenterOfSphere();
+		Eigen::MatrixXi F = OutputModel(ActiveOutput).F;
+		Eigen::VectorXd Radiuses = factor * Outputs[ActiveOutput].getRadiusOfSphere();
+		Eigen::MatrixXd Centers = factor * Outputs[ActiveOutput].getCenterOfSphere();
 		
 		// Create new Directory for saving the data
 		std::string main_file_path = OptimizationUtils::ProjectPath() + "models\\OutputModels\\" + modelName + app_utils::CurrentTime() + "\\";
 		std::string aux_file_path = main_file_path + "Auxiliary_Variables\\";
 		std::string parts_file_path = main_file_path + "Sphere_Parts\\";
 		std::string parts_color_file_path = main_file_path + "Sphere_Parts_With_Colors\\";
-		std::string file_name = modelName + std::to_string(save_output_index);
+		std::string file_name = modelName + std::to_string(ActiveOutput);
 		if (mkdir(main_file_path.c_str()) == -1 ||
 			mkdir(parts_file_path.c_str()) == -1 ||
 			mkdir(aux_file_path.c_str()) == -1 ||
@@ -226,23 +221,23 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		igl::writeOFF(aux_file_path + file_name + "_Aux_Radiuses.off", mat_radiuses, temp);
 	}
 	ImGui::SameLine();
-	if (ImGui::Button("Save Planar", ImVec2((w - p) / 2.f, 0)) && Outputs[save_output_index].clustering_faces_indices.size()) {
+	if (ImGui::Button("Save Planar", ImVec2((w - p) / 2.f, 0)) && Outputs[ActiveOutput].clustering_faces_indices.size()) {
 		// Get mesh data
-		OptimizationOutput O = Outputs[save_output_index];
+		OptimizationOutput O = Outputs[ActiveOutput];
 		Eigen::MatrixXd colors = O.clustering_faces_colors;
-		Eigen::MatrixXd V_OUT = OutputModel(save_output_index).V;
+		Eigen::MatrixXd V_OUT = OutputModel(ActiveOutput).V;
 		Eigen::MatrixXd V_IN = InputModel().V;
-		Eigen::MatrixXi F = OutputModel(save_output_index).F;
-		Eigen::VectorXd Radiuses = Outputs[save_output_index].getRadiusOfSphere();
-		Eigen::MatrixXd Centers = Outputs[save_output_index].getCenterOfSphere();
-		Eigen::MatrixXd Normals = Outputs[save_output_index].getFacesNormals();
+		Eigen::MatrixXi F = OutputModel(ActiveOutput).F;
+		Eigen::VectorXd Radiuses = Outputs[ActiveOutput].getRadiusOfSphere();
+		Eigen::MatrixXd Centers = Outputs[ActiveOutput].getCenterOfSphere();
+		Eigen::MatrixXd Normals = Outputs[ActiveOutput].getFacesNormals();
 
 		// Create new Directory for saving the data
 		std::string main_file_path = OptimizationUtils::ProjectPath() + "models\\OutputModels\\" + modelName + app_utils::CurrentTime() + "\\";
 		std::string aux_file_path = main_file_path + "Auxiliary_Variables\\";
 		std::string parts_file_path = main_file_path + "Polygon_Parts\\";
 		std::string parts_color_file_path = main_file_path + "Polygon_Parts_With_Colors\\";
-		std::string file_name = modelName + std::to_string(save_output_index);
+		std::string file_name = modelName + std::to_string(ActiveOutput);
 		if (mkdir(main_file_path.c_str()) == -1 ||
 			mkdir(parts_file_path.c_str()) == -1 ||
 			mkdir(aux_file_path.c_str()) == -1 ||
@@ -389,8 +384,8 @@ void deformation_plugin::CollapsingHeader_user_interface()
 {
 	if (!ImGui::CollapsingHeader("User Interface"))
 	{
-		ImGui::Combo("Coloring Input", (int*)(&UserInterface_colorInputModelIndex), app_utils::build_inputColoring_list(Outputs.size()));
-		ImGui::Checkbox("Update All", &UserInterface_UpdateAllOutputs);
+		ImGui::Checkbox("Update outputs together", &UserInterface_UpdateAllOutputs);
+
 		if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID)
 			ImGui::Combo("Neighbor type", (int *)(&neighbor_Type), "Curr Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
 		if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID)
@@ -708,7 +703,7 @@ void deformation_plugin::Draw_energies_window()
 
 							
 
-							Eigen::VectorXd Radiuses = Outputs[save_output_index].getRadiusOfSphere();
+							Eigen::VectorXd Radiuses = Outputs[ActiveOutput].getRadiusOfSphere();
 							if (ImGui::Button("update Alpha")) {
 								fR->alpha = fR->max / Radiuses.maxCoeff();
 							}
@@ -1503,20 +1498,14 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 		if (out.minimizer->progressed)
 			update_data_from_minimizer();
 	//Update the model's faces colors in the screens
-	InputModel().set_colors(model_color.cast <double>().replicate(1, InputModel().F.rows()).transpose());
-	for (int i = 0; i < Outputs.size(); i++) {
-		if (Outputs[i].color_per_face.size()) {
-			OutputModel(i).set_colors(Outputs[i].color_per_face);
-			if ((UserInterface_colorInputModelIndex - 1) == i)
-				InputModel().set_colors(Outputs[i].color_per_face);
-		}
-	}
+	InputModel().set_colors(Outputs[ActiveOutput].color_per_face);
+	for (int i = 0; i < Outputs.size(); i++)
+		OutputModel(i).set_colors(Outputs[i].color_per_face);
 
 	//Update the model's vertex colors in screens
 	if (isModelLoaded) {
 		InputModel().point_size = 10;
-		OptimizationOutput& IOm = Outputs[UserInterface_colorInputModelIndex - 1];
-		InputModel().set_points(IOm.fixed_vertices_positions, IOm.color_per_vertex);
+		InputModel().set_points(Outputs[ActiveOutput].fixed_vertices_positions, Outputs[ActiveOutput].color_per_vertex);
 		for (int oi = 0; oi < Outputs.size(); oi++) {
 			auto& m = OutputModel(oi);
 			auto& o = Outputs[oi];
