@@ -16,7 +16,6 @@ public:
 
 	std::set<int> UserInterface_FixedFaces, UserInterface_FixedVertices;
 	std::vector<int> printNormals_saveVertices;
-	std::vector<FacesGroup> UserInterface_facesGroups;
 	std::shared_ptr<Minimizer> minimizer;
 	std::shared_ptr<TotalObjective> totalObjective;
 	float prev_camera_zoom;

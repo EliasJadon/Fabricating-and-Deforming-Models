@@ -4,15 +4,9 @@
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
 #include <igl/unproject_in_mesh.h>
 #include <igl/unproject_ray.h>
-#include <igl/lscm.h>
-#include <igl/harmonic.h>
-#include <igl/arap.h>
-#include <igl/map_vertices_to_circle.h>
 #include <igl/project.h>
 #include <igl/unproject.h>
 #include <igl/triangle_triangle_adjacency.h>
-#include <igl/connected_components.h>
-#include <igl/slice.h>
 #include <igl/edge_lengths.h>
 #include <imgui/imgui.h>
 #include <chrono>
@@ -286,20 +280,6 @@ namespace app_utils
 			std::string sts;
 			sts = "OutputOnly " + std::to_string(i);
 			cStr += sts.c_str();
-			cStr += '\0';
-		}
-		cStr += '\0';
-		int listLength = cStr.length();
-		char* comboList = new char[listLength];
-		for (unsigned int i = 0; i < listLength; i++)
-			comboList[i] = cStr.at(i);
-		return comboList;
-	}
-
-	static char* build_groups_names_list(const std::vector<FacesGroup> fgs) {
-		std::string cStr("");
-		for (FacesGroup fg : fgs) {
-			cStr += fg.name.c_str();
 			cStr += '\0';
 		}
 		cStr += '\0';

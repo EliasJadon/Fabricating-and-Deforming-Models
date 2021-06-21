@@ -877,8 +877,6 @@ void deformation_plugin::clear_sellected_faces_and_vertices()
 		o.Energy_auxBendingNormal->Clear_HingesSigmoid();
 		
 		o.UserInterface_FixedFaces.clear();
-		for (auto& c : o.UserInterface_facesGroups)
-			c.faces.clear();
 		o.UserInterface_FixedVertices.clear();
 		o.printNormals_saveVertices.clear();
 	}
@@ -1628,10 +1626,6 @@ void deformation_plugin::follow_and_mark_selected_faces()
 			face_norm_color);
 
 		UpdateEnergyColors(i);
-		//Mark the Groups faces
-		for (FacesGroup cluster : Outputs[i].UserInterface_facesGroups)
-			for (int fi : cluster.faces)
-				Outputs[i].setFaceColors(fi, cluster.color);
 		//Mark the fixed faces
 		for (int fi : Outputs[i].UserInterface_FixedFaces)
 			Outputs[i].setFaceColors(fi, Fixed_face_color);

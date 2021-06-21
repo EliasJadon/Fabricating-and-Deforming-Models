@@ -15,8 +15,6 @@ OptimizationOutput::OptimizationOutput(
 	minimizer->lineSearch_type = linesearchType;
 	updateActiveMinimizer(optimizerType);
 	showFacesNorm = showSphereEdges = showNormEdges = showTriangleCenters = showSphereCenters = false;
-	for (int i = 0; i < 9; i++)
-		UserInterface_facesGroups.push_back(FacesGroup(UserInterface_facesGroups.size()));
 	UserInterface_IsTranslate = false;
 }
 
