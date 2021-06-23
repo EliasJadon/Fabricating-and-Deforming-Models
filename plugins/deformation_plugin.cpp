@@ -1972,8 +1972,10 @@ void deformation_plugin::start_minimizer_thread()
 	stop_minimizer_thread();
 	for (auto& o : Outputs)
 	{
-		std::thread minimizer_thread = std::thread(&Minimizer::run, o.minimizer.get());
-		minimizer_thread.detach();
+		std::thread minimizer_thread1 = std::thread(&Minimizer::run_new, o.minimizer.get());
+		std::thread minimizer_thread2 = std::thread(&Minimizer::RunSymmetricDirichletGradient, o.minimizer.get());
+		minimizer_thread1.detach();
+		minimizer_thread2.detach();
 	}
 	isMinimizerRunning = true;
 }

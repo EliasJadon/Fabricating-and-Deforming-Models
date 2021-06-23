@@ -13,7 +13,10 @@ public:
 
 	Minimizer(const int solverID);
 	void run();
+	void run_new();
+	void RunSymmetricDirichletGradient();
 	void run_one_iteration();
+	void run_one_iteration_new();
 	void stop();
 	void get_data(
 		Eigen::MatrixXd& X, 
@@ -34,6 +37,8 @@ public:
 	// Activity flags
 	std::atomic_bool is_running = {false};
 	std::atomic_bool progressed = {false};
+	std::atomic_bool isGradientNeeded = { false };
+
 
 	// Synchronization functions used by the wrapper
 	void wait_for_parameter_update_slot();

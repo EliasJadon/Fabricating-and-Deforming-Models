@@ -1,6 +1,7 @@
 #include "Minimizer.h"
 #include "AuxBendingNormal.h"
 #include "AuxSpherePerHinge.h"
+#include "SDenergy.h"
 
 #define BETA1_ADAM 0.90f
 #define BETA2_ADAM 0.9990f
@@ -73,6 +74,28 @@ void Minimizer::run()
 	std::cout << ">> solver " + std::to_string(solverID) + " stopped" << std::endl;
 }
 
+void Minimizer::run_new()
+{
+	is_running = true;
+	halt = false;
+	while (!halt)
+		run_one_iteration_new();
+	is_running = false;
+	std::cout << ">> solver " + std::to_string(solverID) + " stopped" << std::endl;
+}
+
+void Minimizer::RunSymmetricDirichletGradient() {
+	halt = false;
+	while (!halt) {
+		std::shared_ptr<SDenergy> SD = std::dynamic_pointer_cast<SDenergy>(totalObjective->objectiveList[3]);
+		if (isGradientNeeded) {
+			if (SD->w != 0)
+				SD->gradient(X, false);
+			isGradientNeeded = false;
+		}
+	}
+}
+
 void Minimizer::update_lambda() 
 {
 	std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
@@ -111,6 +134,58 @@ void Minimizer::run_one_iteration()
 	linesearch();
 	update_external_data();
 }
+
+void Minimizer::run_one_iteration_new() 
+{
+	OptimizationUtils::Timer t(&timer_sum, &timer_curr);
+	//calculate SD gradient in advance
+	isGradientNeeded = true;
+	std::shared_ptr<SDenergy> SD = std::dynamic_pointer_cast<SDenergy>(totalObjective->objectiveList[3]);
+	
+	timer_avg = timer_sum / ++numIteration;
+	update_lambda();
+
+	//////////////////////////
+	//Get the first part of the gradients
+	for (int i = 0; i < totalObjective->grad.size; i++)
+		totalObjective->grad.host_arr[i] = 0;
+	for (auto& obj : totalObjective->objectiveList) {
+		std::shared_ptr<SDenergy> SD = std::dynamic_pointer_cast<SDenergy>(obj);
+		if (obj->w != 0 && SD == NULL) {
+			obj->gradient(X, false);
+			for (int i = 0; i < totalObjective->grad.size; i++)
+				totalObjective->grad.host_arr[i] += obj->w * obj->grad.host_arr[i];
+		}
+	}
+	//////////////////////////
+	//caculate current value
+	currentEnergy = totalObjective->value(X, true);
+	//////////////////////////
+	///get the second part of the gradient
+	while (isGradientNeeded);
+	if (SD->w != 0) {
+		for (int i = 0; i < totalObjective->grad.size; i++)
+			totalObjective->grad.host_arr[i] += SD->w * SD->grad.host_arr[i];
+	}
+	//////////////////////////
+
+	if (Optimizer_type == Cuda::OptimizerType::Adam) {
+		for (int i = 0; i < totalObjective->grad.size; i++) {
+			v_adam.host_arr[i] = BETA1_ADAM * v_adam.host_arr[i] + (1 - BETA1_ADAM) * totalObjective->grad.host_arr[i];
+			s_adam.host_arr[i] = BETA2_ADAM * s_adam.host_arr[i] + (1 - BETA2_ADAM) * pow(totalObjective->grad.host_arr[i], 2);
+			p.host_arr[i] = -v_adam.host_arr[i] / (sqrt(s_adam.host_arr[i]) + EPSILON_ADAM);
+		}
+	}
+	else if (Optimizer_type == Cuda::OptimizerType::Gradient_Descent) {
+		for (int i = 0; i < totalObjective->grad.size; i++) {
+			p.host_arr[i] = -totalObjective->grad.host_arr[i];
+		}
+	}
+	linesearch();
+	update_external_data();
+}
+
+
 
 void Minimizer::linesearch()
 {
