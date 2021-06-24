@@ -5,6 +5,7 @@
 #include <igl/writeOFF.h>
 #include <igl/boundary_loop.h>
 #include <igl/readOFF.h>
+#include <igl/adjacency_matrix.h>
 
 #define INPUT_MODEL_SCREEN -1
 #define NOT_FOUND -1
@@ -277,6 +278,28 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		Eigen::MatrixXi temp(1, 3);
 		temp << 1, 3, 2;
 		igl::writeOFF(aux_file_path + file_name + "_Aux_Normals.off", Normals, temp);
+	}
+
+	if (ImGui::Button("fsdsdffds")) {
+		Eigen::SparseMatrix<int> A;
+		igl::adjacency_matrix(InputModel().F, A);
+		
+		std::vector<std::vector<int>> adj;
+		adj.resize(InputModel().V.rows());
+		for (int k = 0; k < A.outerSize(); ++k)
+			for (Eigen::SparseMatrix<int>::InnerIterator it(A, k); it; ++it)
+				adj[it.row()].push_back(it.col());
+		
+		
+		std::vector<int> asd = app_utils::findPathVertices_usingDFS(adj,
+			*(Outputs[0].UserInterface_FixedVertices.begin()),
+			*(++Outputs[0].UserInterface_FixedVertices.begin()), InputModel().V.rows());
+			
+		std::cout << "\n\nasd = \n";
+		for (int i : asd) {
+			std::cout << i << "\n";
+		}
+		
 	}
 
 	ImGui::Checkbox("Outputs window", &outputs_window);
