@@ -10,6 +10,8 @@
 #include <igl/edge_lengths.h>
 #include <imgui/imgui.h>
 #include <chrono>
+#include <vector>
+#include <queue>
 
 #include "faces_group.h"
 #include "unique_colors.h"
@@ -84,6 +86,49 @@ namespace app_utils
 		}
 		myfile.close();
 		return true;
+	}
+
+	static std::vector<int> findPathVertices_usingDFS(
+		const std::vector<std::vector<int> >& A, 
+		const int s, 
+		const int target,
+		const int numV) 
+	{
+		std::vector<bool> seen(numV, false);
+		std::vector<std::vector<std::pair<int, int>>> Vertices_per_level;
+		Vertices_per_level.push_back({ {s,-1} });
+		seen[s] = true;
+		bool finish = false;
+		while (!finish) {
+			std::vector<std::pair<int, int>> currV;
+			const int level = Vertices_per_level.size() - 1;
+			for (std::pair<int, int> new_s : Vertices_per_level[level]) {
+				for (int neighbour : A[new_s.first]) {
+					if (neighbour == target) {
+						finish = true;
+					}
+					if (!seen[neighbour]) {
+						currV.push_back({ neighbour,new_s.first });
+						seen[neighbour] = true;
+					}
+				}
+			}
+			Vertices_per_level.push_back(currV);
+		}
+
+		//Part 2: find vertices path
+		std::vector<int> path;
+		path.push_back(target);
+		int last_level = Vertices_per_level.size() - 1;
+		while (last_level > 0) {
+			int v_target = path[path.size() - 1];
+			for (auto& v : Vertices_per_level[last_level])
+				if (v.first == v_target) {
+					path.push_back(v.second);
+				}
+			last_level--;
+		}
+		return path;
 	}
 
 	static std::string CurrentTime() {

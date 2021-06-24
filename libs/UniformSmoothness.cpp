@@ -7,7 +7,7 @@ UniformSmoothness::UniformSmoothness(const Eigen::MatrixXd& V, const Eigen::Matr
 	: ObjectiveFunction{ V,F }
 {
 	name = "Uniform Smoothness";
-	w = 0.023;
+	w = 0.05;
 	
 	// Prepare The Uniform Laplacian 
 	// Mesh in (V,F)
