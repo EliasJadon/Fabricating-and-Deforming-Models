@@ -118,12 +118,10 @@ public:
 
 	void change_minimizer_type(Cuda::OptimizerType type);
 	void draw_brush_sphere();
-	void brush_erase_or_insert();
 	void load_new_model(const std::string modelpath);
 	void Update_view();
 	void update_data_from_minimizer();
-	void set_vertices_for_mesh(Eigen::MatrixXd& V, const int index);
-
+	
 	//Start/Stop the minimizer Thread
 	void init_objective_functions(const int index);
 	void stop_minimizer_thread();

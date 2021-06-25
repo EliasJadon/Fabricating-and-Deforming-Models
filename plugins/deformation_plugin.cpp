@@ -1573,11 +1573,7 @@ void deformation_plugin::update_ext_fixed_vertices()
 		CurrHandlesPosDeformed = Eigen::MatrixX3d::Zero(CurrHandlesInd.size(), 3);
 		int idx = 0;
 		for (auto hi : CurrHandlesInd)
-			CurrHandlesPosDeformed.row(idx++) <<
-			OutputModel(i).V(hi, 0),
-			OutputModel(i).V(hi, 1),
-			OutputModel(i).V(hi, 2);
-		set_vertices_for_mesh(OutputModel(i).V, i);
+			CurrHandlesPosDeformed.row(idx++) = OutputModel(i).V.row(hi);
 		//Finally, we update the handles in the constraints positional object
 		if (isModelLoaded)
 			Outputs[i].Energy_FixChosenVertices->updateExtConstraints(CurrHandlesInd, CurrHandlesPosDeformed);
@@ -1867,24 +1863,6 @@ int deformation_plugin::pick_vertex_per_core(
 	return vi;
 }
 
-void deformation_plugin::set_vertices_for_mesh(
-	Eigen::MatrixXd& V_uv, 
-	const int index) 
-{
-	Eigen::MatrixXd V_uv_3D(V_uv.rows(),3);
-	if (V_uv.cols() == 2) 
-	{
-		V_uv_3D.leftCols(2) = V_uv.leftCols(2);
-		V_uv_3D.rightCols(1).setZero();
-	}
-	else if (V_uv.cols() == 3) 
-	{
-		V_uv_3D = V_uv;
-	}
-	OutputModel(index).set_vertices(V_uv_3D);
-	OutputModel(index).compute_normals();
-}
-	
 void deformation_plugin::checkGradients()
 {
 	stop_minimizer_thread();
@@ -1906,14 +1884,12 @@ void deformation_plugin::update_data_from_minimizer()
 {	
 	for (int i = 0; i < Outputs.size(); i++)
 	{
-		Eigen::MatrixXd V, center, norm;
-		Eigen::VectorXd radius;
-
-		auto& out = Outputs[i];
-		out.minimizer->get_data(V, center, radius, norm);
-		
-		out.setAuxVariables(V, InputModel().F, center, radius, norm);
-		set_vertices_for_mesh(V, i);
+		Eigen::MatrixXd V;
+		auto& o = Outputs[i];
+		o.minimizer->get_data(V, o.center_of_sphere, o.radiuses, o.normals);
+		o.center_of_faces = OptimizationUtils::center_per_triangle(V, InputModel().F);
+		OutputModel(i).set_vertices(V);
+		OutputModel(i).compute_normals();
 	}
 }
 

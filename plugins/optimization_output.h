@@ -2,12 +2,12 @@
 #include "app_utils.h"
 
 class OptimizationOutput {
-private:
+public:
 	Eigen::MatrixXd center_of_faces;
 	Eigen::MatrixXd center_of_sphere;
 	Eigen::MatrixXd normals;
 	Eigen::VectorXd radiuses;
-public:
+
 	std::vector<std::vector<int>> clustering_faces_indices;
 	Eigen::MatrixXd clustering_faces_colors;
 	std::shared_ptr <AuxSpherePerHinge> Energy_auxSpherePerHinge;
