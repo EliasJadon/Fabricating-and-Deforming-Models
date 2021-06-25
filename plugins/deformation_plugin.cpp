@@ -1612,24 +1612,14 @@ void deformation_plugin::follow_and_mark_selected_faces()
 					P.row(fi) << C(fi, 0) * R(fi), C(fi, 1), C(fi, 2);
 			}
 
-			Eigen::RowVector3d Pmin = P.row(0);
-			Eigen::RowVector3d Pmax = P.row(0);
-			for (int fi = 0; fi < P.rows(); fi++) {
-				Pmin(0) = Pmin(0) < P(fi, 0) ? Pmin(0) : P(fi, 0);
-				Pmin(1) = Pmin(1) < P(fi, 1) ? Pmin(1) : P(fi, 1);
-				Pmin(2) = Pmin(2) < P(fi, 2) ? Pmin(2) : P(fi, 2);
-				Pmax(0) = Pmax(0) > P(fi, 0) ? Pmax(0) : P(fi, 0);
-				Pmax(1) = Pmax(1) > P(fi, 1) ? Pmax(1) : P(fi, 1);
-				Pmax(2) = Pmax(2) > P(fi, 2) ? Pmax(2) : P(fi, 2);
-			}
-
+			Eigen::RowVector3d Pmin(P.col(0).minCoeff(), P.col(1).minCoeff(), P.col(2).minCoeff());
+			Eigen::RowVector3d Pmax(P.col(0).maxCoeff(), P.col(1).maxCoeff(), P.col(2).maxCoeff());
+			
 			Outputs[i].clustering_faces_colors.resize(P.rows(), 3);
 			ColorsHashMap DataColors(Clustering_MinDistance, &ColorsHashMap_colors);
 			for (int fi = 0; fi < P.rows(); fi++) {
-				for (int xyz = 0; xyz < 3; xyz++) {
-					P(fi, xyz) = P(fi, xyz) - Pmin(xyz);
-					P(fi, xyz) = P(fi, xyz) / (Pmax(xyz) - Pmin(xyz));
-				}
+				for (int xyz = 0; xyz < 3; xyz++)
+					P(fi, xyz) = (P(fi, xyz) - Pmin(xyz)) / (Pmax(xyz) - Pmin(xyz));
 				Outputs[i].clustering_faces_colors.row(fi) = P.row(fi);
 				if (clustering_hashMap)
 					Outputs[i].clustering_faces_colors.row(fi) = DataColors.getColor(P.row(fi).transpose(), fi).transpose();
