@@ -94,6 +94,11 @@ namespace app_utils
 		const int target,
 		const int numV) 
 	{
+		if (s < 0 || target < 0 || s >= numV || target >= numV)
+			return {};
+		if (s == target)
+			return { s };
+
 		std::vector<bool> seen(numV, false);
 		std::vector<std::vector<std::pair<int, int>>> Vertices_per_level;
 		Vertices_per_level.push_back({ {s,-1} });

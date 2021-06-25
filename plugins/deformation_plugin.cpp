@@ -1084,22 +1084,6 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 						Outputs[Brush_output_index].Energy_auxSpherePerHinge->Set_HingesWeights(brush_faces, value);
 					}
 				}
-				else if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID) {
-					double factor = ADDING_SIGMOID_PER_HINGE_VALUE;
-					if (UI_status != INSERT)
-						factor = 1 / ADDING_SIGMOID_PER_HINGE_VALUE;
-					const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
-					if (UserInterface_UpdateAllOutputs) {
-						for (auto& out : Outputs) {
-							out.Energy_auxBendingNormal->Update_HingesSigmoid(brush_faces, factor);
-							out.Energy_auxSpherePerHinge->Update_HingesSigmoid(brush_faces, factor);
-						}
-					}
-					else {
-						Outputs[Brush_output_index].Energy_auxBendingNormal->Update_HingesSigmoid(brush_faces, factor);
-						Outputs[Brush_output_index].Energy_auxSpherePerHinge->Update_HingesSigmoid(brush_faces, factor);
-					}
-				}
 			}
 			returnTrue = true;
 		}
@@ -1115,7 +1099,7 @@ IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y)
 		return true;
 	for (auto&out : Outputs)
 	{
-		if (out.UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID))
+		if (out.UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR))
 		{
 			brush_radius += delta_y * 0.005;
 			brush_radius = std::max<float>(0.005, brush_radius);
@@ -1265,7 +1249,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			update_ext_fixed_vertices();
 		}
 	}
-	else if ((UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) && button == GLFW_MOUSE_BUTTON_LEFT)
+	else if ((UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
 		if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
 		{
@@ -1273,7 +1257,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			Outputs[Brush_output_index].UserInterface_IsTranslate = true;
 		}
 	}
-	else if ((UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) && button == GLFW_MOUSE_BUTTON_MIDDLE)
+	else if ((UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
 		if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
 		{
@@ -1281,14 +1265,14 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			Outputs[Brush_output_index].UserInterface_IsTranslate = true;
 		}
 	}
-	else if ((UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS) && button == GLFW_MOUSE_BUTTON_LEFT)
+	else if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
 		IsChoosingGroups = true;
 		UI_status = INSERT;
 		Eigen::Vector3f _;
 		pick_face(&curr_highlighted_output, &curr_highlighted_face, _);
 	}
-	else if ((UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS) && button == GLFW_MOUSE_BUTTON_MIDDLE)
+	else if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
 		IsChoosingGroups = true;
 		UI_status = ERASE;

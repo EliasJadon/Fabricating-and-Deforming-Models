@@ -203,19 +203,6 @@ void AuxVariables::Set_HingesWeights(const std::vector<int> faces_indices,const 
 	}
 }
 
-void AuxVariables::Update_HingesSigmoid(const std::vector<int> faces_indices, const double factor)
-{
-	for (int fi : faces_indices) {
-		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
-		for (int hi : H) {
-			Sigmoid_PerHinge.host_arr[hi] *= factor;
-			if (Sigmoid_PerHinge.host_arr[hi] > 1) {
-				Sigmoid_PerHinge.host_arr[hi] = 1;
-			}
-		}
-	}
-}
-
 void AuxVariables::Reset_HingesSigmoid(const std::vector<int> faces_indices)
 {
 	for (int fi : faces_indices) {
