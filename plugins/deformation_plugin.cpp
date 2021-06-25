@@ -1019,7 +1019,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 {
 	if (!isModelLoaded || IsMouseDraggingAnyWindow)
 		return true;	
-	if (IsChoosingGroups && (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS))
+	if (IsChoosingGroups && UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS)
 	{
 		Eigen::Vector3f _;
 		pick_face(&curr_highlighted_output, &curr_highlighted_face, _);
@@ -1106,7 +1106,7 @@ IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y)
 			return true;
 		}
 	}
-	if (IsChoosingGroups && (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID))
+	if (IsChoosingGroups && UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS)
 	{
 		neighbor_distance += delta_y * 0.05;
 		neighbor_distance = std::max<float>(0.005, neighbor_distance);
@@ -1546,34 +1546,14 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		for (int fi : Outputs[i].UserInterface_FixedFaces)
 			Outputs[i].setFaceColors(fi, Fixed_face_color);
 		//Mark the selected faces by brush
-		{
-			std::vector<Eigen::Vector2d>& hinge_to_face_mapping = Outputs[i].Energy_auxSpherePerHinge->hinges_faceIndex;
-			int num_hinges = Outputs[i].Energy_auxSpherePerHinge->mesh_indices.num_hinges;
-			
-			if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID) {
-				double* hinge_val = Outputs[i].Energy_auxBendingNormal->Sigmoid_PerHinge.host_arr;
-				for (int hi = 0; hi < num_hinges; hi++) {
-					const int f0 = hinge_to_face_mapping[hi][0];
-					const int f1 = hinge_to_face_mapping[hi][1];
-					const double log_minus_w = -log2(hinge_val[hi]);
-					if (log_minus_w > 0) {
-						const double alpha = log_minus_w / MAX_SIGMOID_PER_HINGE_VALUE;
-						Outputs[i].shiftFaceColors(f0, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
-						Outputs[i].shiftFaceColors(f1, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
-					}
-				}
-			}
-			else {
-				double* hinge_val = Outputs[i].Energy_auxBendingNormal->weight_PerHinge.host_arr;
-				for (int hi = 0; hi < num_hinges; hi++) {
-					const int f0 = hinge_to_face_mapping[hi][0];
-					const int f1 = hinge_to_face_mapping[hi][1];
-					if (hinge_val[hi] > 1) {
-						const double alpha = (hinge_val[hi] - 1.0f) / MAX_WEIGHT_PER_HINGE_VALUE;
-						Outputs[i].shiftFaceColors(f0, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
-						Outputs[i].shiftFaceColors(f1, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
-					}
-				}
+		auto& AS = Outputs[i].Energy_auxSpherePerHinge;
+		for (int hi = 0; hi < AS->mesh_indices.num_hinges; hi++) {
+			const int f0 = AS->hinges_faceIndex[hi][0];
+			const int f1 = AS->hinges_faceIndex[hi][1];
+			if (AS->weight_PerHinge.host_arr[hi] > 1) {
+				const double alpha = (AS->weight_PerHinge.host_arr[hi] - 1.0f) / MAX_WEIGHT_PER_HINGE_VALUE;
+				Outputs[i].shiftFaceColors(f0, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
+				Outputs[i].shiftFaceColors(f1, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
 			}
 		}
 		//Mark the highlighted face & neighbors
@@ -1632,6 +1612,21 @@ void deformation_plugin::follow_and_mark_selected_faces()
 				));
 			}
 			Outputs[i].clustering_faces_indices = DataColors.face_index;
+		}
+		if (face_coloring_Type == app_utils::Face_Colors::SIGMOID_PARAMETER) {
+			std::cout << "fds\n";
+			auto& AS = Outputs[i].Energy_auxSpherePerHinge;
+			for (int hi = 0; hi < AS->mesh_indices.num_hinges; hi++) {
+				const int f0 = AS->hinges_faceIndex[hi][0];
+				const int f1 = AS->hinges_faceIndex[hi][1];
+				const double log_minus_w = -log2(AS->Sigmoid_PerHinge.host_arr[hi]);
+				if (log_minus_w > 0) {
+					std::cout << log_minus_w << "\n";
+					const double alpha = log_minus_w / MAX_SIGMOID_PER_HINGE_VALUE;
+					Outputs[i].shiftFaceColors(f0, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
+					Outputs[i].shiftFaceColors(f1, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
+				}
+			}
 		}
 	}
 }

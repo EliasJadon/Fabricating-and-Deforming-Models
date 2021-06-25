@@ -16,8 +16,7 @@ public:
 	Eigen::Vector3f colorP, colorM;
 
 	void Inc_SigmoidParameter();
-	void Dec_SigmoidParameter();
-	void Dec_SigmoidParameter(const double target);
+	void Dec_SigmoidParameter(const double target = 0);
 	double get_SigmoidParameter();
 	void calculateHinges();	
 	void Reset_HingesSigmoid(const std::vector<int> faces_indices);

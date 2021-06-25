@@ -231,12 +231,6 @@ void AuxVariables::Inc_SigmoidParameter() {
 		Sigmoid_PerHinge.host_arr[hi] *= 2;
 	}
 }
-void AuxVariables::Dec_SigmoidParameter() {
-	SigmoidParameter /= 2;
-	for (int hi = 0; hi < mesh_indices.num_hinges; hi++) {
-		Sigmoid_PerHinge.host_arr[hi] /= 2;
-	}
-}
 void AuxVariables::Dec_SigmoidParameter(const double target) {
 	if (SigmoidParameter > target)
 		SigmoidParameter /= 2;
