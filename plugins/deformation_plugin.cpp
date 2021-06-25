@@ -407,16 +407,10 @@ void deformation_plugin::CollapsingHeader_user_interface()
 {
 	if (!ImGui::CollapsingHeader("User Interface"))
 	{
-		ImGui::Checkbox("Update outputs together", &UserInterface_UpdateAllOutputs);
-
-		if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID)
-			ImGui::Combo("Neighbor type", (int *)(&neighbor_Type), "Curr Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
-		if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS || UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID)
-			ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.0005f, 0.00001f, 10000.0f,"%.5f");
-		if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || 
-		    UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR || 
-			UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID)
-			ImGui::DragFloat("Brush Radius", &brush_radius);
+		ImGui::Checkbox("Update UI together", &UserInterface_UpdateAllOutputs);
+		ImGui::Combo("Neighbor type", (int *)(&neighbor_Type), "Curr Face\0Local Sphere\0Global Sphere\0Local Normals\0Global Normals\0\0");
+		ImGui::DragFloat("Neighbors Distance", &neighbor_distance, 0.0005f, 0.00001f, 10000.0f,"%.5f");
+		ImGui::DragFloat("Brush Radius", &brush_radius);
 		if (ImGui::Button("Clear sellected faces & vertices"))
 			clear_sellected_faces_and_vertices();
 	}
@@ -1053,65 +1047,6 @@ IGL_INLINE void deformation_plugin::post_resize(int w, int h)
 	global_screen_size = ImVec2(w, h);
 }
 
-void deformation_plugin::brush_erase_or_insert() 
-{
-	if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
-	{
-		if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR) {
-			double add = ADDING_WEIGHT_PER_HINGE_VALUE;
-			if (UI_status == ERASE)
-				add = -ADDING_WEIGHT_PER_HINGE_VALUE;
-			const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
-			if (UserInterface_UpdateAllOutputs) {
-				for (auto& out : Outputs) {
-					out.Energy_auxBendingNormal->Incr_HingesWeights(brush_faces, add);
-					out.Energy_auxSpherePerHinge->Incr_HingesWeights(brush_faces, add);
-					out.Energy_auxBendingNormal->Reset_HingesSigmoid(brush_faces);
-					out.Energy_auxSpherePerHinge->Reset_HingesSigmoid(brush_faces);
-				}
-			}
-			else {
-				Outputs[Brush_output_index].Energy_auxBendingNormal->Incr_HingesWeights(brush_faces, add);
-				Outputs[Brush_output_index].Energy_auxSpherePerHinge->Incr_HingesWeights(brush_faces, add);
-				Outputs[Brush_output_index].Energy_auxBendingNormal->Reset_HingesSigmoid(brush_faces);
-				Outputs[Brush_output_index].Energy_auxSpherePerHinge->Reset_HingesSigmoid(brush_faces);
-			}
-		}
-		else if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) {
-			double value = 0;
-			if (UI_status == ERASE)
-				value = 1;
-			const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
-			if (UserInterface_UpdateAllOutputs) {
-				for (auto& out : Outputs) {
-					out.Energy_auxBendingNormal->Set_HingesWeights(brush_faces, value);
-					out.Energy_auxSpherePerHinge->Set_HingesWeights(brush_faces, value);
-				}
-			}
-			else {
-				Outputs[Brush_output_index].Energy_auxBendingNormal->Set_HingesWeights(brush_faces, value);
-				Outputs[Brush_output_index].Energy_auxSpherePerHinge->Set_HingesWeights(brush_faces, value);
-			}
-		}
-		else if(UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID) {
-			double factor = ADDING_SIGMOID_PER_HINGE_VALUE;
-			if (UI_status != INSERT)
-				factor = 1 / ADDING_SIGMOID_PER_HINGE_VALUE;
-			const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
-			if (UserInterface_UpdateAllOutputs) {
-				for (auto& out : Outputs) {
-					out.Energy_auxBendingNormal->Update_HingesSigmoid(brush_faces, factor);
-					out.Energy_auxSpherePerHinge->Update_HingesSigmoid(brush_faces, factor);
-				}
-			}
-			else {
-				Outputs[Brush_output_index].Energy_auxBendingNormal->Update_HingesSigmoid(brush_faces, factor);
-				Outputs[Brush_output_index].Energy_auxSpherePerHinge->Update_HingesSigmoid(brush_faces, factor);
-			}
-		}
-	}
-}
-
 IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 {
 	if (!isModelLoaded || IsMouseDraggingAnyWindow)
@@ -1156,7 +1091,61 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		}
 		if (out.UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID))
 		{
-			brush_erase_or_insert();
+			if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
+			{
+				if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR) {
+					double add = ADDING_WEIGHT_PER_HINGE_VALUE;
+					if (UI_status == ERASE)
+						add = -ADDING_WEIGHT_PER_HINGE_VALUE;
+					const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
+					if (UserInterface_UpdateAllOutputs) {
+						for (auto& out : Outputs) {
+							out.Energy_auxBendingNormal->Incr_HingesWeights(brush_faces, add);
+							out.Energy_auxSpherePerHinge->Incr_HingesWeights(brush_faces, add);
+							out.Energy_auxBendingNormal->Reset_HingesSigmoid(brush_faces);
+							out.Energy_auxSpherePerHinge->Reset_HingesSigmoid(brush_faces);
+						}
+					}
+					else {
+						Outputs[Brush_output_index].Energy_auxBendingNormal->Incr_HingesWeights(brush_faces, add);
+						Outputs[Brush_output_index].Energy_auxSpherePerHinge->Incr_HingesWeights(brush_faces, add);
+						Outputs[Brush_output_index].Energy_auxBendingNormal->Reset_HingesSigmoid(brush_faces);
+						Outputs[Brush_output_index].Energy_auxSpherePerHinge->Reset_HingesSigmoid(brush_faces);
+					}
+				}
+				else if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) {
+					double value = 0;
+					if (UI_status == ERASE)
+						value = 1;
+					const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
+					if (UserInterface_UpdateAllOutputs) {
+						for (auto& out : Outputs) {
+							out.Energy_auxBendingNormal->Set_HingesWeights(brush_faces, value);
+							out.Energy_auxSpherePerHinge->Set_HingesWeights(brush_faces, value);
+						}
+					}
+					else {
+						Outputs[Brush_output_index].Energy_auxBendingNormal->Set_HingesWeights(brush_faces, value);
+						Outputs[Brush_output_index].Energy_auxSpherePerHinge->Set_HingesWeights(brush_faces, value);
+					}
+				}
+				else if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID) {
+					double factor = ADDING_SIGMOID_PER_HINGE_VALUE;
+					if (UI_status != INSERT)
+						factor = 1 / ADDING_SIGMOID_PER_HINGE_VALUE;
+					const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
+					if (UserInterface_UpdateAllOutputs) {
+						for (auto& out : Outputs) {
+							out.Energy_auxBendingNormal->Update_HingesSigmoid(brush_faces, factor);
+							out.Energy_auxSpherePerHinge->Update_HingesSigmoid(brush_faces, factor);
+						}
+					}
+					else {
+						Outputs[Brush_output_index].Energy_auxBendingNormal->Update_HingesSigmoid(brush_faces, factor);
+						Outputs[Brush_output_index].Energy_auxSpherePerHinge->Update_HingesSigmoid(brush_faces, factor);
+					}
+				}
+			}
 			returnTrue = true;
 		}
 	}
@@ -1372,13 +1361,11 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	}
 	if ((key == 'a' || key == 'A') && modifiers == 1) 
 	{
-		modelPath = OptimizationUtils::ProjectPath() + 
-			"\\models\\InputModels\\from_2k_to_10k\\island.off";
+		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\from_2k_to_10k\\island.off";
 		isLoadNeeded = true;
 	}
 	if ((key == 's' || key == 'S') && modifiers == 1) {
-		modelPath = OptimizationUtils::ProjectPath() + 
-			"\\models\\InputModels\\Bear_without_eyes.off";
+		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\Bear_without_eyes.off";
 		isLoadNeeded = true;
 	}
 	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) 
@@ -1392,15 +1379,10 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		}
 		for (OptimizationOutput& out : Outputs) 
 		{
-			for (auto& obj : out.totalObjective->objectiveList) 
-			{
-				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				if(ABN != NULL)
-					ABN->w = 1.6;
-				if (AS != NULL)
-					AS->w = 0;
-			}
+			std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(out.totalObjective->objectiveList[0]);
+			std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(out.totalObjective->objectiveList[1]);
+			ABN->w = 1.6;
+			AS->w = 0;
 		}
 	}
 	if (isModelLoaded && (key == 'w' || key == 'W') && modifiers == 1) 
@@ -1418,12 +1400,10 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		{
 			for (auto& obj : out.totalObjective->objectiveList) 
 			{
-				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
-				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
-				if (ABN != NULL)
-					ABN->w = 0;
-				if (AS != NULL)
-					AS->w = 1.6;
+				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(out.totalObjective->objectiveList[0]);
+				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(out.totalObjective->objectiveList[1]);
+				ABN->w = 0;
+				AS->w = 1.6;
 			}
 		}
 	}
@@ -1771,8 +1751,6 @@ igl::opengl::ViewerCore& deformation_plugin::OutputCore(const int index)
 {
 	return viewer->core(Outputs[index].CoreID);
 }
-
-
 
 bool deformation_plugin::pick_face(
 	int* output_index, 
