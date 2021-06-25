@@ -43,7 +43,7 @@ private:
 		Vertex_Energy_color,
 		text_color;
 	float core_size;
-	app_utils::Clustering_Type clustering_Type;
+	app_utils::Face_Colors face_coloring_Type;
 	float clustering_w;
 	Eigen::Vector3f intersec_point;
 	app_utils::Neighbor_Type neighbor_Type;

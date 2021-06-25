@@ -41,7 +41,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	IsChoosingGroups = false;
 	isModelLoaded = false;
 	isUpdateAll = true;
-	clustering_Type = app_utils::Clustering_Type::NO_CLUSTERING;
+	face_coloring_Type = app_utils::Face_Colors::NO_COLORS;
 	clustering_w = 0.65;
 	faceColoring_type = 1;
 	curr_highlighted_output = curr_highlighted_face = NOT_FOUND;
@@ -422,7 +422,7 @@ void deformation_plugin::CollapsingHeader_clustering()
 	if (ImGui::CollapsingHeader("Clustering"))
 	{
 		CollapsingHeader_curr[3] = true;
-		ImGui::Combo("Clus. Type", (int*)(&clustering_Type), "No Clustering\0Normals\0Spheres\0\0");
+		ImGui::Combo("Face Colors Type", (int*)(&face_coloring_Type), "No Colors\0Normals Clustering\0Spheres Clustering\0Sigmoid Parameter\0\0");
 		ImGui::DragFloat("Bright. Weight", &clustering_w, 0.001f, 0, 1);
 		ImGui::Checkbox("Use HashMap", &clustering_hashMap);
 		ImGui::DragFloat("Min Distance", &Clustering_MinDistance, 0.000001f, 0, 1,"%.8f");	
@@ -1273,12 +1273,16 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if ((key == 'c' || key == 'C') && modifiers == 1)
 		clear_sellected_faces_and_vertices();
 	if ((key == 'x' || key == 'X') && modifiers == 1) {
-		if (clustering_Type != app_utils::Clustering_Type::NO_CLUSTERING)
-			clustering_Type = app_utils::Clustering_Type::NO_CLUSTERING;
-		else {
-			clustering_Type = app_utils::Clustering_Type::SPHERES;
+		if (face_coloring_Type == app_utils::Face_Colors::NO_COLORS) {
+			face_coloring_Type = app_utils::Face_Colors::SPHERES_CLUSTERING;
 			if (neighbor_Type == app_utils::Neighbor_Type::LOCAL_NORMALS)
-				clustering_Type = app_utils::Clustering_Type::NORMALS;
+				face_coloring_Type = app_utils::Face_Colors::NORMALS_CLUSTERING;
+		}
+		else if (face_coloring_Type == app_utils::Face_Colors::SIGMOID_PARAMETER) {
+			face_coloring_Type = app_utils::Face_Colors::NO_COLORS;
+		}	
+		else {
+			face_coloring_Type = app_utils::Face_Colors::SIGMOID_PARAMETER;
 		}
 	}
 	if ((key == 'a' || key == 'A') && modifiers == 1) 
@@ -1293,7 +1297,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) 
 	{
 		neighbor_Type = app_utils::Neighbor_Type::LOCAL_NORMALS;
-		clustering_Type = app_utils::Clustering_Type::NORMALS;
+		face_coloring_Type = app_utils::Face_Colors::NORMALS_CLUSTERING;
 		for (auto&out : Outputs) {
 			out.showFacesNorm = true;
 			out.showSphereEdges = out.showNormEdges = 
@@ -1310,7 +1314,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	if (isModelLoaded && (key == 'w' || key == 'W') && modifiers == 1) 
 	{
 		neighbor_Type = app_utils::Neighbor_Type::LOCAL_SPHERE;
-		clustering_Type = app_utils::Clustering_Type::SPHERES;
+		face_coloring_Type = app_utils::Face_Colors::SPHERES_CLUSTERING;
 		initSphereAuxVariables = OptimizationUtils::InitSphereAuxVariables::MINUS_NORMALS;
 		init_aux_variables();
 		for (auto&out : Outputs) {
@@ -1599,20 +1603,13 @@ void deformation_plugin::follow_and_mark_selected_faces()
 		}
 
 		//Mark the clusters if needed
-		if (clustering_Type != app_utils::Clustering_Type::NO_CLUSTERING) {
-			Eigen::MatrixXd P;
-			if (clustering_Type == app_utils::Clustering_Type::NORMALS) {
-				P = Outputs[i].getFacesNormals();
-			}
-			if (clustering_Type == app_utils::Clustering_Type::SPHERES) {
+		if (face_coloring_Type == app_utils::Face_Colors::NORMALS_CLUSTERING || face_coloring_Type == app_utils::Face_Colors::SPHERES_CLUSTERING) {
+			Eigen::MatrixXd P = Outputs[i].getFacesNormals();
+			if (face_coloring_Type == app_utils::Face_Colors::SPHERES_CLUSTERING) {
 				Eigen::MatrixXd C = Outputs[i].getCenterOfSphere();
 				Eigen::VectorXd R = Outputs[i].getRadiusOfSphere();
-				P.resize(C.rows(), 3);
-				for (int fi = 0; fi < C.rows(); fi++) {
-					P(fi, 0) = C(fi, 0) * R(fi);
-					P(fi, 1) = C(fi, 1);
-					P(fi, 2) = C(fi, 2);
-				}
+				for (int fi = 0; fi < C.rows(); fi++)
+					P.row(fi) << C(fi, 0) * R(fi), C(fi, 1), C(fi, 2);
 			}
 
 			Eigen::RowVector3d Pmin = P.row(0);
