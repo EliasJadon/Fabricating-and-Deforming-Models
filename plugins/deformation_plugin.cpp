@@ -1270,6 +1270,18 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 
 IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers) 
 {
+	if ((key == 'a' || key == 'A') && modifiers == 1)
+	{
+		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\from_2k_to_10k\\island.off";
+		isLoadNeeded = true;
+	}
+	if ((key == 's' || key == 'S') && modifiers == 1) {
+		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\Bear_without_eyes.off";
+		isLoadNeeded = true;
+	}
+	if (!isModelLoaded)
+		return ImGuiMenu::key_pressed(key, modifiers);
+
 	if ((key == 'c' || key == 'C') && modifiers == 1)
 		clear_sellected_faces_and_vertices();
 	if ((key == 'x' || key == 'X') && modifiers == 1) {
@@ -1285,16 +1297,8 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			face_coloring_Type = app_utils::Face_Colors::SIGMOID_PARAMETER;
 		}
 	}
-	if ((key == 'a' || key == 'A') && modifiers == 1) 
-	{
-		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\from_2k_to_10k\\island.off";
-		isLoadNeeded = true;
-	}
-	if ((key == 's' || key == 'S') && modifiers == 1) {
-		modelPath = OptimizationUtils::ProjectPath() + "\\models\\InputModels\\Bear_without_eyes.off";
-		isLoadNeeded = true;
-	}
-	if (isModelLoaded && (key == 'q' || key == 'Q') && modifiers == 1) 
+	
+	if ((key == 'q' || key == 'Q') && modifiers == 1) 
 	{
 		neighbor_Type = app_utils::Neighbor_Type::LOCAL_NORMALS;
 		face_coloring_Type = app_utils::Face_Colors::NORMALS_CLUSTERING;
@@ -1311,7 +1315,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			AS->w = 0;
 		}
 	}
-	if (isModelLoaded && (key == 'w' || key == 'W') && modifiers == 1) 
+	if ((key == 'w' || key == 'W') && modifiers == 1) 
 	{
 		neighbor_Type = app_utils::Neighbor_Type::LOCAL_SPHERE;
 		face_coloring_Type = app_utils::Face_Colors::SPHERES_CLUSTERING;
@@ -1334,7 +1338,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		}
 	}
 	
-	if ((key == ' ') && modifiers == 1 && isModelLoaded)
+	if ((key == ' ') && modifiers == 1)
 		isMinimizerRunning ? stop_minimizer_thread() : start_minimizer_thread();
 	
 	return ImGuiMenu::key_pressed(key, modifiers);
@@ -1420,6 +1424,9 @@ void deformation_plugin::draw_brush_sphere()
 
 IGL_INLINE bool deformation_plugin::pre_draw() 
 {
+	if (!isModelLoaded)
+		return ImGuiMenu::pre_draw();
+
 	follow_and_mark_selected_faces();
 	Update_view();
 	update_parameters_for_all_cores();
@@ -1432,49 +1439,47 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 		OutputModel(i).set_colors(Outputs[i].color_per_face);
 
 	//Update the model's vertex colors in screens
-	if (isModelLoaded) {
-		InputModel().point_size = 10;
-		InputModel().set_points(Outputs[ActiveOutput].fixed_vertices_positions, Outputs[ActiveOutput].color_per_vertex);
-		for (int oi = 0; oi < Outputs.size(); oi++) {
-			auto& m = OutputModel(oi);
-			auto& o = Outputs[oi];
-			auto& AS = Outputs[oi].Energy_auxSpherePerHinge;
-			m.point_size = 10;
-			m.set_points(o.fixed_vertices_positions, o.color_per_vertex);
-			m.clear_edges();
+	InputModel().point_size = 10;
+	InputModel().set_points(Outputs[ActiveOutput].fixed_vertices_positions, Outputs[ActiveOutput].color_per_vertex);
+	for (int oi = 0; oi < Outputs.size(); oi++) {
+		auto& m = OutputModel(oi);
+		auto& o = Outputs[oi];
+		auto& AS = Outputs[oi].Energy_auxSpherePerHinge;
+		m.point_size = 10;
+		m.set_points(o.fixed_vertices_positions, o.color_per_vertex);
+		m.clear_edges();
 
-			if (o.showFacesNorm)
-				m.add_points(o.getFacesNorm(), o.color_per_face_norm);
-			if (o.showTriangleCenters)
-				m.add_points(o.getCenterOfFaces(), o.color_per_vertex_center);
-			if (o.showSphereCenters)
-				m.add_points(o.getCenterOfSphere(), o.color_per_sphere_center);
-			if (o.showSphereEdges)
-				m.add_edges(o.getCenterOfFaces(), o.getSphereEdges(), o.color_per_sphere_edge);
-			if (o.showNormEdges)
-				m.add_edges(o.getCenterOfFaces(), o.getFacesNorm(), o.color_per_norm_edge);
+		if (o.showFacesNorm)
+			m.add_points(o.getFacesNorm(), o.color_per_face_norm);
+		if (o.showTriangleCenters)
+			m.add_points(o.getCenterOfFaces(), o.color_per_vertex_center);
+		if (o.showSphereCenters)
+			m.add_points(o.getCenterOfSphere(), o.color_per_sphere_center);
+		if (o.showSphereEdges)
+			m.add_edges(o.getCenterOfFaces(), o.getSphereEdges(), o.color_per_sphere_edge);
+		if (o.showNormEdges)
+			m.add_edges(o.getCenterOfFaces(), o.getFacesNorm(), o.color_per_norm_edge);
 			
-			// Update Vertices colors for UI sigmoid weights
-			int num_hinges = AS->mesh_indices.num_hinges;
-			const Eigen::VectorXi& x0_index = AS->x0_GlobInd;
-			const Eigen::VectorXi& x1_index = AS->x1_GlobInd;
-			double* hinge_val = AS->weight_PerHinge.host_arr;
-			std::set<int> points_indices;
-			for (int hi = 0; hi < num_hinges; hi++) {
-				if (hinge_val[hi] < 1) {
-					points_indices.insert(x0_index[hi]);
-					points_indices.insert(x1_index[hi]);
-				}
+		// Update Vertices colors for UI sigmoid weights
+		int num_hinges = AS->mesh_indices.num_hinges;
+		const Eigen::VectorXi& x0_index = AS->x0_GlobInd;
+		const Eigen::VectorXi& x1_index = AS->x1_GlobInd;
+		double* hinge_val = AS->weight_PerHinge.host_arr;
+		std::set<int> points_indices;
+		for (int hi = 0; hi < num_hinges; hi++) {
+			if (hinge_val[hi] < 1) {
+				points_indices.insert(x0_index[hi]);
+				points_indices.insert(x1_index[hi]);
 			}
-			Eigen::MatrixXd points_pos(points_indices.size(), 3);
-			auto& iter = points_indices.begin();
-			for (int i = 0; i < points_pos.rows(); i++) {
-				int v_index = *(iter++);
-				points_pos.row(i) = m.V.row(v_index);
-			}
-			auto color = Outputs[oi].Energy_auxBendingNormal->colorM.cast<double>().replicate(1, points_indices.size()).transpose();
-			m.add_points(points_pos, color);
 		}
+		Eigen::MatrixXd points_pos(points_indices.size(), 3);
+		auto& iter = points_indices.begin();
+		for (int i = 0; i < points_pos.rows(); i++) {
+			int v_index = *(iter++);
+			points_pos.row(i) = m.V.row(v_index);
+		}
+		auto color = Outputs[oi].Energy_auxBendingNormal->colorM.cast<double>().replicate(1, points_indices.size()).transpose();
+		m.add_points(points_pos, color);
 	}
 	draw_brush_sphere();
 	
@@ -1505,8 +1510,7 @@ void deformation_plugin::update_ext_fixed_vertices()
 		for (auto hi : CurrHandlesInd)
 			CurrHandlesPosDeformed.row(idx++) = OutputModel(i).V.row(hi);
 		//Finally, we update the handles in the constraints positional object
-		if (isModelLoaded)
-			Outputs[i].Energy_FixChosenVertices->updateExtConstraints(CurrHandlesInd, CurrHandlesPosDeformed);
+		Outputs[i].Energy_FixChosenVertices->updateExtConstraints(CurrHandlesInd, CurrHandlesPosDeformed);
 	}
 }
 
@@ -1527,8 +1531,6 @@ void deformation_plugin::Update_view()
 
 void deformation_plugin::follow_and_mark_selected_faces() 
 {
-	if (!isModelLoaded)
-		return;
 	for (int i = 0; i < Outputs.size(); i++) 
 	{
 		Outputs[i].initFaceColors(
@@ -1781,11 +1783,6 @@ void deformation_plugin::checkGradients()
 	stop_minimizer_thread();
 	for (auto& o: Outputs) 
 	{
-		if (!isModelLoaded) 
-		{
-			isMinimizerRunning = false;
-			return;
-		}
 		Eigen::VectorXd testX = Eigen::VectorXd::Random(o.totalObjective->objectiveList[0]->grad.size);
 		o.totalObjective->checkGradient(testX);
 		for (auto const &objective : o.totalObjective->objectiveList)
