@@ -41,13 +41,6 @@ Eigen::VectorXd OptimizationOutput::getRadiusOfSphere()
 	return this->radiuses;
 }
 
-void OptimizationOutput::translateFaces(
-	const int fi, 
-	const Eigen::Vector3d translateValue) {
-	this->center_of_sphere.row(fi) += translateValue;
-	this->normals.row(fi) += translateValue;
-}
-
 Eigen::MatrixXd OptimizationOutput::getCenterOfFaces() {
 	return center_of_faces;
 }

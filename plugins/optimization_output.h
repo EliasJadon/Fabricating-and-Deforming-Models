@@ -48,7 +48,6 @@ public:
 	);
 	double getRadiusOfSphere(int index);
 	Eigen::VectorXd getRadiusOfSphere();
-	void translateFaces(const int fi, const Eigen::Vector3d translateValue);
 	Eigen::MatrixXd getCenterOfFaces();
 	Eigen::MatrixXd getFacesNormals();
 	Eigen::MatrixXd getFacesNorm();
