@@ -60,7 +60,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	Color_sphere_edges = Color_normal_edge = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);
 	face_norm_color = Eigen::Vector3f(0, 1, 1);
 	Fixed_vertex_color = Fixed_face_color = BLUE_COLOR;
-	Dragged_vertex_color = Dragged_face_color = GREEN_COLOR;
+	Dragged_vertex_color = GREEN_COLOR;
 	model_color = GREY_COLOR;
 	text_color = BLACK_COLOR;
 	//update input viewer
@@ -354,7 +354,6 @@ void deformation_plugin::CollapsingHeader_colors()
 		ImGui::ColorEdit3("Face norm", face_norm_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Neighbors Highlighted face", Neighbors_Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Fixed face", Fixed_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Dragged face", Dragged_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Fixed vertex", Fixed_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Dragged vertex", Dragged_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Model", model_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
@@ -1657,9 +1656,6 @@ void deformation_plugin::follow_and_mark_selected_faces()
 				Outputs[i].setFaceColors(fi, Neighbors_Highlighted_face_color);
 			Outputs[i].setFaceColors(curr_highlighted_face, Highlighted_face_color);
 		}
-		//Mark the Dragged face
-		if (Outputs[i].UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES))
-			Outputs[i].setFaceColors(Outputs[i].UserInterface_TranslateIndex, Dragged_face_color);
 		//Mark the vertices
 		int idx = 0;
 		Outputs[i].fixed_vertices_positions.resize(Outputs[i].UserInterface_FixedVertices.size(), 3);
@@ -1907,22 +1903,17 @@ void deformation_plugin::checkGradients()
 }
 
 void deformation_plugin::update_data_from_minimizer()
-{
-	const unsigned int out_size = Outputs.size();
-	std::vector<Eigen::MatrixXd> V(out_size), center(out_size), norm(out_size);
-	std::vector<Eigen::VectorXd> radius(out_size);
-	for (int i = 0; i < out_size; i++)
+{	
+	for (int i = 0; i < Outputs.size(); i++)
 	{
+		Eigen::MatrixXd V, center, norm;
+		Eigen::VectorXd radius;
+
 		auto& out = Outputs[i];
-		out.minimizer->get_data(V[i], center[i], radius[i], norm[i]);
+		out.minimizer->get_data(V, center, radius, norm);
 		
-		if (out.UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES)
-			V[i].row(out.UserInterface_TranslateIndex) = OutputModel(i).V.row(out.UserInterface_TranslateIndex);
-		else if (out.UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && out.getCenterOfSphere().size())
-			center[i].row(out.UserInterface_TranslateIndex) = out.getCenterOfSphere().row(out.UserInterface_TranslateIndex);
-		
-		out.setAuxVariables(V[i], InputModel().F, center[i], radius[i], norm[i]);
-		set_vertices_for_mesh(V[i],i);
+		out.setAuxVariables(V, InputModel().F, center, radius, norm);
+		set_vertices_for_mesh(V, i);
 	}
 }
 

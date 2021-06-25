@@ -41,7 +41,6 @@ private:
 		Fixed_face_color,
 		Fixed_vertex_color,
 		model_color,
-		Dragged_face_color,
 		Dragged_vertex_color,
 		Vertex_Energy_color,
 		text_color;
