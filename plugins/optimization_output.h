@@ -3,11 +3,8 @@
 
 class OptimizationOutput {
 public:
-	Eigen::MatrixXd center_of_faces;
-	Eigen::MatrixXd center_of_sphere;
-	Eigen::MatrixXd normals;
+	Eigen::MatrixXd center_of_faces, center_of_sphere, normals;
 	Eigen::VectorXd radiuses;
-
 	std::vector<std::vector<int>> clustering_faces_indices;
 	Eigen::MatrixXd clustering_faces_colors;
 	std::shared_ptr <AuxSpherePerHinge> Energy_auxSpherePerHinge;
@@ -34,6 +31,8 @@ public:
 	int UserInterface_TranslateIndex;
 	ImVec2 screen_position, screen_size, results_window_position, outputs_window_position;
 	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCenters, showFacesNorm;
+
+
 
 	OptimizationOutput(
 		igl::opengl::glfw::Viewer* viewer,

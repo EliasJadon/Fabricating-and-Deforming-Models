@@ -9,8 +9,6 @@ class deformation_plugin : public igl::opengl::glfw::imgui::ImGuiMenu
 {
 private:
 	int ActiveOutput = 0;
-	std::vector<int> copy_index;
-	std::vector < std::set<int>> paste_index;
 	int InitMinimizer_NeighLevel_From = 1;
 	int InitMinimizer_NeighLevel_To = 10;
 	bool CollapsingHeader_curr[7], CollapsingHeader_prev[7], CollapsingHeader_change;

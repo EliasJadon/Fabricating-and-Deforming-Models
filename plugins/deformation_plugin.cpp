@@ -422,40 +422,10 @@ void deformation_plugin::CollapsingHeader_clustering()
 	if (ImGui::CollapsingHeader("Clustering"))
 	{
 		CollapsingHeader_curr[3] = true;
-		if (ImGui::Button("Copy")) {
-			int ind;
-			for (int f : Outputs[0].UserInterface_FixedFaces) {
-				ind = f;
-			}
-			copy_index.push_back(ind);
-			
-			std::vector<Eigen::Vector2d>& hinge_to_face_mapping = Outputs[0].Energy_auxSpherePerHinge->hinges_faceIndex;
-			int num_hinges = Outputs[0].Energy_auxSpherePerHinge->mesh_indices.num_hinges;
-			double* hinge_val = Outputs[0].Energy_auxSpherePerHinge->weight_PerHinge.host_arr;
-			std::set<int> chosen_faces;
-			for (int hi = 0; hi < num_hinges; hi++) {
-				if (hinge_val[hi] > 1) {
-					chosen_faces.insert(hinge_to_face_mapping[hi][0]);
-					chosen_faces.insert(hinge_to_face_mapping[hi][1]);
-				}
-			}
-			paste_index.push_back(chosen_faces);
-		}
-		ImGui::SameLine();
-		if (ImGui::Button("Reset")) {
-			copy_index.clear();
-			paste_index.clear();
-		}
-		
 		ImGui::Combo("Clus. Type", (int*)(&clustering_Type), "No Clustering\0Normals\0Spheres\0\0");
 		ImGui::DragFloat("Bright. Weight", &clustering_w, 0.001f, 0, 1);
-			
-		if (clustering_Type != app_utils::Clustering_Type::NO_CLUSTERING)
-		{
-			ImGui::Checkbox("Use HashMap", &clustering_hashMap);
-			if (clustering_hashMap)
-				ImGui::DragFloat("Min Distance", &Clustering_MinDistance, 0.000001f, 0, 1,"%.8f");	
-		}
+		ImGui::Checkbox("Use HashMap", &clustering_hashMap);
+		ImGui::DragFloat("Min Distance", &Clustering_MinDistance, 0.000001f, 0, 1,"%.8f");	
 	}
 }
 
@@ -693,7 +663,7 @@ void deformation_plugin::Draw_energies_window()
 			}
 			ImGui::TableAutoHeaders();
 			ImGui::Separator();
-
+			
 			ImGui::TableNextRow();
 			for (int i = 0; i < Outputs.size(); i++) 
 			{
@@ -1920,8 +1890,8 @@ void deformation_plugin::init_aux_variables()
 			initSphereAuxVariables,
 			InitMinimizer_NeighLevel_From,
 			InitMinimizer_NeighLevel_To,
-			copy_index,
-			paste_index,
+			{},
+			{},
 			radius_length_minus_normal);
 }
 
