@@ -890,7 +890,6 @@ void deformation_plugin::clear_sellected_faces_and_vertices()
 		
 		o.UserInterface_FixedFaces.clear();
 		o.UserInterface_FixedVertices.clear();
-		o.printNormals_saveVertices.clear();
 	}
 	update_ext_fixed_vertices();
 }
@@ -1284,7 +1283,6 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 				for (auto& out : Outputs)
 				{
 					out.UserInterface_FixedVertices.insert(vertex_index);
-					out.printNormals_saveVertices.push_back(vertex_index);
 					out.UserInterface_IsTranslate = true;
 					out.UserInterface_TranslateIndex = vertex_index;
 				}
@@ -1292,7 +1290,6 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			else
 			{
 				Outputs[output_index].UserInterface_FixedVertices.insert(vertex_index);
-				Outputs[output_index].printNormals_saveVertices.push_back(vertex_index);
 				Outputs[output_index].UserInterface_IsTranslate = true;
 				Outputs[output_index].UserInterface_TranslateIndex = vertex_index;
 			}
