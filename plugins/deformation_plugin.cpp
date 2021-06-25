@@ -1150,21 +1150,6 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 					Outputs[output_index].Energy_auxSpherePerHinge->Reset_HingesSigmoid(neigh_faces);
 				}
 			}
-			else if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_SIGMOID) {
-				double factor = pow(ADDING_SIGMOID_PER_HINGE_VALUE, 5);
-				if (UI_status != INSERT)
-					factor = 1 / pow(ADDING_SIGMOID_PER_HINGE_VALUE, 5);
-				if (UserInterface_UpdateAllOutputs) {
-					for (auto& out : Outputs) {
-						out.Energy_auxBendingNormal->Update_HingesSigmoid(neigh_faces, factor);
-						out.Energy_auxSpherePerHinge->Update_HingesSigmoid(neigh_faces, factor);
-					}
-				}
-				else {
-					Outputs[output_index].Energy_auxBendingNormal->Update_HingesSigmoid(neigh_faces, factor);
-					Outputs[output_index].Energy_auxSpherePerHinge->Update_HingesSigmoid(neigh_faces, factor);
-				}
-			}
 		}
 	}
 	return false;
