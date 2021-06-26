@@ -1384,29 +1384,31 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 {
 	if (!isModelLoaded)
 		return ImGuiMenu::pre_draw();
-
-	follow_and_mark_selected_faces();
-	Update_view();
-	update_parameters_for_all_cores();
 	for (auto& out : Outputs)
 		if (out.minimizer->progressed)
 			update_data_from_minimizer();
+	Update_view();
+	update_parameters_for_all_cores();
+
+
+	follow_and_mark_selected_faces();
 	//Update the model's faces colors in the screens
 	InputModel().set_colors(Outputs[ActiveOutput].color_per_face);
 	for (int i = 0; i < Outputs.size(); i++)
 		OutputModel(i).set_colors(Outputs[i].color_per_face);
 
 	//Update the model's vertex colors in screens
-	InputModel().point_size = 10;
-	InputModel().set_points(Outputs[ActiveOutput].fixed_vertices_positions, Outputs[ActiveOutput].color_per_vertex);
 	for (int oi = 0; oi < Outputs.size(); oi++) {
 		auto& m = OutputModel(oi);
 		auto& o = Outputs[oi];
 		auto& AS = Outputs[oi].Energy_auxSpherePerHinge;
 		m.point_size = 10;
-		m.set_points(o.fixed_vertices_positions, o.color_per_vertex);
+		m.clear_points();
 		m.clear_edges();
-
+		if (o.UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES))
+			m.add_points(m.V.row(o.UserInterface_TranslateIndex), Dragged_vertex_color.cast<double>().transpose());
+		for (auto vi : o.Energy_FixChosenVertices->getConstraintsIndices())
+			m.add_points(m.V.row(vi), Fixed_vertex_color.cast<double>().transpose());
 		if (o.showFacesNorm)
 			m.add_points(o.getFacesNorm(), o.color_per_face_norm);
 		if (o.showTriangleCenters)
@@ -1440,7 +1442,8 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 		m.add_points(points_pos, color);
 	}
 	draw_brush_sphere();
-	
+	InputModel().point_size = OutputModel(ActiveOutput).point_size;
+	InputModel().set_points(OutputModel(ActiveOutput).points.leftCols(3), OutputModel(ActiveOutput).points.rightCols(3));
 	return ImGuiMenu::pre_draw();
 }
 
@@ -1503,29 +1506,7 @@ void deformation_plugin::follow_and_mark_selected_faces()
 				Outputs[i].setFaceColors(fi, Neighbors_Highlighted_face_color);
 			Outputs[i].setFaceColors(curr_highlighted_face, Highlighted_face_color);
 		}
-		{
-			//Mark the vertices
-			int idx = 0;
-			std::set<int>& c = Outputs[i].Energy_FixChosenVertices->getConstraintsIndices();
-			Outputs[i].fixed_vertices_positions.resize(c.size(), 3);
-			Outputs[i].color_per_vertex.resize(c.size(), 3);
-			//Mark the dragged vertex
-			if (Outputs[i].UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES))
-			{
-				Outputs[i].fixed_vertices_positions.resize(c.size() + 1, 3);
-				Outputs[i].color_per_vertex.resize(c.size() + 1, 3);
-				Outputs[i].color_per_vertex.row(idx) = Dragged_vertex_color.cast<double>();
-				Outputs[i].fixed_vertices_positions.row(idx) = OutputModel(i).V.row(Outputs[i].UserInterface_TranslateIndex);
-				idx++;
-			}
-			//Mark the fixed vertices
-			for (auto vi : c) {
-				Outputs[i].fixed_vertices_positions.row(idx) = OutputModel(i).V.row(vi);
-				Outputs[i].color_per_vertex.row(idx++) = Fixed_vertex_color.cast<double>();
-			}
-		}
 		
-
 		//Mark the clusters if needed
 		if (face_coloring_Type == app_utils::Face_Colors::NORMALS_CLUSTERING || face_coloring_Type == app_utils::Face_Colors::SPHERES_CLUSTERING) {
 			Eigen::MatrixXd P = Outputs[i].getFacesNormals();

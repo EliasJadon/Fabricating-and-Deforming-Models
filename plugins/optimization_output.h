@@ -17,10 +17,8 @@ public:
 	float prev_camera_zoom;
 	Eigen::Vector3f prev_camera_translation;
 	Eigen::Quaternionf prev_trackball_angle;
-	Eigen::MatrixXd fixed_vertices_positions;
 	Eigen::MatrixXd
 		color_per_face,
-		color_per_vertex,
 		color_per_sphere_center,
 		color_per_vertex_center,
 		color_per_face_norm,
