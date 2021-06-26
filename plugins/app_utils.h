@@ -62,9 +62,7 @@ namespace app_utils
 		FIX_FACES,
 		BRUSH_WEIGHTS_INCR,
 		BRUSH_WEIGHTS_DECR,
-		BRUSH_SIGMOID,
-		ADJ_WEIGHTS,
-		ADJ_SIGMOID
+		ADJ_WEIGHTS
 	};
 	
 	static bool writeOFFwithColors(

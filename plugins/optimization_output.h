@@ -7,13 +7,13 @@ public:
 	Eigen::VectorXd radiuses;
 	std::vector<std::vector<int>> clustering_faces_indices;
 	Eigen::MatrixXd clustering_faces_colors;
+
 	std::shared_ptr <AuxSpherePerHinge> Energy_auxSpherePerHinge;
 	std::shared_ptr <AuxBendingNormal> Energy_auxBendingNormal;
 	std::shared_ptr <FixChosenConstraints> Energy_FixChosenVertices;
-
-	std::set<int> UserInterface_FixedFaces, UserInterface_FixedVertices;
 	std::shared_ptr<Minimizer> minimizer;
 	std::shared_ptr<TotalObjective> totalObjective;
+
 	float prev_camera_zoom;
 	Eigen::Vector3f prev_camera_translation;
 	Eigen::Quaternionf prev_trackball_angle;
@@ -27,8 +27,13 @@ public:
 		color_per_sphere_edge,
 		color_per_norm_edge;
 	int ModelID, CoreID;
+
+
+	std::set<int> UserInterface_FixedFaces, UserInterface_FixedVertices;
 	bool UserInterface_IsTranslate;
 	int UserInterface_TranslateIndex;
+
+
 	ImVec2 screen_position, screen_size, results_window_position, outputs_window_position;
 	bool showSphereEdges, showNormEdges, showTriangleCenters, showSphereCenters, showFacesNorm;
 

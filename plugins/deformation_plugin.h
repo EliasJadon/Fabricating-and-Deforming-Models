@@ -54,11 +54,15 @@ private:
 	std::string modelName, modelPath;
 	int inputCoreID, inputModelID;
 	app_utils::View view;
+
+	//UI variables
 	app_utils::UserInterfaceOptions UserInterface_option;
 	int UserInterface_groupNum;
 	bool IsChoosingGroups;
 	bool UI_status;
 	int Output_Translate_ID, down_mouse_x, down_mouse_y;
+
+
 	ImGuiMenu menu;
 	ImVec2 energies_window_position, global_screen_size;
 	bool UserInterface_UpdateAllOutputs;

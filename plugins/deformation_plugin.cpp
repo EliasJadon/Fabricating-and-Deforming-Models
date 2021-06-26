@@ -14,7 +14,6 @@
 
 #define ADDING_WEIGHT_PER_HINGE_VALUE 10.0f
 #define MAX_WEIGHT_PER_HINGE_VALUE  500.0f //50.0f*ADDING_WEIGHT_PER_HINGE_VALUE
-#define ADDING_SIGMOID_PER_HINGE_VALUE 0.9f
 #define MAX_SIGMOID_PER_HINGE_VALUE  40.0f //50.0f*ADDING_WEIGHT_PER_HINGE_VALUE
 
 
@@ -1044,7 +1043,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 			update_ext_fixed_vertices();
 			returnTrue = true;
 		}
-		if (out.UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID))
+		if (out.UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR))
 		{
 			if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
 			{
@@ -1069,20 +1068,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 					}
 				}
 				else if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) {
-					double value = 0;
-					if (UI_status == ERASE)
-						value = 1;
-					const std::vector<int> brush_faces = Outputs[Brush_output_index].FaceNeigh(intersec_point.cast<double>(), brush_radius);
-					if (UserInterface_UpdateAllOutputs) {
-						for (auto& out : Outputs) {
-							out.Energy_auxBendingNormal->Set_HingesWeights(brush_faces, value);
-							out.Energy_auxSpherePerHinge->Set_HingesWeights(brush_faces, value);
-						}
-					}
-					else {
-						Outputs[Brush_output_index].Energy_auxBendingNormal->Set_HingesWeights(brush_faces, value);
-						Outputs[Brush_output_index].Energy_auxSpherePerHinge->Set_HingesWeights(brush_faces, value);
-					}
+					/////////////////////.............
 				}
 			}
 			returnTrue = true;
@@ -1355,10 +1341,6 @@ IGL_INLINE bool deformation_plugin::key_down(int key, int modifiers)
 	else if (key == '4')
 		UserInterface_option = app_utils::UserInterfaceOptions::ADJ_WEIGHTS;
 	else if (key == '5')
-		UserInterface_option = app_utils::UserInterfaceOptions::BRUSH_SIGMOID;
-	else if (key == '6')
-		UserInterface_option = app_utils::UserInterfaceOptions::ADJ_SIGMOID;
-	else if (key == '7')
 		UserInterface_option = app_utils::UserInterfaceOptions::FIX_FACES;
 	
 	return ImGuiMenu::key_down(key, modifiers);
@@ -1382,24 +1364,12 @@ void deformation_plugin::draw_brush_sphere()
 		return;
 	//prepare color
 	Eigen::MatrixXd c(1, 3);
-	if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR) {
-		if (UI_status == INSERT)
-			c.row(0) = Outputs[0].Energy_auxBendingNormal->colorP.cast<double>();
-		else if (UI_status == ERASE)
-			c.row(0) = model_color.cast<double>();
-	}
-	else if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) {
-		if (UI_status == INSERT)
-			c.row(0) = Outputs[0].Energy_auxBendingNormal->colorM.cast<double>();
-		else if (UI_status == ERASE)
-			c.row(0) = model_color.cast<double>();
-	}
-	else if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_SIGMOID) {
-		if (UI_status == INSERT)
-			c.row(0) = Outputs[0].Energy_auxBendingNormal->colorP.cast<double>();
-		else if (UI_status == ERASE)
-			c.row(0) = model_color.cast<double>();
-	}
+	if (UI_status == INSERT && UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR)
+		c.row(0) = Outputs[0].Energy_auxBendingNormal->colorP.cast<double>();
+	else if (UI_status == ERASE && UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR)
+		c.row(0) = model_color.cast<double>();
+	else if (UI_status == ERASE && UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR)
+		c.row(0) = model_color.cast<double>();
 	else return;
 	
 	//prepare brush sphere
@@ -1417,7 +1387,6 @@ void deformation_plugin::draw_brush_sphere()
 				sphere.row(i + samples * j) = dir * brush_radius + center;
 		}
 	}
-	
 	//update data for cores
 	OutputModel(Brush_output_index).add_points(sphere, c);
 }
@@ -1614,14 +1583,12 @@ void deformation_plugin::follow_and_mark_selected_faces()
 			Outputs[i].clustering_faces_indices = DataColors.face_index;
 		}
 		if (face_coloring_Type == app_utils::Face_Colors::SIGMOID_PARAMETER) {
-			std::cout << "fds\n";
 			auto& AS = Outputs[i].Energy_auxSpherePerHinge;
 			for (int hi = 0; hi < AS->mesh_indices.num_hinges; hi++) {
 				const int f0 = AS->hinges_faceIndex[hi][0];
 				const int f1 = AS->hinges_faceIndex[hi][1];
 				const double log_minus_w = -log2(AS->Sigmoid_PerHinge.host_arr[hi]);
 				if (log_minus_w > 0) {
-					std::cout << log_minus_w << "\n";
 					const double alpha = log_minus_w / MAX_SIGMOID_PER_HINGE_VALUE;
 					Outputs[i].shiftFaceColors(f0, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
 					Outputs[i].shiftFaceColors(f1, alpha, model_color, Outputs[i].Energy_auxBendingNormal->colorP);
