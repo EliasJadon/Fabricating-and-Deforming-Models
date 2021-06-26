@@ -9,9 +9,6 @@ AuxVariables::AuxVariables(
 {
 	w = 1;
 	name = "Aux Variables";
-	colorP = Eigen::Vector3f(51 / 255.0f, 1, 1);
-	colorM = Eigen::Vector3f(1, 51 / 255.0f, 1);
-
 
 	//Initialize rest variables (X0) m
 	calculateHinges();

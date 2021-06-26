@@ -35,8 +35,7 @@
 #define BLACK_COLOR Eigen::Vector3f(0, 0, 0)
 #define M_PI 3.14159
 
-namespace app_utils
-{
+namespace app_utils {
 	enum Face_Colors { 
 		NO_COLORS, 
 		NORMALS_CLUSTERING, 
@@ -399,3 +398,65 @@ namespace app_utils
 		return avg;
 	}
 }
+
+#define INPUT_MODEL_SCREEN -1
+#define NOT_FOUND -1
+#define ADD false
+#define DELETE true
+
+class UI {
+public:
+	/*
+	NONE,
+		FIX_VERTICES,
+		FIX_FACES,
+		BRUSH_WEIGHTS_INCR,
+		BRUSH_WEIGHTS_DECR,
+		ADJ_WEIGHTS
+	*/
+	app_utils::UserInterfaceOptions status;
+	bool isActive;
+	int Vertex_Index, Output_Index, Face_index;
+	int down_mouse_x, down_mouse_y;
+	bool ADD_DELETE;
+	Eigen::Vector3f intersec_point;
+	Eigen::Vector3f colorP, colorM;
+
+	UI() {
+		status = app_utils::UserInterfaceOptions::NONE;
+		isActive = false;
+		Output_Index = Face_index = Vertex_Index = NOT_FOUND;
+		down_mouse_x = down_mouse_y = NOT_FOUND;
+		colorP = Eigen::Vector3f(51 / 255.0f, 1, 1);
+		colorM = Eigen::Vector3f(1, 51 / 255.0f, 1);
+	}
+
+	bool isChoosingCluster() {
+		return (status == app_utils::UserInterfaceOptions::ADJ_WEIGHTS && isActive && Face_index != NOT_FOUND);
+	}
+	bool isTranslatingVertex() {
+		return (status == app_utils::UserInterfaceOptions::FIX_VERTICES && isActive);
+	}
+	bool isBrushingWeightInc() {
+		return (status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR && isActive);
+	}
+	bool isBrushingWeightDec() {
+		return status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR && ADD_DELETE == DELETE && isActive;
+	}
+	bool isBrushing() {
+		return (isBrushingWeightInc() || isBrushingWeightDec()) && Face_index != NOT_FOUND;
+	}
+
+	Eigen::RowVector3d getBrushColor(const Eigen::Vector3f& model_color) {
+		if (ADD_DELETE == ADD && isBrushingWeightInc())
+			return colorP.cast<double>().transpose();
+		return model_color.cast<double>().transpose();
+	}
+	void clear() {
+		isActive = false;
+		Output_Index = Face_index = Vertex_Index = NOT_FOUND;
+		down_mouse_x = down_mouse_y = NOT_FOUND;
+	}
+	
+};
+

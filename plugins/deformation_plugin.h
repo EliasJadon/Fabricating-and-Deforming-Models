@@ -17,7 +17,6 @@ private:
 	bool isLoadNeeded, isModelLoaded;
 	float Max_Distortion;
 	float neighbor_distance, brush_radius;
-	int Brush_face_index, Brush_output_index;
 	bool isUpdateAll;
 	bool isMinimizerRunning, IsMouseDraggingAnyWindow;
 	int faceColoring_type;
@@ -27,7 +26,6 @@ private:
 	Cuda::OptimizerType optimizer_type;
 	OptimizationUtils::LineSearch linesearch_type;
 	float constantStep_LineSearch;
-	int curr_highlighted_face, curr_highlighted_output;
 	Eigen::Vector3f
 		Highlighted_face_color,
 		center_sphere_color,
@@ -44,7 +42,6 @@ private:
 	float core_size;
 	app_utils::Face_Colors face_coloring_Type;
 	float clustering_w;
-	Eigen::Vector3f intersec_point;
 	app_utils::Neighbor_Type neighbor_Type;
 	std::vector<OptimizationOutput> Outputs;
 	float prev_camera_zoom;
@@ -55,11 +52,7 @@ private:
 	app_utils::View view;
 
 	//UI variables
-	app_utils::UserInterfaceOptions UserInterface_option;
-	int UserInterface_groupNum;
-	bool IsChoosingGroups;
-	bool UI_status;
-	int Output_Translate_ID, down_mouse_x, down_mouse_y;
+	UI ui;
 
 
 	ImGuiMenu menu;
@@ -115,6 +108,7 @@ public:
 	igl::opengl::ViewerData& OutputModel(const int index);
 	igl::opengl::ViewerCore& InputCore();
 	igl::opengl::ViewerCore& OutputCore(const int index);
+	std::vector<std::pair<OptimizationOutput&, int>> listOfOutputsToUpdate(const int out_index);
 
 	void change_minimizer_type(Cuda::OptimizerType type);
 	void draw_brush_sphere();

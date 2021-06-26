@@ -13,7 +13,6 @@ public:
 	Eigen::VectorXi x0_GlobInd, x1_GlobInd, x2_GlobInd, x3_GlobInd;
 	Eigen::MatrixXi x0_LocInd, x1_LocInd, x2_LocInd, x3_LocInd;
 	std::vector<Eigen::Vector2d> hinges_faceIndex;
-	Eigen::Vector3f colorP, colorM;
 
 	void Inc_SigmoidParameter();
 	void Dec_SigmoidParameter(const double target = 0);

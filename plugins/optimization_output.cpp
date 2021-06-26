@@ -15,7 +15,6 @@ OptimizationOutput::OptimizationOutput(
 	minimizer->lineSearch_type = linesearchType;
 	updateActiveMinimizer(optimizerType);
 	showFacesNorm = showSphereEdges = showNormEdges = showTriangleCenters = showSphereCenters = false;
-	UserInterface_IsTranslate = false;
 }
 
 void OptimizationOutput::setAuxVariables(
