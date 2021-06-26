@@ -29,7 +29,7 @@ public:
 	int ModelID, CoreID;
 
 
-	std::set<int> UserInterface_FixedFaces, UserInterface_FixedVertices;
+	std::set<int> UserInterface_FixedFaces;
 	bool UserInterface_IsTranslate;
 	int UserInterface_TranslateIndex;
 

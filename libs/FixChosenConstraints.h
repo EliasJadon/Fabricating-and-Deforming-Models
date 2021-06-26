@@ -6,7 +6,7 @@ class FixChosenConstraints : public ObjectiveFunction
 {
 private:
 	std::mutex m_value, m_gradient;
-	std::vector<int> Constraints_indices;
+	std::set<int> Constraints_indices;
 	Eigen::MatrixX3d Constraints_Position;
 public:
 	FixChosenConstraints(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
@@ -14,5 +14,9 @@ public:
 	
 	virtual double value(Cuda::Array<double>& curr_x, const bool update) override;
 	virtual void gradient(Cuda::Array<double>& X, const bool update) override;
-	void updateExtConstraints(std::vector<int>& CVInd, Eigen::MatrixX3d& CVPos);
+	void insertConstraint(const int new_vertex, const Eigen::MatrixX3d& V);
+	void translateConstraint(const int vertex, const Eigen::RowVector3d& pos);
+	void eraseConstraint(const int vertex_index);
+	void clearConstraints();
+	std::set<int> getConstraintsIndices();
 };

@@ -5,6 +5,7 @@ FixChosenConstraints::FixChosenConstraints(const Eigen::MatrixXd& V, const Eigen
 {
     name = "Fix Chosen Vertices";
 	w = 100000;
+	Constraints_Position.resize(V.rows(), 3);
 	std::cout << "\t" << name << " constructor" << std::endl;
 }
 
@@ -13,28 +14,54 @@ FixChosenConstraints::~FixChosenConstraints()
 	std::cout << "\t" << name << " destructor" << std::endl;
 }
 
-void FixChosenConstraints::updateExtConstraints(
-	std::vector<int>& CVInd,
-	Eigen::MatrixX3d& CVPos)
+void FixChosenConstraints::insertConstraint(const int new_vertex, const Eigen::MatrixX3d& V)
 {
 	m_value.lock();
 	m_gradient.lock();
-
-	Constraints_indices = CVInd;
-	Constraints_Position = CVPos;
-
+	Constraints_indices.insert(new_vertex);
+	Constraints_Position.row(new_vertex) = V.row(new_vertex);
 	m_gradient.unlock();
 	m_value.unlock();
+}
+
+void FixChosenConstraints::translateConstraint(const int vertex, const Eigen::RowVector3d& translation)
+{
+	m_value.lock();
+	m_gradient.lock();
+	Constraints_Position.row(vertex) += translation;
+	m_gradient.unlock();
+	m_value.unlock();
+}
+
+void FixChosenConstraints::eraseConstraint(const int vertex)
+{
+	m_value.lock();
+	m_gradient.lock();
+	Constraints_indices.erase(vertex);
+	m_gradient.unlock();
+	m_value.unlock();
+}
+
+void FixChosenConstraints::clearConstraints()
+{
+	m_value.lock();
+	m_gradient.lock();
+	Constraints_indices.clear();
+	m_gradient.unlock();
+	m_value.unlock();
+}
+
+std::set<int> FixChosenConstraints::getConstraintsIndices() {
+	return Constraints_indices;
 }
 
 double FixChosenConstraints::value(Cuda::Array<double>& curr_x, const bool update)
 {
 	m_value.lock();
 	double value = 0;
-	for (int i = 0; i < Constraints_indices.size(); i++) {
-		const unsigned int v_index = Constraints_indices[i];
+	for (int v_index : Constraints_indices) {
 		double_3 Vi = getV(curr_x, v_index);
-		value += squared_norm(sub(Vi, Constraints_Position.row(i)));
+		value += squared_norm(sub(Vi, Constraints_Position.row(v_index)));
 	}
 	m_value.unlock();
 
@@ -45,12 +72,14 @@ double FixChosenConstraints::value(Cuda::Array<double>& curr_x, const bool updat
 
 void FixChosenConstraints::gradient(Cuda::Array<double>& X, const bool update)
 {
+	for (int i = 0; i < grad.size; i++)
+		grad.host_arr[i] = 0;
+
 	m_gradient.lock();
-	for (int i = 0; i < Constraints_indices.size(); i++) {
-		const unsigned int v_index = Constraints_indices[i];
-		grad.host_arr[v_index + mesh_indices.startVx] = 2 * (X.host_arr[v_index + mesh_indices.startVx] - Constraints_Position(i,0));
-		grad.host_arr[v_index + mesh_indices.startVy] = 2 * (X.host_arr[v_index + mesh_indices.startVy] - Constraints_Position(i,1));
-		grad.host_arr[v_index + mesh_indices.startVz] = 2 * (X.host_arr[v_index + mesh_indices.startVz] - Constraints_Position(i,2));
+	for (int v_index : Constraints_indices) {
+		grad.host_arr[v_index + mesh_indices.startVx] = 2 * (X.host_arr[v_index + mesh_indices.startVx] - Constraints_Position(v_index, 0));
+		grad.host_arr[v_index + mesh_indices.startVy] = 2 * (X.host_arr[v_index + mesh_indices.startVy] - Constraints_Position(v_index, 1));
+		grad.host_arr[v_index + mesh_indices.startVz] = 2 * (X.host_arr[v_index + mesh_indices.startVz] - Constraints_Position(v_index, 2));
 	}
 	m_gradient.unlock();
 

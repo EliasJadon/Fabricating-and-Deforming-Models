@@ -232,39 +232,31 @@ namespace app_utils
 		return true;
 	}
 
-	static Eigen::Vector3f computeTranslation(
+	static Eigen::RowVector3d computeTranslation(
 		const int mouse_x, 
 		const int from_x, 
 		const int mouse_y, 
 		const int from_y, 
 		const Eigen::RowVector3d pt3D,
-		igl::opengl::ViewerCore& core) {
+		igl::opengl::ViewerCore& core) 
+	{
 		Eigen::Matrix4f modelview = core.view;
 		//project the given point (typically the handle centroid) to get a screen space depth
-		Eigen::Vector3f proj = igl::project(pt3D.transpose().cast<float>().eval(),
-			modelview,
-			core.proj,
-			core.viewport);
+		Eigen::Vector3f proj = igl::project(pt3D.transpose().cast<float>().eval(), modelview, core.proj, core.viewport);
 		float depth = proj[2];
 		double x, y;
 		Eigen::Vector3f pos1, pos0;
 		//unproject from- and to- points
 		x = mouse_x;
 		y = core.viewport(3) - mouse_y;
-		pos1 = igl::unproject(Eigen::Vector3f(x, y, depth),
-			modelview,
-			core.proj,
-			core.viewport);
+		pos1 = igl::unproject(Eigen::Vector3f(x, y, depth), modelview, core.proj, core.viewport);
 		x = from_x;
 		y = core.viewport(3) - from_y;
-		pos0 = igl::unproject(Eigen::Vector3f(x, y, depth),
-			modelview,
-			core.proj,
-			core.viewport);
+		pos0 = igl::unproject(Eigen::Vector3f(x, y, depth), modelview, core.proj, core.viewport);
 		//translation is the vector connecting the two
 		Eigen::Vector3f translation;
 		translation = pos1 - pos0;
-		return translation;
+		return Eigen::RowVector3d(translation(0), translation(1), translation(2));
 	}
 
 	static int calculateHinges(std::vector<Eigen::Vector2d>& hinges_faceIndex, const Eigen::MatrixX3i& F) {

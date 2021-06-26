@@ -279,7 +279,7 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		igl::writeOFF(aux_file_path + file_name + "_Aux_Normals.off", Normals, temp);
 	}
 
-	if (ImGui::Button("fsdsdffds")) {
+	/*if (ImGui::Button("fsdsdffds")) {
 		Eigen::SparseMatrix<int> A;
 		igl::adjacency_matrix(InputModel().F, A);
 		
@@ -290,16 +290,15 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 				adj[it.row()].push_back(it.col());
 		
 		
-		std::vector<int> asd = app_utils::findPathVertices_usingDFS(adj,
-			*(Outputs[0].UserInterface_FixedVertices.begin()),
-			*(++Outputs[0].UserInterface_FixedVertices.begin()), InputModel().V.rows());
+		std::vector<int> asd = 
+			app_utils::findPathVertices_usingDFS(adj,v_from,v_to, InputModel().V.rows());
 			
 		std::cout << "\n\nasd = \n";
 		for (int i : asd) {
 			std::cout << i << "\n";
 		}
 		
-	}
+	}*/
 
 	ImGui::Checkbox("Outputs window", &outputs_window);
 	ImGui::Checkbox("Results window", &results_window);
@@ -855,11 +854,9 @@ void deformation_plugin::clear_sellected_faces_and_vertices()
 		o.Energy_auxSpherePerHinge->Clear_HingesSigmoid();
 		o.Energy_auxBendingNormal->Clear_HingesWeights();
 		o.Energy_auxBendingNormal->Clear_HingesSigmoid();
-		
 		o.UserInterface_FixedFaces.clear();
-		o.UserInterface_FixedVertices.clear();
+		o.Energy_FixChosenVertices->clearConstraints();
 	}
-	update_ext_fixed_vertices();
 }
 
 void deformation_plugin::update_parameters_for_all_cores() 
@@ -1032,15 +1029,14 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		if (out.UserInterface_IsTranslate && UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES)
 		{
 			Eigen::RowVector3d vertex_pos = OutputModel(Output_Translate_ID).V.row(out.UserInterface_TranslateIndex);
-			Eigen::Vector3f translation = app_utils::computeTranslation(mouse_x, down_mouse_x, mouse_y, down_mouse_y, vertex_pos, OutputCore(Output_Translate_ID));
+			Eigen::RowVector3d translation = app_utils::computeTranslation(mouse_x, down_mouse_x, mouse_y, down_mouse_y, vertex_pos, OutputCore(Output_Translate_ID));
 			if (UserInterface_UpdateAllOutputs)
-				for (int io=0;io<Outputs.size();io++)
-					OutputModel(io).V.row(Outputs[io].UserInterface_TranslateIndex) += translation.cast<double>();
+				for (auto& o: Outputs)
+					o.Energy_FixChosenVertices->translateConstraint(o.UserInterface_TranslateIndex, translation);
 			else
-				OutputModel(i).V.row(out.UserInterface_TranslateIndex) += translation.cast<double>();
+				out.Energy_FixChosenVertices->translateConstraint(out.UserInterface_TranslateIndex, translation);
 			down_mouse_x = mouse_x;
 			down_mouse_y = mouse_y;
-			update_ext_fixed_vertices();
 			returnTrue = true;
 		}
 		if (out.UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR))
@@ -1187,24 +1183,19 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 	else if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
 		int output_index, vertex_index;
-		if (pick_vertex(&output_index, &vertex_index, true) && output_index != INPUT_MODEL_SCREEN)
-		{
-			if (UserInterface_UpdateAllOutputs)
-			{
-				for (auto& out : Outputs)
-				{
-					out.UserInterface_FixedVertices.insert(vertex_index);
-					out.UserInterface_IsTranslate = true;
-					out.UserInterface_TranslateIndex = vertex_index;
+		if (pick_vertex(&output_index, &vertex_index, true) && output_index != INPUT_MODEL_SCREEN) {
+			if (UserInterface_UpdateAllOutputs) {
+				for (int oi = 0; oi < Outputs.size(); oi++) {
+					Outputs[oi].Energy_FixChosenVertices->insertConstraint(vertex_index, OutputModel(oi).V);
+					Outputs[oi].UserInterface_IsTranslate = true;
+					Outputs[oi].UserInterface_TranslateIndex = vertex_index;
 				}
 			}
-			else
-			{
-				Outputs[output_index].UserInterface_FixedVertices.insert(vertex_index);
+			else {
+				Outputs[output_index].Energy_FixChosenVertices->insertConstraint(vertex_index, OutputModel(output_index).V);
 				Outputs[output_index].UserInterface_IsTranslate = true;
 				Outputs[output_index].UserInterface_TranslateIndex = vertex_index;
 			}
-			update_ext_fixed_vertices();
 		}
 	}
 	else if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES && button == GLFW_MOUSE_BUTTON_MIDDLE)
@@ -1214,16 +1205,14 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 		{
 			if (UserInterface_UpdateAllOutputs)
 				for (auto& out : Outputs)
-					out.UserInterface_FixedVertices.erase(vertex_index);
+					out.Energy_FixChosenVertices->eraseConstraint(vertex_index);
 			else
-				Outputs[output_index].UserInterface_FixedVertices.erase(vertex_index);
-			update_ext_fixed_vertices();
+				Outputs[output_index].Energy_FixChosenVertices->eraseConstraint(vertex_index);
 		}
 	}
 	else if ((UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
-		if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
-		{
+		if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point)) {
 			UI_status = INSERT;
 			Outputs[Brush_output_index].UserInterface_IsTranslate = true;
 		}
@@ -1464,25 +1453,6 @@ void deformation_plugin::change_minimizer_type(Cuda::OptimizerType type)
 		Outputs[i].updateActiveMinimizer(optimizer_type);
 }
 
-void deformation_plugin::update_ext_fixed_vertices() 
-{
-	for (int i = 0; i < Outputs.size(); i++)
-	{
-		std::vector<int> CurrHandlesInd; CurrHandlesInd.clear();
-		Eigen::MatrixX3d CurrHandlesPosDeformed;
-		//First, we push each vertices index to the handles
-		for (auto vi : Outputs[i].UserInterface_FixedVertices)
-			CurrHandlesInd.push_back(vi);
-		//Here we update the positions for each handle
-		CurrHandlesPosDeformed = Eigen::MatrixX3d::Zero(CurrHandlesInd.size(), 3);
-		int idx = 0;
-		for (auto hi : CurrHandlesInd)
-			CurrHandlesPosDeformed.row(idx++) = OutputModel(i).V.row(hi);
-		//Finally, we update the handles in the constraints positional object
-		Outputs[i].Energy_FixChosenVertices->updateExtConstraints(CurrHandlesInd, CurrHandlesPosDeformed);
-	}
-}
-
 void deformation_plugin::Update_view() 
 {
 	for (auto& data : viewer->data_list)
@@ -1533,25 +1503,28 @@ void deformation_plugin::follow_and_mark_selected_faces()
 				Outputs[i].setFaceColors(fi, Neighbors_Highlighted_face_color);
 			Outputs[i].setFaceColors(curr_highlighted_face, Highlighted_face_color);
 		}
-		//Mark the vertices
-		int idx = 0;
-		Outputs[i].fixed_vertices_positions.resize(Outputs[i].UserInterface_FixedVertices.size(), 3);
-		Outputs[i].color_per_vertex.resize(Outputs[i].UserInterface_FixedVertices.size(), 3);
-		//Mark the dragged vertex
-		if (Outputs[i].UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES))
 		{
-			Outputs[i].fixed_vertices_positions.resize(Outputs[i].UserInterface_FixedVertices.size() + 1, 3);
-			Outputs[i].color_per_vertex.resize(Outputs[i].UserInterface_FixedVertices.size() + 1, 3);
-			Outputs[i].color_per_vertex.row(idx) = Dragged_vertex_color.cast<double>();
-			Outputs[i].fixed_vertices_positions.row(idx) = OutputModel(i).V.row(Outputs[i].UserInterface_TranslateIndex);
-			idx++;
+			//Mark the vertices
+			int idx = 0;
+			std::set<int>& c = Outputs[i].Energy_FixChosenVertices->getConstraintsIndices();
+			Outputs[i].fixed_vertices_positions.resize(c.size(), 3);
+			Outputs[i].color_per_vertex.resize(c.size(), 3);
+			//Mark the dragged vertex
+			if (Outputs[i].UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES))
+			{
+				Outputs[i].fixed_vertices_positions.resize(c.size() + 1, 3);
+				Outputs[i].color_per_vertex.resize(c.size() + 1, 3);
+				Outputs[i].color_per_vertex.row(idx) = Dragged_vertex_color.cast<double>();
+				Outputs[i].fixed_vertices_positions.row(idx) = OutputModel(i).V.row(Outputs[i].UserInterface_TranslateIndex);
+				idx++;
+			}
+			//Mark the fixed vertices
+			for (auto vi : c) {
+				Outputs[i].fixed_vertices_positions.row(idx) = OutputModel(i).V.row(vi);
+				Outputs[i].color_per_vertex.row(idx++) = Fixed_vertex_color.cast<double>();
+			}
 		}
-		//Mark the fixed vertices
-		for (auto vi : Outputs[i].UserInterface_FixedVertices)
-		{
-			Outputs[i].fixed_vertices_positions.row(idx) = OutputModel(i).V.row(vi);
-			Outputs[i].color_per_vertex.row(idx++) = Fixed_vertex_color.cast<double>();
-		}
+		
 
 		//Mark the clusters if needed
 		if (face_coloring_Type == app_utils::Face_Colors::NORMALS_CLUSTERING || face_coloring_Type == app_utils::Face_Colors::SPHERES_CLUSTERING) {
