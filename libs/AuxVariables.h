@@ -17,12 +17,12 @@ public:
 	void Inc_SigmoidParameter();
 	void Dec_SigmoidParameter(const double target = 0);
 	double get_SigmoidParameter();
-	void calculateHinges();	
-	void Reset_HingesSigmoid(const std::vector<int> faces_indices);
+	void calculateHinges();
+
 	void Incr_HingesWeights(const std::vector<int> faces_indices, const double add);
-	void Set_HingesWeights(const std::vector<int> faces_indices, const double value);
+	void setZero_HingesWeights(const std::vector<int> vertices_indices);
+	void setOne_HingesWeights(const std::vector<int> faces_indices);
 	void Clear_HingesWeights();
-	void Clear_HingesSigmoid();
 	double Phi(
 		const double x,
 		const double SigmoidParameter,

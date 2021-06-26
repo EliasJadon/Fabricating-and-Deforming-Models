@@ -413,10 +413,9 @@ public:
 	int down_mouse_x, down_mouse_y;
 	bool ADD_DELETE;
 	Eigen::Vector3f intersec_point;
-	Eigen::Vector3f colorP, colorM;
-
+	Eigen::Vector3f colorP, colorM, colorTry;
 	std::vector<int> DFS_vertices_list;
-	int DFS_Output_Index;
+	int DFS_Vertex_Index_FROM;
 
 	UI() {
 		status = app_utils::UserInterfaceOptions::NONE;
@@ -424,7 +423,8 @@ public:
 		Output_Index = Face_index = Vertex_Index = NOT_FOUND;
 		down_mouse_x = down_mouse_y = NOT_FOUND;
 		colorP = Eigen::Vector3f(51 / 255.0f, 1, 1);
-		colorM = Eigen::Vector3f(1, 51 / 255.0f, 1);
+		colorM = Eigen::Vector3f(1, 10 / 255.0f, 1);
+		colorTry = Eigen::Vector3f(1, 200 / 255.0f, 1);
 	}
 
 	void updateVerticesListOfDFS(const Eigen::MatrixXi F, const int numV, const int v_to) {
@@ -437,8 +437,7 @@ public:
 			for (Eigen::SparseMatrix<int>::InnerIterator it(A, k); it; ++it)
 				adj[it.row()].push_back(it.col());
 		//get the vertices list by DFS
-		DFS_Output_Index = Output_Index;
-		DFS_vertices_list = app_utils::findPathVertices_usingDFS(adj, Vertex_Index, v_to, numV);
+		DFS_vertices_list = app_utils::findPathVertices_usingDFS(adj, DFS_Vertex_Index_FROM, v_to, numV);
 	}
 
 	bool isChoosingCluster() {
@@ -466,9 +465,11 @@ public:
 		return model_color.cast<double>().transpose();
 	}
 	void clear() {
+		DFS_vertices_list.clear();
 		isActive = false;
 		Output_Index = Face_index = Vertex_Index = NOT_FOUND;
 		down_mouse_x = down_mouse_y = NOT_FOUND;
+		DFS_Vertex_Index_FROM = NOT_FOUND;
 	}
 	
 };

@@ -37,7 +37,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	isUpdateAll = true;
 	face_coloring_Type = app_utils::Face_Colors::NO_COLORS;
 	clustering_w = 0.65;
-	faceColoring_type = 1;
+	faceColoring_type = 0;
 	optimizer_type = Cuda::OptimizerType::Adam;
 	linesearch_type = OptimizationUtils::LineSearch::FUNCTION_VALUE;
 	view = app_utils::View::HORIZONTAL;
@@ -816,12 +816,9 @@ void deformation_plugin::Draw_results_window()
 
 void deformation_plugin::clear_sellected_faces_and_vertices() 
 {
-	for (auto&o : Outputs)
-	{
+	for (auto& o : Outputs) {
 		o.Energy_auxSpherePerHinge->Clear_HingesWeights();
-		o.Energy_auxSpherePerHinge->Clear_HingesSigmoid();
 		o.Energy_auxBendingNormal->Clear_HingesWeights();
-		o.Energy_auxBendingNormal->Clear_HingesSigmoid();
 		o.Energy_FixChosenVertices->clearConstraints();
 	}
 }
@@ -1001,13 +998,15 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		for (auto& out : listOfOutputsToUpdate(ui.Output_Index)) {
 			out.first.Energy_auxBendingNormal->Incr_HingesWeights(brush_faces, shift);
 			out.first.Energy_auxSpherePerHinge->Incr_HingesWeights(brush_faces, shift);
-			out.first.Energy_auxBendingNormal->Reset_HingesSigmoid(brush_faces);
-			out.first.Energy_auxSpherePerHinge->Reset_HingesSigmoid(brush_faces);
 		}
 		return true;
 	}
 	if (ui.isBrushingWeightDec() && pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point)) {
-		///////////////////.........
+		const std::vector<int> brush_faces = Outputs[ui.Output_Index].FaceNeigh(ui.intersec_point.cast<double>(), brush_radius);
+		for (auto& out : listOfOutputsToUpdate(ui.Output_Index)) {
+			out.first.Energy_auxBendingNormal->setOne_HingesWeights(brush_faces);
+			out.first.Energy_auxSpherePerHinge->setOne_HingesWeights(brush_faces);
+		}
 		return true;
 	}
 	
@@ -1016,7 +1015,9 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		ui.updateVerticesListOfDFS(InputModel().F, InputModel().V.rows(), vertex_index);
 		return true;
 	}
-	
+
+	if (ui.isUsingDFS() || ui.isBrushingWeightDec() || ui.isBrushingWeightInc())
+		return true;
 	return false;
 }
 
@@ -1057,7 +1058,10 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 	int output_index, vertex_index;
 	if (ui.isUsingDFS() && pick_vertex(output_index, vertex_index)) {
 		ui.updateVerticesListOfDFS(InputModel().F, InputModel().V.rows(), vertex_index);
-		return false;
+		for (auto& out : listOfOutputsToUpdate(output_index)) {
+			out.first.Energy_auxBendingNormal->setZero_HingesWeights(ui.DFS_vertices_list);
+			out.first.Energy_auxSpherePerHinge->setZero_HingesWeights(ui.DFS_vertices_list);
+		}
 	}
 
 	if (ui.isChoosingCluster() && pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point)) {
@@ -1066,8 +1070,6 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		for (auto& out : listOfOutputsToUpdate(ui.Output_Index)) {
 			out.first.Energy_auxBendingNormal->Incr_HingesWeights(neigh_faces, shift);
 			out.first.Energy_auxSpherePerHinge->Incr_HingesWeights(neigh_faces, shift);
-			out.first.Energy_auxBendingNormal->Reset_HingesSigmoid(neigh_faces);
-			out.first.Energy_auxSpherePerHinge->Reset_HingesSigmoid(neigh_faces);
 		}
 	}
 	ui.clear();
@@ -1117,6 +1119,7 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 	}
 	if (ui.status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR && LeftClick) {
 		if (pick_vertex(ui.Output_Index, ui.Vertex_Index)) {
+			ui.DFS_Vertex_Index_FROM = ui.Vertex_Index;
 			ui.ADD_DELETE = ADD;
 			ui.isActive = true;
 		}
@@ -1313,7 +1316,7 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 		double* hinge_val = AS->weight_PerHinge.host_arr;
 		std::set<int> points_indices;
 		for (int hi = 0; hi < num_hinges; hi++) {
-			if (hinge_val[hi] < 1) {
+			if (hinge_val[hi] == 0) {
 				points_indices.insert(x0_index[hi]);
 				points_indices.insert(x1_index[hi]);
 			}
@@ -1328,16 +1331,15 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 		m.add_points(points_pos, color);
 	}
 
-	for (auto& out : listOfOutputsToUpdate(ui.DFS_Output_Index)) {
+	for (auto& out : listOfOutputsToUpdate(ui.Output_Index)) {
 		if (ui.DFS_vertices_list.size()) {
 			Eigen::MatrixXd points_pos(ui.DFS_vertices_list.size(), 3);
 			int i = 0;
 			for (int v_index : ui.DFS_vertices_list)
 				points_pos.row(i++) = OutputModel(out.second).V.row(v_index);
-			OutputModel(out.second).add_points(points_pos, ui.colorM.cast<double>().transpose());
+			OutputModel(out.second).add_points(points_pos, ui.colorTry.cast<double>().transpose());
 		}
 	}
-	
 
 	draw_brush_sphere();
 	InputModel().point_size = OutputModel(ActiveOutput).point_size;
@@ -1436,13 +1438,11 @@ void deformation_plugin::follow_and_mark_selected_faces()
 			auto& AS = Outputs[i].Energy_auxSpherePerHinge;
 			for (int hi = 0; hi < AS->mesh_indices.num_hinges; hi++) {
 				const int f0 = AS->hinges_faceIndex[hi][0];
-				const int f1 = AS->hinges_faceIndex[hi][1];
+				const int f1 = AS->hinges_faceIndex[hi][1]; 
 				const double log_minus_w = -log2(AS->Sigmoid_PerHinge.host_arr[hi]);
-				if (log_minus_w > 0) {
-					const double alpha = log_minus_w / MAX_SIGMOID_PER_HINGE_VALUE;
-					Outputs[i].shiftFaceColors(f0, alpha, model_color, ui.colorP);
-					Outputs[i].shiftFaceColors(f1, alpha, model_color, ui.colorP);
-				}
+				const double alpha = log_minus_w / MAX_SIGMOID_PER_HINGE_VALUE;
+				Outputs[i].shiftFaceColors(f0, alpha, model_color, ui.colorP);
+				Outputs[i].shiftFaceColors(f1, alpha, model_color, ui.colorP);
 			}
 		}
 	}

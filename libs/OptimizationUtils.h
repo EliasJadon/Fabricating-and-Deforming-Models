@@ -220,6 +220,23 @@ namespace OptimizationUtils
 		return hingesPerFace;
 	}
 
+	static int VertexToHinge_indices(
+		const Eigen::VectorXi& x0,
+		const Eigen::VectorXi& x1,
+		const std::vector<int>& vertex_indices,
+		const int vi)
+	{
+		for (int i = 0; i < x0.size(); i++) {
+			if (x0[i] == vi) {
+				for (int i2 : vertex_indices) {
+					if (i2 == x1[i])
+						return i;
+				}
+			}
+		}
+		return -1;
+	}
+
 	static int getNumberOfHinges(const Eigen::MatrixX3i restShapeF) {
 		std::vector<std::vector<std::vector<int>>> TT;
 		igl::triangle_triangle_adjacency(restShapeF, TT);

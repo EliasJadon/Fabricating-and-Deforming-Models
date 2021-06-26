@@ -182,43 +182,39 @@ void AuxVariables::Incr_HingesWeights(const std::vector<int> faces_indices,const
 	for (int fi : faces_indices) {
 		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
 		for (int hi : H) {
-			weight_PerHinge.host_arr[hi] += add;
-			if (weight_PerHinge.host_arr[hi] <= 1) {
-				weight_PerHinge.host_arr[hi] = 1;
+			if (weight_PerHinge.host_arr[hi] != 0) {
+				weight_PerHinge.host_arr[hi] += add;
+				if (weight_PerHinge.host_arr[hi] <= 1) {
+					weight_PerHinge.host_arr[hi] = 1;
+				}
+				Sigmoid_PerHinge.host_arr[hi] = 1;
 			}
 		}
 	}
 }
 
-void AuxVariables::Set_HingesWeights(const std::vector<int> faces_indices,const double value)
-{
-	assert(value == 0 || value == 1);
-	for (int fi : faces_indices) {
-		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
-		for (int hi : H)
-			weight_PerHinge.host_arr[hi] = value;
+void AuxVariables::setZero_HingesWeights(const std::vector<int> vertices_indices) {
+	for (int vi : vertices_indices) {
+		int hi = OptimizationUtils::VertexToHinge_indices(x0_GlobInd, x1_GlobInd, vertices_indices, vi);
+		if (hi >= 0 && hi < num_hinges) {
+			weight_PerHinge.host_arr[hi] = 0;
+		}
 	}
 }
 
-void AuxVariables::Reset_HingesSigmoid(const std::vector<int> faces_indices)
+void AuxVariables::setOne_HingesWeights(const std::vector<int> faces_indices)
 {
 	for (int fi : faces_indices) {
 		std::vector<int> H = OptimizationUtils::FaceToHinge_indices(hinges_faceIndex, faces_indices, fi);
-		for (int hi : H) {
-			Sigmoid_PerHinge.host_arr[hi] = 1;
-		}
+		for (int hi : H)
+			if (weight_PerHinge.host_arr[hi] == 0)
+				weight_PerHinge.host_arr[hi] = 1;
 	}
 }
 
 void AuxVariables::Clear_HingesWeights() {
 	for (int hi = 0; hi < num_hinges; hi++) {
 		weight_PerHinge.host_arr[hi] = 1;
-	}
-}
-
-void AuxVariables::Clear_HingesSigmoid() {
-	for (int hi = 0; hi < num_hinges; hi++) {
-		Sigmoid_PerHinge.host_arr[hi] = get_SigmoidParameter();
 	}
 }
 
