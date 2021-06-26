@@ -1619,10 +1619,8 @@ int deformation_plugin::pick_face_per_core(
 bool deformation_plugin::pick_vertex(int& o_ind, int& v_index) {
 	v_index = pick_vertex_per_core(InputModel().V, InputModel().F, app_utils::View::SHOW_INPUT_SCREEN_ONLY);
 	o_ind = INPUT_MODEL_SCREEN;
-	for (int i = 0; i < Outputs.size(); i++)
-	{
-		if (v_index == NOT_FOUND)
-		{
+	for (int i = 0; i < Outputs.size(); i++) {
+		if (v_index == NOT_FOUND) {
 			v_index = pick_vertex_per_core(OutputModel(i).V, OutputModel(i).F, app_utils::View::SHOW_OUTPUT_SCREEN_ONLY_0 + i);
 			o_ind = i;
 		}
@@ -1793,21 +1791,17 @@ void deformation_plugin::UpdateEnergyColors(const int index)
 	int numF = OutputModel(index).F.rows();
 	Eigen::VectorXd DistortionPerFace(numF);
 	DistortionPerFace.setZero();
-	if (faceColoring_type == 0) 
-	{ // No colors
+	if (faceColoring_type == 0) { // No colors
 		DistortionPerFace.setZero();
 	}
-	else if (faceColoring_type == 1) 
-	{ // total energy
-		for (auto& obj: Outputs[index].totalObjective->objectiveList) 
-		{
+	else if (faceColoring_type == 1) { // total energy
+		for (auto& obj: Outputs[index].totalObjective->objectiveList) {
 			// calculate the distortion over all the energies
 			if ((obj->Efi.size() != 0) && (obj->w != 0))
 				DistortionPerFace += obj->Efi * obj->w;
 		}
 	}
-	else 
-	{
+	else {
 		auto& obj = Outputs[index].totalObjective->objectiveList[faceColoring_type - 2];
 		if ((obj->Efi.size() != 0) && (obj->w != 0))
 			DistortionPerFace = obj->Efi * obj->w;
