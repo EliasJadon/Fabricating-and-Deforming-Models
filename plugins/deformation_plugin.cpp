@@ -58,7 +58,7 @@ IGL_INLINE void deformation_plugin::init(igl::opengl::glfw::Viewer *_viewer)
 	center_vertex_color = Eigen::Vector3f(128 / 255.0f, 128 / 255.0f, 128 / 255.0f);
 	Color_sphere_edges = Color_normal_edge = Eigen::Vector3f(0 / 255.0f, 100 / 255.0f, 100 / 255.0f);
 	face_norm_color = Eigen::Vector3f(0, 1, 1);
-	Fixed_vertex_color = Fixed_face_color = BLUE_COLOR;
+	Fixed_vertex_color = BLUE_COLOR;
 	Dragged_vertex_color = GREEN_COLOR;
 	model_color = GREY_COLOR;
 	text_color = BLACK_COLOR;
@@ -347,11 +347,9 @@ void deformation_plugin::CollapsingHeader_colors()
 		ImGui::ColorEdit3("Center sphere", center_sphere_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Center vertex", center_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Sphere edge", Color_sphere_edges.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		
 		ImGui::ColorEdit3("Normal edge", Color_normal_edge.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Face norm", face_norm_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Neighbors Highlighted face", Neighbors_Highlighted_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
-		ImGui::ColorEdit3("Fixed face", Fixed_face_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Fixed vertex", Fixed_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Dragged vertex", Dragged_vertex_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
 		ImGui::ColorEdit3("Model", model_color.data(), ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_PickerHueWheel);
@@ -854,7 +852,6 @@ void deformation_plugin::clear_sellected_faces_and_vertices()
 		o.Energy_auxSpherePerHinge->Clear_HingesSigmoid();
 		o.Energy_auxBendingNormal->Clear_HingesWeights();
 		o.Energy_auxBendingNormal->Clear_HingesSigmoid();
-		o.UserInterface_FixedFaces.clear();
 		o.Energy_FixChosenVertices->clearConstraints();
 	}
 }
@@ -1018,7 +1015,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 	if (IsChoosingGroups && UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS)
 	{
 		Eigen::Vector3f _;
-		pick_face(&curr_highlighted_output, &curr_highlighted_face, _);
+		pick_face(curr_highlighted_output, curr_highlighted_face, _);
 		return true;
 	}
 
@@ -1041,7 +1038,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		}
 		if (out.UserInterface_IsTranslate && (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR))
 		{
-			if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
+			if (pick_face(Brush_output_index, Brush_face_index, intersec_point))
 			{
 				if (UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR) {
 					double add = ADDING_WEIGHT_PER_HINGE_VALUE;
@@ -1109,7 +1106,7 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		curr_highlighted_output = curr_highlighted_face = NOT_FOUND;
 		Eigen::Vector3f _;
 		int face_index, output_index;
-		if (pick_face(&output_index, &face_index, _))
+		if (pick_face(output_index, face_index, _))
 		{
 			std::vector<int> neigh_faces = Outputs[output_index].getNeigh(neighbor_Type, InputModel().F, face_index, neighbor_distance);
 			if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS) {
@@ -1146,9 +1143,9 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 	
 	if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
-		Eigen::Vector3f _;
+		/*Eigen::Vector3f _;
 		int face_index, output_index;
-		if (pick_face(&output_index, &face_index, _, true) && output_index != INPUT_MODEL_SCREEN)
+		if (pick_face(output_index, face_index, _) && output_index != INPUT_MODEL_SCREEN)
 		{
 			if (UserInterface_UpdateAllOutputs)
 			{
@@ -1165,25 +1162,25 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 				Outputs[output_index].UserInterface_IsTranslate = true;
 				Outputs[output_index].UserInterface_TranslateIndex = face_index;
 			}
-		}
+		}*/
 	}
 	else if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_FACES && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
-		Eigen::Vector3f _;
+		/*Eigen::Vector3f _;
 		int face_index, output_index;
-		if (pick_face(&output_index, &face_index, _) && output_index != INPUT_MODEL_SCREEN)
+		if (pick_face(output_index, face_index, _) && output_index != INPUT_MODEL_SCREEN)
 		{
 			if (UserInterface_UpdateAllOutputs)
 				for (auto& out : Outputs)
 					out.UserInterface_FixedFaces.erase(face_index);
 			else
 				Outputs[output_index].UserInterface_FixedFaces.erase(face_index);
-		}
+		}*/
 	}
 	else if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
-		int output_index, vertex_index;
-		if (pick_vertex(&output_index, &vertex_index, true) && output_index != INPUT_MODEL_SCREEN) {
+		int vertex_index;
+		if (pick_vertex(Output_Translate_ID, vertex_index) && Output_Translate_ID != INPUT_MODEL_SCREEN) {
 			if (UserInterface_UpdateAllOutputs) {
 				for (int oi = 0; oi < Outputs.size(); oi++) {
 					Outputs[oi].Energy_FixChosenVertices->insertConstraint(vertex_index, OutputModel(oi).V);
@@ -1192,16 +1189,16 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 				}
 			}
 			else {
-				Outputs[output_index].Energy_FixChosenVertices->insertConstraint(vertex_index, OutputModel(output_index).V);
-				Outputs[output_index].UserInterface_IsTranslate = true;
-				Outputs[output_index].UserInterface_TranslateIndex = vertex_index;
+				Outputs[Output_Translate_ID].Energy_FixChosenVertices->insertConstraint(vertex_index, OutputModel(Output_Translate_ID).V);
+				Outputs[Output_Translate_ID].UserInterface_IsTranslate = true;
+				Outputs[Output_Translate_ID].UserInterface_TranslateIndex = vertex_index;
 			}
 		}
 	}
 	else if (UserInterface_option == app_utils::UserInterfaceOptions::FIX_VERTICES && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
 		int output_index, vertex_index;
-		if (pick_vertex(&output_index, &vertex_index, true) && output_index != INPUT_MODEL_SCREEN)
+		if (pick_vertex(output_index, vertex_index) && output_index != INPUT_MODEL_SCREEN)
 		{
 			if (UserInterface_UpdateAllOutputs)
 				for (auto& out : Outputs)
@@ -1212,14 +1209,14 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 	}
 	else if ((UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) && button == GLFW_MOUSE_BUTTON_LEFT)
 	{
-		if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point)) {
+		if (pick_face(Brush_output_index, Brush_face_index, intersec_point)) {
 			UI_status = INSERT;
 			Outputs[Brush_output_index].UserInterface_IsTranslate = true;
 		}
 	}
 	else if ((UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || UserInterface_option == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
-		if (pick_face(&Brush_output_index, &Brush_face_index, intersec_point))
+		if (pick_face(Brush_output_index, Brush_face_index, intersec_point))
 		{
 			UI_status = ERASE;
 			Outputs[Brush_output_index].UserInterface_IsTranslate = true;
@@ -1230,14 +1227,14 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 		IsChoosingGroups = true;
 		UI_status = INSERT;
 		Eigen::Vector3f _;
-		pick_face(&curr_highlighted_output, &curr_highlighted_face, _);
+		pick_face(curr_highlighted_output, curr_highlighted_face, _);
 	}
 	else if (UserInterface_option == app_utils::UserInterfaceOptions::ADJ_WEIGHTS && button == GLFW_MOUSE_BUTTON_MIDDLE)
 	{
 		IsChoosingGroups = true;
 		UI_status = ERASE;
 		Eigen::Vector3f _;
-		pick_face(&curr_highlighted_output, &curr_highlighted_face, _);
+		pick_face(curr_highlighted_output, curr_highlighted_face, _);
 	}
 
 	return false;
@@ -1390,14 +1387,13 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 	Update_view();
 	update_parameters_for_all_cores();
 
-
+	//Update Faces Colors
 	follow_and_mark_selected_faces();
-	//Update the model's faces colors in the screens
 	InputModel().set_colors(Outputs[ActiveOutput].color_per_face);
 	for (int i = 0; i < Outputs.size(); i++)
 		OutputModel(i).set_colors(Outputs[i].color_per_face);
 
-	//Update the model's vertex colors in screens
+	//Update Vertices Colors
 	for (int oi = 0; oi < Outputs.size(); oi++) {
 		auto& m = OutputModel(oi);
 		auto& o = Outputs[oi];
@@ -1484,9 +1480,6 @@ void deformation_plugin::follow_and_mark_selected_faces()
 			face_norm_color);
 
 		UpdateEnergyColors(i);
-		//Mark the fixed faces
-		for (int fi : Outputs[i].UserInterface_FixedFaces)
-			Outputs[i].setFaceColors(fi, Fixed_face_color);
 		//Mark the selected faces by brush
 		auto& AS = Outputs[i].Energy_auxSpherePerHinge;
 		for (int hi = 0; hi < AS->mesh_indices.num_hinges; hi++) {
@@ -1572,27 +1565,19 @@ igl::opengl::ViewerCore& deformation_plugin::OutputCore(const int index)
 	return viewer->core(Outputs[index].CoreID);
 }
 
-bool deformation_plugin::pick_face(
-	int* output_index, 
-	int* face_index,
-	Eigen::Vector3f& intersec_point, 
-	const bool update_fixfaces) 
+bool deformation_plugin::pick_face(int& out_ind, int& f_ind, Eigen::Vector3f& intersec_point)
 {
-	*face_index = pick_face_per_core(InputModel().V, InputModel().F, app_utils::View::SHOW_INPUT_SCREEN_ONLY, intersec_point);
-	*output_index = INPUT_MODEL_SCREEN;
-	for (int i = 0; i < Outputs.size(); i++) 
+	f_ind = pick_face_per_core(InputModel().V, InputModel().F, app_utils::View::SHOW_INPUT_SCREEN_ONLY, intersec_point);
+	out_ind = INPUT_MODEL_SCREEN;
+	for (int i = 0; i < Outputs.size(); i++)
 	{
-		if (*face_index == NOT_FOUND)
+		if (f_ind == NOT_FOUND)
 		{
-			*face_index = pick_face_per_core(OutputModel(i).V, OutputModel(i).F, app_utils::View::SHOW_OUTPUT_SCREEN_ONLY_0 + i, intersec_point);
-			*output_index = i;
+			f_ind = pick_face_per_core(OutputModel(i).V, OutputModel(i).F, app_utils::View::SHOW_OUTPUT_SCREEN_ONLY_0 + i, intersec_point);
+			out_ind = i;
 		}
 	}
-	if (update_fixfaces)
-	{
-		Output_Translate_ID = *output_index;
-	}
-	return (*face_index != NOT_FOUND);
+	return (f_ind != NOT_FOUND);
 }
 
 int deformation_plugin::pick_face_per_core(
@@ -1631,26 +1616,18 @@ int deformation_plugin::pick_face_per_core(
 	return fi;
 }
 
-bool deformation_plugin::pick_vertex(
-	int* output_index, 
-	int* vertex_index, 
-	const bool update)
-{
-	*vertex_index = pick_vertex_per_core(InputModel().V, InputModel().F, app_utils::View::SHOW_INPUT_SCREEN_ONLY);
-	*output_index = INPUT_MODEL_SCREEN;
-	for (int i = 0; i < Outputs.size(); i++) 
+bool deformation_plugin::pick_vertex(int& o_ind, int& v_index) {
+	v_index = pick_vertex_per_core(InputModel().V, InputModel().F, app_utils::View::SHOW_INPUT_SCREEN_ONLY);
+	o_ind = INPUT_MODEL_SCREEN;
+	for (int i = 0; i < Outputs.size(); i++)
 	{
-		if (*vertex_index == NOT_FOUND)
+		if (v_index == NOT_FOUND)
 		{
-			*vertex_index = pick_vertex_per_core(OutputModel(i).V, OutputModel(i).F, app_utils::View::SHOW_OUTPUT_SCREEN_ONLY_0 + i);
-			*output_index = i;
+			v_index = pick_vertex_per_core(OutputModel(i).V, OutputModel(i).F, app_utils::View::SHOW_OUTPUT_SCREEN_ONLY_0 + i);
+			o_ind = i;
 		}
 	}
-	if (update)
-	{
-		Output_Translate_ID = *output_index;
-	}
-	return (*vertex_index != NOT_FOUND);
+	return (v_index != NOT_FOUND);
 }
 
 int deformation_plugin::pick_vertex_per_core(
@@ -1725,9 +1702,7 @@ void deformation_plugin::stop_minimizer_thread()
 	for (auto&o : Outputs) 
 	{
 		if (o.minimizer->is_running) 
-		{
 			o.minimizer->stop();
-		}
 		while (o.minimizer->is_running);
 	}
 }

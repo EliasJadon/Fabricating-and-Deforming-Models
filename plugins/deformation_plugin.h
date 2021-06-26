@@ -36,7 +36,6 @@ private:
 		Color_sphere_edges,
 		Color_normal_edge,
 		Neighbors_Highlighted_face_color,
-		Fixed_face_color,
 		Fixed_vertex_color,
 		model_color,
 		Dragged_vertex_color,
@@ -102,12 +101,11 @@ public:
 	void Draw_output_window();
 	
 	//Pick faces & vertices and highlight them
-	bool pick_face(int* output_index, int* face_index, Eigen::Vector3f& intersec_point,const bool update=false);
+	bool pick_face(int& output_index, int& face_index, Eigen::Vector3f& intersec_point);
 	int pick_face_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR, Eigen::Vector3f& intersec_point);
-	bool pick_vertex(int* output_index, int* vertex_index, const bool update = false);
+	bool pick_vertex(int& output_index, int& vertex_index);
 	int pick_vertex_per_core(Eigen::MatrixXd& V, Eigen::MatrixXi& F, int LR);
 	void follow_and_mark_selected_faces();
-	void update_ext_fixed_vertices();
 	void UpdateEnergyColors(const int index);
 	void update_parameters_for_all_cores();
 	void clear_sellected_faces_and_vertices();
