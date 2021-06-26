@@ -270,27 +270,6 @@ IGL_INLINE void deformation_plugin::draw_viewer_menu()
 		igl::writeOFF(aux_file_path + file_name + "_Aux_Normals.off", Normals, temp);
 	}
 
-	/*if (ImGui::Button("fsdsdffds")) {
-		Eigen::SparseMatrix<int> A;
-		igl::adjacency_matrix(InputModel().F, A);
-		
-		std::vector<std::vector<int>> adj;
-		adj.resize(InputModel().V.rows());
-		for (int k = 0; k < A.outerSize(); ++k)
-			for (Eigen::SparseMatrix<int>::InnerIterator it(A, k); it; ++it)
-				adj[it.row()].push_back(it.col());
-		
-		
-		std::vector<int> asd = 
-			app_utils::findPathVertices_usingDFS(adj,v_from,v_to, InputModel().V.rows());
-			
-		std::cout << "\n\nasd = \n";
-		for (int i : asd) {
-			std::cout << i << "\n";
-		}
-		
-	}*/
-
 	ImGui::Checkbox("Outputs window", &outputs_window);
 	ImGui::Checkbox("Results window", &results_window);
 	ImGui::Checkbox("Energy window", &energies_window);
@@ -1004,13 +983,10 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 	if (!isModelLoaded || IsMouseDraggingAnyWindow)
 		return true;	
 	if (ui.isChoosingCluster()) {
-		Eigen::Vector3f _;
-		pick_face(ui.Output_Index, ui.Face_index, _);
+		pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point);
 		return true;
 	}
-
-	if (ui.isTranslatingVertex())
-	{
+	if (ui.isTranslatingVertex()) {
 		Eigen::RowVector3d vertex_pos = OutputModel(ui.Output_Index).V.row(ui.Vertex_Index);
 		Eigen::RowVector3d translation = app_utils::computeTranslation(mouse_x, ui.down_mouse_x, mouse_y, ui.down_mouse_y, vertex_pos, OutputCore(ui.Output_Index));
 		for (auto& out : listOfOutputsToUpdate(ui.Output_Index))
@@ -1019,10 +995,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		ui.down_mouse_y = mouse_y;
 		return true;
 	}
-
-	bool face_found = pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point);
-	
-	if (ui.isBrushingWeightInc() && face_found) {
+	if (ui.isBrushingWeightInc() && pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point)) {
 		double shift = (ui.ADD_DELETE == ADD) ? ADDING_WEIGHT_PER_HINGE_VALUE : -ADDING_WEIGHT_PER_HINGE_VALUE;
 		const std::vector<int> brush_faces = Outputs[ui.Output_Index].FaceNeigh(ui.intersec_point.cast<double>(), brush_radius);
 		for (auto& out : listOfOutputsToUpdate(ui.Output_Index)) {
@@ -1033,16 +1006,24 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		}
 		return true;
 	}
-	if (ui.isBrushingWeightDec() && face_found) {
+	if (ui.isBrushingWeightDec() && pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point)) {
 		///////////////////.........
+		return true;
+	}
+	
+	int output_index, vertex_index;
+	if (ui.isUsingDFS() && pick_vertex(output_index, vertex_index)) {
+		ui.updateVerticesListOfDFS(InputModel().F, InputModel().V.rows(), vertex_index);
 		return true;
 	}
 	
 	return false;
 }
 
-std::vector<std::pair<OptimizationOutput&,int>> deformation_plugin::listOfOutputsToUpdate(const int out_index) {
+std::vector<std::pair<OptimizationOutput&, int>> deformation_plugin::listOfOutputsToUpdate(const int out_index) {
 	std::vector<std::pair<OptimizationOutput&, int>> vec;
+	if (out_index<0 || out_index>Outputs.size())
+		return {};
 	if (UserInterface_UpdateAllOutputs) {
 		for (int i = 0; i < Outputs.size(); i++) {
 			vec.push_back({ Outputs[i],i });
@@ -1071,43 +1052,44 @@ IGL_INLINE bool deformation_plugin::mouse_scroll(float delta_y)
 
 IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier) 
 {
-	Eigen::Vector3f _;
-	int face_index, output_index;
-	bool face_found = pick_face(output_index, face_index, _);
-	if (ui.isChoosingCluster() && face_found) {
-		std::vector<int> neigh_faces = Outputs[output_index].getNeigh(neighbor_Type, InputModel().F, face_index, neighbor_distance);
+	IsMouseDraggingAnyWindow = false;
+
+	int output_index, vertex_index;
+	if (ui.isUsingDFS() && pick_vertex(output_index, vertex_index)) {
+		ui.updateVerticesListOfDFS(InputModel().F, InputModel().V.rows(), vertex_index);
+		return false;
+	}
+
+	if (ui.isChoosingCluster() && pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point)) {
+		std::vector<int> neigh_faces = Outputs[ui.Output_Index].getNeigh(neighbor_Type, InputModel().F, ui.Face_index, neighbor_distance);
 		double shift = (ui.ADD_DELETE == ADD) ? 5 * ADDING_WEIGHT_PER_HINGE_VALUE : -5 * ADDING_WEIGHT_PER_HINGE_VALUE;
-		for (auto& out : listOfOutputsToUpdate(output_index)) {
+		for (auto& out : listOfOutputsToUpdate(ui.Output_Index)) {
 			out.first.Energy_auxBendingNormal->Incr_HingesWeights(neigh_faces, shift);
 			out.first.Energy_auxSpherePerHinge->Incr_HingesWeights(neigh_faces, shift);
 			out.first.Energy_auxBendingNormal->Reset_HingesSigmoid(neigh_faces);
 			out.first.Energy_auxSpherePerHinge->Reset_HingesSigmoid(neigh_faces);
 		}
 	}
-
-
-
 	ui.clear();
-	IsMouseDraggingAnyWindow = false;
 	return false;
 }
 
 IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier) 
 {
+	bool LeftClick = (button == GLFW_MOUSE_BUTTON_LEFT);
+	bool RightClick = (button == GLFW_MOUSE_BUTTON_MIDDLE);
 	if (ImGui::IsAnyWindowHovered())
 		IsMouseDraggingAnyWindow = true;
 	ui.down_mouse_x = viewer->current_mouse_x;
 	ui.down_mouse_y = viewer->current_mouse_y;
 	
-	if (ui.status == app_utils::UserInterfaceOptions::FIX_FACES && button == GLFW_MOUSE_BUTTON_LEFT)
-	{
+	if (ui.status == app_utils::UserInterfaceOptions::FIX_FACES && LeftClick) {
 		//////..............
 	}
-	if (ui.status == app_utils::UserInterfaceOptions::FIX_FACES && button == GLFW_MOUSE_BUTTON_MIDDLE)
-	{
+	if (ui.status == app_utils::UserInterfaceOptions::FIX_FACES && RightClick) {
 		//////..............
 	}
-	if (ui.status == app_utils::UserInterfaceOptions::FIX_VERTICES && button == GLFW_MOUSE_BUTTON_LEFT)
+	if (ui.status == app_utils::UserInterfaceOptions::FIX_VERTICES && LeftClick)
 	{
 		if (pick_vertex(ui.Output_Index, ui.Vertex_Index) && ui.Output_Index != INPUT_MODEL_SCREEN) {
 			for (auto& out : listOfOutputsToUpdate(ui.Output_Index))
@@ -1115,35 +1097,42 @@ IGL_INLINE bool deformation_plugin::mouse_down(int button, int modifier)
 			ui.isActive = true;
 		}
 	}
-	if (ui.status == app_utils::UserInterfaceOptions::FIX_VERTICES && button == GLFW_MOUSE_BUTTON_MIDDLE)
-	{
+	if (ui.status == app_utils::UserInterfaceOptions::FIX_VERTICES && RightClick) {
 		if (pick_vertex(ui.Output_Index, ui.Vertex_Index) && ui.Output_Index != INPUT_MODEL_SCREEN)
 			for (auto& out : listOfOutputsToUpdate(ui.Output_Index))
 				out.first.Energy_FixChosenVertices->eraseConstraint(ui.Vertex_Index);
 		ui.clear();
 	}
-	if ((ui.status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || ui.status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) && button == GLFW_MOUSE_BUTTON_LEFT)
-	{
+	if (ui.status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR && LeftClick) {
 		if (pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point)) {
 			ui.ADD_DELETE = ADD;
 			ui.isActive = true;
 		}
 	}
-	if ((ui.status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR || ui.status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR) && button == GLFW_MOUSE_BUTTON_MIDDLE)
-	{
+	if (ui.status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_INCR && RightClick) {
 		if (pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point)) {
 			ui.ADD_DELETE = DELETE;
 			ui.isActive = true;
 		}
 	}
-	if (ui.status == app_utils::UserInterfaceOptions::ADJ_WEIGHTS && button == GLFW_MOUSE_BUTTON_LEFT)
-	{
+	if (ui.status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR && LeftClick) {
+		if (pick_vertex(ui.Output_Index, ui.Vertex_Index)) {
+			ui.ADD_DELETE = ADD;
+			ui.isActive = true;
+		}
+	}
+	if (ui.status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR && RightClick) {
+		if (pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point)) {
+			ui.ADD_DELETE = DELETE;
+			ui.isActive = true;
+		}
+	}
+	if (ui.status == app_utils::UserInterfaceOptions::ADJ_WEIGHTS && LeftClick) {
 		ui.ADD_DELETE = ADD;
 		ui.isActive = true;
 		pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point);
 	}
-	if (ui.status == app_utils::UserInterfaceOptions::ADJ_WEIGHTS && button == GLFW_MOUSE_BUTTON_MIDDLE)
-	{
+	if (ui.status == app_utils::UserInterfaceOptions::ADJ_WEIGHTS && RightClick) {
 		ui.ADD_DELETE = DELETE;
 		ui.isActive = true;
 		pick_face(ui.Output_Index, ui.Face_index, ui.intersec_point);
@@ -1301,6 +1290,7 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 		m.point_size = 10;
 		m.clear_points();
 		m.clear_edges();
+
 		if (ui.isTranslatingVertex())
 			m.add_points(m.V.row(ui.Vertex_Index), Dragged_vertex_color.cast<double>().transpose());
 		for (auto vi : o.Energy_FixChosenVertices->getConstraintsIndices())
@@ -1337,6 +1327,18 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 		auto color = ui.colorM.cast<double>().replicate(1, points_indices.size()).transpose();
 		m.add_points(points_pos, color);
 	}
+
+	for (auto& out : listOfOutputsToUpdate(ui.DFS_Output_Index)) {
+		if (ui.DFS_vertices_list.size()) {
+			Eigen::MatrixXd points_pos(ui.DFS_vertices_list.size(), 3);
+			int i = 0;
+			for (int v_index : ui.DFS_vertices_list)
+				points_pos.row(i++) = OutputModel(out.second).V.row(v_index);
+			OutputModel(out.second).add_points(points_pos, ui.colorM.cast<double>().transpose());
+		}
+	}
+	
+
 	draw_brush_sphere();
 	InputModel().point_size = OutputModel(ActiveOutput).point_size;
 	InputModel().set_points(OutputModel(ActiveOutput).points.leftCols(3), OutputModel(ActiveOutput).points.rightCols(3));

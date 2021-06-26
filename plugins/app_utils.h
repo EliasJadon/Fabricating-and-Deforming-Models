@@ -6,6 +6,7 @@
 #include <igl/unproject_ray.h>
 #include <igl/project.h>
 #include <igl/unproject.h>
+#include <igl/adjacency_matrix.h>
 #include <igl/triangle_triangle_adjacency.h>
 #include <igl/edge_lengths.h>
 #include <imgui/imgui.h>
@@ -406,14 +407,6 @@ namespace app_utils {
 
 class UI {
 public:
-	/*
-	NONE,
-		FIX_VERTICES,
-		FIX_FACES,
-		BRUSH_WEIGHTS_INCR,
-		BRUSH_WEIGHTS_DECR,
-		ADJ_WEIGHTS
-	*/
 	app_utils::UserInterfaceOptions status;
 	bool isActive;
 	int Vertex_Index, Output_Index, Face_index;
@@ -421,6 +414,9 @@ public:
 	bool ADD_DELETE;
 	Eigen::Vector3f intersec_point;
 	Eigen::Vector3f colorP, colorM;
+
+	std::vector<int> DFS_vertices_list;
+	int DFS_Output_Index;
 
 	UI() {
 		status = app_utils::UserInterfaceOptions::NONE;
@@ -431,8 +427,25 @@ public:
 		colorM = Eigen::Vector3f(1, 51 / 255.0f, 1);
 	}
 
+	void updateVerticesListOfDFS(const Eigen::MatrixXi F, const int numV, const int v_to) {
+		Eigen::SparseMatrix<int> A;
+		igl::adjacency_matrix(F, A);
+		//convert sparse matrix into vector representation
+		std::vector<std::vector<int>> adj;
+		adj.resize(numV);
+		for (int k = 0; k < A.outerSize(); ++k)
+			for (Eigen::SparseMatrix<int>::InnerIterator it(A, k); it; ++it)
+				adj[it.row()].push_back(it.col());
+		//get the vertices list by DFS
+		DFS_Output_Index = Output_Index;
+		DFS_vertices_list = app_utils::findPathVertices_usingDFS(adj, Vertex_Index, v_to, numV);
+	}
+
 	bool isChoosingCluster() {
 		return (status == app_utils::UserInterfaceOptions::ADJ_WEIGHTS && isActive && Face_index != NOT_FOUND);
+	}
+	bool isUsingDFS() {
+		return status == app_utils::UserInterfaceOptions::BRUSH_WEIGHTS_DECR && ADD_DELETE == ADD && isActive;
 	}
 	bool isTranslatingVertex() {
 		return (status == app_utils::UserInterfaceOptions::FIX_VERTICES && isActive);
