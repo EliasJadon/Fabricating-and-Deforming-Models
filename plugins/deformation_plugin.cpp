@@ -643,18 +643,21 @@ void deformation_plugin::Draw_energies_window()
 					auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
 					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
+					auto CH = std::dynamic_pointer_cast<ClusterHard>(obj);
+
+					if (CH != NULL) {
+						if (ImGui::Button("update Clusters"))
+							CH->updateClustering(Outputs[i].clustering_faces_indices);
+					}
+					
+
 					if (obj->w) {
 						if (fR != NULL) {
-
 							ImGui::DragInt("min", &(fR->min));
 							fR->min = fR->min < 1 ? 1 : fR->min;
 							ImGui::DragInt("max", &(fR->max));
 							fR->max = fR->max > fR->min ? fR->max : fR->min + 1;
-							
 							ImGui::DragFloat("alpha", &(fR->alpha), 0.001);
-
-							
-
 							Eigen::VectorXd Radiuses = Outputs[ActiveOutput].getRadiusOfSphere();
 							if (ImGui::Button("update Alpha")) {
 								fR->alpha = fR->max / Radiuses.maxCoeff();
@@ -1665,6 +1668,7 @@ void deformation_plugin::init_objective_functions(const int index)
 	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>(V, F);
 	std::shared_ptr <fixRadius> FixRadius = std::make_unique<fixRadius>(V, F);
 	std::shared_ptr <UniformSmoothness> uniformSmoothness = std::make_unique<UniformSmoothness>(V, F);
+	std::shared_ptr <ClusterHard> clusterHard = std::make_unique<ClusterHard>(V, F);
 	
 	//Add User Interface Energies
 	auto fixChosenVertices = std::make_shared<FixChosenConstraints>(V, F);
@@ -1685,6 +1689,7 @@ void deformation_plugin::init_objective_functions(const int index)
 	add_obj(fixChosenVertices);
 	add_obj(FixRadius);
 	add_obj(uniformSmoothness);
+	add_obj(clusterHard);
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
 	init_aux_variables();
 }

@@ -13,8 +13,6 @@
 #include <chrono>
 #include <vector>
 #include <queue>
-
-#include "faces_group.h"
 #include "unique_colors.h"
 
 #include "../../libs/Minimizer.h"
@@ -26,6 +24,7 @@
 #include "../../libs/FixChosenConstraints.h"
 #include "../../libs/fixRadius.h"
 #include "../../libs/UniformSmoothness.h"
+#include "../../libs/ClusterHard.h"
 
 #define RED_COLOR Eigen::Vector3f(1, 0, 0)
 #define BLUE_COLOR Eigen::Vector3f(0, 0, 1)

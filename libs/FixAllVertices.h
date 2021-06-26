@@ -3,8 +3,6 @@
 
 class FixAllVertices : public ObjectiveFunction
 {
-private:
-	Eigen::MatrixX3d CurrV;
 public:
 	FixAllVertices(const Eigen::MatrixXd& V, const Eigen::MatrixX3i& F);
 	~FixAllVertices();
