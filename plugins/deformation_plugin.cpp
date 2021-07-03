@@ -646,14 +646,6 @@ void deformation_plugin::Draw_energies_window()
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
 					auto BN = std::dynamic_pointer_cast<BendingNormal>(obj);
 
-					auto CH = std::dynamic_pointer_cast<ClusterHard>(obj);
-
-					if (CH != NULL) {
-						if (ImGui::Button("update Clusters"))
-							CH->updateClustering(Outputs[i].clustering_faces_indices);
-					}
-					
-
 					if (obj->w) {
 						if (fR != NULL) {
 							ImGui::DragInt("min", &(fR->min));
@@ -1196,15 +1188,16 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 		neighbor_Type = app_utils::Neighbor_Type::LOCAL_NORMALS;
 		face_coloring_Type = app_utils::Face_Colors::NORMALS_CLUSTERING;
 		for (auto&out : Outputs) {
-			out.showFacesNorm = true;
+			out.showFacesNorm = false;
 			out.showSphereEdges = out.showNormEdges = 
 				out.showTriangleCenters = out.showSphereCenters = false;
 		}
-		for (OptimizationOutput& out : Outputs) 
-		{
+		for (OptimizationOutput& out : Outputs) {
 			std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(out.totalObjective->objectiveList[0]);
 			std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(out.totalObjective->objectiveList[1]);
-			ABN->w = 1.6;
+			std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(out.totalObjective->objectiveList[2]);
+			ABN->w = 0;
+			BN->w = 1.6;
 			AS->w = 0;
 		}
 	}
@@ -1225,7 +1218,9 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			{
 				std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(out.totalObjective->objectiveList[0]);
 				std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(out.totalObjective->objectiveList[1]);
+				std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(out.totalObjective->objectiveList[2]);
 				ABN->w = 0;
+				BN->w = 0;
 				AS->w = 1.6;
 			}
 		}
@@ -1683,7 +1678,6 @@ void deformation_plugin::init_objective_functions(const int index)
 	std::shared_ptr <FixAllVertices> fixAllVertices = std::make_unique<FixAllVertices>(V, F);
 	std::shared_ptr <fixRadius> FixRadius = std::make_unique<fixRadius>(V, F);
 	std::shared_ptr <UniformSmoothness> uniformSmoothness = std::make_unique<UniformSmoothness>(V, F);
-	std::shared_ptr <ClusterHard> clusterHard = std::make_unique<ClusterHard>(V, F);
 	std::shared_ptr <BendingNormal> bendingNormal = std::make_unique<BendingNormal>(V, F, Cuda::PenaltyFunction::SIGMOID);
 	
 	//Add User Interface Energies
@@ -1699,14 +1693,13 @@ void deformation_plugin::init_objective_functions(const int index)
 	};
 	add_obj(auxSpherePerHinge);
 	add_obj(auxBendingNormal);
+	add_obj(bendingNormal);
 	add_obj(stvk);
 	add_obj(sdenergy);
 	add_obj(fixAllVertices);
 	add_obj(fixChosenVertices);
 	add_obj(FixRadius);
 	add_obj(uniformSmoothness);
-	add_obj(clusterHard);
-	add_obj(bendingNormal);
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
 	init_aux_variables();
 }

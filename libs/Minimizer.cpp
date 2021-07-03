@@ -88,7 +88,7 @@ void Minimizer::run_new()
 void Minimizer::RunSymmetricDirichletGradient() {
 	halt = false;
 	while (!halt) {
-		std::shared_ptr<SDenergy> SD = std::dynamic_pointer_cast<SDenergy>(totalObjective->objectiveList[3]);
+		std::shared_ptr<SDenergy> SD = std::dynamic_pointer_cast<SDenergy>(totalObjective->objectiveList[4]);
 		if (isGradientNeeded) {
 			if (SD->w != 0)
 				SD->gradient(X, false);
@@ -101,7 +101,7 @@ void Minimizer::update_lambda()
 {
 	std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
 	std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(totalObjective->objectiveList[1]);
-	std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(totalObjective->objectiveList[9]);
+	std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(totalObjective->objectiveList[2]);
 	
 	if (isAutoLambdaRunning && numIteration >= autoLambda_from && !(numIteration % autoLambda_jump))
 	{
@@ -141,7 +141,7 @@ void Minimizer::run_one_iteration_new()
 	OptimizationUtils::Timer t(&timer_sum, &timer_curr);
 	//calculate SD gradient in advance
 	isGradientNeeded = true;
-	std::shared_ptr<SDenergy> SD = std::dynamic_pointer_cast<SDenergy>(totalObjective->objectiveList[3]);
+	std::shared_ptr<SDenergy> SD = std::dynamic_pointer_cast<SDenergy>(totalObjective->objectiveList[4]);
 	
 	timer_avg = timer_sum / ++numIteration;
 	update_lambda();
