@@ -641,8 +641,11 @@ void deformation_plugin::Draw_energies_window()
 					ImGui::DragFloat("##w", &(obj->w), 0.05f, 0.0f, 100000.0f);
 					auto SD = std::dynamic_pointer_cast<SDenergy>(obj);
 					auto fR = std::dynamic_pointer_cast<fixRadius>(obj);
+
 					auto ABN = std::dynamic_pointer_cast<AuxBendingNormal>(obj);
 					auto AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(obj);
+					auto BN = std::dynamic_pointer_cast<BendingNormal>(obj);
+
 					auto CH = std::dynamic_pointer_cast<ClusterHard>(obj);
 
 					if (CH != NULL) {
@@ -669,6 +672,8 @@ void deformation_plugin::Draw_energies_window()
 
 						if (ABN != NULL)
 							ImGui::Combo("Function", (int*)(&(ABN->penaltyFunction)), "Quadratic\0Exponential\0Sigmoid\0\0");
+						if (BN != NULL)
+							ImGui::Combo("Function", (int*)(&(BN->penaltyFunction)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						if (AS != NULL)
 							ImGui::Combo("Function", (int*)(&(AS->penaltyFunction)), "Quadratic\0Exponential\0Sigmoid\0\0");
 						
@@ -704,6 +709,15 @@ void deformation_plugin::Draw_energies_window()
 							const double  f64_zero = 0, f64_max = 100000.0;
 							ImGui::DragScalar("w1", ImGuiDataType_Double, &(AS->w1), 0.05f, &f64_zero, &f64_max);
 							ImGui::DragScalar("w2", ImGuiDataType_Double, &(AS->w2), 0.05f, &f64_zero, &f64_max);
+						}
+						if (BN != NULL && BN->penaltyFunction == Cuda::PenaltyFunction::SIGMOID) {
+							ImGui::Text(("2^" + std::to_string(int(log2(BN->get_SigmoidParameter())))).c_str());
+							ImGui::SameLine();
+							if (ImGui::Button("*", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+								BN->Inc_SigmoidParameter();
+							ImGui::SameLine();
+							if (ImGui::Button("/", ImVec2(ImGui::GetFrameHeight(), ImGui::GetFrameHeight())))
+								BN->Dec_SigmoidParameter();
 						}
 					}
 					ImGui::TableNextCell();
@@ -1410,7 +1424,8 @@ void deformation_plugin::follow_and_mark_selected_faces()
 	for (int i = 0; i < Outputs.size(); i++) {
 		//Mark the clusters if needed
 		if (face_coloring_Type == app_utils::Face_Colors::NORMALS_CLUSTERING || face_coloring_Type == app_utils::Face_Colors::SPHERES_CLUSTERING) {
-			Eigen::MatrixXd P = Outputs[i].getFacesNormals();
+			Eigen::MatrixX3d P;
+			igl::per_face_normals((Eigen::MatrixX3d)OutputModel(i).V, (Eigen::MatrixX3i)OutputModel(i).F, P);
 			if (face_coloring_Type == app_utils::Face_Colors::SPHERES_CLUSTERING) {
 				Eigen::MatrixXd C = Outputs[i].getCenterOfSphere();
 				Eigen::VectorXd R = Outputs[i].getRadiusOfSphere();
@@ -1669,6 +1684,7 @@ void deformation_plugin::init_objective_functions(const int index)
 	std::shared_ptr <fixRadius> FixRadius = std::make_unique<fixRadius>(V, F);
 	std::shared_ptr <UniformSmoothness> uniformSmoothness = std::make_unique<UniformSmoothness>(V, F);
 	std::shared_ptr <ClusterHard> clusterHard = std::make_unique<ClusterHard>(V, F);
+	std::shared_ptr <BendingNormal> bendingNormal = std::make_unique<BendingNormal>(V, F, Cuda::PenaltyFunction::SIGMOID);
 	
 	//Add User Interface Energies
 	auto fixChosenVertices = std::make_shared<FixChosenConstraints>(V, F);
@@ -1690,6 +1706,7 @@ void deformation_plugin::init_objective_functions(const int index)
 	add_obj(FixRadius);
 	add_obj(uniformSmoothness);
 	add_obj(clusterHard);
+	add_obj(bendingNormal);
 	std::cout  << "-------Energies, end-------" << console_color::white << std::endl;
 	init_aux_variables();
 }

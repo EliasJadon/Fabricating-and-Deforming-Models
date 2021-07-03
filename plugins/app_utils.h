@@ -25,6 +25,7 @@
 #include "../../libs/fixRadius.h"
 #include "../../libs/UniformSmoothness.h"
 #include "../../libs/ClusterHard.h"
+#include "../../libs/BendingNormal.h"
 
 #define RED_COLOR Eigen::Vector3f(1, 0, 0)
 #define BLUE_COLOR Eigen::Vector3f(0, 0, 1)
