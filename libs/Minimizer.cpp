@@ -7,6 +7,7 @@
 #define BETA1_ADAM 0.90f
 #define BETA2_ADAM 0.9990f
 #define EPSILON_ADAM 1e-8
+#define MAX_STEP_SIZE_ITER 50
 
 Minimizer::Minimizer(const int solverID)
 	:
@@ -201,8 +202,7 @@ void Minimizer::linesearch()
 void Minimizer::value_linesearch()
 {	
 	step_size = init_step_size;
-	cur_iter = 0; 
-	int MAX_STEP_SIZE_ITER = 50;
+	int cur_iter = 0; 
 	while (cur_iter++ < MAX_STEP_SIZE_ITER) 
 	{
 		for (int i = 0; i < totalObjective->grad.size; i++) {
@@ -226,7 +226,23 @@ void Minimizer::value_linesearch()
 		if (cur_iter > 2)
 			init_step_size /= 2;
 	}
+	linesearch_numiterationsPrevPrev = linesearch_numiterationsPrev;
+	linesearch_numiterationsPrev = linesearch_numiterations;
 	linesearch_numiterations = cur_iter;
+
+	if (isUpdateLambdaWhenConverge &&
+		linesearch_numiterationsPrevPrev >= MAX_STEP_SIZE_ITER &&
+		linesearch_numiterationsPrev >= MAX_STEP_SIZE_ITER &&
+		linesearch_numiterations >= MAX_STEP_SIZE_ITER)
+	{
+		std::shared_ptr<AuxSpherePerHinge> ASH = std::dynamic_pointer_cast<AuxSpherePerHinge>(totalObjective->objectiveList[0]);
+		std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(totalObjective->objectiveList[1]);
+		std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(totalObjective->objectiveList[2]);
+		const double target = pow(2, -autoLambda_count);
+		ASH->Dec_SigmoidParameter(target);
+		ABN->Dec_SigmoidParameter(target);
+		BN->Dec_SigmoidParameter(target);
+	}
 }
 
 void Minimizer::constant_linesearch()

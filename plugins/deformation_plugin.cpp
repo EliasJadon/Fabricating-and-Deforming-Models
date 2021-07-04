@@ -574,16 +574,18 @@ void deformation_plugin::Draw_energies_window()
 	ImGui::PopStyleColor();
 	
 	//add automatic lambda change
-	if (ImGui::BeginTable("Lambda table", 10, ImGuiTableFlags_Resizable))
+	if (ImGui::BeginTable("Lambda table", 12, ImGuiTableFlags_Resizable))
 	{
 		ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("Max Update", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableSetupColumn("On/Off", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableSetupColumn("Start from", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableSetupColumn("Stop at", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableSetupColumn("#iter//lambda", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableSetupColumn("#iter", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
-		ImGui::TableSetupColumn("Time [ms]", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("Curr Time [ms]", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableSetupColumn("Avg Time [ms]", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+		ImGui::TableSetupColumn("Total Time [m]", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableSetupColumn("lineSearch step size", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableSetupColumn("lineSearch #iter", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 		ImGui::TableAutoHeaders();
@@ -594,6 +596,8 @@ void deformation_plugin::Draw_energies_window()
 			ImGui::PushID(id++);
 			const int  i64_zero = 0, i64_max = 100000.0;
 			ImGui::Text((modelName + std::to_string(out.ModelID)).c_str());
+			ImGui::TableNextCell();
+			ImGui::Checkbox("##Max_Update", &out.minimizer->isUpdateLambdaWhenConverge);
 			ImGui::TableNextCell();
 			ImGui::Checkbox("##On/Off", &out.minimizer->isAutoLambdaRunning);
 			ImGui::TableNextCell();
@@ -609,6 +613,13 @@ void deformation_plugin::Draw_energies_window()
 			ImGui::Text(std::to_string(out.minimizer->timer_curr).c_str());
 			ImGui::TableNextCell();
 			ImGui::Text(std::to_string(out.minimizer->timer_avg).c_str());
+			ImGui::TableNextCell();
+
+			double tot_time = out.minimizer->timer_sum / 1000;
+			int sec = int(tot_time) % 60;
+			int min = (int(tot_time) - sec) / 60;
+
+			ImGui::Text((std::to_string(min)+":" +std::to_string(sec)).c_str());
 			ImGui::TableNextCell();
 			ImGui::Text(("2^" + std::to_string(int(log2(out.minimizer->init_step_size)))).c_str());
 			ImGui::TableNextCell();

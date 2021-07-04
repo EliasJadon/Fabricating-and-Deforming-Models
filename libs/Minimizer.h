@@ -58,9 +58,12 @@ public:
 	}
 	void update_lambda();
 	bool isAutoLambdaRunning = true;
+	bool isUpdateLambdaWhenConverge = false;
 	int autoLambda_from = 100, autoLambda_count = 40, autoLambda_jump = 70;
 	double init_step_size = 1;
 	unsigned int linesearch_numiterations = 0;
+	unsigned int linesearch_numiterationsPrev = 0;
+	unsigned int linesearch_numiterationsPrevPrev = 0;
 private:
 	// Give the wrapper a chance to intersect gracefully
 	void give_parameter_update_slot();
@@ -74,7 +77,6 @@ private:
 	void gradNorm_linesearch();
 	void constant_linesearch();
 	double step_size;
-	int cur_iter;
 
 	// Mutex stuff
 	std::unique_ptr<std::shared_timed_mutex> data_mutex;
