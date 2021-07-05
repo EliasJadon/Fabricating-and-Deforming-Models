@@ -118,8 +118,11 @@ public:
 	
 	//Start/Stop the minimizer Thread
 	void init_objective_functions(const int index);
-	void stop_minimizer_thread();
-	void start_minimizer_thread();
+	void stop_all_minimizers_threads();
+	void stop_one_minimizer_thread(const OptimizationOutput o);
+	void start_all_minimizers_threads();
+	void start_one_minimizer_thread(const OptimizationOutput o);
+	bool is_Any_Minizer_running();
 	void run_one_minimizer_iter();
 	void init_aux_variables();
 

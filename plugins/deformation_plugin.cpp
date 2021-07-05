@@ -73,7 +73,7 @@ void deformation_plugin::load_new_model(const std::string modelpath)
 	if (modelPath.length() == 0)
 		return;
 	modelName = app_utils::ExtractModelName(modelPath);
-	stop_minimizer_thread();
+	stop_all_minimizers_threads();
 	if (isModelLoaded) 
 	{
 		//remove previous data
@@ -405,7 +405,7 @@ void deformation_plugin::CollapsingHeader_minimizer()
 		if (ImGui::Button("Run one iter"))
 			run_one_minimizer_iter();
 		if (ImGui::Checkbox("Run Minimizer", &isMinimizerRunning))
-			isMinimizerRunning ? start_minimizer_thread() : stop_minimizer_thread();
+			isMinimizerRunning ? start_all_minimizers_threads() : stop_all_minimizers_threads();
 		if (ImGui::Combo("Optimizer", (int *)(&optimizer_type), "Gradient Descent\0Adam\0\0"))
 			change_minimizer_type(optimizer_type);
 		if (ImGui::Combo("init sphere var", (int *)(&initSphereAuxVariables), "Sphere Fit\0Mesh Center\0Minus Normal\0\0"))
@@ -632,9 +632,10 @@ void deformation_plugin::Draw_energies_window()
 	}
 	
 	if (Outputs.size() != 0) {
-		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 2, ImGuiTableFlags_Resizable))
+		if (ImGui::BeginTable("Unconstrained weights table", Outputs[0].totalObjective->objectiveList.size() + 3, ImGuiTableFlags_Resizable))
 		{
 			ImGui::TableSetupColumn("ID", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
+			ImGui::TableSetupColumn("Run", ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 			for (auto& obj : Outputs[0].totalObjective->objectiveList) {
 				ImGui::TableSetupColumn(obj->name.c_str(), ImGuiTableColumnFlags_WidthAlwaysAutoResize);
 			}
@@ -645,6 +646,15 @@ void deformation_plugin::Draw_energies_window()
 			for (int i = 0; i < Outputs.size(); i++) 
 			{
 				ImGui::Text((modelName + std::to_string(Outputs[i].ModelID)).c_str());
+				ImGui::TableNextCell();
+				ImGui::PushID(id++);
+				if (ImGui::Button("On/Off")) {
+					if (Outputs[i].minimizer->is_running)
+						stop_one_minimizer_thread(Outputs[i]);
+					else
+						start_one_minimizer_thread(Outputs[i]);
+				}
+				ImGui::PopID();
 				ImGui::TableNextCell();
 				ImGui::PushItemWidth(80);
 				for (auto& obj : Outputs[i].totalObjective->objectiveList) {
@@ -906,7 +916,7 @@ void deformation_plugin::update_parameters_for_all_cores()
 
 void deformation_plugin::remove_output(const int output_index) 
 {
-	stop_minimizer_thread();
+	stop_all_minimizers_threads();
 	viewer->erase_core(1 + output_index);
 	viewer->erase_mesh(1 + output_index);
 	Outputs.erase(Outputs.begin() + output_index);
@@ -919,7 +929,7 @@ void deformation_plugin::remove_output(const int output_index)
 
 void deformation_plugin::add_output() 
 {
-	stop_minimizer_thread();
+	stop_all_minimizers_threads();
 	Outputs.push_back(OptimizationOutput(viewer, optimizer_type,linesearch_type));
 	viewer->load_mesh_from_file(modelPath.c_str());
 	Outputs[Outputs.size() - 1].ModelID = viewer->data_list[Outputs.size()].id;
@@ -1238,7 +1248,7 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 	}
 	
 	if ((key == ' ') && modifiers == 1)
-		isMinimizerRunning ? stop_minimizer_thread() : start_minimizer_thread();
+		isMinimizerRunning ? stop_all_minimizers_threads() : start_all_minimizers_threads();
 	
 	return ImGuiMenu::key_pressed(key, modifiers);
 }
@@ -1267,7 +1277,7 @@ IGL_INLINE bool deformation_plugin::key_up(int key, int modifiers)
 
 IGL_INLINE void deformation_plugin::shutdown()
 {
-	stop_minimizer_thread();
+	stop_all_minimizers_threads();
 	ImGuiMenu::shutdown();
 }
 
@@ -1373,7 +1383,7 @@ IGL_INLINE bool deformation_plugin::pre_draw()
 void deformation_plugin::change_minimizer_type(Cuda::OptimizerType type)
 {
 	optimizer_type = type;
-	stop_minimizer_thread();
+	stop_all_minimizers_threads();
 	init_aux_variables();
 	for (int i = 0; i < Outputs.size(); i++)
 		Outputs[i].updateActiveMinimizer(optimizer_type);
@@ -1598,7 +1608,7 @@ int deformation_plugin::pick_vertex_per_core(
 
 void deformation_plugin::checkGradients()
 {
-	stop_minimizer_thread();
+	stop_all_minimizers_threads();
 	for (auto& o: Outputs) 
 	{
 		Eigen::VectorXd testX = Eigen::VectorXd::Random(o.totalObjective->objectiveList[0]->grad.size);
@@ -1621,20 +1631,41 @@ void deformation_plugin::update_data_from_minimizer()
 	}
 }
 
-void deformation_plugin::stop_minimizer_thread() 
-{
-	isMinimizerRunning = false;
-	for (auto&o : Outputs) 
-	{
-		if (o.minimizer->is_running) 
-			o.minimizer->stop();
-		while (o.minimizer->is_running);
-	}
+void deformation_plugin::stop_all_minimizers_threads() {
+	for (auto& o : Outputs)
+		stop_one_minimizer_thread(o);
+}
+
+void deformation_plugin::stop_one_minimizer_thread(const OptimizationOutput o) {
+	if (o.minimizer->is_running)
+		o.minimizer->stop();
+	while (o.minimizer->is_running);
+
+	isMinimizerRunning = is_Any_Minizer_running();
+}
+void deformation_plugin::start_all_minimizers_threads() {
+	for (auto& o : Outputs)
+		start_one_minimizer_thread(o);
+}
+void deformation_plugin::start_one_minimizer_thread(const OptimizationOutput o) {
+	stop_one_minimizer_thread(o);
+	std::thread minimizer_thread1 = std::thread(&Minimizer::run_new, o.minimizer.get());
+	std::thread minimizer_thread2 = std::thread(&Minimizer::RunSymmetricDirichletGradient, o.minimizer.get());
+	minimizer_thread1.detach();
+	minimizer_thread2.detach();
+	
+	isMinimizerRunning = true;
+}
+bool deformation_plugin::is_Any_Minizer_running() {
+	for (auto&o : Outputs)
+		if (o.minimizer->is_running)
+			return true;
+	return false;
 }
 
 void deformation_plugin::init_aux_variables() 
 {
-	stop_minimizer_thread();
+	stop_all_minimizers_threads();
 	if (InitMinimizer_NeighLevel_From < 1)
 		InitMinimizer_NeighLevel_From = 1;
 	if (InitMinimizer_NeighLevel_From > InitMinimizer_NeighLevel_To)
@@ -1653,29 +1684,16 @@ void deformation_plugin::init_aux_variables()
 
 void deformation_plugin::run_one_minimizer_iter() 
 {
-	stop_minimizer_thread();
+	stop_all_minimizers_threads();
 	for (auto& o : Outputs)
 		o.minimizer->run_one_iteration();
-}
-
-void deformation_plugin::start_minimizer_thread() 
-{
-	stop_minimizer_thread();
-	for (auto& o : Outputs)
-	{
-		std::thread minimizer_thread1 = std::thread(&Minimizer::run_new, o.minimizer.get());
-		std::thread minimizer_thread2 = std::thread(&Minimizer::RunSymmetricDirichletGradient, o.minimizer.get());
-		minimizer_thread1.detach();
-		minimizer_thread2.detach();
-	}
-	isMinimizerRunning = true;
 }
 
 void deformation_plugin::init_objective_functions(const int index)
 {
 	Eigen::MatrixXd V = OutputModel(index).V;
 	Eigen::MatrixX3i F = OutputModel(index).F;
-	stop_minimizer_thread();
+	stop_all_minimizers_threads();
 	if (V.rows() == 0 || F.rows() == 0)
 		return;
 	// initialize the energy
