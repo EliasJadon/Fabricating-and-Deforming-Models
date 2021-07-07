@@ -1222,6 +1222,24 @@ IGL_INLINE bool deformation_plugin::key_pressed(unsigned int key, int modifiers)
 			AS->w = 0;
 		}
 	}
+	if ((key == 'e' || key == 'E') && modifiers == 1)
+	{
+		neighbor_Type = app_utils::Neighbor_Type::LOCAL_NORMALS;
+		face_coloring_Type = app_utils::Face_Colors::NORMALS_CLUSTERING;
+		for (auto& out : Outputs) {
+			out.showFacesNorm = true;
+			out.showSphereEdges = out.showNormEdges =
+				out.showTriangleCenters = out.showSphereCenters = false;
+		}
+		for (OptimizationOutput& out : Outputs) {
+			std::shared_ptr<AuxSpherePerHinge> AS = std::dynamic_pointer_cast<AuxSpherePerHinge>(out.totalObjective->objectiveList[0]);
+			std::shared_ptr<AuxBendingNormal> ABN = std::dynamic_pointer_cast<AuxBendingNormal>(out.totalObjective->objectiveList[1]);
+			std::shared_ptr<BendingNormal> BN = std::dynamic_pointer_cast<BendingNormal>(out.totalObjective->objectiveList[2]);
+			ABN->w = 1.6;
+			BN->w = 0;
+			AS->w = 0;
+		}
+	}
 	if ((key == 'w' || key == 'W') && modifiers == 1) 
 	{
 		neighbor_Type = app_utils::Neighbor_Type::LOCAL_SPHERE;
