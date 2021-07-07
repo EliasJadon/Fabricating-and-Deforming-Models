@@ -849,6 +849,7 @@ void deformation_plugin::clear_sellected_faces_and_vertices()
 	for (auto& o : Outputs) {
 		o.Energy_auxSpherePerHinge->Clear_HingesWeights();
 		o.Energy_auxBendingNormal->Clear_HingesWeights();
+		o.Energy_BendingNormal->Clear_HingesWeights();
 		o.Energy_FixChosenVertices->clearConstraints();
 	}
 }
@@ -1027,6 +1028,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		const std::vector<int> brush_faces = Outputs[ui.Output_Index].FaceNeigh(ui.intersec_point.cast<double>(), brush_radius);
 		for (auto& out : listOfOutputsToUpdate(ui.Output_Index)) {
 			out.first.Energy_auxBendingNormal->Incr_HingesWeights(brush_faces, shift);
+			out.first.Energy_BendingNormal->Incr_HingesWeights(brush_faces, shift);
 			out.first.Energy_auxSpherePerHinge->Incr_HingesWeights(brush_faces, shift);
 		}
 		return true;
@@ -1035,6 +1037,7 @@ IGL_INLINE bool deformation_plugin::mouse_move(int mouse_x, int mouse_y)
 		const std::vector<int> brush_faces = Outputs[ui.Output_Index].FaceNeigh(ui.intersec_point.cast<double>(), brush_radius);
 		for (auto& out : listOfOutputsToUpdate(ui.Output_Index)) {
 			out.first.Energy_auxBendingNormal->setOne_HingesWeights(brush_faces);
+			out.first.Energy_BendingNormal->setOne_HingesWeights(brush_faces);
 			out.first.Energy_auxSpherePerHinge->setOne_HingesWeights(brush_faces);
 		}
 		return true;
@@ -1090,6 +1093,7 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		ui.updateVerticesListOfDFS(InputModel().F, InputModel().V.rows(), vertex_index);
 		for (auto& out : listOfOutputsToUpdate(output_index)) {
 			out.first.Energy_auxBendingNormal->setZero_HingesWeights(ui.DFS_vertices_list);
+			out.first.Energy_BendingNormal->setZero_HingesWeights(ui.DFS_vertices_list);
 			out.first.Energy_auxSpherePerHinge->setZero_HingesWeights(ui.DFS_vertices_list);
 		}
 	}
@@ -1099,6 +1103,7 @@ IGL_INLINE bool deformation_plugin::mouse_up(int button, int modifier)
 		double shift = (ui.ADD_DELETE == ADD) ? 5 * ADDING_WEIGHT_PER_HINGE_VALUE : -5 * ADDING_WEIGHT_PER_HINGE_VALUE;
 		for (auto& out : listOfOutputsToUpdate(ui.Output_Index)) {
 			out.first.Energy_auxBendingNormal->Incr_HingesWeights(neigh_faces, shift);
+			out.first.Energy_BendingNormal->Incr_HingesWeights(neigh_faces, shift);
 			out.first.Energy_auxSpherePerHinge->Incr_HingesWeights(neigh_faces, shift);
 		}
 	}
@@ -1642,8 +1647,14 @@ void deformation_plugin::update_data_from_minimizer()
 	{
 		Eigen::MatrixXd V;
 		auto& o = Outputs[i];
-		o.minimizer->get_data(V, o.center_of_sphere, o.radiuses, o.normals);
+		Eigen::MatrixXd _;
+		o.minimizer->get_data(V, o.center_of_sphere, o.radiuses, _);
 		o.center_of_faces = OptimizationUtils::center_per_triangle(V, InputModel().F);
+
+		Eigen::MatrixX3d normals;
+		igl::per_face_normals((Eigen::MatrixX3d)V, (Eigen::MatrixX3i)OutputModel(i).F, normals);
+		o.normals = normals;
+
 		OutputModel(i).set_vertices(V);
 		OutputModel(i).compute_normals();
 	}
@@ -1726,7 +1737,8 @@ void deformation_plugin::init_objective_functions(const int index)
 	std::shared_ptr <fixRadius> FixRadius = std::make_unique<fixRadius>(V, F);
 	std::shared_ptr <UniformSmoothness> uniformSmoothness = std::make_unique<UniformSmoothness>(V, F);
 	std::shared_ptr <BendingNormal> bendingNormal = std::make_unique<BendingNormal>(V, F, Cuda::PenaltyFunction::SIGMOID);
-	
+	Outputs[index].Energy_BendingNormal = bendingNormal;
+
 	//Add User Interface Energies
 	auto fixChosenVertices = std::make_shared<FixChosenConstraints>(V, F);
 	Outputs[index].Energy_FixChosenVertices = fixChosenVertices;

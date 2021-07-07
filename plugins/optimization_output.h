@@ -9,6 +9,7 @@ public:
 	Eigen::MatrixXd clustering_faces_colors;
 	std::shared_ptr <AuxSpherePerHinge> Energy_auxSpherePerHinge;
 	std::shared_ptr <AuxBendingNormal> Energy_auxBendingNormal;
+	std::shared_ptr <BendingNormal> Energy_BendingNormal;
 	std::shared_ptr <FixChosenConstraints> Energy_FixChosenVertices;
 	std::shared_ptr<Minimizer> minimizer;
 	std::shared_ptr<TotalObjective> totalObjective;
@@ -28,13 +29,6 @@ public:
 		const Cuda::OptimizerType Optimizer_type,
 		const OptimizationUtils::LineSearch linesearchType);
 	~OptimizationOutput() = default;
-	void setAuxVariables(
-		const Eigen::MatrixXd& V,
-		const Eigen::MatrixXi& F,
-		const Eigen::MatrixXd& center_of_sphere,
-		const Eigen::VectorXd& radius_of_sphere,
-		const Eigen::MatrixXd& norm
-	);
 	double getRadiusOfSphere(int index);
 	Eigen::VectorXd getRadiusOfSphere();
 	Eigen::MatrixXd getCenterOfFaces();

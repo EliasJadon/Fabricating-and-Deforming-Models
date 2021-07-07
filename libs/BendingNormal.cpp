@@ -28,7 +28,8 @@ double BendingNormal::value(Cuda::Array<double>& curr_x, const bool update)
 		int f0 = hinges_faceIndex[hi](0);
 		int f1 = hinges_faceIndex[hi](1);
 		double d_normals = (normals.row(f1) - normals.row(f0)).squaredNorm();
-		value += restAreaPerHinge[hi] * Phi(d_normals, Sigmoid_PerHinge.host_arr[hi], penaltyFunction);
+		value += restAreaPerHinge[hi] * weight_PerHinge.host_arr[hi] *
+			Phi(d_normals, Sigmoid_PerHinge.host_arr[hi], penaltyFunction);
 	}
 
 	if (update)
@@ -56,6 +57,7 @@ void BendingNormal::gradient(Cuda::Array<double>& X, const bool update)
 		Eigen::Matrix<double, 6, 12> n_x = dN_dx_perhinge(hi);
 		Eigen::Matrix<double, 1, 12> dE_dx =
 			restAreaPerHinge[hi]
+			* weight_PerHinge.host_arr[hi]
 			* dPhi_dm(d_normals, Sigmoid_PerHinge.host_arr[hi], penaltyFunction)
 			* dm_dN(hi).transpose()
 			* n_x;

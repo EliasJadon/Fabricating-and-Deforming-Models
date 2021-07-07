@@ -17,19 +17,6 @@ OptimizationOutput::OptimizationOutput(
 	showFacesNorm = showSphereEdges = showNormEdges = showTriangleCenters = showSphereCenters = false;
 }
 
-void OptimizationOutput::setAuxVariables(
-	const Eigen::MatrixXd& V,
-	const Eigen::MatrixXi& F,
-	const Eigen::MatrixXd& center_of_sphere,
-	const Eigen::VectorXd& radius_of_sphere,
-	const Eigen::MatrixXd& norm) 
-{
-	this->center_of_faces = OptimizationUtils::center_per_triangle(V, F);
-	this->center_of_sphere = center_of_sphere;
-	this->radiuses = radius_of_sphere;
-	this->normals = norm;
-}
-
 double OptimizationOutput::getRadiusOfSphere(int index) 
 {
 	return this->radiuses(index);
@@ -251,7 +238,10 @@ void OptimizationOutput::initMinimizers(
 		}
 	}
 	
-	setAuxVariables(V, F, center0, Radius0, normals);
+	this->center_of_faces = OptimizationUtils::center_per_triangle(V, F);
+	this->center_of_sphere = center0;
+	this->radiuses = Radius0;
+	this->normals = normals;
 
 	minimizer->init(
 		totalObjective,
